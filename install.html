@@ -255,7 +255,7 @@
             
             <div id="statusMessage" class="status-message"></div>
             
-            <button id="installButton" class="install-button hidden">
+            <button id="installButton" class="install-button hidden" onclick="handleInstallClick()">
                 <i class="bi bi-download"></i>
                 <span>تثبيت التطبيق</span>
             </button>
@@ -298,6 +298,18 @@
     
     <script src="js/pwa-install.js"></script>
     <script>
+        // دالة معالجة النقر على زر التثبيت
+        function handleInstallClick() {
+            if (window.pwaInstallManager) {
+                const browser = window.pwaInstallManager.getBrowser();
+                if (browser === 'firefox') {
+                    window.pwaInstallManager.installForFirefox();
+                } else {
+                    window.pwaInstallManager.install();
+                }
+            }
+        }
+        
         // كشف المتصفح والجهاز تلقائياً
         window.addEventListener('DOMContentLoaded', () => {
             if (typeof pwaInstallManager !== 'undefined') {
@@ -309,6 +321,15 @@
                     document.getElementById('installButton').classList.remove('hidden');
                 }
                 
+                // إظهار زر التثبيت في Firefox حتى بدون deferredPrompt
+                if (info.browser === 'firefox' && !info.isInstalled) {
+                    const firefoxButton = document.getElementById('installButton');
+                    if (firefoxButton) {
+                        firefoxButton.classList.remove('hidden');
+                        console.log('🦊 Firefox: Install button shown');
+                    }
+                }
+                
                 // إظهار تعليمات تلقائية حسب الجهاز
                 if (!info.isInstalled) {
                     if (info.isIOS) {
@@ -316,7 +337,7 @@
                     } else if (info.isAndroid && !info.canAutoInstall) {
                         setTimeout(() => showInstructions('android'), 1000);
                     } else if (info.browser === 'firefox') {
-                        setTimeout(() => showInstructions('desktop'), 1000);
+                        // لا نعرض التعليمات تلقائياً في Firefox، فقط عند الضغط على الزر
                     } else if (!info.isSupported) {
                         setTimeout(() => showInstructions('legacy'), 1000);
                     }
@@ -403,6 +424,31 @@
                             icon: 'bi-check-circle',
                             title: 'تأكيد التثبيت',
                             text: 'اتبع التعليمات على الشاشة لإكمال التثبيت'
+                        }
+                    ]
+                },
+                firefox: {
+                    title: 'تثبيت على Firefox',
+                    steps: [
+                        {
+                            icon: 'bi-three-dots',
+                            title: 'افتح القائمة',
+                            text: 'اضغط على زر القائمة (☰) في الزاوية العلوية اليمنى من المتصفح'
+                        },
+                        {
+                            icon: 'bi-tools',
+                            title: 'اختر "المزيد من الأدوات"',
+                            text: 'من القائمة المنسدلة، اختر "المزيد من الأدوات" (More Tools)'
+                        },
+                        {
+                            icon: 'bi-download',
+                            title: 'اختر "تثبيت كتطبيق"',
+                            text: 'من القائمة الفرعية، اضغط على "تثبيت كتطبيق" (Install Site as App)'
+                        },
+                        {
+                            icon: 'bi-check-circle',
+                            title: 'تأكيد التثبيت',
+                            text: 'في النافذة المنبثقة، اضغط "تثبيت" (Install) لتأكيد التثبيت'
                         }
                     ]
                 },

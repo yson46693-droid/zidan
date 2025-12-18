@@ -63,9 +63,17 @@ class PWAInstallManager {
             this.handleLegacyBrowser();
         }
         
-        // التحقق من Firefox
+        // التحقق من Firefox - إظهار زر التثبيت دائماً
         if (browser === 'firefox') {
+            console.log('🦊 Firefox detected - initializing install button');
             this.handleFirefoxInstall();
+            // إظهار زر التثبيت حتى بدون deferredPrompt
+            if (!this.isStandaloneMode()) {
+                // استخدام setTimeout لضمان تحميل DOM بالكامل
+                setTimeout(() => {
+                    this.showInstallButtonForFirefox();
+                }, 200);
+            }
         }
     }
     
@@ -163,7 +171,16 @@ class PWAInstallManager {
         const installButton = document.getElementById('installButton');
         if (installButton) {
             installButton.classList.remove('hidden');
-            installButton.addEventListener('click', () => this.install());
+            // إزالة أي event listeners سابقة
+            installButton.replaceWith(installButton.cloneNode(true));
+            const newButton = document.getElementById('installButton');
+            newButton.addEventListener('click', () => {
+                if (this.getBrowser() === 'firefox') {
+                    this.installForFirefox();
+                } else {
+                    this.install();
+                }
+            });
         }
     }
     
@@ -200,8 +217,95 @@ class PWAInstallManager {
     handleFirefoxInstall() {
         // Firefox يدعم PWA لكن بطريقة مختلفة
         if (!this.isStandaloneMode()) {
-            console.log('🦊 Firefox detected - manual install required');
+            console.log('🦊 Firefox detected - showing install button');
+            // إظهار زر التثبيت في Firefox حتى بدون deferredPrompt
+            this.showInstallButtonForFirefox();
         }
+    }
+    
+    showInstallButtonForFirefox() {
+        const installButton = document.getElementById('installButton');
+        if (installButton) {
+            console.log('🦊 Firefox: Showing install button');
+            installButton.classList.remove('hidden');
+            installButton.style.display = 'inline-flex'; // للتأكد من الظهور
+            
+            // إزالة أي event listeners سابقة
+            const newButton = installButton.cloneNode(true);
+            installButton.parentNode.replaceChild(newButton, installButton);
+            newButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.installForFirefox();
+            });
+            
+            console.log('🦊 Firefox: Install button is now visible');
+        } else {
+            console.warn('🦊 Firefox: Install button not found in DOM');
+        }
+    }
+    
+    async installForFirefox() {
+        // في Firefox، نوجه المستخدم للقائمة
+        const browser = this.getBrowser();
+        
+        if (browser === 'firefox') {
+            // عرض رسالة توضيحية
+            this.showInfoMessage('في Firefox: افتح القائمة (☰) → المزيد من الأدوات → تثبيت كتطبيق');
+            
+            // إظهار تعليمات Firefox تلقائياً
+            setTimeout(() => {
+                // محاولة استدعاء دالة showInstructions إذا كانت موجودة
+                if (typeof window.showInstructions === 'function') {
+                    window.showInstructions('firefox');
+                } else {
+                    // إذا لم تكن موجودة، نعرض التعليمات مباشرة
+                    const instructions = document.getElementById('instructions');
+                    const title = document.getElementById('instructionsTitle');
+                    const content = document.getElementById('instructionsContent');
+                    
+                    if (instructions && title && content) {
+                        title.textContent = 'تثبيت على Firefox';
+                        content.innerHTML = `
+                            <div class="instruction-item">
+                                <i class="bi bi-three-dots"></i>
+                                <div>
+                                    <strong>1. افتح القائمة</strong>
+                                    <span>اضغط على زر القائمة (☰) في الزاوية العلوية اليمنى</span>
+                                </div>
+                            </div>
+                            <div class="instruction-item">
+                                <i class="bi bi-tools"></i>
+                                <div>
+                                    <strong>2. اختر "المزيد من الأدوات"</strong>
+                                    <span>من القائمة المنسدلة، اختر "المزيد من الأدوات"</span>
+                                </div>
+                            </div>
+                            <div class="instruction-item">
+                                <i class="bi bi-download"></i>
+                                <div>
+                                    <strong>3. اختر "تثبيت كتطبيق"</strong>
+                                    <span>من القائمة الفرعية، اضغط على "تثبيت كتطبيق"</span>
+                                </div>
+                            </div>
+                            <div class="instruction-item">
+                                <i class="bi bi-check-circle"></i>
+                                <div>
+                                    <strong>4. تأكيد التثبيت</strong>
+                                    <span>في النافذة المنبثقة، اضغط "تثبيت"</span>
+                                </div>
+                            </div>
+                        `;
+                        instructions.style.display = 'block';
+                        instructions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            }, 500);
+            
+            return false;
+        }
+        
+        // للمتصفحات الأخرى، نستخدم الطريقة العادية
+        return await this.install();
     }
     
     handleLegacyBrowser() {
@@ -300,11 +404,24 @@ if (typeof window !== 'undefined') {
     window.addEventListener('DOMContentLoaded', () => {
         pwaInstallManager = new PWAInstallManager();
         
+        // جعل pwaInstallManager متاحاً بشكل عام
+        window.pwaInstallManager = pwaInstallManager;
+        
         // إضافة زر التثبيت في الصفحات الأخرى
-        if (document.getElementById('installButton')) {
+        const installButton = document.getElementById('installButton');
+        if (installButton) {
             // في صفحة install.html
-            if (pwaInstallManager.deferredPrompt) {
-                document.getElementById('installButton').addEventListener('click', () => {
+            const browser = pwaInstallManager.getBrowser();
+            
+            // إظهار الزر في Firefox حتى بدون deferredPrompt
+            if (browser === 'firefox' && !pwaInstallManager.isStandaloneMode()) {
+                installButton.classList.remove('hidden');
+                installButton.addEventListener('click', () => {
+                    pwaInstallManager.installForFirefox();
+                });
+            } else if (pwaInstallManager.deferredPrompt) {
+                installButton.classList.remove('hidden');
+                installButton.addEventListener('click', () => {
                     pwaInstallManager.install();
                 });
             }
