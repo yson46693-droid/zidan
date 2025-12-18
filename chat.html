@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="دردشة جماعية لفريق العمل">
+    <meta name="theme-color" content="#2196F3">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="الشات">
+    
+    <!-- Windows Meta Tags -->
+    <meta name="msapplication-TileColor" content="#2196F3">
+    <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
+    
+    <title>الشات الجماعي - نظام إدارة محل صيانة الهواتف</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-96x96.png">
+    <link rel="shortcut icon" href="favicon.ico">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- تحميل ملف الإصدارات أولاً -->
+    <script src="js/version.js"></script>
+    <script>
+        (function() {
+            const getAppVersion = function() {
+                return window.APP_VERSION || 'v' + Date.now();
+            };
+            
+            document.addEventListener('DOMContentLoaded', function() {
+                const version = getAppVersion();
+                const versionParam = '?v=' + version;
+                
+                const cssLinks = document.querySelectorAll('link[rel="stylesheet"]:not([href^="http"])');
+                cssLinks.forEach(link => {
+                    if (link.href && !link.href.includes('?')) {
+                        link.href = link.href + versionParam;
+                    }
+                });
+                
+                const jsScripts = document.querySelectorAll('script[src]:not([src*="version.js"]):not([src^="http"])');
+                jsScripts.forEach(script => {
+                    if (script.src && !script.src.includes('?')) {
+                        script.src = script.src + versionParam;
+                    }
+                });
+            });
+        })();
+    </script>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/chat-integrated.css">
+</head>
+<body>
+    <!-- القائمة الجانبية -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="bi bi-phone"></i> محل الصيانة</h2>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-link">
+                <i class="bi bi-speedometer2"></i> لوحة التحكم
+            </a>
+            <a href="dashboard.html#repairs" class="nav-link">
+                <i class="bi bi-tools"></i> عمليات الصيانة
+            </a>
+            <a href="dashboard.html#customers" class="nav-link">
+                <i class="bi bi-people"></i> العملاء
+            </a>
+            <a href="dashboard.html#inventory" class="nav-link">
+                <i class="bi bi-box-seam"></i> المخزون
+            </a>
+            <a href="dashboard.html#expenses" class="nav-link">
+                <i class="bi bi-cash-stack"></i> المصروفات
+            </a>
+            <a href="dashboard.html#reports" class="nav-link" data-permission="manager">
+                <i class="bi bi-graph-up"></i> التقارير المالية
+            </a>
+            <a href="dashboard.html#settings" class="nav-link" data-permission="manager">
+                <i class="bi bi-gear"></i> الإعدادات
+            </a>
+            <a href="chat.html" class="nav-link active">
+                <i class="bi bi-chat-dots"></i> الشات الجماعي
+            </a>
+            <a href="dashboard.html#profile" class="nav-link">
+                <i class="bi bi-person-circle"></i> الملف الشخصي
+            </a>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <p><i class="bi bi-person-circle"></i> <strong id="userName">المستخدم</strong></p>
+                <p><i class="bi bi-shield-check"></i> <span id="userRole">الدور</span></p>
+            </div>
+            <button onclick="logout()" class="btn btn-danger btn-sm"><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</button>
+        </div>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="btn-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+            <h1 id="pageTitle">الشات الجماعي</h1>
+            <div class="header-actions">
+                <a href="dashboard.html" class="btn btn-icon" title="العودة للوحة التحكم"><i class="bi bi-arrow-right"></i></a>
+                <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
+            </div>
+        </header>
+
+        <div class="content chat-page-content">
+            <div class="chat-app" dir="rtl" data-chat-app>
+                <button class="chat-sidebar-toggle" type="button" data-chat-sidebar-toggle aria-label="تبديل قائمة الأعضاء">
+                    <span class="chat-sidebar-toggle-icon">☰</span>
+                </button>
+                <div class="chat-sidebar-overlay" data-chat-sidebar-overlay></div>
+                <aside class="chat-sidebar" data-chat-sidebar>
+                    <div class="chat-sidebar-header">
+                        <h2>الأعضاء</h2>
+                        <span class="chat-loading">تحديث</span>
+                    </div>
+                    <div class="chat-sidebar-search">
+                        <input type="search" placeholder="ابحث عن عضو..." data-chat-search>
+                    </div>
+                    <div class="chat-user-list" data-chat-users>
+                        <!-- سيتم تعبئته عبر JavaScript -->
+                    </div>
+                </aside>
+                <main class="chat-main">
+                    <header class="chat-header">
+                        <div class="chat-header-left">
+                            <h1>شات فريق الشركة</h1>
+                            <span data-chat-count>0 متصل / 0 أعضاء</span>
+                        </div>
+                        <div class="chat-header-actions">
+                            <button class="chat-button chat-theme-toggle" type="button" data-chat-theme-toggle aria-label="تبديل الوضع الليلي">
+                                <span class="chat-theme-icon">🌙</span>
+                                <span class="chat-theme-text">الوضع الليلي</span>
+                            </button>
+                        </div>
+                    </header>
+                    <section class="chat-messages" data-chat-messages>
+                        <div class="chat-empty-state" data-chat-empty>
+                            <h3>ابدأ المحادثة الآن</h3>
+                            <p>شارك فريقك آخر المستجدات، إرسال الرسائل يتم تحديثه فورياً مع ظهور إشعارات عند وصول أي رسالة جديدة.</p>
+                        </div>
+                    </section>
+                    <footer class="chat-composer" data-chat-composer>
+                        <div class="chat-reply-bar" data-chat-reply>
+                            <div class="chat-reply-info">
+                                <strong data-chat-reply-name></strong>
+                                <span data-chat-reply-text></span>
+                            </div>
+                            <button class="chat-reply-dismiss" type="button" data-chat-reply-dismiss>&times;</button>
+                        </div>
+                        <div class="chat-input-wrapper">
+                            <textarea
+                                class="chat-input"
+                                data-chat-input
+                                rows="1"
+                                placeholder="اكتب رسالة ودية..."
+                                autocomplete="off"></textarea>
+                            <div class="chat-composer-actions">
+                                <button class="chat-icon-button chat-send-button" type="button" title="إرسال" data-chat-send aria-label="إرسال الرسالة">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </footer>
+                    <div class="chat-toast" data-chat-toast>تم تحديث الدردشة</div>
+                </main>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // التحقق من تسجيل الدخول
+        window.addEventListener('DOMContentLoaded', async () => {
+            const result = await API.checkAuth();
+            if (!result.success) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const user = result.data;
+            document.getElementById('userName').textContent = user.name || user.username || 'المستخدم';
+            document.getElementById('userRole').textContent = getRoleName(user.role);
+            
+            // إخفاء عناصر القائمة حسب الصلاحيات
+            document.querySelectorAll('[data-permission]').forEach(el => {
+                if (!hasPermission(user.role, el.dataset.permission)) {
+                    el.style.display = 'none';
+                }
+            });
+            
+            // تهيئة الشات
+            if (window.initChat) {
+                window.initChat(user);
+            }
+        });
+        
+        function getRoleName(role) {
+            const roles = {
+                'manager': 'مدير',
+                'production': 'إنتاج',
+                'sales': 'مبيعات',
+                'accountant': 'محاسب',
+                'member': 'عضو'
+            };
+            return roles[role] || role;
+        }
+        
+        function hasPermission(userRole, requiredRole) {
+            if (requiredRole === 'manager') {
+                return userRole === 'manager';
+            }
+            return true;
+        }
+        
+        async function logout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                await API.logout();
+                window.location.href = 'index.html';
+            }
+        }
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+        
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+        }
+        
+        // تحميل الوضع الليلي المحفوظ
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+    </script>
+    <script src="js/chat-integrated.js"></script>
+</body>
+</html>
