@@ -55,6 +55,33 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
+    <!-- تحميل ملف الإصدارات أولاً -->
+    <script src="js/version.js"></script>
+    <script>
+        // الحصول على رقم الإصدار بعد تحميل version.js
+        const APP_VERSION = window.APP_VERSION || 'v' + Date.now();
+        const VERSION_PARAM = '?v=' + APP_VERSION;
+        
+        // إضافة query parameters لجميع ملفات CSS/JS لضمان عدم عرض كاش قديم
+        document.addEventListener('DOMContentLoaded', function() {
+            // تحديث ملفات CSS
+            const cssLinks = document.querySelectorAll('link[rel="stylesheet"]:not([href^="http"])');
+            cssLinks.forEach(link => {
+                if (link.href && !link.href.includes('?')) {
+                    link.href = link.href + VERSION_PARAM;
+                }
+            });
+            
+            // تحديث ملفات JS (باستثناء version.js)
+            const jsScripts = document.querySelectorAll('script[src]:not([src*="version.js"])');
+            jsScripts.forEach(script => {
+                if (script.src && !script.src.includes('?')) {
+                    script.src = script.src + VERSION_PARAM;
+                }
+            });
+        });
+    </script>
+    
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/security.css">
 </head>
@@ -153,15 +180,20 @@
                         return;
                     }
                     
-                    const registration = await navigator.serviceWorker.register('/sw.js', {
-                        scope: '/'
+                    // تسجيل Service Worker مع cache busting
+                    const appVersion = window.APP_VERSION || 'v' + Date.now();
+                    const registration = await navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                        scope: '/',
+                        updateViaCache: 'none' // لا cache لـ Service Worker
                     }).catch(error => {
                         console.warn('⚠️ Service Worker registration failed (may be old browser):', error);
                         return null;
                     });
                     
                     if (registration) {
+                        const appVersion = window.APP_VERSION || 'v' + Date.now();
                         console.log('✅ Service Worker registered:', registration);
+                        console.log('📦 App Version:', appVersion);
                         
                         // التحقق من التحديثات
                         if (registration.addEventListener) {
@@ -170,12 +202,25 @@
                                 if (newWorker && newWorker.addEventListener) {
                                     newWorker.addEventListener('statechange', () => {
                                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                            console.log('🔄 New Service Worker available. Reload to update.');
+                                            console.log('🔄 New Service Worker available. Reloading...');
+                                            // إعادة تحميل الصفحة تلقائياً
+                                            setTimeout(() => {
+                                                window.location.reload();
+                                            }, 1000);
                                         }
                                     });
                                 }
                             });
                         }
+                        
+                        // التحقق من التحديثات بشكل دوري
+                        setInterval(async () => {
+                            try {
+                                await registration.update();
+                            } catch (error) {
+                                console.warn('⚠️ Service Worker update check failed:', error);
+                            }
+                        }, 60000); // كل دقيقة
                         
                         // تسجيل Background Sync (إذا كان مدعوماً)
                         if (registration.sync && registration.sync.register) {
@@ -200,6 +245,12 @@
                 navigator.serviceWorker.addEventListener('message', event => {
                     if (event.data && event.data.type === 'SYNC_COMPLETE') {
                         console.log('Sync completed:', event.data.message);
+                    } else if (event.data && event.data.type === 'SW_UPDATED') {
+                        console.log('🔄 ' + event.data.message, 'Version:', event.data.version);
+                        // إعادة تحميل الصفحة تلقائياً عند تحديث Service Worker
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
                     }
                 });
             }

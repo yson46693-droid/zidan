@@ -1,6 +1,15 @@
 // Service Worker للعمل بدون إنترنت
 // دعم المتصفحات القديمة والحديثة
-const CACHE_NAME = 'mobile-repair-shop-v2.0.0';
+
+// رقم الإصدار - يتم تحديثه تلقائياً مع كل تعديل
+// Version number - automatically updated with each modification
+// يجب تحديث هذا الرقم يدوياً أو تلقائياً مع كل تعديل
+const APP_VERSION = '2.0.1.' + Date.now(); // timestamp للتأكد من التحديث الفوري
+
+const CACHE_NAME = 'mobile-repair-shop-' + APP_VERSION;
+
+console.log('[Service Worker] Version:', APP_VERSION);
+console.log('[Service Worker] Cache Name:', CACHE_NAME);
 
 // Polyfill للمتصفحات القديمة
 if (typeof self !== 'undefined' && !self.caches) {
@@ -17,6 +26,7 @@ const urlsToCache = [
     '/css/dark-mode.css',
     '/css/print.css',
     '/css/security.css',
+    '/js/version.js', // ملف الإصدارات - مهم جداً
     '/js/api.js',
     '/js/auth.js',
     '/js/utils.js',
@@ -78,13 +88,15 @@ self.addEventListener('install', event => {
 
 // التفعيل - تنظيف الـ cache القديم
 self.addEventListener('activate', event => {
-    console.log('[Service Worker] Activating...');
+    console.log('[Service Worker] Activating...', 'Cache:', CACHE_NAME);
     
     const activatePromise = caches.keys()
         .then(cacheNames => {
+            console.log('[Service Worker] Found caches:', cacheNames);
             return Promise.all(
                 cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_NAME) {
+                    // حذف جميع الـ caches القديمة التي لا تطابق الإصدار الحالي
+                    if (cacheName !== CACHE_NAME && cacheName.startsWith('mobile-repair-shop-')) {
                         console.log('[Service Worker] Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
@@ -92,10 +104,28 @@ self.addEventListener('activate', event => {
             );
         })
         .then(() => {
+            // تفعيل Service Worker فوراً لجميع العملاء
+            if (self.skipWaiting) {
+                return self.skipWaiting();
+            }
+        })
+        .then(() => {
             // تفعيل Service Worker لجميع العملاء (للمتصفحات القديمة)
             if (self.clients && self.clients.claim) {
                 return self.clients.claim();
             }
+        })
+        .then(() => {
+            // إرسال رسالة لجميع العملاء لإعادة تحميل الصفحة
+            return self.clients.matchAll().then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({
+                        type: 'SW_UPDATED',
+                        version: APP_VERSION,
+                        message: 'تم تحديث Service Worker - سيتم إعادة تحميل الصفحة'
+                    });
+                });
+            });
         });
     
     event.waitUntil(activatePromise);
