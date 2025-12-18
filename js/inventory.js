@@ -2592,7 +2592,7 @@ function printPhoneLabel(id) {
                 
                 <div class="label-footer">
                     <div class="label-footer-item">
-                        <span>سعر البيع:</span>
+                        <span>سعر الجهازan>
                         <span class="label-price">${formatCurrency(phone.selling_price || 0)}</span>
                     </div>
                 </div>
