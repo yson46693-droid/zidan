@@ -208,6 +208,7 @@
                         if (securityManager.isBlocked && securityManager.isBlocked(clientIP)) {
                             console.error('❌ تم حظر IP:', clientIP);
                             showMessage('تم حظرك مؤقتاً بسبب محاولات تسجيل دخول فاشلة متعددة. حاول مرة أخرى لاحقاً.', 'error');
+                            isLoggingIn = false;
                             return;
                         }
                     } catch (e) {
@@ -224,6 +225,7 @@
                 if (!username || !password) {
                     console.error('❌ اسم المستخدم أو كلمة المرور فارغة');
                     showMessage('يرجى إدخال اسم المستخدم وكلمة المرور', 'error');
+                    isLoggingIn = false;
                     return;
                 }
                 
