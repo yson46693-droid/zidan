@@ -6,6 +6,16 @@
 if (!function_exists('isLoggedIn')) {
     function isLoggedIn() {
         if (session_status() === PHP_SESSION_NONE) {
+            // إعدادات الجلسة لضمان عملها بشكل صحيح
+            $cookieParams = session_get_cookie_params();
+            session_set_cookie_params([
+                'lifetime' => $cookieParams['lifetime'],
+                'path' => '/',
+                'domain' => $cookieParams['domain'],
+                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+                'httponly' => true,
+                'samesite' => 'Lax'
+            ]);
             session_start();
         }
         // التحقق من وجود user_id في الجلسة
@@ -13,7 +23,7 @@ if (!function_exists('isLoggedIn')) {
         
         // تسجيل للمساعدة في التصحيح
         if (!$isLoggedIn) {
-            error_log('User not logged in. Session data: ' . json_encode($_SESSION ?? []));
+            error_log('User not logged in. Session ID: ' . session_id() . ', Session data: ' . json_encode($_SESSION ?? []));
         }
         
         return $isLoggedIn;

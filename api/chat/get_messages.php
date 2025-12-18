@@ -46,7 +46,15 @@ try {
 // التحقق من المصادقة
 if (!isLoggedIn()) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'غير مصرح لك. يرجى تسجيل الدخول.',
+        'debug' => [
+            'session_id' => session_id(),
+            'has_user_id' => isset($_SESSION['user_id']),
+            'session_data' => isset($_SESSION) ? array_keys($_SESSION) : []
+        ]
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -54,7 +62,14 @@ try {
     $currentUser = getCurrentUser();
     if (!$currentUser || !isset($currentUser['id'])) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'User not found'], JSON_UNESCAPED_UNICODE);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'لم يتم العثور على بيانات المستخدم',
+            'debug' => [
+                'session_id' => session_id(),
+                'has_user_id' => isset($_SESSION['user_id']),
+            ]
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
     $userId = $currentUser['id']; // استخدام ID كما هو (قد يكون string)

@@ -212,12 +212,15 @@
                 }
             });
             
-            // تهيئة الشات
+            // تهيئة الشات بعد تأكيد المصادقة
             if (window.initChat) {
                 // تعيين مسار API للشات
                 window.CHAT_API_BASE = 'api/chat';
                 console.log('Initializing chat with user:', user);
-                window.initChat(user);
+                // تأخير قصير لضمان اكتمال الجلسة
+                setTimeout(() => {
+                    window.initChat(user);
+                }, 100);
             } else {
                 console.error('initChat function not found');
             }

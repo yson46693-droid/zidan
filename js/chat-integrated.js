@@ -108,9 +108,14 @@
 
     initTheme();
     bindEvents();
-    fetchMessages(true);
-    startPresenceUpdates();
-    startPolling();
+    
+    // تأخير قصير قبل جلب الرسائل لضمان اكتمال الجلسة
+    setTimeout(() => {
+      fetchMessages(true);
+      startPresenceUpdates();
+      startPolling();
+    }, 200);
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     state.initialized = true;
@@ -430,23 +435,49 @@
       const url = `${API_BASE}/send_message.php`;
       console.log('Sending message to:', url);
       
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          message,
-          reply_to: replyTo,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Send message error:', response.status, errorText);
-        throw new Error(`فشل في إرسال الرسالة: ${response.status}`);
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            message,
+            reply_to: replyTo,
+          }),
+        });
+      } catch (fetchError) {
+        console.error('Network error:', fetchError);
+        throw new Error('خطأ في الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          console.error('Send message error:', response.status, errorText);
+        } catch (e) {
+          console.error('Could not read error response');
+        }
+        
+        if (response.status === 403) {
+          throw new Error('ليس لديك صلاحية لإرسال الرسائل. يرجى تسجيل الدخول مرة أخرى.');
+        } else if (response.status === 404) {
+          throw new Error('لم يتم العثور على نقطة النهاية. يرجى التحقق من إعدادات الخادم.');
+        } else if (response.status === 401) {
+          throw new Error('غير مصرح لك. يرجى تسجيل الدخول مرة أخرى.');
+        } else {
+          throw new Error(`فشل في إرسال الرسالة: ${response.status}`);
+        }
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parse error:', jsonError);
+        throw new Error('خطأ في قراءة البيانات من الخادم.');
+      }
 
       if (!data.success) {
         throw new Error(data.error || 'تعذر إرسال الرسالة');
@@ -604,18 +635,48 @@
       const url = `${API_BASE}/get_messages.php?${params.toString()}`;
       console.log('Fetching messages from:', url);
       
-      const response = await fetch(url, {
-        credentials: 'include',
-      });
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+      } catch (fetchError) {
+        console.error('Network error:', fetchError);
+        throw new Error('خطأ في الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+      }
 
       if (!response.ok) {
         console.error('Response not OK:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`فشل في تحميل الرسائل: ${response.status} ${response.statusText}`);
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          console.error('Error response:', errorText);
+        } catch (e) {
+          console.error('Could not read error response');
+        }
+        
+        if (response.status === 403) {
+          throw new Error('ليس لديك صلاحية للوصول إلى الشات. يرجى تسجيل الدخول مرة أخرى.');
+        } else if (response.status === 404) {
+          throw new Error('لم يتم العثور على نقطة النهاية. يرجى التحقق من إعدادات الخادم.');
+        } else if (response.status === 401) {
+          throw new Error('غير مصرح لك. يرجى تسجيل الدخول مرة أخرى.');
+        } else {
+          throw new Error(`فشل في تحميل الرسائل: ${response.status} ${response.statusText}`);
+        }
       }
 
-      const payload = await response.json();
+      let payload;
+      try {
+        payload = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parse error:', jsonError);
+        throw new Error('خطأ في قراءة البيانات من الخادم.');
+      }
 
       if (!payload.success) {
         throw new Error(payload.error || 'خطأ غير متوقع');
