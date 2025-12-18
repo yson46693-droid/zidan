@@ -2653,8 +2653,8 @@ body {
     position: absolute;
     top: 0;
     right: 0;
-    width: 8px;
-    height: 70%;
+    width: 14px;
+    height: 50%;
     background: var(--primary-color);
     opacity: 0;
     transition: opacity 0.3s ease;
