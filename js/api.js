@@ -89,12 +89,33 @@ const API = {
                 }
             }
             
-            const result = await response.json();
-            if (result.success) {
-                console.log('%c✅ نجح الطلب:', 'color: #4CAF50; font-weight: bold;', result);
-            } else {
-                console.error('%c❌ فشل الطلب:', 'color: #f44336; font-weight: bold;', result);
+            const text = await response.text();
+            let result;
+            
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                console.error('%c❌ خطأ في تحليل JSON:', 'color: #f44336; font-weight: bold;', text);
+                return {
+                    success: false,
+                    message: 'خطأ في تحليل الاستجابة من الخادم',
+                    error: text.substring(0, 200)
+                };
             }
+            
+            // التحقق من وجود success في النتيجة
+            if (result.hasOwnProperty('success')) {
+                if (result.success) {
+                    console.log('%c✅ نجح الطلب:', 'color: #4CAF50; font-weight: bold;', result);
+                } else {
+                    console.error('%c❌ فشل الطلب:', 'color: #f44336; font-weight: bold;', result);
+                }
+            } else {
+                console.warn('%c⚠️ الاستجابة لا تحتوي على success:', 'color: #ff9800; font-weight: bold;', result);
+                // إضافة success افتراضياً إذا لم يكن موجوداً
+                result.success = false;
+            }
+            
             return result;
         } catch (error) {
             console.error('%c❌ خطأ في الاتصال:', 'color: #f44336; font-size: 14px; font-weight: bold;', error);

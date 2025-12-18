@@ -29,6 +29,11 @@ class WebAuthn {
      * إنشاء تحدي للتسجيل
      */
     public static function createRegistrationChallenge($userId, $username) {
+        // التأكد من بدء الجلسة
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start();
+        }
+        
         $challengeBytes = random_bytes(32);
         $challenge = self::base64urlEncode($challengeBytes);
         
@@ -65,6 +70,11 @@ class WebAuthn {
             [$userId]
         );
         
+        // التأكد من أن $existingCredentials هو array
+        if ($existingCredentials === false) {
+            $existingCredentials = [];
+        }
+        
         $excludeCredentials = [];
         foreach ($existingCredentials as $cred) {
             // التحقق من أن credential_id صحيح وغير فارغ
@@ -85,7 +95,7 @@ class WebAuthn {
             $excludeCredentials = array_slice($excludeCredentials, -5);
         }
         
-        return [
+        $challengeData = [
             'challenge' => $challenge,
             'rp' => [
                 'name' => WEBAUTHN_RP_NAME,
@@ -102,12 +112,18 @@ class WebAuthn {
             ],
             'timeout' => 180000, // زيادة timeout للموبايل (180 ثانية = 3 دقائق)
             'attestation' => 'none', // 'none' أفضل للموبايل
-            'excludeCredentials' => $excludeCredentials, // منع إعادة تسجيل البصمة نفسها
             'authenticatorSelection' => [
                 'userVerification' => 'preferred', // مهم للموبايل - يسمح بـ Face ID/Touch ID
                 'requireResidentKey' => false
             ]
         ];
+        
+        // إضافة excludeCredentials فقط إذا كانت غير فارغة
+        if (!empty($excludeCredentials)) {
+            $challengeData['excludeCredentials'] = $excludeCredentials;
+        }
+        
+        return $challengeData;
     }
     
     /**
@@ -115,10 +131,17 @@ class WebAuthn {
      */
     public static function verifyRegistration($response, $userId) {
         try {
+            // التأكد من بدء الجلسة
+            if (session_status() === PHP_SESSION_NONE) {
+                @session_start();
+            }
+            
             $responseData = json_decode($response, true);
             
             if (!isset($_SESSION['webauthn_challenge']) || 
+                !isset($_SESSION['webauthn_user_id']) ||
                 $_SESSION['webauthn_user_id'] != $userId) {
+                error_log("WebAuthn verifyRegistration: Session challenge mismatch. Expected user: $userId, Session user: " . ($_SESSION['webauthn_user_id'] ?? 'not set'));
                 return false;
             }
             
@@ -251,25 +274,33 @@ class WebAuthn {
             $deviceName = $responseData['deviceName'] ?? 'Unknown Device';
             
             try {
-                // التحقق من وجود الاعتماد أولاً
-                $existing = dbSelectOne(
-                    "SELECT id FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
-                    [$userId, $credentialIdEncoded]
-                );
-                
-                if ($existing) {
+            // التحقق من وجود الاعتماد أولاً
+            $existing = dbSelectOne(
+                "SELECT id FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
+                [$userId, $credentialIdEncoded]
+            );
+            
+                if ($existing && isset($existing['id'])) {
                     // تحديث الاعتماد الموجود
-                    dbExecute(
+                    $updateResult = dbExecute(
                         "UPDATE webauthn_credentials SET public_key = ?, device_name = ? WHERE id = ?",
                         [$publicKeyEncoded, $deviceName, $existing['id']]
                     );
+                    if ($updateResult === false) {
+                        error_log("WebAuthn: Failed to update existing credential");
+                        return false;
+                    }
                 } else {
                     // إضافة اعتماد جديد
-                    dbExecute(
+                    $insertResult = dbExecute(
                         "INSERT INTO webauthn_credentials (user_id, credential_id, public_key, device_name, created_at) 
                          VALUES (?, ?, ?, ?, NOW())",
                         [$userId, $credentialIdEncoded, $publicKeyEncoded, $deviceName]
                     );
+                    if ($insertResult === false) {
+                        error_log("WebAuthn: Failed to insert new credential");
+                        return false;
+                    }
                 }
             } catch (Exception $e) {
                 error_log("WebAuthn: Database insert error: " . $e->getMessage());
@@ -277,7 +308,11 @@ class WebAuthn {
             }
             
             // تحديث حالة المستخدم
-            dbExecute("UPDATE users SET webauthn_enabled = 1, updated_at = NOW() WHERE id = ?", [$userId]);
+            $updateResult = dbExecute("UPDATE users SET webauthn_enabled = 1, updated_at = NOW() WHERE id = ?", [$userId]);
+            if ($updateResult === false) {
+                error_log("WebAuthn: Failed to update user webauthn_enabled status");
+                // لا نعيد false هنا لأن البصمة تم حفظها بنجاح
+            }
             
             // مسح بيانات الجلسة
             unset($_SESSION['webauthn_challenge']);
@@ -332,6 +367,11 @@ class WebAuthn {
      * إنشاء تحدي لتسجيل الدخول
      */
     public static function createLoginChallenge($username) {
+        // التأكد من بدء الجلسة
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start();
+        }
+        
         $user = dbSelectOne("SELECT id, username FROM users WHERE username = ?", [$username]);
         
         if (!$user) {
@@ -343,8 +383,18 @@ class WebAuthn {
             [$user['id']]
         );
         
+        // التأكد من أن $credentials هو array
+        if ($credentials === false) {
+            $credentials = [];
+        }
+        
         if (empty($credentials)) {
             return null;
+        }
+        
+        // التأكد من بدء الجلسة
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start();
         }
         
         $challengeBytes = random_bytes(32);
@@ -401,6 +451,11 @@ class WebAuthn {
      */
     public static function verifyLogin($response) {
         try {
+            // التأكد من بدء الجلسة
+            if (session_status() === PHP_SESSION_NONE) {
+                @session_start();
+            }
+            
             // إذا كان response هو string، نحوله إلى array
             if (is_string($response)) {
                 $responseData = json_decode($response, true);
@@ -414,7 +469,7 @@ class WebAuthn {
             
             if (!isset($_SESSION['webauthn_login_challenge']) || 
                 !isset($_SESSION['webauthn_login_user_id'])) {
-                error_log("WebAuthn Login: Missing session challenge or user_id");
+                error_log("WebAuthn Login: Missing session challenge or user_id. Challenge: " . (isset($_SESSION['webauthn_login_challenge']) ? 'set' : 'not set') . ", User ID: " . (isset($_SESSION['webauthn_login_user_id']) ? $_SESSION['webauthn_login_user_id'] : 'not set'));
                 return false;
             }
             
@@ -518,13 +573,18 @@ class WebAuthn {
             // للبساطة، سنتخطى التحقق من التوقيع الآن ونركز على التحقق من credential ID
             
             // تحديث آخر استخدام
-            dbExecute(
+            $updateResult = dbExecute(
                 "UPDATE webauthn_credentials SET last_used = NOW(), counter = counter + 1 WHERE id = ?",
                 [$credential['id']]
             );
+            if ($updateResult === false) {
+                error_log("WebAuthn Login: Failed to update credential last_used");
+                // لا نعيد false هنا لأن التحقق نجح
+            }
             
             // مسح بيانات الجلسة
             unset($_SESSION['webauthn_login_challenge']);
+            unset($_SESSION['webauthn_login_user_id']);
             
             return $userId;
             

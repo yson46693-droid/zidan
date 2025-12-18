@@ -246,14 +246,27 @@ class SimpleWebAuthn {
                 })
             });
 
+            console.log('WebAuthn Register - Challenge response status:', challengeResponse.status);
+
             if (!challengeResponse.ok) {
-                throw new Error(`خطأ في الاتصال بالخادم: ${challengeResponse.status}`);
+                const errorText = await challengeResponse.text();
+                console.error('WebAuthn Register - Challenge error response:', errorText);
+                let errorData = null;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    // ليس JSON
+                }
+                throw new Error(errorData?.error || errorData?.message || `خطأ في الاتصال بالخادم: ${challengeResponse.status} - ${errorText.substring(0, 200)}`);
             }
 
             const challengeData = await challengeResponse.json();
+            console.log('WebAuthn Register - Challenge data:', challengeData);
 
             if (!challengeData.success || !challengeData.data) {
-                throw new Error(challengeData.message || challengeData.error || 'فشل في إنشاء التحدي');
+                const errorMsg = challengeData.message || challengeData.error || 'فشل في إنشاء التحدي';
+                console.error('WebAuthn Register - Challenge creation failed:', errorMsg, challengeData);
+                throw new Error(errorMsg);
             }
 
             const challenge = challengeData.data;
@@ -396,14 +409,29 @@ class SimpleWebAuthn {
                 })
             });
 
+            console.log('WebAuthn Register - Verify response status:', verifyResponse.status);
+
             if (!verifyResponse.ok) {
-                throw new Error(`خطأ في التحقق: ${verifyResponse.status}`);
+                const errorText = await verifyResponse.text();
+                console.error('WebAuthn Register - Verify error response:', errorText);
+                let errorData = null;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    // ليس JSON
+                }
+                const errorMsg = errorData?.error || errorData?.message || `خطأ في التحقق: ${verifyResponse.status} - ${errorText.substring(0, 200)}`;
+                throw new Error(errorMsg);
             }
 
             const verifyData = await verifyResponse.json();
+            
+            console.log('WebAuthn Register - Verify response:', verifyData);
 
             if (!verifyData.success) {
-                throw new Error(verifyData.message || verifyData.error || 'فشل التحقق من البصمة');
+                const errorMsg = verifyData.message || verifyData.error || 'فشل التحقق من البصمة';
+                console.error('WebAuthn Register - Verify failed:', errorMsg, verifyData);
+                throw new Error(errorMsg);
             }
 
             return {
@@ -413,6 +441,11 @@ class SimpleWebAuthn {
 
         } catch (error) {
             console.error('WebAuthn Registration Error:', error);
+            console.error('WebAuthn Registration Error Details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             
             // معالجة الأخطاء الشائعة
             let errorMessage = 'خطأ في تسجيل البصمة';
@@ -437,6 +470,12 @@ class SimpleWebAuthn {
                     '3. أن الموقع مسموح به في إعدادات الأمان';
             } else if (error.message) {
                 errorMessage = error.message;
+                // إذا كانت الرسالة تحتوي على تفاصيل تقنية، نبسطها
+                if (errorMessage.includes('500') || errorMessage.includes('Internal Server Error')) {
+                    errorMessage = 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى أو الاتصال بالدعم الفني.';
+                } else if (errorMessage.includes('خطأ في تحميل النظام')) {
+                    errorMessage = 'حدث خطأ في تحميل نظام البصمة. يرجى إعادة تحميل الصفحة والمحاولة مرة أخرى.';
+                }
             }
 
             return {
@@ -489,8 +528,6 @@ class SimpleWebAuthn {
                     username: username
                 })
             });
-            
-            console.log('Challenge response status:', challengeResponse.status);
             
             console.log('Challenge response status:', challengeResponse.status);
 
@@ -571,12 +608,6 @@ class SimpleWebAuthn {
             
             console.log('Verify response status:', verifyResponse.status, verifyResponse.statusText);
             
-            if (!verifyResponse.ok) {
-                const errorText = await verifyResponse.text();
-                console.error('Verify error response:', errorText);
-                throw new Error(`خطأ في التحقق: ${verifyResponse.status} - ${errorText}`);
-            }
-
             if (!verifyResponse.ok) {
                 const errorText = await verifyResponse.text();
                 console.error('Verify error response:', errorText);

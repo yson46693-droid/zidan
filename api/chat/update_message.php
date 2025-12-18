@@ -24,6 +24,7 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 
 try {
     require_once __DIR__ . '/../config.php';
+    require_once __DIR__ . '/auth_helper.php';
     require_once __DIR__ . '/../../includes/chat.php';
 } catch (Throwable $e) {
     error_log('chat/update_message bootstrap error: ' . $e->getMessage());

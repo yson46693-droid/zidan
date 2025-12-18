@@ -82,27 +82,39 @@ async function checkLogin() {
 
 // تسجيل الدخول
 async function login(username, password) {
-    const result = await API.login(username, password);
-    
-    if (result.success) {
-        // مسح البيانات القديمة أولاً
-        localStorage.clear();
-        sessionStorage.clear();
+    try {
+        const result = await API.login(username, password);
         
-        // حفظ بيانات المستخدم الجديدة
-        localStorage.setItem('currentUser', JSON.stringify(result.data));
-        
-        // إعادة تهيئة نظام المزامنة
-        if (typeof syncManager !== 'undefined') {
-            syncManager.stopAutoSync();
-            // إعادة إنشاء instance جديد
-            window.syncManager = new SyncManager();
+        // التحقق من النتيجة بشكل صحيح
+        if (result && result.success === true && result.data) {
+            // مسح البيانات القديمة أولاً
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // حفظ بيانات المستخدم الجديدة
+            localStorage.setItem('currentUser', JSON.stringify(result.data));
+            
+            // إعادة تهيئة نظام المزامنة
+            if (typeof syncManager !== 'undefined') {
+                syncManager.stopAutoSync();
+                // إعادة إنشاء instance جديد
+                window.syncManager = new SyncManager();
+            }
+            
+            // استخدام window.location.replace بدلاً من href لتجنب مشاكل التوجيه المتعددة
+            window.location.replace('dashboard.html');
+            return result;
         }
         
-        window.location.href = 'dashboard.html';
+        return result;
+    } catch (error) {
+        console.error('خطأ في دالة login:', error);
+        return {
+            success: false,
+            message: error.message || 'حدث خطأ أثناء تسجيل الدخول',
+            error: error
+        };
     }
-    
-    return result;
 }
 
 // تسجيل الخروج

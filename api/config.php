@@ -112,20 +112,22 @@ function writeJSON($file, $data) {
 
 function response($success, $message = '', $data = null, $code = 200) {
     // تنظيف أي output سابق
-    while (ob_get_level()) {
+    while (ob_get_level() > 0) {
         ob_end_clean();
     }
     
-    http_response_code($code);
-    
     // التأكد من أن headers لم يتم إرسالها بعد
     if (!headers_sent()) {
+        http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
     }
     
     $response = [
-        'success' => $success,
-        'message' => $message,
+        'success' => (bool)$success,
+        'message' => (string)$message,
         'data' => $data
     ];
     
@@ -138,8 +140,26 @@ function response($success, $message = '', $data = null, $code = 200) {
         ];
     }
     
-    echo json_encode($response, JSON_UNESCAPED_UNICODE);
-    exit;
+    $jsonOutput = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    
+    // التأكد من أن JSON صحيح
+    if ($jsonOutput === false) {
+        $jsonOutput = json_encode([
+            'success' => false,
+            'message' => 'خطأ في ترميز الاستجابة',
+            'data' => null
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    
+    // إرسال الاستجابة وإنهاء السكريبت
+    echo $jsonOutput;
+    
+    // إنهاء السكريبت فوراً
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+    
+    exit(0);
 }
 
 function getRequestMethod() {

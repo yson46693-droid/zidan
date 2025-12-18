@@ -140,11 +140,11 @@ async function loadCredentials() {
         if (data.success) {
             userCredentials = data.credentials || [];
         } else {
-            console.error('خطأ في تحميل البصمات:', data.error);
+            console.error('خطأ في تحميل البصمات:', data.message || data.error || 'خطأ غير معروف');
             userCredentials = [];
         }
     } catch (error) {
-        console.error('خطأ في تحميل البصمات:', error);
+        console.error('خطأ في تحميل البصمات:', error.message || error);
         userCredentials = [];
     }
 }
@@ -194,7 +194,9 @@ async function handleRegisterBiometric() {
             // إعادة تحميل القسم
             await loadProfileSection();
         } else {
-            showMessage(result?.message || 'فشل تسجيل البصمة', 'error');
+            const errorMsg = result?.message || 'فشل تسجيل البصمة';
+            console.error('WebAuthn registration failed:', errorMsg);
+            showMessage(errorMsg, 'error');
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل بصمة جديدة</span>';
         }

@@ -38,7 +38,6 @@ const urlsToCache = [
     '/js/barcode.js',
     '/js/small-label.js',
     '/js/image-management.js',
-    '/js/test-connection.js',
     '/js/backup-management.js',
     '/js/repairs.js',
     '/js/customers.js',

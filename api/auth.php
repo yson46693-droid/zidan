@@ -126,12 +126,16 @@ if ($method === 'POST') {
                 if (session_status() === PHP_SESSION_NONE) {
                     session_start();
                 }
+                
+                // حفظ بيانات الجلسة
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
                 
                 error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username);
+                
+                // إرجاع الاستجابة مباشرة - response() ستقوم بـ exit تلقائياً
                 response(true, 'تم تسجيل الدخول بنجاح', [
                     'id' => $user['id'],
                     'username' => $user['username'],
