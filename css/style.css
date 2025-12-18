@@ -2726,14 +2726,14 @@ body {
 /* Grid Layout للمخزون */
 .inventory-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 15px;
     padding: 15px;
 }
 
 @media (max-width: 768px) {
     .inventory-grid {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 12px;
         padding: 12px;
     }
@@ -2873,8 +2873,7 @@ body {
 
 .inventory-card-image {
     width: 100%;
-    height: 120px;
-    object-fit: cover;
+    height: 250px;
     border-radius: 8px;
     margin-bottom: 10px;
     background: var(--light-bg);
@@ -2882,12 +2881,13 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--text-light);
+    overflow: hidden;
 }
 
 .inventory-card-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 10px;
 }
 
@@ -2923,9 +2923,10 @@ body {
 
 .inventory-card-actions .btn {
     flex: 1;
-    padding: 6px 8px;
-    font-size: 0.75em;
-    min-width: 60px;
+    padding: 8px 10px;
+    font-size: 0.8em;
+    min-width: 90px;
+    white-space: nowrap;
 }
 
 /* تبويبات المخزون */
@@ -3279,7 +3280,7 @@ body {
     }
     
     .inventory-card-image {
-        height: 150px;
+        height: 220px;
     }
     
     .preview-modal-content {

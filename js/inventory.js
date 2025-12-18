@@ -2374,8 +2374,26 @@ function printPhoneLabel(id) {
         return;
     }
     
-    // إنشاء باركود مخصص للهاتف
-    const barcode = `PHONE-${phone.brand}-${phone.model}-${phone.id}`;
+    // إنشاء باركود فريد لكل بطاقة يحمل بيانات الجهاز
+    // إنشاء معرف فريد لكل بطاقة (timestamp + random)
+    const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    
+    // بناء بيانات الباركود: نوع-ماركة-موديل-المساحة-الرام-سعر-معرف-رقم_فريد
+    const barcodeData = {
+        type: 'PHONE',
+        brand: phone.brand || '',
+        model: phone.model || '',
+        storage: phone.storage || '',
+        ram: phone.ram || '',
+        price: phone.selling_price || 0,
+        id: phone.id || '',
+        serial: phone.serial_number || '',
+        unique: uniqueId
+    };
+    
+    // إنشاء نص الباركود بتنسيق قابل للقراءة
+    const barcode = `PHONE-${barcodeData.brand}-${barcodeData.model}-${barcodeData.id}-${uniqueId}`;
+    
     let barcodeImage = '';
     try {
         if (typeof BarcodeGenerator !== 'undefined') {
@@ -2545,7 +2563,6 @@ function printPhoneLabel(id) {
                 
                 <div class="label-barcode">
                     ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 30px; background: #f0f0f0; border-radius: 5px; color: #333;">باركود</div>'}
-                    <div class="label-barcode-code">${barcode}</div>
                 </div>
                 
                 <div class="label-specs">
@@ -2592,7 +2609,7 @@ function printPhoneLabel(id) {
                 
                 <div class="label-footer">
                     <div class="label-footer-item">
-                        <span>سعر الجهازan>
+                        <span>سعر الجهاز</span>
                         <span class="label-price">${formatCurrency(phone.selling_price || 0)}</span>
                     </div>
                 </div>
