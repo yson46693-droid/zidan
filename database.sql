@@ -85,6 +85,7 @@ CREATE TABLE `spare_part_items` (
   `spare_part_id` varchar(50) NOT NULL,
   `item_type` varchar(100) NOT NULL,
   `quantity` int(11) DEFAULT 1,
+  `price` decimal(10,2) DEFAULT 0.00,
   `notes` text DEFAULT NULL,
   `custom_value` text DEFAULT NULL,
   `created_at` datetime NOT NULL,

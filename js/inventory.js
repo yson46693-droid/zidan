@@ -5,6 +5,7 @@ let allSpareParts = [];
 let allAccessories = [];
 let allPhones = [];
 let currentSparePartFilter = 'all';
+let currentSparePartBrandFilter = 'all';
 let currentAccessoryFilter = 'all';
 let currentPhoneBrand = 'all';
 
@@ -93,6 +94,7 @@ async function loadSpareParts() {
         if (result.success) {
             allSpareParts = result.data || [];
             displaySpareParts(allSpareParts);
+            createSparePartsBrandFilters();
         } else {
             console.error('خطأ في تحميل قطع الغيار:', result.message);
             showMessage(result.message || 'خطأ في تحميل قطع الغيار', 'error');
@@ -189,12 +191,56 @@ function displaySpareParts(parts) {
 
 function filterSpareParts() {
     const search = document.getElementById('sparePartsSearch').value.toLowerCase();
-    const filtered = allSpareParts.filter(part => 
-        part.brand.toLowerCase().includes(search) ||
-        part.model.toLowerCase().includes(search) ||
-        (part.barcode && part.barcode.toLowerCase().includes(search))
-    );
+    let filtered = allSpareParts;
+    
+    // فلترة بالماركة
+    if (currentSparePartBrandFilter !== 'all') {
+        filtered = filtered.filter(part => part.brand.toLowerCase() === currentSparePartBrandFilter);
+    }
+    
+    // البحث بالموديل
+    if (search) {
+        filtered = filtered.filter(part => 
+            part.model.toLowerCase().includes(search) ||
+            (part.barcode && part.barcode.toLowerCase().includes(search))
+        );
+    }
+    
     displaySpareParts(filtered);
+}
+
+function createSparePartsBrandFilters() {
+    // جمع جميع الماركات الفريدة
+    const brands = [...new Set(allSpareParts.map(part => part.brand))].sort();
+    const container = document.getElementById('sparePartsBrandFilters');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="filter-button active" onclick="filterSparePartsByBrand('all', this)">
+            <i class="bi bi-grid"></i>
+            <span>الكل</span>
+        </div>
+        ${brands.map(brand => `
+            <div class="filter-button" onclick="filterSparePartsByBrand('${brand.toLowerCase()}', this)">
+                <i class="bi bi-phone"></i>
+                <span>${brand}</span>
+            </div>
+        `).join('')}
+    `;
+}
+
+function filterSparePartsByBrand(brand, element) {
+    currentSparePartBrandFilter = brand;
+    
+    // تحديث الأزرار
+    document.querySelectorAll('#sparePartsBrandFilters .filter-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    if (element) {
+        element.closest('.filter-button').classList.add('active');
+    }
+    
+    filterSpareParts();
 }
 
 function showAddSparePartModal() {
@@ -242,7 +288,8 @@ function loadSparePartItems(items) {
     
     container.innerHTML = items.map(item => {
         const type = sparePartTypes.find(t => t.id === item.item_type);
-        const showCustom = type && type.isCustom;
+        const showCustom = type && type.isCustom || item.item_type === 'other';
+        const isOther = item.item_type === 'other' || !type;
         
         return `
             <div class="spare-part-item-row" data-item-id="${item.id || ''}">
@@ -250,9 +297,11 @@ function loadSparePartItems(items) {
                     ${sparePartTypes.map(t => `
                         <option value="${t.id}" ${item.item_type === t.id ? 'selected' : ''}>${t.name}</option>
                     `).join('')}
+                    ${isOther && !type ? `<option value="other" selected>${item.item_type || 'أخرى'}</option>` : ''}
                 </select>
                 <input type="number" class="spare-part-item-quantity" value="${item.quantity || 1}" min="1" placeholder="الكمية">
-                <input type="text" class="spare-part-item-custom" value="${item.custom_value || ''}" placeholder="القيمة" style="display: ${showCustom ? 'block' : 'none'};">
+                <input type="number" class="spare-part-item-price" step="0.01" min="0" value="${item.price || 0}" placeholder="السعر">
+                <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'};">
                 <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
             </div>
         `;
@@ -297,6 +346,7 @@ function previewSparePart(id) {
                         <div class="preview-item-icon"><i class="bi ${type ? type.icon : 'bi-circle'}"></i></div>
                         <div class="preview-item-name">${type ? type.name : item.item_type}</div>
                         <div class="preview-item-quantity">الكمية: ${item.quantity || 1}</div>
+                        ${item.price && item.price > 0 ? `<div class="preview-item-price" style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">السعر: ${formatCurrency(item.price)}</div>` : ''}
                         ${item.custom_value ? `<div class="preview-item-custom">${item.custom_value}</div>` : ''}
                     </div>
                 `;
@@ -805,11 +855,12 @@ function createInventoryModals() {
                     
                     <div class="form-group">
                         <label for="accessoryType">النوع *</label>
-                        <select id="accessoryType" required>
+                        <select id="accessoryType" required onchange="handleAccessoryTypeChange(this)">
                             ${accessoryTypes.map(type => `
                                 <option value="${type.id}">${type.name}</option>
                             `).join('')}
                         </select>
+                        <input type="text" id="accessoryTypeCustom" style="display: none; margin-top: 10px;" placeholder="أدخل النوع يدوياً">
                     </div>
                     
                     <div class="form-group">
@@ -878,11 +929,12 @@ function createInventoryModals() {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="phoneBrand">الماركة *</label>
-                            <select id="phoneBrand" required>
+                            <select id="phoneBrand" required onchange="handlePhoneBrandChange(this)">
                                 ${phoneBrands.map(brand => `
                                     <option value="${brand.name}">${brand.name}</option>
                                 `).join('')}
                             </select>
+                            <input type="text" id="phoneBrandCustom" style="display: none; margin-top: 10px;" placeholder="أدخل الماركة يدوياً">
                         </div>
                         <div class="form-group">
                             <label for="phoneModel">الموديل *</label>
@@ -998,6 +1050,7 @@ function addSparePartItem() {
             `).join('')}
         </select>
         <input type="number" class="spare-part-item-quantity" value="1" min="1" placeholder="الكمية">
+        <input type="number" class="spare-part-item-price" step="0.01" min="0" value="0" placeholder="السعر">
         <input type="text" class="spare-part-item-custom" style="display: none;" placeholder="القيمة">
         <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
     `;
@@ -1009,9 +1062,11 @@ function handleSparePartItemTypeChange(select) {
     const customInput = row.querySelector('.spare-part-item-custom');
     const type = sparePartTypes.find(t => t.id === select.value);
     
-    if (type && type.isCustom) {
+    // إذا كان النوع "أخرى" أو يحتوي على "other" أو "custom"
+    if (select.value === 'other' || select.value.includes('other') || (type && type.isCustom)) {
         customInput.style.display = 'block';
         customInput.required = true;
+        customInput.placeholder = 'أدخل النوع يدوياً';
     } else {
         customInput.style.display = 'none';
         customInput.required = false;
@@ -1062,15 +1117,22 @@ async function saveSparePart(event) {
     // جمع القطع
     const items = [];
     document.querySelectorAll('.spare-part-item-row').forEach(row => {
-        const itemType = row.querySelector('.spare-part-item-type').value;
+        let itemType = row.querySelector('.spare-part-item-type').value;
         const quantity = parseInt(row.querySelector('.spare-part-item-quantity').value) || 1;
+        const itemPrice = parseFloat(row.querySelector('.spare-part-item-price').value) || 0;
         const customInput = row.querySelector('.spare-part-item-custom');
         const customValue = customInput && customInput.style.display !== 'none' ? customInput.value.trim() : '';
+        
+        // إذا كان النوع "أخرى" واستخدم المستخدم حقل الإدخال، استخدم القيمة المدخلة كنوع
+        if (itemType === 'other' && customValue) {
+            itemType = customValue; // استخدام القيمة المدخلة كنوع
+        }
         
         if (itemType) {
             items.push({
                 item_type: itemType,
                 quantity: quantity,
+                price: itemPrice,
                 custom_value: customValue
             });
         }
@@ -1120,7 +1182,18 @@ function editAccessory(id) {
     document.getElementById('accessoryModalTitle').textContent = 'تعديل إكسسوار';
     document.getElementById('accessoryId').value = accessory.id;
     document.getElementById('accessoryName').value = accessory.name;
-    document.getElementById('accessoryType').value = accessory.type;
+    
+    // التحقق إذا كان النوع موجوداً في القائمة
+    const typeExists = accessoryTypes.find(t => t.id === accessory.type);
+    if (typeExists) {
+        document.getElementById('accessoryType').value = accessory.type;
+        document.getElementById('accessoryTypeCustom').style.display = 'none';
+    } else {
+        document.getElementById('accessoryType').value = 'other';
+        document.getElementById('accessoryTypeCustom').value = accessory.type;
+        document.getElementById('accessoryTypeCustom').style.display = 'block';
+    }
+    
     document.getElementById('accessoryImage').value = accessory.image || '';
     document.getElementById('accessoryPurchasePrice').value = accessory.purchase_price || 0;
     document.getElementById('accessorySellingPrice').value = accessory.selling_price || 0;
@@ -1142,12 +1215,41 @@ function closeAccessoryModal() {
     document.getElementById('accessoryModal').style.display = 'none';
 }
 
+function handleAccessoryTypeChange(select) {
+    const customInput = document.getElementById('accessoryTypeCustom');
+    if (select.value === 'other') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+    } else {
+        customInput.style.display = 'none';
+        customInput.required = false;
+    }
+}
+
+function handlePhoneBrandChange(select) {
+    const customInput = document.getElementById('phoneBrandCustom');
+    if (select.value === 'أخرى' || select.value.toLowerCase() === 'other') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+    } else {
+        customInput.style.display = 'none';
+        customInput.required = false;
+    }
+}
+
 async function saveAccessory(event) {
     event.preventDefault();
     
     const id = document.getElementById('accessoryId').value;
     const name = document.getElementById('accessoryName').value.trim();
-    const type = document.getElementById('accessoryType').value;
+    let type = document.getElementById('accessoryType').value;
+    const customType = document.getElementById('accessoryTypeCustom').value.trim();
+    
+    // إذا كان النوع "أخرى" واستخدم المستخدم حقل الإدخال
+    if (type === 'other' && customType) {
+        type = customType;
+    }
+    
     let image = document.getElementById('accessoryImage').value.trim();
     const purchase_price = parseFloat(document.getElementById('accessoryPurchasePrice').value) || 0;
     const selling_price = parseFloat(document.getElementById('accessorySellingPrice').value) || 0;
@@ -1200,6 +1302,7 @@ function showAddPhoneModal() {
     document.getElementById('phoneForm').reset();
     document.getElementById('phoneId').value = '';
     document.getElementById('phoneTaxStatus').value = 'exempt';
+    document.getElementById('phoneBrandCustom').style.display = 'none';
     document.getElementById('phoneImagePreview').style.display = 'none';
     document.getElementById('phoneImageFile').value = '';
     toggleTaxAmount();
@@ -1212,7 +1315,18 @@ function editPhone(id) {
     
     document.getElementById('phoneModalTitle').textContent = 'تعديل هاتف';
     document.getElementById('phoneId').value = phone.id;
-    document.getElementById('phoneBrand').value = phone.brand;
+    
+    // التحقق إذا كانت الماركة موجودة في القائمة
+    const brandExists = phoneBrands.find(b => b.name === phone.brand);
+    if (brandExists) {
+        document.getElementById('phoneBrand').value = phone.brand;
+        document.getElementById('phoneBrandCustom').style.display = 'none';
+    } else {
+        document.getElementById('phoneBrand').value = 'أخرى';
+        document.getElementById('phoneBrandCustom').value = phone.brand;
+        document.getElementById('phoneBrandCustom').style.display = 'block';
+    }
+    
     document.getElementById('phoneModel').value = phone.model;
     document.getElementById('phoneSerialNumber').value = phone.serial_number || '';
     document.getElementById('phoneImage').value = phone.image || '';
@@ -1277,7 +1391,14 @@ async function savePhone(event) {
     event.preventDefault();
     
     const id = document.getElementById('phoneId').value;
-    const brand = document.getElementById('phoneBrand').value;
+    let brand = document.getElementById('phoneBrand').value;
+    const customBrand = document.getElementById('phoneBrandCustom').value.trim();
+    
+    // إذا كانت الماركة "أخرى" واستخدم المستخدم حقل الإدخال
+    if ((brand === 'أخرى' || brand.toLowerCase() === 'other') && customBrand) {
+        brand = customBrand;
+    }
+    
     const model = document.getElementById('phoneModel').value.trim();
     const serial_number = document.getElementById('phoneSerialNumber').value.trim();
     let image = document.getElementById('phoneImage').value.trim();
@@ -1469,8 +1590,9 @@ function loadInventorySection() {
 
         <!-- قسم قطع الغيار -->
         <div id="spare-parts-section" class="inventory-section active">
+            <div class="filter-buttons" id="sparePartsBrandFilters"></div>
             <div class="inventory-search">
-                <input type="text" id="sparePartsSearch" placeholder="بحث في قطع الغيار..." onkeyup="filterSpareParts()">
+                <input type="text" id="sparePartsSearch" placeholder="بحث بالموديل..." onkeyup="filterSpareParts()">
             </div>
             <div class="inventory-grid" id="sparePartsGrid"></div>
         </div>

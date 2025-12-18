@@ -3,11 +3,12 @@
 body.dark-mode {
     --light-bg: #16213e;
     --white: #0f3460;
-    --text-dark: #e4e4e4;
-    --text-light: #b4b4b4;
+    --text-dark: #ffffff;
+    --text-light: #ffffff;
     --border-color: #2d4059;
     --shadow: 0 2px 10px rgba(0,0,0,0.3);
     background: #0a1929;
+    color: #ffffff;
 }
 
 body.dark-mode .sidebar {
@@ -65,7 +66,100 @@ body.dark-mode .btn-pagination {
 body.dark-mode .btn-pagination:hover,
 body.dark-mode .btn-pagination.active {
     background: var(--primary-color);
-    color: #fff;
+    color: #ffffff;
     border-color: var(--primary-color);
+}
+
+/* ضمان أن جميع النصوص بيضاء في الوضع الليلي */
+body.dark-mode {
+    color: #ffffff;
+}
+
+body.dark-mode p,
+body.dark-mode span,
+body.dark-mode div,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode li,
+body.dark-mode td,
+body.dark-mode th {
+    color: #ffffff;
+}
+
+/* استثناءات للأزرار والأيقونات */
+body.dark-mode .btn-primary,
+body.dark-mode .btn-success,
+body.dark-mode .btn-danger,
+body.dark-mode .btn-warning,
+body.dark-mode .btn-info {
+    color: #ffffff;
+}
+
+/* النصوص في الجداول */
+body.dark-mode .data-table,
+body.dark-mode .data-table th,
+body.dark-mode .data-table td {
+    color: #ffffff;
+}
+
+/* النصوص في البطاقات */
+body.dark-mode .stat-card,
+body.dark-mode .stat-card h3,
+body.dark-mode .stat-card p,
+body.dark-mode .stat-card .stat-value {
+    color: #ffffff;
+}
+
+/* النصوص في القائمة الجانبية */
+body.dark-mode .sidebar,
+body.dark-mode .sidebar-nav,
+body.dark-mode .sidebar-nav a,
+body.dark-mode .sidebar-footer,
+body.dark-mode .sidebar-footer p,
+body.dark-mode .sidebar-footer strong {
+    color: #ffffff;
+}
+
+/* النصوص في شريط العنوان */
+body.dark-mode .top-bar,
+body.dark-mode .top-bar h1 {
+    color: #ffffff;
+}
+
+/* النصوص في النماذج */
+body.dark-mode .form-group label,
+body.dark-mode .modal-content,
+body.dark-mode .modal-header h3,
+body.dark-mode .modal-body {
+    color: #ffffff;
+}
+
+/* النصوص في الأقسام */
+body.dark-mode .section-header h2,
+body.dark-mode .section-content h2,
+body.dark-mode .settings-section h3 {
+    color: #ffffff;
+}
+
+/* النصوص في التقارير */
+body.dark-mode .report-filters,
+body.dark-mode .report-details,
+body.dark-mode .summary-card {
+    color: #ffffff;
+}
+
+/* النصوص في القائمة المتنقلة */
+body.dark-mode .mobile-nav-item {
+    color: #ffffff;
+}
+
+/* النصوص في الحقول */
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+    color: rgba(255, 255, 255, 0.7);
 }
 

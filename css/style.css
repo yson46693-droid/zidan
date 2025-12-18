@@ -197,7 +197,66 @@ body {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.header-actions .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    font-size: 1.2em;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    background: var(--light-bg);
+    border: 2px solid transparent;
+}
+
+.header-actions .btn-icon:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+}
+
+.header-actions .sync-indicator {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .header-actions {
+        gap: 8px;
+    }
+    
+    .header-actions .btn-icon {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 8px;
+        font-size: 1.1em;
+    }
+    
+    .header-actions .sync-indicator {
+        min-height: 40px;
+        padding: 8px 12px;
+        font-size: 0.85em;
+    }
+    
+    .top-bar h1 {
+        font-size: 1.2em;
+    }
+    
+    .top-bar {
+        padding: 12px 15px;
+    }
 }
 
 .sync-indicator {
@@ -1417,7 +1476,7 @@ body {
 }
 
 .dark-mode .mobile-nav-item {
-    color: #ccc;
+    color: #ffffff;
 }
 
 .dark-mode .mobile-nav-item.active {
@@ -3024,7 +3083,7 @@ body {
 /* تنسيقات نموذج قطع الغيار */
 .spare-part-item-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1.5fr auto;
+    grid-template-columns: 2fr 1fr 1fr auto;
     gap: 10px;
     margin-bottom: 10px;
     align-items: center;
@@ -3032,6 +3091,11 @@ body {
     background: var(--white);
     border-radius: 8px;
     border: 1px solid var(--border-color);
+}
+
+.spare-part-item-row .spare-part-item-custom {
+    grid-column: 1 / -1;
+    margin-top: 5px;
 }
 
 .spare-part-item-row select,

@@ -96,14 +96,15 @@ if ($method === 'POST') {
                 $itemId = generateId();
                 $itemType = trim($item['item_type'] ?? '');
                 $quantity = intval($item['quantity'] ?? 1);
+                $itemPrice = floatval($item['price'] ?? 0);
                 $notes = trim($item['notes'] ?? '');
                 $customValue = trim($item['custom_value'] ?? '');
                 
                 if (!empty($itemType)) {
                     dbExecute(
-                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
-                         VALUES (?, ?, ?, ?, ?, ?, NOW())",
-                        [$itemId, $partId, $itemType, $quantity, $notes, $customValue]
+                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+                        [$itemId, $partId, $itemType, $quantity, $itemPrice, $notes, $customValue]
                     );
                 }
             }
@@ -274,14 +275,15 @@ if ($method === 'PUT') {
                 $itemId = generateId();
                 $itemType = trim($item['item_type'] ?? '');
                 $quantity = intval($item['quantity'] ?? 1);
+                $itemPrice = floatval($item['price'] ?? 0);
                 $notes = trim($item['notes'] ?? '');
                 $customValue = trim($item['custom_value'] ?? '');
                 
                 if (!empty($itemType)) {
                     dbExecute(
-                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
-                         VALUES (?, ?, ?, ?, ?, ?, NOW())",
-                        [$itemId, $id, $itemType, $quantity, $notes, $customValue]
+                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+                        [$itemId, $id, $itemType, $quantity, $itemPrice, $notes, $customValue]
                     );
                 }
             }
