@@ -58,6 +58,90 @@ CREATE TABLE `inventory` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `spare_parts`
+--
+
+CREATE TABLE `spare_parts` (
+  `id` varchar(50) NOT NULL,
+  `brand` varchar(100) NOT NULL,
+  `model` varchar(255) NOT NULL,
+  `barcode` varchar(255) DEFAULT NULL,
+  `image` text DEFAULT NULL,
+  `purchase_price` decimal(10,2) DEFAULT 0.00,
+  `selling_price` decimal(10,2) DEFAULT 0.00,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `spare_part_items`
+--
+
+CREATE TABLE `spare_part_items` (
+  `id` varchar(50) NOT NULL,
+  `spare_part_id` varchar(50) NOT NULL,
+  `item_type` varchar(100) NOT NULL,
+  `quantity` int(11) DEFAULT 1,
+  `notes` text DEFAULT NULL,
+  `custom_value` text DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `accessories`
+--
+
+CREATE TABLE `accessories` (
+  `id` varchar(50) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `type` enum('wired_headphones','wireless_headphones','earbuds','chargers','cables','power_bank','external_battery','other') NOT NULL,
+  `image` text DEFAULT NULL,
+  `purchase_price` decimal(10,2) DEFAULT 0.00,
+  `selling_price` decimal(10,2) DEFAULT 0.00,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `phones`
+--
+
+CREATE TABLE `phones` (
+  `id` varchar(50) NOT NULL,
+  `brand` varchar(100) NOT NULL,
+  `model` varchar(255) NOT NULL,
+  `serial_number` varchar(255) DEFAULT NULL,
+  `image` text DEFAULT NULL,
+  `tax_status` enum('exempt','due') NOT NULL DEFAULT 'exempt',
+  `tax_amount` decimal(10,2) DEFAULT 0.00,
+  `storage` varchar(50) DEFAULT NULL,
+  `ram` varchar(50) DEFAULT NULL,
+  `screen_type` varchar(100) DEFAULT NULL,
+  `processor` varchar(100) DEFAULT NULL,
+  `battery` varchar(50) DEFAULT NULL,
+  `accessories` text DEFAULT NULL,
+  `password` varchar(255) DEFAULT NULL,
+  `maintenance_history` text DEFAULT NULL,
+  `defects` text DEFAULT NULL,
+  `purchase_price` decimal(10,2) DEFAULT 0.00,
+  `selling_price` decimal(10,2) DEFAULT 0.00,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `loss_operations`
 --
 
@@ -214,6 +298,40 @@ ALTER TABLE `inventory`
   ADD KEY `idx_name` (`name`);
 
 --
+-- Indexes for table `spare_parts`
+--
+ALTER TABLE `spare_parts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_brand` (`brand`),
+  ADD KEY `idx_model` (`model`),
+  ADD KEY `idx_barcode` (`barcode`);
+
+--
+-- Indexes for table `spare_part_items`
+--
+ALTER TABLE `spare_part_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_spare_part_id` (`spare_part_id`),
+  ADD KEY `idx_item_type` (`item_type`);
+
+--
+-- Indexes for table `accessories`
+--
+ALTER TABLE `accessories`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_type` (`type`),
+  ADD KEY `idx_name` (`name`);
+
+--
+-- Indexes for table `phones`
+--
+ALTER TABLE `phones`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_brand` (`brand`),
+  ADD KEY `idx_model` (`model`),
+  ADD KEY `idx_serial_number` (`serial_number`);
+
+--
 -- Indexes for table `loss_operations`
 --
 ALTER TABLE `loss_operations`
@@ -273,6 +391,16 @@ ALTER TABLE `telegram_backup_config`
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `spare_part_items`
+--
+ALTER TABLE `spare_part_items`
+  ADD CONSTRAINT `spare_part_items_ibfk_1` FOREIGN KEY (`spare_part_id`) REFERENCES `spare_parts` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `repairs`

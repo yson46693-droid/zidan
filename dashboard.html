@@ -276,25 +276,40 @@
             setupModalCloseOnClickOutside();
             
             // إدارة زر التثبيت
-            if (typeof pwaInstallManager !== 'undefined') {
-                const installInfo = pwaInstallManager.getInstallInfo();
+            const initInstallButton = () => {
                 const installLink = document.getElementById('installLink');
-                if (installLink && !installInfo.isInstalled) {
-                    installLink.style.display = 'inline-block';
-                }
-            } else {
-                // تهيئة PWA Install Manager
-                setTimeout(() => {
+                if (!installLink) return;
+                
+                if (typeof pwaInstallManager !== 'undefined') {
+                    const installInfo = pwaInstallManager.getInstallInfo();
+                    // إظهار الزر إذا لم يكن مثبتاً أو إذا كان Chrome Desktop
+                    const browser = pwaInstallManager.getBrowser();
+                    const isChromeDesktop = browser === 'chrome' && !pwaInstallManager.isAndroid() && !pwaInstallManager.isIOS();
+                    
+                    if (!installInfo.isInstalled || isChromeDesktop) {
+                        installLink.style.display = 'inline-block';
+                    }
+                } else {
+                    // تهيئة PWA Install Manager
                     if (typeof PWAInstallManager !== 'undefined') {
                         window.pwaInstallManager = new PWAInstallManager();
                         const installInfo = window.pwaInstallManager.getInstallInfo();
-                        const installLink = document.getElementById('installLink');
-                        if (installLink && !installInfo.isInstalled) {
+                        const browser = window.pwaInstallManager.getBrowser();
+                        const isChromeDesktop = browser === 'chrome' && !window.pwaInstallManager.isAndroid() && !window.pwaInstallManager.isIOS();
+                        
+                        if (!installInfo.isInstalled || isChromeDesktop) {
                             installLink.style.display = 'inline-block';
                         }
                     }
-                }, 1000);
-            }
+                }
+            };
+            
+            // محاولة فورية
+            initInstallButton();
+            
+            // محاولة بعد تحميل PWA Manager
+            setTimeout(initInstallButton, 500);
+            setTimeout(initInstallButton, 1500);
             
             // تسجيل Service Worker
             if ('serviceWorker' in navigator) {

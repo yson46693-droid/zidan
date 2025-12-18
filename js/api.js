@@ -206,6 +206,57 @@ const API = {
         return await this.request('inventory.php', 'DELETE', { id });
     },
 
+    // قطع الغيار
+    async getSpareParts() {
+        return await this.request('inventory.php?type=spare_parts', 'GET');
+    },
+
+    async addSparePart(partData) {
+        return await this.request('inventory.php?type=spare_parts', 'POST', partData);
+    },
+
+    async updateSparePart(partData) {
+        return await this.request('inventory.php?type=spare_parts', 'PUT', partData);
+    },
+
+    async deleteSparePart(id) {
+        return await this.request('inventory.php?type=spare_parts', 'DELETE', { id, type: 'spare_parts' });
+    },
+
+    // الإكسسوارات
+    async getAccessories() {
+        return await this.request('inventory.php?type=accessories', 'GET');
+    },
+
+    async addAccessory(accessoryData) {
+        return await this.request('inventory.php?type=accessories', 'POST', accessoryData);
+    },
+
+    async updateAccessory(accessoryData) {
+        return await this.request('inventory.php?type=accessories', 'PUT', accessoryData);
+    },
+
+    async deleteAccessory(id) {
+        return await this.request('inventory.php?type=accessories', 'DELETE', { id, type: 'accessories' });
+    },
+
+    // الهواتف
+    async getPhones() {
+        return await this.request('inventory.php?type=phones', 'GET');
+    },
+
+    async addPhone(phoneData) {
+        return await this.request('inventory.php?type=phones', 'POST', phoneData);
+    },
+
+    async updatePhone(phoneData) {
+        return await this.request('inventory.php?type=phones', 'PUT', phoneData);
+    },
+
+    async deletePhone(id) {
+        return await this.request('inventory.php?type=phones', 'DELETE', { id, type: 'phones' });
+    },
+
     // المصروفات
     async getExpenses() {
         return await this.request('expenses.php', 'GET');
