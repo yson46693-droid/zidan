@@ -213,16 +213,28 @@
             });
             
             // تهيئة الشات بعد تأكيد المصادقة
-            if (window.initChat) {
-                // تعيين مسار API للشات
-                window.CHAT_API_BASE = 'api/chat';
-                console.log('Initializing chat with user:', user);
-                // تأخير قصير لضمان اكتمال الجلسة
-                setTimeout(() => {
-                    window.initChat(user);
-                }, 100);
+            // انتظار تحميل chat-integrated.js
+            function initializeChat() {
+                if (window.initChat) {
+                    // تعيين مسار API للشات
+                    window.CHAT_API_BASE = 'api/chat';
+                    console.log('Initializing chat with user:', user);
+                    // تأخير قصير لضمان اكتمال الجلسة
+                    setTimeout(() => {
+                        window.initChat(user);
+                    }, 100);
+                } else {
+                    // إعادة المحاولة بعد 200ms إذا لم يتم تحميل الملف بعد
+                    console.warn('initChat not found, retrying...');
+                    setTimeout(initializeChat, 200);
+                }
+            }
+            
+            // بدء التهيئة بعد تحميل الصفحة بالكامل
+            if (document.readyState === 'complete') {
+                initializeChat();
             } else {
-                console.error('initChat function not found');
+                window.addEventListener('load', initializeChat);
             }
         });
         

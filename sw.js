@@ -20,16 +20,19 @@ const urlsToCache = [
     '/',
     '/index.html',
     '/dashboard.html',
+    '/chat.html',
     '/install.html',
     '/manifest.json',
     '/css/style.css',
     '/css/dark-mode.css',
     '/css/print.css',
     '/css/security.css',
+    '/css/chat-integrated.css',
     '/js/version.js', // ملف الإصدارات - مهم جداً
     '/js/api.js',
     '/js/auth.js',
     '/js/utils.js',
+    '/js/chat-integrated.js',
     '/js/data-protection.js',
     '/js/security.js',
     '/js/sync.js',
@@ -213,7 +216,16 @@ self.addEventListener('fetch', event => {
 
                         return response;
                     }).catch(error => {
-                        console.log('[SW] Fetch failed:', error);
+                        // في حالة فشل الطلب، نعيد خطأ واضح
+                        console.error('[SW] Fetch failed for:', request.url, error);
+                        // إعادة المحاولة من الشبكة مباشرة بدون cache
+                        return fetch(request.url).catch(() => {
+                            // إذا فشل مرة أخرى، نعيد استجابة خطأ
+                            return new Response('Network error', { 
+                                status: 408, 
+                                statusText: 'Request Timeout' 
+                            });
+                        });
                         
                         // إذا كان طلب HTML، نعيد صفحة offline
                         const acceptHeader = request.headers ? request.headers.get('accept') : '';

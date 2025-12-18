@@ -113,6 +113,13 @@ RewriteRule ^api/(.*)$ api/$1 [L]
     Satisfy Any
 </FilesMatch>
 
+# السماح بالوصول إلى ملفات CSS و JS
+<FilesMatch "\.(css|js)$">
+    Order allow,deny
+    Allow from all
+    Satisfy Any
+</FilesMatch>
+
 # حماية ملفات النظام
 <FilesMatch "^\.">
     Order allow,deny
