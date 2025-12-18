@@ -3067,12 +3067,12 @@ body {
     object-fit: contain;
     border-radius: 8px;
     transition: all 0.3s ease;
-    filter: brightness(0.8);
+    filter: brightness(0.9);
 }
 
 .brand-button:hover .brand-button-image,
 .brand-button.active .brand-button-image {
-    filter: brightness(1.2);
+    filter: brightness(1.4);
     transform: scale(1.1);
 }
 
