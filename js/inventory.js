@@ -82,6 +82,31 @@ function switchInventoryTab(tab, element) {
     if (targetSection) {
         targetSection.classList.add('active');
     }
+    
+    // إعادة تحميل البيانات عند التبديل لضمان عرض العناصر
+    switch(tab) {
+        case 'spare_parts':
+            if (allSpareParts.length === 0 || document.getElementById('sparePartsGrid').innerHTML.trim() === '') {
+                loadSpareParts();
+            } else {
+                displaySpareParts(allSpareParts);
+            }
+            break;
+        case 'accessories':
+            if (allAccessories.length === 0 || document.getElementById('accessoriesGrid').innerHTML.trim() === '') {
+                loadAccessories();
+            } else {
+                displayAccessories(allAccessories);
+            }
+            break;
+        case 'phones':
+            if (allPhones.length === 0 || document.getElementById('phonesGrid').innerHTML.trim() === '') {
+                loadPhones();
+            } else {
+                displayPhones(allPhones);
+            }
+            break;
+    }
 }
 
 // ============================================

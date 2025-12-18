@@ -207,6 +207,7 @@ if ($method === 'POST') {
         $session = checkAuth();
         $itemId = generateId();
         
+        // التأكد من عدم استخدام price في INSERT - استخدام purchase_price و selling_price فقط
         $result = dbExecute(
             "INSERT INTO inventory (id, name, quantity, purchase_price, selling_price, category, created_at, created_by) 
              VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)",
@@ -214,7 +215,10 @@ if ($method === 'POST') {
         );
         
         if ($result === false) {
-            response(false, 'خطأ في إضافة قطعة الغيار', null, 500);
+            // الحصول على خطأ قاعدة البيانات للتحقق
+            global $conn;
+            $error = $conn ? mysqli_error($conn) : 'خطأ غير معروف';
+            response(false, 'خطأ في إضافة قطعة الغيار: ' . $error, null, 500);
         }
         
         $newItem = dbSelectOne("SELECT * FROM inventory WHERE id = ?", [$itemId]);
