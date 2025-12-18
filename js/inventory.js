@@ -2410,109 +2410,114 @@ function printPhoneLabel(id) {
                     background: #f5f5f5;
                 }
                 .label-container {
-                    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-                    padding: 30px;
-                    border-radius: 15px;
+                    background: white;
+                    padding: 20px;
+                    border: 2px solid #000000;
+                    border-radius: 8px;
                     box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-                    max-width: 500px;
+                    max-width: 750px;
                     margin: 0 auto;
-                    color: white;
+                    color: #000000;
                 }
                 .label-header {
                     text-align: center;
-                    margin-bottom: 25px;
-                    padding-bottom: 20px;
-                    border-bottom: 2px solid rgba(255,255,255,0.3);
+                    margin-bottom: 20px;
+                    padding-bottom: 15px;
+                    border-bottom: 2px solid #000000;
                 }
                 .label-header h1 {
-                    font-size: 32px;
-                    margin-bottom: 10px;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+                    font-size: 28px;
+                    margin-bottom: 8px;
+                    color: #000000;
                 }
                 .label-header h2 {
-                    font-size: 24px;
-                    opacity: 0.9;
+                    font-size: 22px;
+                    color: #000000;
                     font-weight: 400;
                 }
                 .label-barcode {
                     background: white;
-                    padding: 20px;
-                    border-radius: 10px;
-                    margin: 20px 0;
+                    padding: 15px;
+                    border: 1px solid #000000;
+                    border-radius: 8px;
+                    margin: 15px 0;
                     text-align: center;
                 }
                 .label-barcode img {
                     max-width: 100%;
                     height: auto;
                     display: block;
-                    margin: 0 auto 15px;
+                    margin: 0 auto 12px;
                 }
                 .label-barcode-code {
                     font-family: 'Courier New', monospace;
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: bold;
                     color: #333;
                     letter-spacing: 2px;
-                    padding: 10px;
+                    padding: 8px;
                     background: #f0f0f0;
+                    border: 1px solid #000000;
                     border-radius: 5px;
                 }
                 .label-specs {
-                    background: rgba(255,255,255,0.15);
-                    padding: 20px;
-                    border-radius: 10px;
-                    margin-top: 20px;
-                    backdrop-filter: blur(10px);
+                    background: white;
+                    padding: 15px;
+                    border: 1px solid #000000;
+                    border-radius: 8px;
+                    margin-top: 15px;
                 }
                 .label-specs h3 {
-                    font-size: 20px;
-                    margin-bottom: 15px;
+                    font-size: 18px;
+                    margin-bottom: 12px;
                     text-align: center;
-                    border-bottom: 2px solid rgba(255,255,255,0.3);
-                    padding-bottom: 10px;
+                    border-bottom: 2px solid #000000;
+                    padding-bottom: 8px;
+                    color: #000000;
                 }
                 .specs-grid {
                     display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 15px;
-                    margin-top: 15px;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 12px;
+                    margin-top: 12px;
                 }
                 .spec-item {
-                    background: rgba(255,255,255,0.2);
-                    padding: 12px;
-                    border-radius: 8px;
-                    backdrop-filter: blur(5px);
+                    background: white;
+                    padding: 10px;
+                    border: 1px solid #000000;
+                    border-radius: 5px;
                 }
                 .spec-label {
-                    font-size: 12px;
-                    opacity: 0.9;
-                    margin-bottom: 5px;
+                    font-size: 11px;
+                    color: #000000;
+                    margin-bottom: 4px;
                 }
                 .spec-value {
-                    font-size: 16px;
+                    font-size: 15px;
                     font-weight: bold;
+                    color: #000000;
                 }
                 .label-footer {
-                    margin-top: 20px;
-                    padding-top: 20px;
-                    border-top: 2px solid rgba(255,255,255,0.3);
+                    margin-top: 15px;
+                    padding-top: 15px;
+                    border-top: 2px solid #000000;
                     text-align: center;
                 }
                 .label-footer-item {
                     display: flex;
                     justify-content: space-between;
-                    margin: 10px 0;
+                    margin: 8px 0;
                     font-size: 16px;
+                    color: #000000;
                 }
                 .label-price {
-                    font-size: 24px;
+                    font-size: 22px;
                     font-weight: bold;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+                    color: #000000;
                 }
                 .label-serial {
                     font-family: 'Courier New', monospace;
                     font-size: 14px;
-                    opacity: 0.9;
                     margin-top: 10px;
                 }
                 @media print {
@@ -2522,7 +2527,7 @@ function printPhoneLabel(id) {
                     }
                     .label-container {
                         box-shadow: none;
-                        border: 2px solid #2196F3;
+                        border: 2px solid #000000;
                     }
                     @page {
                         size: A4;
@@ -2589,14 +2594,6 @@ function printPhoneLabel(id) {
                     <div class="label-footer-item">
                         <span>سعر البيع:</span>
                         <span class="label-price">${formatCurrency(phone.selling_price || 0)}</span>
-                    </div>
-                    ${phone.serial_number ? `
-                        <div class="label-serial">
-                            Serial: ${phone.serial_number}
-                        </div>
-                    ` : ''}
-                    <div style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
-                        تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')} ${new Date().toLocaleTimeString('ar-SA')}
                     </div>
                 </div>
             </div>
