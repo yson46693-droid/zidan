@@ -294,7 +294,15 @@ if ($method === 'PUT') {
         }
         
         // إزالة حقل price القديم إذا كان موجوداً (للتأكد من عدم استخدامه)
+        // يجب إزالته من جميع المستويات لتجنب أي مشاكل
         unset($data['price']);
+        if (isset($data['items']) && is_array($data['items'])) {
+            foreach ($data['items'] as &$item) {
+                // items يمكن أن تحتوي على price وهذا صحيح لـ spare_part_items
+                // لكن نتأكد من عدم وجود price في المستوى الرئيسي
+            }
+            unset($item);
+        }
         
         $updateFields = [];
         $updateParams = [];
@@ -324,6 +332,11 @@ if ($method === 'PUT') {
             $updateParams[] = floatval($data['selling_price']);
         }
         
+        // التأكد من عدم وجود price في الحقول المحدثة
+        if (in_array('price', $updateFields, true) || isset($data['price'])) {
+            response(false, 'خطأ: لا يمكن استخدام حقل price القديم. يرجى استخدام purchase_price و selling_price', null, 400);
+        }
+        
         if (!empty($updateFields)) {
             $updateFields[] = "updated_at = NOW()";
             $updateParams[] = $id;
@@ -333,14 +346,25 @@ if ($method === 'PUT') {
             if ($result === false) {
                 global $lastDbError;
                 $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
-                response(false, 'خطأ في تعديل قطعة الغيار: ' . $error, null, 500);
+                
+                // فحص إذا كان الخطأ متعلق بـ price
+                if (stripos($error, 'price') !== false && stripos($error, 'Unknown column') !== false) {
+                    response(false, 'خطأ: تم إرسال حقل price القديم. يرجى استخدام purchase_price و selling_price بدلاً منه. الخطأ: ' . $error, null, 500);
+                } else {
+                    response(false, 'خطأ في تعديل قطعة الغيار: ' . $error, null, 500);
+                }
             }
         }
         
         // تحديث تفاصيل القطع
         if (isset($data['items']) && is_array($data['items'])) {
             // حذف القطع القديمة
-            dbExecute("DELETE FROM spare_part_items WHERE spare_part_id = ?", [$id]);
+            $deleteResult = dbExecute("DELETE FROM spare_part_items WHERE spare_part_id = ?", [$id]);
+            if ($deleteResult === false) {
+                global $lastDbError;
+                $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+                response(false, 'خطأ في حذف تفاصيل القطع القديمة: ' . $error, null, 500);
+            }
             
             // إضافة القطع الجديدة
             foreach ($data['items'] as $item) {

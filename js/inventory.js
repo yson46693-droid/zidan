@@ -1436,6 +1436,9 @@ async function saveSparePart(event) {
         items
     };
     
+    // التأكد من عدم وجود حقل price القديم
+    delete partData.price;
+    
     let result;
     if (id) {
         partData.id = id;
