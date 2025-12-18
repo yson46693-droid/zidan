@@ -1,4 +1,10 @@
 <?php
+// تنظيف output buffer قبل أي شيء
+if (ob_get_level()) {
+    ob_end_clean();
+}
+ob_start();
+
 // بدء معالجة الأخطاء قبل أي شيء
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -38,7 +44,9 @@ if ($method === 'POST') {
     
     // التحقق من طلب تسجيل الخروج
     if (isset($data['action']) && $data['action'] === 'logout') {
-        session_start();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         
         // مسح جميع بيانات الجلسة
         $_SESSION = array();
@@ -161,13 +169,16 @@ if ($method === 'POST') {
 
 // التحقق من الجلسة
 if ($method === 'GET') {
-    session_start();
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
     if (isset($_SESSION['user_id'])) {
         response(true, 'الجلسة نشطة', [
             'id' => $_SESSION['user_id'],
-            'username' => $_SESSION['username'],
-            'name' => $_SESSION['name'],
-            'role' => $_SESSION['role']
+            'username' => $_SESSION['username'] ?? '',
+            'name' => $_SESSION['name'] ?? '',
+            'role' => $_SESSION['role'] ?? 'employee'
         ]);
     } else {
         response(false, 'لا توجد جلسة نشطة', null, 401);

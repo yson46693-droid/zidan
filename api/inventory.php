@@ -1,4 +1,10 @@
 <?php
+// تنظيف output buffer قبل أي شيء
+if (ob_get_level()) {
+    ob_end_clean();
+}
+ob_start();
+
 require_once 'config.php';
 
 // دعم _method للاستضافات المجانية

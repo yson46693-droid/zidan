@@ -1,27 +1,58 @@
 // إدارة المصادقة والصلاحيات
 
+// متغير لمنع الطلبات المتكررة
+let checkLoginInProgress = false;
+let lastCheckLoginTime = 0;
+const CHECK_LOGIN_COOLDOWN = 1000; // 1 ثانية بين الطلبات
+
 // التحقق من تسجيل الدخول
 async function checkLogin() {
-    const result = await API.checkAuth();
+    const now = Date.now();
     
-    if (!result.success) {
-        // مسح جميع البيانات المحلية
-        localStorage.clear();
-        sessionStorage.clear();
-        
-        // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول
-        const currentPage = window.location.pathname;
-        if (!currentPage.includes('index.html') && currentPage !== '/') {
-            showLoginRequiredMessage();
+    // منع الطلبات المتكررة
+    if (checkLoginInProgress) {
+        // انتظار انتهاء الطلب الحالي
+        while (checkLoginInProgress && (Date.now() - now < 5000)) {
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
         return null;
     }
     
-    // حفظ بيانات المستخدم
-    const user = result.data;
-    localStorage.setItem('currentUser', JSON.stringify(user));
+    // تطبيق cooldown
+    if (now - lastCheckLoginTime < CHECK_LOGIN_COOLDOWN) {
+        return null;
+    }
     
-    return user;
+    checkLoginInProgress = true;
+    lastCheckLoginTime = now;
+    
+    try {
+        const result = await API.checkAuth();
+        
+        if (!result.success) {
+            // مسح جميع البيانات المحلية
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول
+            const currentPage = window.location.pathname;
+            if (!currentPage.includes('index.html') && currentPage !== '/') {
+                showLoginRequiredMessage();
+            }
+            return null;
+        }
+        
+        // حفظ بيانات المستخدم
+        const user = result.data;
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        
+        return user;
+    } catch (error) {
+        console.error('خطأ في checkLogin:', error);
+        return null;
+    } finally {
+        checkLoginInProgress = false;
+    }
 }
 
 // تسجيل الدخول

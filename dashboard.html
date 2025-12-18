@@ -348,23 +348,61 @@
         }
 
         // حماية الصفحة - منع الوصول بدون تسجيل دخول
-        (async function() {
-            const user = await checkLogin();
-            if (!user) {
+        // متغير لمنع الطلبات المتكررة
+        let authCheckInProgress = false;
+        let authChecked = false;
+
+        let cachedUser = null;
+        
+        async function performAuthCheck() {
+            // منع الطلبات المتكررة - إذا كان هناك طلب قيد التنفيذ، انتظر
+            if (authCheckInProgress) {
+                // انتظار حتى ينتهي الطلب الحالي (بحد أقصى 5 ثوان)
+                let waitTime = 0;
+                while (authCheckInProgress && waitTime < 5000) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    waitTime += 100;
+                }
+                return cachedUser;
+            }
+            
+            // إذا تم التحقق بالفعل وكان هناك مستخدم محفوظ، أرجع المستخدم
+            if (authChecked && cachedUser) {
+                return cachedUser;
+            }
+            
+            authCheckInProgress = true;
+            try {
+                const user = await checkLogin();
+                authCheckInProgress = false;
+                authChecked = true;
+                
+                if (!user) {
+                    cachedUser = null;
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    showLoginRequiredMessage();
+                    return null;
+                }
+                
+                cachedUser = user;
+                return user;
+            } catch (error) {
+                authCheckInProgress = false;
+                authChecked = false;
+                cachedUser = null;
+                console.error('خطأ في التحقق من تسجيل الدخول:', error);
                 localStorage.clear();
                 sessionStorage.clear();
                 showLoginRequiredMessage();
-                return;
+                return null;
             }
-        })();
+        }
 
         // التحقق من تسجيل الدخول عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', async () => {
-            const user = await checkLogin();
+            const user = await performAuthCheck();
             if (!user) {
-                localStorage.clear();
-                sessionStorage.clear();
-                showLoginRequiredMessage();
                 return;
             }
             

@@ -1,4 +1,10 @@
 <?php
+// تنظيف output buffer قبل أي شيء
+if (ob_get_level()) {
+    ob_end_clean();
+}
+ob_start();
+
 // إعدادات النظام الأساسية
 header('Content-Type: application/json; charset=utf-8');
 
@@ -106,12 +112,16 @@ function writeJSON($file, $data) {
 
 function response($success, $message = '', $data = null, $code = 200) {
     // تنظيف أي output سابق
-    if (ob_get_level()) {
-        ob_clean();
+    while (ob_get_level()) {
+        ob_end_clean();
     }
     
     http_response_code($code);
-    header('Content-Type: application/json; charset=utf-8');
+    
+    // التأكد من أن headers لم يتم إرسالها بعد
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
     
     $response = [
         'success' => $success,
@@ -143,7 +153,9 @@ function getRequestData() {
 
 // التحقق من الجلسة
 function checkAuth() {
-    session_start();
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     if (!isset($_SESSION['user_id'])) {
         response(false, 'غير مصرح، يرجى تسجيل الدخول', null, 401);
     }

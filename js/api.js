@@ -74,11 +74,19 @@ const API = {
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
                 console.error('%c❌ الاستجابة ليست JSON:', 'color: #f44336; font-weight: bold;', text);
-                return { 
-                    success: false, 
-                    message: 'خطأ في تنسيق الاستجابة من الخادم. قد تكون مشكلة في الاستضافة.',
-                    error: text
-                };
+                
+                // محاولة تحليل JSON حتى لو كان Content-Type غير صحيح
+                try {
+                    const jsonData = JSON.parse(text);
+                    return jsonData;
+                } catch (e) {
+                    // إذا فشل التحليل، إرجاع الخطأ
+                    return { 
+                        success: false, 
+                        message: 'خطأ في تنسيق الاستجابة من الخادم. قد تكون مشكلة في الاستضافة.',
+                        error: text.substring(0, 200) // فقط أول 200 حرف لتجنب استجابة ضخمة
+                    };
+                }
             }
             
             const result = await response.json();
