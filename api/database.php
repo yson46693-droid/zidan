@@ -21,26 +21,17 @@ function getDBConnection() {
     
     if ($connection === null) {
         try {
-            // استخدام المنفذ إذا كان معرّفاً
-            $port = defined('DB_PORT') ? DB_PORT : 3306;
-            $host = defined('DB_PORT') && DB_PORT != 3306 ? DB_HOST . ':' . DB_PORT : DB_HOST;
-            
-            $connection = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, $port);
+            $connection = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
             
             if ($connection->connect_error) {
                 $errorMsg = 'خطأ في الاتصال بقاعدة البيانات: ' . $connection->connect_error . 
-                           ' | Host: ' . DB_HOST . ':' . $port . 
-                           ' | User: ' . DB_USER . 
-                           ' | Database: ' . DB_NAME .
-                           ' | Error Code: ' . $connection->connect_errno;
+                           ' | Host: ' . DB_HOST . ' | User: ' . DB_USER . ' | Database: ' . DB_NAME;
                 error_log($errorMsg);
                 return null;
             }
             
             // تعيين الترميز
-            if (!$connection->set_charset(DB_CHARSET)) {
-                error_log('تحذير: فشل تعيين الترميز إلى ' . DB_CHARSET . ': ' . $connection->error);
-            }
+            $connection->set_charset(DB_CHARSET);
             
         } catch (Exception $e) {
             error_log('خطأ في الاتصال بقاعدة البيانات: ' . $e->getMessage());
@@ -58,19 +49,16 @@ function getDBConnection() {
  * @return array|false
  */
 function dbSelect($query, $params = []) {
-    try {
-        $conn = getDBConnection();
-        if (!$conn) {
-            error_log('dbSelect: فشل الاتصال بقاعدة البيانات');
-            return false;
-        }
-        
-        $stmt = $conn->prepare($query);
-        if (!$stmt) {
-            $error = 'خطأ في إعداد الاستعلام: ' . $conn->error . ' | Query: ' . $query;
-            error_log($error);
-            return false;
-        }
+    $conn = getDBConnection();
+    if (!$conn) {
+        return false;
+    }
+    
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
+        return false;
+    }
     
     if (!empty($params)) {
         $types = '';
@@ -90,29 +78,21 @@ function dbSelect($query, $params = []) {
         $stmt->bind_param($types, ...$values);
     }
     
-        if (!$stmt->execute()) {
-            $error = 'خطأ في تنفيذ الاستعلام: ' . $stmt->error . ' | Query: ' . $query;
-            error_log($error);
-            $stmt->close();
-            return false;
-        }
-        
-        $result = $stmt->get_result();
-        $data = [];
-        
-        while ($row = $result->fetch_assoc()) {
-            $data[] = $row;
-        }
-        
+    if (!$stmt->execute()) {
+        error_log('خطأ في تنفيذ الاستعلام: ' . $stmt->error);
         $stmt->close();
-        return $data;
-    } catch (Exception $e) {
-        error_log('Exception in dbSelect: ' . $e->getMessage() . ' | Query: ' . $query);
-        return false;
-    } catch (Error $e) {
-        error_log('Fatal Error in dbSelect: ' . $e->getMessage() . ' | Query: ' . $query);
         return false;
     }
+    
+    $result = $stmt->get_result();
+    $data = [];
+    
+    while ($row = $result->fetch_assoc()) {
+        $data[] = $row;
+    }
+    
+    $stmt->close();
+    return $data;
 }
 
 /**
@@ -122,16 +102,8 @@ function dbSelect($query, $params = []) {
  * @return array|null|false
  */
 function dbSelectOne($query, $params = []) {
-    try {
-        $result = dbSelect($query, $params);
-        return $result !== false ? (isset($result[0]) ? $result[0] : null) : false;
-    } catch (Exception $e) {
-        error_log('Exception in dbSelectOne: ' . $e->getMessage());
-        return false;
-    } catch (Error $e) {
-        error_log('Fatal Error in dbSelectOne: ' . $e->getMessage());
-        return false;
-    }
+    $result = dbSelect($query, $params);
+    return $result !== false ? (isset($result[0]) ? $result[0] : null) : false;
 }
 
 /**
@@ -141,19 +113,16 @@ function dbSelectOne($query, $params = []) {
  * @return int|false عدد الصفوف المتأثرة أو false في حالة الخطأ
  */
 function dbExecute($query, $params = []) {
-    try {
-        $conn = getDBConnection();
-        if (!$conn) {
-            error_log('dbExecute: فشل الاتصال بقاعدة البيانات');
-            return false;
-        }
-        
-        $stmt = $conn->prepare($query);
-        if (!$stmt) {
-            $error = 'خطأ في إعداد الاستعلام: ' . $conn->error . ' | Query: ' . $query;
-            error_log($error);
-            return false;
-        }
+    $conn = getDBConnection();
+    if (!$conn) {
+        return false;
+    }
+    
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
+        return false;
+    }
     
     if (!empty($params)) {
         $types = '';
@@ -173,25 +142,17 @@ function dbExecute($query, $params = []) {
         $stmt->bind_param($types, ...$values);
     }
     
-        if (!$stmt->execute()) {
-            $error = 'خطأ في تنفيذ الاستعلام: ' . $stmt->error . ' | Query: ' . $query;
-            error_log($error);
-            $stmt->close();
-            return false;
-        }
-        
-        $affectedRows = $stmt->affected_rows;
-        $insertId = $stmt->insert_id;
+    if (!$stmt->execute()) {
+        error_log('خطأ في تنفيذ الاستعلام: ' . $stmt->error);
         $stmt->close();
-        
-        return $insertId > 0 ? $insertId : $affectedRows;
-    } catch (Exception $e) {
-        error_log('Exception in dbExecute: ' . $e->getMessage() . ' | Query: ' . $query);
-        return false;
-    } catch (Error $e) {
-        error_log('Fatal Error in dbExecute: ' . $e->getMessage() . ' | Query: ' . $query);
         return false;
     }
+    
+    $affectedRows = $stmt->affected_rows;
+    $insertId = $stmt->insert_id;
+    $stmt->close();
+    
+    return $insertId > 0 ? $insertId : $affectedRows;
 }
 
 /**
