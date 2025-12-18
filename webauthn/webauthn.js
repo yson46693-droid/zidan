@@ -36,8 +36,31 @@ class SimpleWebAuthn {
         const hasPublicKeyCredential = !!(window.PublicKeyCredential);
         const hasCredentials = !!(navigator.credentials && navigator.credentials.create && navigator.credentials.get);
         
-        // التحقق من دعم HTTPS (مطلوب لـ WebAuthn إلا في localhost)
-        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        // التحقق من دعم HTTPS (مطلوب لـ WebAuthn إلا في localhost أو 127.0.0.1)
+        const hostname = window.location.hostname.toLowerCase();
+        const isLocalhost = hostname === 'localhost' || 
+                           hostname === '127.0.0.1' || 
+                           hostname === '[::1]' ||
+                           hostname.startsWith('192.168.') ||
+                           hostname.startsWith('10.') ||
+                           hostname.startsWith('172.16.') ||
+                           hostname.startsWith('172.17.') ||
+                           hostname.startsWith('172.18.') ||
+                           hostname.startsWith('172.19.') ||
+                           hostname.startsWith('172.20.') ||
+                           hostname.startsWith('172.21.') ||
+                           hostname.startsWith('172.22.') ||
+                           hostname.startsWith('172.23.') ||
+                           hostname.startsWith('172.24.') ||
+                           hostname.startsWith('172.25.') ||
+                           hostname.startsWith('172.26.') ||
+                           hostname.startsWith('172.27.') ||
+                           hostname.startsWith('172.28.') ||
+                           hostname.startsWith('172.29.') ||
+                           hostname.startsWith('172.30.') ||
+                           hostname.startsWith('172.31.');
+        
+        const isSecure = window.location.protocol === 'https:' || isLocalhost;
         
         const supported = hasPublicKeyCredential && hasCredentials && isSecure;
         
@@ -46,9 +69,18 @@ class SimpleWebAuthn {
                 hasPublicKeyCredential,
                 hasCredentials,
                 isSecure,
+                isLocalhost,
                 protocol: window.location.protocol,
-                hostname: window.location.hostname
+                hostname: window.location.hostname,
+                userAgent: navigator.userAgent
             });
+            
+            // رسالة توضيحية للمستخدم
+            if (!hasPublicKeyCredential || !hasCredentials) {
+                console.error('WebAuthn API غير متوفر في هذا المتصفح. المتصفحات المدعومة: Chrome 67+, Firefox 60+, Safari 14+, Edge 18+');
+            } else if (!isSecure) {
+                console.error('WebAuthn يتطلب HTTPS. الموقع الحالي يستخدم: ' + window.location.protocol);
+            }
         }
         
         return supported;
@@ -150,9 +182,16 @@ class SimpleWebAuthn {
                 throw new Error('WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث.');
             }
 
-            // التحقق من HTTPS (مطلوب لـ WebAuthn)
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                throw new Error('WebAuthn يتطلب HTTPS. الموقع الحالي: ' + window.location.protocol);
+            // التحقق من HTTPS (مطلوب لـ WebAuthn إلا في localhost)
+            const hostname = window.location.hostname.toLowerCase();
+            const isLocalhost = hostname === 'localhost' || 
+                               hostname === '127.0.0.1' || 
+                               hostname === '[::1]' ||
+                               hostname.startsWith('192.168.') ||
+                               hostname.startsWith('10.');
+            
+            if (window.location.protocol !== 'https:' && !isLocalhost) {
+                throw new Error('WebAuthn يتطلب HTTPS. الموقع الحالي: ' + window.location.protocol + '://' + window.location.hostname);
             }
 
             // الحصول على اسم الجهاز بشكل تلقائي إن لم يُرسل من الواجهة

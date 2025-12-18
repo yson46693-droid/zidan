@@ -223,7 +223,21 @@
             if (biometricBtn) {
                 // التحقق من دعم WebAuthn بشكل غير متزامن
                 setTimeout(() => {
-                    if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
+                    // التحقق من وجود simpleWebAuthn
+                    if (typeof simpleWebAuthn === 'undefined') {
+                        console.warn('WebAuthn script not loaded yet, retrying...');
+                        // إعادة المحاولة بعد ثانية
+                        setTimeout(() => {
+                            if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
+                                biometricBtn.style.display = 'flex';
+                            } else {
+                                biometricBtn.style.display = 'none';
+                            }
+                        }, 1000);
+                        return;
+                    }
+                    
+                    if (simpleWebAuthn.isSupported()) {
                         biometricBtn.style.display = 'flex';
                         biometricBtn.addEventListener('click', async () => {
                             try {

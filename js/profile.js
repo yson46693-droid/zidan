@@ -160,8 +160,15 @@ async function handleRegisterBiometric() {
         return;
     }
 
-    // التحقق من HTTPS
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    // التحقق من HTTPS (مطلوب لـ WebAuthn إلا في localhost)
+    const hostname = window.location.hostname.toLowerCase();
+    const isLocalhost = hostname === 'localhost' || 
+                       hostname === '127.0.0.1' || 
+                       hostname === '[::1]' ||
+                       hostname.startsWith('192.168.') ||
+                       hostname.startsWith('10.');
+    
+    if (window.location.protocol !== 'https:' && !isLocalhost) {
         showMessage('WebAuthn يتطلب HTTPS. يرجى الوصول للموقع عبر HTTPS.', 'error');
         return;
     }
