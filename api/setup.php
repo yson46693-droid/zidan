@@ -100,6 +100,8 @@ function setupDatabase() {
               `item_type` varchar(100) NOT NULL,
               `quantity` int(11) DEFAULT 1,
               `price` decimal(10,2) DEFAULT 0.00,
+              `purchase_price` decimal(10,2) DEFAULT 0.00,
+              `selling_price` decimal(10,2) DEFAULT 0.00,
               `notes` text DEFAULT NULL,
               `custom_value` text DEFAULT NULL,
               `created_at` datetime NOT NULL,
@@ -250,12 +252,74 @@ function setupDatabase() {
               `password` varchar(255) NOT NULL,
               `name` varchar(255) NOT NULL,
               `role` enum('admin','manager','employee') NOT NULL DEFAULT 'employee',
+              `webauthn_enabled` tinyint(1) DEFAULT 0,
               `created_at` datetime NOT NULL,
               `updated_at` datetime DEFAULT NULL,
               PRIMARY KEY (`id`),
               UNIQUE KEY `username` (`username`),
               KEY `idx_username` (`username`),
               KEY `idx_role` (`role`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'messages' => "
+            CREATE TABLE IF NOT EXISTS `messages` (
+              `id` int(11) NOT NULL AUTO_INCREMENT,
+              `user_id` varchar(50) NOT NULL,
+              `message_text` text NOT NULL,
+              `reply_to` int(11) DEFAULT NULL,
+              `deleted` tinyint(1) DEFAULT 0,
+              `edited` tinyint(1) DEFAULT 0,
+              `created_at` datetime NOT NULL,
+              `updated_at` datetime DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_user_id` (`user_id`),
+              KEY `idx_created_at` (`created_at`),
+              KEY `idx_reply_to` (`reply_to`),
+              KEY `idx_deleted` (`deleted`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'message_reads' => "
+            CREATE TABLE IF NOT EXISTS `message_reads` (
+              `id` int(11) NOT NULL AUTO_INCREMENT,
+              `message_id` int(11) NOT NULL,
+              `user_id` varchar(50) NOT NULL,
+              `read_at` datetime NOT NULL,
+              PRIMARY KEY (`id`),
+              UNIQUE KEY `unique_read` (`message_id`, `user_id`),
+              KEY `idx_message_id` (`message_id`),
+              KEY `idx_user_id` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'user_presence' => "
+            CREATE TABLE IF NOT EXISTS `user_presence` (
+              `id` int(11) NOT NULL AUTO_INCREMENT,
+              `user_id` varchar(50) NOT NULL,
+              `is_online` tinyint(1) DEFAULT 0,
+              `last_seen` datetime NOT NULL,
+              `updated_at` datetime DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              UNIQUE KEY `unique_user` (`user_id`),
+              KEY `idx_is_online` (`is_online`),
+              KEY `idx_last_seen` (`last_seen`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'webauthn_credentials' => "
+            CREATE TABLE IF NOT EXISTS `webauthn_credentials` (
+              `id` int(11) NOT NULL AUTO_INCREMENT,
+              `user_id` varchar(50) NOT NULL,
+              `credential_id` text NOT NULL,
+              `public_key` text NOT NULL,
+              `device_name` varchar(255) DEFAULT NULL,
+              `counter` int(11) DEFAULT 0,
+              `created_at` datetime NOT NULL,
+              `last_used` datetime DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_user_id` (`user_id`),
+              KEY `idx_credential_id` (`credential_id`(255))
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         "
     ];
@@ -276,7 +340,11 @@ function setupDatabase() {
         'accessories',
         'phones',
         'repairs',
-        'loss_operations'
+        'loss_operations',
+        'messages',
+        'message_reads',
+        'user_presence',
+        'webauthn_credentials'
     ];
     
     foreach ($tableOrder as $tableName) {
@@ -314,6 +382,9 @@ function setupDatabase() {
     // إعادة تفعيل فحص المفاتيح الخارجية
     $conn->query("SET FOREIGN_KEY_CHECKS = 1");
     
+    // تطبيق التحديثات على الجداول الموجودة (إضافة الأعمدة الناقصة)
+    $migrationsApplied = applyDatabaseMigrations($conn);
+    
     // إدراج البيانات الافتراضية إذا لم تكن موجودة
     insertDefaultData($conn);
     
@@ -321,8 +392,91 @@ function setupDatabase() {
         'success' => true,
         'message' => count($tablesCreated) > 0 ? 'تم إنشاء ' . count($tablesCreated) . ' جدول بنجاح' : 'جميع الجداول موجودة بالفعل',
         'tables_created' => $tablesCreated,
+        'migrations_applied' => $migrationsApplied,
         'errors' => $errors
     ];
+}
+
+/**
+ * تطبيق التحديثات على قاعدة البيانات (إضافة الأعمدة الناقصة)
+ * @param mysqli $conn
+ * @return array
+ */
+function applyDatabaseMigrations($conn) {
+    $migrationsApplied = [];
+    
+    // الحصول على اسم قاعدة البيانات الحالية
+    $result = $conn->query("SELECT DATABASE() as dbname");
+    $dbname = $result ? $result->fetch_assoc()['dbname'] : DB_NAME;
+    
+    // التحقق من وجود عمود quantity في جدول accessories
+    if (dbTableExists('accessories')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'accessories' AND COLUMN_NAME = 'quantity'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkColumn = $stmt->get_result();
+        if ($checkColumn) {
+            $result = $checkColumn->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `accessories` ADD COLUMN `quantity` int(11) NOT NULL DEFAULT 0 AFTER `selling_price`");
+                $migrationsApplied[] = 'accessories.quantity';
+            }
+        }
+        $stmt->close();
+    }
+    
+    // التحقق من وجود purchase_price و selling_price في جدول spare_part_items
+    if (dbTableExists('spare_part_items')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'spare_part_items' AND COLUMN_NAME = 'purchase_price'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkPurchasePrice = $stmt->get_result();
+        if ($checkPurchasePrice) {
+            $result = $checkPurchasePrice->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `spare_part_items` ADD COLUMN `purchase_price` decimal(10,2) DEFAULT 0.00 AFTER `quantity`");
+                $migrationsApplied[] = 'spare_part_items.purchase_price';
+                
+                // نسخ البيانات من price إلى purchase_price
+                $conn->query("UPDATE `spare_part_items` SET `purchase_price` = COALESCE(`price`, 0) WHERE `purchase_price` IS NULL OR `purchase_price` = 0");
+            }
+        }
+        $stmt->close();
+        
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'spare_part_items' AND COLUMN_NAME = 'selling_price'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkSellingPrice = $stmt->get_result();
+        if ($checkSellingPrice) {
+            $result = $checkSellingPrice->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `spare_part_items` ADD COLUMN `selling_price` decimal(10,2) DEFAULT 0.00 AFTER `purchase_price`");
+                $migrationsApplied[] = 'spare_part_items.selling_price';
+                
+                // نسخ البيانات من price إلى selling_price
+                $conn->query("UPDATE `spare_part_items` SET `selling_price` = COALESCE(`price`, 0) WHERE `selling_price` IS NULL OR `selling_price` = 0");
+            }
+        }
+        $stmt->close();
+    }
+    
+    // التحقق من وجود webauthn_enabled في جدول users
+    if (dbTableExists('users')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'webauthn_enabled'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkColumn = $stmt->get_result();
+        if ($checkColumn) {
+            $result = $checkColumn->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `users` ADD COLUMN `webauthn_enabled` tinyint(1) DEFAULT 0");
+                $migrationsApplied[] = 'users.webauthn_enabled';
+            }
+        }
+        $stmt->close();
+    }
+    
+    return $migrationsApplied;
 }
 
 /**
