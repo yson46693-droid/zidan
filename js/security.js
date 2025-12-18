@@ -50,14 +50,28 @@ class SecurityManager {
     // تحميل إعدادات التليجرام
     async loadTelegramConfig() {
         try {
-            const response = await fetch('data/telegram-backup-config.json');
-            if (response.ok) {
+            const response = await fetch('data/telegram-backup-config.json', {
+                method: 'GET',
+                credentials: 'same-origin',
+                cache: 'no-cache'
+            });
+            
+            // التحقق من حالة الاستجابة قبل محاولة قراءة JSON
+            if (response.ok && response.status === 200) {
                 const config = await response.json();
                 this.telegramBotToken = config.bot_token || '';
                 this.telegramChatId = config.chat_id || '';
+            } else {
+                // الملف غير موجود أو غير متاح - هذا طبيعي ولا يعتبر خطأ
+                console.log('[Security] ملف إعدادات التليجرام غير موجود - سيتم استخدام الإعدادات الافتراضية');
             }
         } catch (error) {
-            console.warn('[Security] لم يتم العثور على إعدادات التليجرام');
+            // تجاهل أخطاء CORS و 404 - الملف اختياري
+            if (error.name === 'TypeError' || error.message.includes('CORS') || error.message.includes('404')) {
+                console.log('[Security] ملف إعدادات التليجرام غير متاح - سيتم استخدام الإعدادات الافتراضية');
+            } else {
+                console.warn('[Security] خطأ في تحميل إعدادات التليجرام:', error.message);
+            }
         }
     }
 

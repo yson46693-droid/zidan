@@ -196,6 +196,18 @@ self.addEventListener('fetch', event => {
                     
                     // محاولة جلب من الشبكة
                     return fetch(request).then(response => {
+                        // تجاهل أخطاء 404 للملفات الاختيارية (مثل telegram-backup-config.json)
+                        if (response.status === 404 && (
+                            request.url.includes('telegram-backup-config.json') ||
+                            request.url.includes('data/')
+                        )) {
+                            // إرجاع استجابة فارغة للملفات الاختيارية المفقودة
+                            return new Response('{}', {
+                                status: 200,
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                        
                         // التحقق من صحة الاستجابة
                         if (!response || response.status !== 200 || response.type === 'error') {
                             return response;

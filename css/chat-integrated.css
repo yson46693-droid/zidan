@@ -76,8 +76,8 @@
   display: none;
   position: fixed;
   bottom: 100px;
-  left: 20px;
-  z-index: 1000;
+  right: 20px;
+  z-index: 1002;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -109,7 +109,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 998;
+  z-index: 1000;
   opacity: 0;
   transition: opacity 0.3s ease;
   backdrop-filter: blur(4px);
@@ -127,12 +127,12 @@
   background: var(--chat-sidebar-bg);
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--chat-border);
+  border-right: 1px solid var(--chat-border);
   backdrop-filter: blur(18px);
   position: relative;
   overflow: hidden;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 999;
+  z-index: 1001;
 }
 
 .chat-sidebar::after {
@@ -861,14 +861,15 @@
   .chat-sidebar {
     position: fixed;
     top: 0;
-    right: 0;
+    left: 0;
     height: 100vh;
     width: 320px;
     max-width: 85vw;
-    transform: translateX(100%);
-    border-left: none;
-    border-right: 1px solid var(--chat-border);
+    transform: translateX(-100%);
+    border-right: none;
+    border-left: 1px solid var(--chat-border);
     box-shadow: var(--chat-shadow-md);
+    z-index: 1001;
   }
 
   .chat-sidebar.active {
@@ -897,7 +898,7 @@
 
   .chat-sidebar-toggle {
     bottom: 80px;
-    left: 16px;
+    right: 16px;
     width: 52px;
     height: 52px;
   }
