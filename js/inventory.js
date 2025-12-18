@@ -963,42 +963,167 @@ function viewPhoneDetails(id) {
     const modal = document.getElementById('phoneDetailsModal');
     const modalContent = document.getElementById('phoneDetailsModalContent');
     
+    // دالة مساعدة لإضافة الوحدات إذا لم تكن موجودة
+    const addUnit = (value, unit) => {
+        if (!value || value === '-') return '-';
+        const str = String(value).trim();
+        return str.toLowerCase().includes(unit.toLowerCase()) ? str : `${str} ${unit}`;
+    };
+    
+    // معالجة رقم التسلسل
+    const formatSerial = (serial) => {
+        if (!serial || serial === '-') return '-';
+        const str = String(serial).trim();
+        // إذا كان كل الأرقام أصفار أو طويل جداً، قم بقصه أو إظهار رسالة
+        if (str.length > 30 && /^0+$/.test(str)) {
+            return 'غير محدد';
+        }
+        return str.length > 50 ? str.substring(0, 50) + '...' : str;
+    };
+    
+    // معالجة سجل الصيانة
+    const formatMaintenance = (history) => {
+        if (!history) return null;
+        const lines = history.split('\n').filter(line => line.trim());
+        if (lines.length === 0) return null;
+        return lines.map(line => `<div style="padding: 8px; margin: 5px 0; background: var(--light-bg); border-radius: 5px; border-right: 3px solid var(--primary-color);">${line.trim()}</div>`).join('');
+    };
+    
     modalContent.innerHTML = `
         <div class="preview-modal-header">
             <h3>${phone.brand} ${phone.model}</h3>
             <button onclick="closePhoneDetailsModal()" class="preview-modal-close">&times;</button>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-            <div>
-                <h4>المعلومات الأساسية</h4>
-                <p><strong>Serial Number:</strong> ${phone.serial_number || '-'}</p>
-                <p><strong>حالة الضريبة:</strong> ${phone.tax_status === 'exempt' ? 'معفي' : 'مستحق'} ${phone.tax_status === 'due' ? `(${formatCurrency(phone.tax_amount || 0)})` : ''}</p>
+        <div style="max-height: 80vh; overflow-y: auto; padding: 20px;">
+            ${phone.image ? `
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <img src="${phone.image}" alt="${phone.brand} ${phone.model}" 
+                         style="max-width: 250px; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                </div>
+            ` : ''}
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <!-- المعلومات الأساسية -->
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+                    <h4 style="margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-info-circle"></i> المعلومات الأساسية
+                    </h4>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light-bg); border-radius: 8px;">
+                            <strong style="color: var(--text-color);">رقم التسلسل:</strong>
+                            <span style="font-family: 'Courier New', monospace; color: var(--text-secondary);">${formatSerial(phone.serial_number)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light-bg); border-radius: 8px;">
+                            <strong style="color: var(--text-color);">حالة الضريبة:</strong>
+                            <span style="padding: 4px 12px; border-radius: 6px; font-size: 0.9em; background: ${phone.tax_status === 'exempt' ? '#e8f5e9' : '#fff3e0'}; color: ${phone.tax_status === 'exempt' ? '#2e7d32' : '#e65100'};">
+                                ${phone.tax_status === 'exempt' ? 'معفي' : 'مستحق'}
+                            </span>
+                        </div>
+                        ${phone.tax_status === 'due' && phone.tax_amount ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light-bg); border-radius: 8px;">
+                            <strong style="color: var(--text-color);">مبلغ الضريبة:</strong>
+                            <span style="color: var(--text-secondary); font-weight: 600;">${formatCurrency(phone.tax_amount)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- الإمكانيات -->
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+                    <h4 style="margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-cpu"></i> الإمكانيات
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        ${phone.storage ? `
+                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">المساحة</div>
+                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${addUnit(phone.storage, 'GB')}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.ram ? `
+                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">الرام</div>
+                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${addUnit(phone.ram, 'GB')}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.screen_type ? `
+                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">نوع الشاشة</div>
+                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${phone.screen_type.toUpperCase()}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.processor ? `
+                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">المعالج</div>
+                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${phone.processor}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.battery ? `
+                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center; grid-column: span 2;">
+                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">البطارية</div>
+                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${addUnit(phone.battery, 'mAh')}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
             </div>
             
-            <div>
-                <h4>الإمكانيات</h4>
-                <p><strong>المساحة:</strong> ${phone.storage || '-'}</p>
-                <p><strong>الرام:</strong> ${phone.ram || '-'}</p>
-                <p><strong>نوع الشاشة:</strong> ${phone.screen_type || '-'}</p>
-                <p><strong>المعالج:</strong> ${phone.processor || '-'}</p>
-                <p><strong>البطارية:</strong> ${phone.battery || '-'}</p>
+            <!-- الأسعار -->
+            <div style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; color: white;">
+                <h4 style="margin: 0 0 20px 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-currency-exchange"></i> الأسعار
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; backdrop-filter: blur(10px);">
+                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 8px;">سعر التكلفة</div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${formatCurrency(phone.purchase_price || 0)}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.25); padding: 15px; border-radius: 10px; backdrop-filter: blur(10px); border: 2px solid rgba(255,255,255,0.3);">
+                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 8px;">سعر البيع</div>
+                        <div style="font-size: 1.5em; font-weight: bold;">${formatCurrency(phone.selling_price || 0)}</div>
+                    </div>
+                </div>
+                ${phone.purchase_price && phone.selling_price ? `
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center;">
+                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">الربح المتوقع</div>
+                        <div style="font-size: 1.3em; font-weight: bold;">
+                            ${formatCurrency((phone.selling_price || 0) - (phone.purchase_price || 0))}
+                        </div>
+                    </div>
+                ` : ''}
             </div>
-        </div>
-        
-        ${phone.accessories ? `<div style="margin-top: 20px;"><strong>ملحقات الجهاز:</strong> ${phone.accessories}</div>` : ''}
-        ${phone.defects ? `<div style="margin-top: 20px;"><strong>عيوب:</strong> ${phone.defects}</div>` : ''}
-        ${phone.maintenance_history ? `<div style="margin-top: 20px;"><strong>سجل الصيانة:</strong> ${phone.maintenance_history}</div>` : ''}
-        
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--light-bg);">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span>سعر التكلفة:</span>
-                <strong>${formatCurrency(phone.purchase_price || 0)}</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span>سعر البيع:</span>
-                <strong style="color: var(--primary-color);">${formatCurrency(phone.selling_price || 0)}</strong>
-            </div>
+            
+            <!-- معلومات إضافية -->
+            ${phone.accessories || phone.defects || phone.maintenance_history ? `
+                <div style="display: grid; grid-template-columns: ${phone.accessories && phone.defects ? '1fr 1fr' : '1fr'}; gap: 20px; margin-bottom: 20px;">
+                    ${phone.accessories ? `
+                        <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+                            <h4 style="margin: 0 0 12px 0; padding-bottom: 10px; border-bottom: 2px solid var(--success-color); color: var(--success-color); display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-box-seam"></i> ملحقات الجهاز
+                            </h4>
+                            <div style="color: var(--text-color); line-height: 1.6; white-space: pre-wrap;">${phone.accessories}</div>
+                        </div>
+                    ` : ''}
+                    ${phone.defects ? `
+                        <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); border-right: 4px solid var(--error-color);">
+                            <h4 style="margin: 0 0 12px 0; padding-bottom: 10px; border-bottom: 2px solid var(--error-color); color: var(--error-color); display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-exclamation-triangle"></i> العيوب
+                            </h4>
+                            <div style="color: var(--text-color); line-height: 1.6; white-space: pre-wrap;">${phone.defects}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
+            
+            ${phone.maintenance_history ? `
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+                    <h4 style="margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid var(--info-color); color: var(--info-color); display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-tools"></i> سجل الصيانة
+                    </h4>
+                    <div style="color: var(--text-color);">${formatMaintenance(phone.maintenance_history) || phone.maintenance_history}</div>
+                </div>
+            ` : ''}
         </div>
     `;
     
@@ -2609,7 +2734,7 @@ function printPhoneLabel(id) {
                 
                 <div class="label-footer">
                     <div class="label-footer-item">
-                        <span>سعر الجهاز</span>
+                        <span style="font-size: 1.3em;">سعر الجهاز</span>
                         <span class="label-price">${formatCurrency(phone.selling_price || 0)}</span>
                     </div>
                 </div>
