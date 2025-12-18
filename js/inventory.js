@@ -248,6 +248,7 @@ function showAddSparePartModal() {
     document.getElementById('sparePartForm').reset();
     document.getElementById('sparePartId').value = '';
     document.getElementById('sparePartItems').innerHTML = '';
+    document.getElementById('sparePartBrandCustom').style.display = 'none';
     document.getElementById('sparePartImagePreview').style.display = 'none';
     document.getElementById('sparePartImageFile').value = '';
     document.getElementById('sparePartModal').style.display = 'flex';
@@ -259,7 +260,18 @@ function editSparePart(id) {
     
     document.getElementById('sparePartModalTitle').textContent = 'تعديل قطعة غيار';
     document.getElementById('sparePartId').value = part.id;
-    document.getElementById('sparePartBrand').value = part.brand;
+    
+    // التحقق إذا كانت الماركة موجودة في القائمة
+    const brandExists = phoneBrands.find(b => b.name === part.brand);
+    if (brandExists) {
+        document.getElementById('sparePartBrand').value = part.brand;
+        document.getElementById('sparePartBrandCustom').style.display = 'none';
+    } else {
+        document.getElementById('sparePartBrand').value = 'أخرى';
+        document.getElementById('sparePartBrandCustom').value = part.brand;
+        document.getElementById('sparePartBrandCustom').style.display = 'block';
+    }
+    
     document.getElementById('sparePartModel').value = part.model;
     document.getElementById('sparePartBarcode').value = part.barcode || '';
     document.getElementById('sparePartImage').value = part.image || '';
@@ -775,7 +787,12 @@ function createInventoryModals() {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="sparePartBrand">الماركة *</label>
-                            <input type="text" id="sparePartBrand" required>
+                            <select id="sparePartBrand" required onchange="handleSparePartBrandChange(this)">
+                                ${phoneBrands.map(brand => `
+                                    <option value="${brand.name}">${brand.name}</option>
+                                `).join('')}
+                            </select>
+                            <input type="text" id="sparePartBrandCustom" style="display: none; margin-top: 10px;" placeholder="أدخل الماركة يدوياً">
                         </div>
                         <div class="form-group">
                             <label for="sparePartModel">الموديل *</label>
@@ -1085,7 +1102,14 @@ async function saveSparePart(event) {
     event.preventDefault();
     
     const id = document.getElementById('sparePartId').value;
-    const brand = document.getElementById('sparePartBrand').value.trim();
+    let brand = document.getElementById('sparePartBrand').value;
+    const customBrand = document.getElementById('sparePartBrandCustom').value.trim();
+    
+    // إذا كانت الماركة "أخرى" واستخدم المستخدم حقل الإدخال
+    if ((brand === 'أخرى' || brand.toLowerCase() === 'other') && customBrand) {
+        brand = customBrand;
+    }
+    
     const model = document.getElementById('sparePartModel').value.trim();
     let barcode = document.getElementById('sparePartBarcode').value.trim();
     let image = document.getElementById('sparePartImage').value.trim();
@@ -1228,6 +1252,17 @@ function handleAccessoryTypeChange(select) {
 
 function handlePhoneBrandChange(select) {
     const customInput = document.getElementById('phoneBrandCustom');
+    if (select.value === 'أخرى' || select.value.toLowerCase() === 'other') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+    } else {
+        customInput.style.display = 'none';
+        customInput.required = false;
+    }
+}
+
+function handleSparePartBrandChange(select) {
+    const customInput = document.getElementById('sparePartBrandCustom');
     if (select.value === 'أخرى' || select.value.toLowerCase() === 'other') {
         customInput.style.display = 'block';
         customInput.required = true;
