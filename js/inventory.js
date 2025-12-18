@@ -419,6 +419,9 @@ function displayAccessories(accessories) {
                 </div>
                 
                 <div class="inventory-card-actions">
+                    <button onclick="printAccessoryBarcode('${accessory.id}')" class="btn btn-info btn-sm">
+                        <i class="bi bi-printer"></i> طباعة باركود
+                    </button>
                     <button onclick="editAccessory('${accessory.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
                         <i class="bi bi-pencil"></i> تعديل
                     </button>
@@ -560,6 +563,9 @@ function displayPhones(phones) {
                 </div>
                 
                 <div class="inventory-card-actions">
+                    <button onclick="event.stopPropagation(); printPhoneLabel('${phone.id}')" class="btn btn-info btn-sm">
+                        <i class="bi bi-printer"></i> طباعة ملصق
+                    </button>
                     <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm">
                         <i class="bi bi-eye"></i> التفاصيل
                     </button>
@@ -1501,5 +1507,411 @@ function loadInventorySection() {
     createPhoneBrands();
     
     hideByPermission();
+}
+
+// ============================================
+// دوال الطباعة
+// ============================================
+
+// طباعة باركود للإكسسوار
+function printAccessoryBarcode(id) {
+    const accessory = allAccessories.find(a => a.id === id);
+    if (!accessory) {
+        showMessage('الإكسسوار غير موجود', 'error');
+        return;
+    }
+    
+    // إنشاء باركود
+    const barcode = `${accessory.type}-${accessory.id}-${Date.now()}`;
+    let barcodeImage = '';
+    try {
+        if (typeof BarcodeGenerator !== 'undefined') {
+            const barcodeGenerator = new BarcodeGenerator();
+            barcodeImage = barcodeGenerator.generateBarcode(barcode, 300, 80);
+        } else if (typeof window.barcodeGenerator !== 'undefined') {
+            barcodeImage = window.barcodeGenerator.generateBarcode(barcode, 300, 80);
+        }
+    } catch (error) {
+        console.error('خطأ في إنشاء الباركود:', error);
+    }
+    
+    // إنشاء نافذة الطباعة
+    const printWindow = window.open('', '_blank');
+    const type = accessoryTypes.find(t => t.id === accessory.type);
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>طباعة باركود - ${accessory.name}</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 20px;
+                    background: #f5f5f5;
+                }
+                .barcode-container {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    max-width: 400px;
+                    margin: 0 auto;
+                    text-align: center;
+                }
+                .barcode-header {
+                    margin-bottom: 20px;
+                    border-bottom: 2px solid #2196F3;
+                    padding-bottom: 15px;
+                }
+                .barcode-header h2 {
+                    color: #2196F3;
+                    font-size: 24px;
+                    margin-bottom: 10px;
+                }
+                .barcode-header p {
+                    color: #666;
+                    font-size: 16px;
+                }
+                .barcode-image {
+                    margin: 20px 0;
+                    padding: 15px;
+                    background: #f9f9f9;
+                    border-radius: 8px;
+                }
+                .barcode-image img {
+                    max-width: 100%;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                }
+                .barcode-code {
+                    font-family: 'Courier New', monospace;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #333;
+                    letter-spacing: 3px;
+                    margin-top: 15px;
+                    padding: 10px;
+                    background: #f0f0f0;
+                    border-radius: 5px;
+                }
+                .barcode-info {
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 1px solid #ddd;
+                }
+                .barcode-info-item {
+                    display: flex;
+                    justify-content: space-between;
+                    margin: 10px 0;
+                    font-size: 14px;
+                }
+                .barcode-info-label {
+                    color: #666;
+                    font-weight: 600;
+                }
+                .barcode-info-value {
+                    color: #2196F3;
+                    font-weight: bold;
+                }
+                @media print {
+                    body {
+                        background: white;
+                        padding: 0;
+                    }
+                    .barcode-container {
+                        box-shadow: none;
+                        border: 1px solid #ddd;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 10mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="barcode-container">
+                <div class="barcode-header">
+                    <h2>${accessory.name}</h2>
+                    <p>${type ? type.name : accessory.type}</p>
+                </div>
+                <div class="barcode-image">
+                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 20px; background: #f0f0f0; border-radius: 5px;">باركود</div>'}
+                    <div class="barcode-code">${barcode}</div>
+                </div>
+                <div class="barcode-info">
+                    <div class="barcode-info-item">
+                        <span class="barcode-info-label">السعر:</span>
+                        <span class="barcode-info-value">${formatCurrency(accessory.selling_price || 0)}</span>
+                    </div>
+                    <div class="barcode-info-item">
+                        <span class="barcode-info-label">التاريخ:</span>
+                        <span class="barcode-info-value">${new Date().toLocaleDateString('ar-SA')}</span>
+                    </div>
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+// طباعة ملصق احترافي للهاتف
+function printPhoneLabel(id) {
+    const phone = allPhones.find(p => p.id === id);
+    if (!phone) {
+        showMessage('الهاتف غير موجود', 'error');
+        return;
+    }
+    
+    // إنشاء باركود مخصص للهاتف
+    const barcode = `PHONE-${phone.brand}-${phone.model}-${phone.id}`;
+    let barcodeImage = '';
+    try {
+        if (typeof BarcodeGenerator !== 'undefined') {
+            const barcodeGenerator = new BarcodeGenerator();
+            barcodeImage = barcodeGenerator.generateBarcode(barcode, 350, 100);
+        } else if (typeof window.barcodeGenerator !== 'undefined') {
+            barcodeImage = window.barcodeGenerator.generateBarcode(barcode, 350, 100);
+        }
+    } catch (error) {
+        console.error('خطأ في إنشاء الباركود:', error);
+    }
+    
+    // إنشاء نافذة الطباعة
+    const printWindow = window.open('', '_blank');
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>ملصق جهاز - ${phone.brand} ${phone.model}</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 20px;
+                    background: #f5f5f5;
+                }
+                .label-container {
+                    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+                    padding: 30px;
+                    border-radius: 15px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+                    max-width: 500px;
+                    margin: 0 auto;
+                    color: white;
+                }
+                .label-header {
+                    text-align: center;
+                    margin-bottom: 25px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid rgba(255,255,255,0.3);
+                }
+                .label-header h1 {
+                    font-size: 32px;
+                    margin-bottom: 10px;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+                }
+                .label-header h2 {
+                    font-size: 24px;
+                    opacity: 0.9;
+                    font-weight: 400;
+                }
+                .label-barcode {
+                    background: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                    text-align: center;
+                }
+                .label-barcode img {
+                    max-width: 100%;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto 15px;
+                }
+                .label-barcode-code {
+                    font-family: 'Courier New', monospace;
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #333;
+                    letter-spacing: 2px;
+                    padding: 10px;
+                    background: #f0f0f0;
+                    border-radius: 5px;
+                }
+                .label-specs {
+                    background: rgba(255,255,255,0.15);
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin-top: 20px;
+                    backdrop-filter: blur(10px);
+                }
+                .label-specs h3 {
+                    font-size: 20px;
+                    margin-bottom: 15px;
+                    text-align: center;
+                    border-bottom: 2px solid rgba(255,255,255,0.3);
+                    padding-bottom: 10px;
+                }
+                .specs-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                    margin-top: 15px;
+                }
+                .spec-item {
+                    background: rgba(255,255,255,0.2);
+                    padding: 12px;
+                    border-radius: 8px;
+                    backdrop-filter: blur(5px);
+                }
+                .spec-label {
+                    font-size: 12px;
+                    opacity: 0.9;
+                    margin-bottom: 5px;
+                }
+                .spec-value {
+                    font-size: 16px;
+                    font-weight: bold;
+                }
+                .label-footer {
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 2px solid rgba(255,255,255,0.3);
+                    text-align: center;
+                }
+                .label-footer-item {
+                    display: flex;
+                    justify-content: space-between;
+                    margin: 10px 0;
+                    font-size: 16px;
+                }
+                .label-price {
+                    font-size: 24px;
+                    font-weight: bold;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+                }
+                .label-serial {
+                    font-family: 'Courier New', monospace;
+                    font-size: 14px;
+                    opacity: 0.9;
+                    margin-top: 10px;
+                }
+                @media print {
+                    body {
+                        background: white;
+                        padding: 0;
+                    }
+                    .label-container {
+                        box-shadow: none;
+                        border: 2px solid #2196F3;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 10mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="label-container">
+                <div class="label-header">
+                    <h1>${phone.brand}</h1>
+                    <h2>${phone.model}</h2>
+                </div>
+                
+                <div class="label-barcode">
+                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 30px; background: #f0f0f0; border-radius: 5px; color: #333;">باركود</div>'}
+                    <div class="label-barcode-code">${barcode}</div>
+                </div>
+                
+                <div class="label-specs">
+                    <h3>إمكانيات الجهاز</h3>
+                    <div class="specs-grid">
+                        ${phone.storage ? `
+                            <div class="spec-item">
+                                <div class="spec-label">المساحة</div>
+                                <div class="spec-value">${phone.storage}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.ram ? `
+                            <div class="spec-item">
+                                <div class="spec-label">الرام</div>
+                                <div class="spec-value">${phone.ram}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.screen_type ? `
+                            <div class="spec-item">
+                                <div class="spec-label">نوع الشاشة</div>
+                                <div class="spec-value">${phone.screen_type}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.processor ? `
+                            <div class="spec-item">
+                                <div class="spec-label">المعالج</div>
+                                <div class="spec-value">${phone.processor}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.battery ? `
+                            <div class="spec-item">
+                                <div class="spec-label">البطارية</div>
+                                <div class="spec-value">${phone.battery}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.tax_status ? `
+                            <div class="spec-item">
+                                <div class="spec-label">حالة الضريبة</div>
+                                <div class="spec-value">${phone.tax_status === 'exempt' ? 'معفي' : 'مستحق'}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div class="label-footer">
+                    <div class="label-footer-item">
+                        <span>سعر البيع:</span>
+                        <span class="label-price">${formatCurrency(phone.selling_price || 0)}</span>
+                    </div>
+                    ${phone.serial_number ? `
+                        <div class="label-serial">
+                            Serial: ${phone.serial_number}
+                        </div>
+                    ` : ''}
+                    <div style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+                        تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')} ${new Date().toLocaleTimeString('ar-SA')}
+                    </div>
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
 
