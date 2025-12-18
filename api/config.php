@@ -22,9 +22,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // معالجة أخطاء PHP - تفعيل وضع التطوير
 error_reporting(E_ALL);
-ini_set('display_errors', 1); // تفعيل عرض الأخطاء على الشاشة
+ini_set('display_errors', 0); // إخفاء الأخطاء من الشاشة (سنعرضها في JSON)
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
+
+// معالج الأخطاء المخصص
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    error_log("PHP Error [$errno]: $errstr in $errfile on line $errline");
+    // لا نوقف التنفيذ، فقط نسجل الخطأ
+    return false;
+});
+
+// معالج الاستثناءات
+set_exception_handler(function($exception) {
+    error_log("Uncaught Exception: " . $exception->getMessage() . " in " . $exception->getFile() . " on line " . $exception->getLine());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'خطأ في الخادم: ' . $exception->getMessage(),
+        'error' => $exception->getMessage(),
+        'file' => $exception->getFile(),
+        'line' => $exception->getLine()
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+});
 
 // إنشاء مجلد السجلات إذا لم يكن موجوداً
 $logDir = __DIR__ . '/../logs';
@@ -62,12 +83,30 @@ function writeJSON($file, $data) {
 }
 
 function response($success, $message = '', $data = null, $code = 200) {
+    // تنظيف أي output سابق
+    if (ob_get_level()) {
+        ob_clean();
+    }
+    
     http_response_code($code);
-    echo json_encode([
+    header('Content-Type: application/json; charset=utf-8');
+    
+    $response = [
         'success' => $success,
         'message' => $message,
         'data' => $data
-    ], JSON_UNESCAPED_UNICODE);
+    ];
+    
+    // في وضع التطوير، أضف معلومات إضافية
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        $response['debug'] = [
+            'timestamp' => date('Y-m-d H:i:s'),
+            'memory_usage' => memory_get_usage(true),
+            'peak_memory' => memory_get_peak_usage(true)
+        ];
+    }
+    
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -103,6 +142,13 @@ function checkPermission($requiredRole) {
 // إنشاء مستخدم افتراضي عند أول تشغيل
 function initializeSystem() {
     try {
+        // التحقق من الاتصال أولاً قبل محاولة إنشاء قاعدة البيانات
+        $conn = getDBConnection();
+        if (!$conn) {
+            error_log('تحذير: لا يمكن الاتصال بقاعدة البيانات أثناء التهيئة');
+            return; // لا نوقف التنفيذ، فقط نسجل التحذير
+        }
+        
         // إنشاء قاعدة البيانات إذا لم تكن موجودة
         createDatabaseIfNotExists();
         
@@ -111,16 +157,33 @@ function initializeSystem() {
             @mkdir(BACKUP_DIR, 0755, true);
         }
         
-        // التحقق من وجود المستخدم الافتراضي
+        // التحقق من وجود المستخدم الافتراضي (admin)
         $defaultUser = dbSelectOne("SELECT * FROM users WHERE username = ?", ['admin']);
         
         if (!$defaultUser) {
             $userId = generateId();
             $password = password_hash('admin123', PASSWORD_DEFAULT);
-            dbExecute(
+            $result = dbExecute(
                 "INSERT INTO users (id, username, password, name, role, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
                 [$userId, 'admin', $password, 'المدير', 'admin']
             );
+            if ($result === false) {
+                error_log('تحذير: فشل إنشاء المستخدم الافتراضي admin');
+            }
+        }
+        
+        // التحقق من وجود المستخدم 1
+        $user1 = dbSelectOne("SELECT * FROM users WHERE username = ?", ['1']);
+        if (!$user1) {
+            $userId1 = generateId();
+            $password1 = password_hash('1', PASSWORD_DEFAULT);
+            $result1 = dbExecute(
+                "INSERT INTO users (id, username, password, name, role, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                [$userId1, '1', $password1, 'المدير', 'admin']
+            );
+            if ($result1 === false) {
+                error_log('تحذير: فشل إنشاء المستخدم 1');
+            }
         }
         
         // التحقق من وجود الإعدادات الافتراضية
@@ -138,19 +201,32 @@ function initializeSystem() {
             ];
             
             foreach ($defaultSettings as $setting) {
-                dbExecute(
+                $result = dbExecute(
                     "INSERT INTO settings (`key`, `value`, updated_at) VALUES (?, ?, NOW())",
                     $setting
                 );
+                if ($result === false) {
+                    error_log('تحذير: فشل إدراج إعداد: ' . $setting[0]);
+                }
             }
         }
     } catch (Exception $e) {
-        // تسجيل الخطأ
-        error_log('خطأ في تهيئة النظام: ' . $e->getMessage());
+        // تسجيل الخطأ ولكن لا نوقف التنفيذ
+        error_log('خطأ في تهيئة النظام: ' . $e->getMessage() . ' في ' . $e->getFile() . ' على السطر ' . $e->getLine());
+    } catch (Error $e) {
+        // معالجة الأخطاء القاتلة (PHP 7+)
+        error_log('خطأ قاتل في تهيئة النظام: ' . $e->getMessage() . ' في ' . $e->getFile() . ' على السطر ' . $e->getLine());
     }
 }
 
-initializeSystem();
+// تهيئة النظام فقط إذا لم يكن هناك خطأ في التحميل
+try {
+    initializeSystem();
+} catch (Exception $e) {
+    error_log('خطأ في تهيئة النظام: ' . $e->getMessage());
+} catch (Error $e) {
+    error_log('خطأ قاتل في تهيئة النظام: ' . $e->getMessage());
+}
 ?>
 
 
