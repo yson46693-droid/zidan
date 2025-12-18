@@ -12,6 +12,9 @@ define('DB_PASS', 'Osama7444');
 define('DB_NAME', 'if0_40710456_zd');
 define('DB_CHARSET', 'utf8mb4');
 
+// متغير عام لتخزين آخر خطأ في قاعدة البيانات
+$lastDbError = null;
+
 /**
  * إنشاء اتصال بقاعدة البيانات
  * @return mysqli|null
@@ -113,14 +116,17 @@ function dbSelectOne($query, $params = []) {
  * @return int|false عدد الصفوف المتأثرة أو false في حالة الخطأ
  */
 function dbExecute($query, $params = []) {
+    global $lastDbError;
     $conn = getDBConnection();
     if (!$conn) {
+        $lastDbError = 'فشل الاتصال بقاعدة البيانات';
         return false;
     }
     
     $stmt = $conn->prepare($query);
     if (!$stmt) {
-        error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
+        $lastDbError = $conn->error;
+        error_log('خطأ في إعداد الاستعلام: ' . $conn->error . ' | الاستعلام: ' . substr($query, 0, 200));
         return false;
     }
     
@@ -143,7 +149,8 @@ function dbExecute($query, $params = []) {
     }
     
     if (!$stmt->execute()) {
-        error_log('خطأ في تنفيذ الاستعلام: ' . $stmt->error);
+        $lastDbError = $stmt->error;
+        error_log('خطأ في تنفيذ الاستعلام: ' . $stmt->error . ' | الاستعلام: ' . substr($query, 0, 200));
         $stmt->close();
         return false;
     }
@@ -151,6 +158,7 @@ function dbExecute($query, $params = []) {
     $affectedRows = $stmt->affected_rows;
     $insertId = $stmt->insert_id;
     $stmt->close();
+    $lastDbError = null;
     
     return $insertId > 0 ? $insertId : $affectedRows;
 }

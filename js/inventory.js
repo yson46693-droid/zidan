@@ -187,7 +187,12 @@ function displaySpareParts(parts) {
                     
                     <div class="inventory-card-barcode">
                         <img src="${barcodeImage}" alt="Barcode">
-                        <div class="inventory-card-barcode-code">${barcode}</div>
+                        <div class="inventory-card-barcode-code">
+                            <span>${barcode}</span>
+                            <button onclick="copyBarcode('${barcode}')" class="inventory-card-barcode-code-copy" title="نسخ الباركود">
+                                <i class="bi bi-copy"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -197,6 +202,9 @@ function displaySpareParts(parts) {
                 </div>
                 
                 <div class="inventory-card-actions">
+                    <button onclick="printSparePartBarcode('${part.id}', '${barcode}', '${barcodeImage}')" class="btn btn-info btn-sm" title="طباعة الباركود">
+                        <i class="bi bi-printer"></i> طباعة
+                    </button>
                     <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
                         <i class="bi bi-eye"></i> معاينة
                     </button>
@@ -1852,6 +1860,179 @@ function printAccessoryBarcode(id) {
     printWindow.document.close();
 }
 
+// دالة نسخ الباركود
+function copyBarcode(barcode) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(barcode).then(() => {
+            showMessage('تم نسخ الباركود: ' + barcode, 'success');
+        }).catch(err => {
+            console.error('خطأ في النسخ:', err);
+            fallbackCopyBarcode(barcode);
+        });
+    } else {
+        fallbackCopyBarcode(barcode);
+    }
+}
+
+// دالة نسخ احتياطية
+function fallbackCopyBarcode(barcode) {
+    const textArea = document.createElement('textarea');
+    textArea.value = barcode;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        showMessage('تم نسخ الباركود: ' + barcode, 'success');
+    } catch (err) {
+        console.error('خطأ في النسخ:', err);
+        showMessage('فشل نسخ الباركود', 'error');
+    }
+    document.body.removeChild(textArea);
+}
+
+// دالة طباعة باركود قطع الغيار
+function printSparePartBarcode(partId, barcode, barcodeImage) {
+    const part = allSpareParts.find(p => p.id === partId);
+    if (!part) {
+        showMessage('قطعة الغيار غير موجودة', 'error');
+        return;
+    }
+    
+    // طلب عدد النسخ
+    const copies = prompt('كم عدد النسخ المطلوبة للطباعة؟', '1');
+    if (!copies || isNaN(copies) || parseInt(copies) < 1) {
+        return;
+    }
+    
+    const numCopies = parseInt(copies);
+    
+    // إنشاء نافذة الطباعة
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    
+    // إنشاء محتوى الطباعة
+    let printContent = '';
+    for (let i = 0; i < numCopies; i++) {
+        printContent += `
+            <div class="barcode-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 10px;">
+                <div class="barcode-label-content">
+                    <div class="barcode-label-header">
+                        <h4>${part.brand}</h4>
+                        <p>${part.model}</p>
+                    </div>
+                    <div class="barcode-label-barcode">
+                        <img src="${barcodeImage}" alt="Barcode ${barcode}">
+                        <div class="barcode-label-code">${barcode}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>طباعة باركود - ${part.brand} ${part.model}</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 10px;
+                    background: white;
+                }
+                .barcode-label {
+                    width: 100%;
+                    max-width: 100mm;
+                    margin: 0 auto 10px;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                    overflow: hidden;
+                }
+                .barcode-label-content {
+                    padding: 8px;
+                    text-align: center;
+                }
+                .barcode-label-header {
+                    margin-bottom: 8px;
+                    padding-bottom: 6px;
+                    border-bottom: 1px solid #eee;
+                }
+                .barcode-label-header h4 {
+                    font-size: 12px;
+                    margin: 0 0 3px 0;
+                    color: #333;
+                    font-weight: 600;
+                }
+                .barcode-label-header p {
+                    font-size: 10px;
+                    margin: 0;
+                    color: #666;
+                }
+                .barcode-label-barcode {
+                    margin-top: 5px;
+                }
+                .barcode-label-barcode img {
+                    max-width: 100%;
+                    height: auto;
+                    max-height: 40px;
+                    display: block;
+                    margin: 0 auto;
+                }
+                .barcode-label-code {
+                    margin-top: 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 9px;
+                    color: #333;
+                    letter-spacing: 1px;
+                }
+                @media print {
+                    body {
+                        padding: 0;
+                        margin: 0;
+                    }
+                    .barcode-label {
+                        page-break-inside: avoid;
+                        margin-bottom: 5mm;
+                        border: none;
+                    }
+                    .no-print {
+                        display: none;
+                    }
+                }
+                @page {
+                    size: auto;
+                    margin: 5mm;
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
 // طباعة ملصق احترافي للهاتف
 function printPhoneLabel(id) {
     const phone = allPhones.find(p => p.id === id);
@@ -2090,6 +2271,179 @@ function printPhoneLabel(id) {
                 window.onload = function() {
                     window.print();
                 };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+// دالة نسخ الباركود
+function copyBarcode(barcode) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(barcode).then(() => {
+            showMessage('تم نسخ الباركود: ' + barcode, 'success');
+        }).catch(err => {
+            console.error('خطأ في النسخ:', err);
+            fallbackCopyBarcode(barcode);
+        });
+    } else {
+        fallbackCopyBarcode(barcode);
+    }
+}
+
+// دالة نسخ احتياطية
+function fallbackCopyBarcode(barcode) {
+    const textArea = document.createElement('textarea');
+    textArea.value = barcode;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        showMessage('تم نسخ الباركود: ' + barcode, 'success');
+    } catch (err) {
+        console.error('خطأ في النسخ:', err);
+        showMessage('فشل نسخ الباركود', 'error');
+    }
+    document.body.removeChild(textArea);
+}
+
+// دالة طباعة باركود قطع الغيار
+function printSparePartBarcode(partId, barcode, barcodeImage) {
+    const part = allSpareParts.find(p => p.id === partId);
+    if (!part) {
+        showMessage('قطعة الغيار غير موجودة', 'error');
+        return;
+    }
+    
+    // طلب عدد النسخ
+    const copies = prompt('كم عدد النسخ المطلوبة للطباعة؟', '1');
+    if (!copies || isNaN(copies) || parseInt(copies) < 1) {
+        return;
+    }
+    
+    const numCopies = parseInt(copies);
+    
+    // إنشاء نافذة الطباعة
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    
+    // إنشاء محتوى الطباعة
+    let printContent = '';
+    for (let i = 0; i < numCopies; i++) {
+        printContent += `
+            <div class="barcode-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 10px;">
+                <div class="barcode-label-content">
+                    <div class="barcode-label-header">
+                        <h4>${part.brand}</h4>
+                        <p>${part.model}</p>
+                    </div>
+                    <div class="barcode-label-barcode">
+                        <img src="${barcodeImage}" alt="Barcode ${barcode}">
+                        <div class="barcode-label-code">${barcode}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>طباعة باركود - ${part.brand} ${part.model}</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 10px;
+                    background: white;
+                }
+                .barcode-label {
+                    width: 100%;
+                    max-width: 100mm;
+                    margin: 0 auto 10px;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                    overflow: hidden;
+                }
+                .barcode-label-content {
+                    padding: 8px;
+                    text-align: center;
+                }
+                .barcode-label-header {
+                    margin-bottom: 8px;
+                    padding-bottom: 6px;
+                    border-bottom: 1px solid #eee;
+                }
+                .barcode-label-header h4 {
+                    font-size: 12px;
+                    margin: 0 0 3px 0;
+                    color: #333;
+                    font-weight: 600;
+                }
+                .barcode-label-header p {
+                    font-size: 10px;
+                    margin: 0;
+                    color: #666;
+                }
+                .barcode-label-barcode {
+                    margin-top: 5px;
+                }
+                .barcode-label-barcode img {
+                    max-width: 100%;
+                    height: auto;
+                    max-height: 40px;
+                    display: block;
+                    margin: 0 auto;
+                }
+                .barcode-label-code {
+                    margin-top: 4px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 9px;
+                    color: #333;
+                    letter-spacing: 1px;
+                }
+                @media print {
+                    body {
+                        padding: 0;
+                        margin: 0;
+                    }
+                    .barcode-label {
+                        page-break-inside: avoid;
+                        margin-bottom: 5mm;
+                        border: none;
+                    }
+                    .no-print {
+                        display: none;
+                    }
+                }
+                @page {
+                    size: auto;
+                    margin: 5mm;
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                }
             </script>
         </body>
         </html>

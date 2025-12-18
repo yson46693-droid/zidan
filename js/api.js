@@ -21,8 +21,9 @@ const API = {
                 'X-Requested-With': 'XMLHttpRequest'
             },
             credentials: 'same-origin',
-            mode: 'cors',
-            cache: 'no-cache'
+            mode: 'cors', // يمكن تغييره إلى 'no-cors' إذا كانت هناك مشاكل CORS
+            cache: 'no-cache',
+            redirect: 'follow' // متابعة التوجيهات تلقائياً
         };
 
         if (data && actualMethod !== 'GET') {
@@ -95,25 +96,44 @@ const API = {
                 stack: error.stack
             });
             
+            // معالجة NetworkError بشكل أفضل
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                return {
+                    success: false,
+                    message: 'خطأ في الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.',
+                    error: 'NetworkError: ' + error.message,
+                    networkError: true
+                };
+            }
+            
+            // معالجة NetworkError بشكل أفضل
+            if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+                return {
+                    success: false,
+                    message: 'خطأ في الاتصال بالخادم. يرجى التحقق من:\n1. اتصال الإنترنت\n2. إعدادات الاستضافة\n3. مسار API صحيح',
+                    error: 'NetworkError: ' + error.message,
+                    networkError: true
+                };
+            }
+            
             // التحقق إذا كان الخطأ بسبب الإلغاء
             if (error.name === 'AbortError') {
                 return { 
                     success: false, 
                     message: 'انتهت مهلة الاتصال بالخادم. تحقق من اتصال الإنترنت.',
-                    error: 'AbortError'
+                    error: 'AbortError',
+                    timeout: true
                 };
             }
             
             // تحديد نوع الخطأ
             let errorMessage = 'خطأ في الاتصال بالخادم';
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                errorMessage = 'خطأ في الاتصال بالخادم. تحقق من:\n1. اتصال الإنترنت\n2. إعدادات الاستضافة\n3. مسار API صحيح';
-            } else if (error.name === 'SyntaxError') {
+            if (error.name === 'SyntaxError') {
                 errorMessage = 'خطأ في تحليل الاستجابة من الخادم. قد يكون الخادم يعيد HTML بدلاً من JSON.';
-            } else if (error.message.includes('CORS')) {
+            } else if (error.message && error.message.includes('CORS')) {
                 errorMessage = 'خطأ CORS. تحقق من إعدادات الخادم.';
             } else {
-                errorMessage = `خطأ: ${error.message}`;
+                errorMessage = `خطأ: ${error.message || 'خطأ غير معروف'}`;
             }
             
             return { 

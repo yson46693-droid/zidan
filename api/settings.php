@@ -180,21 +180,38 @@ if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'restore
         if (isset($data['inventory']) && is_array($data['inventory'])) {
             dbExecute("DELETE FROM inventory");
             foreach ($data['inventory'] as $item) {
-                dbExecute(
+                // التعامل مع البيانات القديمة: تحويل price إلى purchase_price و selling_price
+                $purchase_price = 0;
+                $selling_price = 0;
+                
+                if (isset($item['price']) && !isset($item['purchase_price']) && !isset($item['selling_price'])) {
+                    // البيانات القديمة: استخدم price كـ selling_price
+                    $selling_price = floatval($item['price'] ?? 0);
+                } else {
+                    $purchase_price = floatval($item['purchase_price'] ?? 0);
+                    $selling_price = floatval($item['selling_price'] ?? 0);
+                }
+                
+                $result = dbExecute(
                     "INSERT INTO inventory (id, name, quantity, purchase_price, selling_price, category, created_at, updated_at, created_by) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     [
                         $item['id'],
                         $item['name'],
                         $item['quantity'] ?? 0,
-                        $item['purchase_price'] ?? 0,
-                        $item['selling_price'] ?? 0,
+                        $purchase_price,
+                        $selling_price,
                         $item['category'] ?? '',
                         $item['created_at'] ?? date('Y-m-d H:i:s'),
                         $item['updated_at'] ?? null,
                         $item['created_by'] ?? null
                     ]
                 );
+                
+                if ($result === false) {
+                    global $lastDbError;
+                    error_log('خطأ في استعادة عنصر من المخزون: ' . ($lastDbError ?? 'خطأ غير معروف'));
+                }
             }
         }
         

@@ -87,7 +87,15 @@ if ($method === 'POST') {
         );
         
         if ($result === false) {
-            response(false, 'خطأ في إضافة قطعة الغيار', null, 500);
+            global $lastDbError;
+            $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+            
+            // فحص إذا كان الخطأ متعلق بـ price
+            if (stripos($error, 'price') !== false && stripos($error, 'Unknown column') !== false) {
+                response(false, 'خطأ: تم إرسال حقل price القديم. يرجى استخدام purchase_price و selling_price بدلاً منه. الخطأ: ' . $error, null, 500);
+            } else {
+                response(false, 'خطأ في إضافة قطعة الغيار: ' . $error, null, 500);
+            }
         }
         
         // إضافة تفاصيل القطع
@@ -138,7 +146,15 @@ if ($method === 'POST') {
         );
         
         if ($result === false) {
-            response(false, 'خطأ في إضافة الإكسسوار', null, 500);
+            global $lastDbError;
+            $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+            
+            // فحص إذا كان الخطأ متعلق بـ price
+            if (stripos($error, 'price') !== false && stripos($error, 'Unknown column') !== false) {
+                response(false, 'خطأ: تم إرسال حقل price القديم. يرجى استخدام purchase_price و selling_price بدلاً منه. الخطأ: ' . $error, null, 500);
+            } else {
+                response(false, 'خطأ في إضافة الإكسسوار: ' . $error, null, 500);
+            }
         }
         
         $newAccessory = dbSelectOne("SELECT * FROM accessories WHERE id = ?", [$accessoryId]);
@@ -178,25 +194,44 @@ if ($method === 'POST') {
         );
         
         if ($result === false) {
-            response(false, 'خطأ في إضافة الهاتف', null, 500);
+            global $lastDbError;
+            $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+            
+            // فحص إذا كان الخطأ متعلق بـ price
+            if (stripos($error, 'price') !== false && stripos($error, 'Unknown column') !== false) {
+                response(false, 'خطأ: تم إرسال حقل price القديم. يرجى استخدام purchase_price و selling_price بدلاً منه. الخطأ: ' . $error, null, 500);
+            } else {
+                response(false, 'خطأ في إضافة الهاتف: ' . $error, null, 500);
+            }
         }
         
         $newPhone = dbSelectOne("SELECT * FROM phones WHERE id = ?", [$phoneId]);
         response(true, 'تم إضافة الهاتف بنجاح', $newPhone);
     }
     else {
-        // إضافة للمخزون القديم (للتوافق)
+        // إضافة للمخزون القديم (للتوافق) - تم إيقاف هذا القسم
+        // يجب استخدام type=spare_parts أو type=accessories أو type=phones
+        response(false, 'يرجى تحديد نوع المخزون: type=spare_parts أو type=accessories أو type=phones', null, 400);
+        
+        /* الكود القديم - تم تعطيله
         $name = trim($data['name'] ?? '');
         $quantity = intval($data['quantity'] ?? 0);
         
         // دعم الحقول القديمة: إذا كان price موجوداً، استخدمه كـ selling_price
+        // إزالة price من البيانات قبل الإدراج
+        $purchase_price = 0;
+        $selling_price = 0;
+        
         if (isset($data['price']) && !isset($data['purchase_price']) && !isset($data['selling_price'])) {
-            $purchase_price = 0;
+            // تحويل price القديم إلى selling_price
             $selling_price = floatval($data['price'] ?? 0);
         } else {
             $purchase_price = floatval($data['purchase_price'] ?? 0);
             $selling_price = floatval($data['selling_price'] ?? 0);
         }
+        
+        // التأكد من عدم وجود price في البيانات
+        unset($data['price']);
         
         $category = trim($data['category'] ?? '');
         
@@ -216,13 +251,20 @@ if ($method === 'POST') {
         
         if ($result === false) {
             // الحصول على خطأ قاعدة البيانات للتحقق
-            global $conn;
-            $error = $conn ? mysqli_error($conn) : 'خطأ غير معروف';
-            response(false, 'خطأ في إضافة قطعة الغيار: ' . $error, null, 500);
+            global $conn, $lastDbError;
+            $error = $lastDbError ?? ($conn ? mysqli_error($conn) : 'خطأ غير معروف');
+            
+            // فحص إذا كان الخطأ متعلق بـ price
+            if (stripos($error, 'price') !== false && stripos($error, 'Unknown column') !== false) {
+                response(false, 'خطأ: تم إرسال حقل price القديم. يرجى استخدام purchase_price و selling_price بدلاً منه. الخطأ: ' . $error, null, 500);
+            } else {
+                response(false, 'خطأ في إضافة قطعة الغيار: ' . $error, null, 500);
+            }
         }
         
         $newItem = dbSelectOne("SELECT * FROM inventory WHERE id = ?", [$itemId]);
         response(true, 'تم إضافة قطعة الغيار بنجاح', $newItem);
+        */
     }
 }
 

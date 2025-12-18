@@ -58,28 +58,36 @@
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
     <script>
-        // الحصول على رقم الإصدار بعد تحميل version.js
-        const APP_VERSION = window.APP_VERSION || 'v' + Date.now();
-        const VERSION_PARAM = '?v=' + APP_VERSION;
-        
-        // إضافة query parameters لجميع ملفات CSS/JS لضمان عدم عرض كاش قديم
-        document.addEventListener('DOMContentLoaded', function() {
-            // تحديث ملفات CSS
-            const cssLinks = document.querySelectorAll('link[rel="stylesheet"]:not([href^="http"])');
-            cssLinks.forEach(link => {
-                if (link.href && !link.href.includes('?')) {
-                    link.href = link.href + VERSION_PARAM;
-                }
-            });
+        // استخدام رقم الإصدار من window.APP_VERSION (معرّف في version.js)
+        // لا نعيد تعريف APP_VERSION لتجنب خطأ redeclaration
+        (function() {
+            // انتظار تحميل version.js
+            const getAppVersion = function() {
+                return window.APP_VERSION || 'v' + Date.now();
+            };
             
-            // تحديث ملفات JS (باستثناء version.js)
-            const jsScripts = document.querySelectorAll('script[src]:not([src*="version.js"])');
-            jsScripts.forEach(script => {
-                if (script.src && !script.src.includes('?')) {
-                    script.src = script.src + VERSION_PARAM;
-                }
+            // إضافة query parameters لجميع ملفات CSS/JS لضمان عدم عرض كاش قديم
+            document.addEventListener('DOMContentLoaded', function() {
+                const version = getAppVersion();
+                const versionParam = '?v=' + version;
+                
+                // تحديث ملفات CSS
+                const cssLinks = document.querySelectorAll('link[rel="stylesheet"]:not([href^="http"])');
+                cssLinks.forEach(link => {
+                    if (link.href && !link.href.includes('?')) {
+                        link.href = link.href + versionParam;
+                    }
+                });
+                
+                // تحديث ملفات JS (باستثناء version.js)
+                const jsScripts = document.querySelectorAll('script[src]:not([src*="version.js"]):not([src^="http"])');
+                jsScripts.forEach(script => {
+                    if (script.src && !script.src.includes('?')) {
+                        script.src = script.src + versionParam;
+                    }
+                });
             });
-        });
+        })();
     </script>
     
     <link rel="stylesheet" href="css/style.css">
