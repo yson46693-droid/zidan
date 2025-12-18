@@ -2654,7 +2654,7 @@ body {
     top: 0;
     right: 0;
     width: 14px;
-    height: 50%;
+    height: 60%;
     background: var(--primary-color);
     opacity: 0;
     transition: opacity 0.3s ease;
