@@ -59,6 +59,28 @@ ini_set('error_log', $logDir . '/php_errors.log');
 // تحميل ملف قاعدة البيانات
 require_once __DIR__ . '/database.php';
 
+// إعداد قاعدة البيانات تلقائياً (إنشاء الجداول إذا لم تكن موجودة)
+// يتم استدعاؤها مرة واحدة فقط عند أول استخدام
+if (!isset($_SESSION)) {
+    session_start();
+}
+
+if (!isset($_SESSION['db_setup_checked'])) {
+    require_once __DIR__ . '/setup.php';
+    try {
+        $setupResult = setupDatabase();
+        $_SESSION['db_setup_checked'] = true;
+        
+        // تسجيل في السجل إذا تم إنشاء جداول جديدة
+        if (!empty($setupResult['tables_created'])) {
+            error_log('تم إنشاء الجداول التالية تلقائياً: ' . implode(', ', $setupResult['tables_created']));
+        }
+    } catch (Exception $e) {
+        error_log('خطأ في إعداد قاعدة البيانات: ' . $e->getMessage());
+        // لا نوقف التنفيذ، فقط نسجل الخطأ
+    }
+}
+
 // مسارات الملفات (للنسخ الاحتياطي والصور فقط)
 define('DATA_DIR', __DIR__ . '/../data/');
 define('BACKUP_DIR', __DIR__ . '/../backups/');
