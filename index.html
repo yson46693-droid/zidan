@@ -158,12 +158,23 @@
             document.body.appendChild(securityScript);
             
             // تحميل webauthn.js بشكل غير متزامن (فقط عند الحاجة)
-            setTimeout(() => {
-                const webauthnScript = document.createElement('script');
-                webauthnScript.src = 'webauthn/webauthn.js';
-                webauthnScript.defer = true;
-                document.body.appendChild(webauthnScript);
-            }, 500);
+            // استخدام onload للتأكد من تحميل الملف
+            const webauthnScript = document.createElement('script');
+            webauthnScript.src = 'webauthn/webauthn.js';
+            webauthnScript.defer = true;
+            webauthnScript.onload = () => {
+                console.log('✅ WebAuthn script loaded successfully');
+                // التحقق من أن simpleWebAuthn متاح
+                if (typeof simpleWebAuthn !== 'undefined') {
+                    console.log('✅ simpleWebAuthn is available');
+                } else {
+                    console.warn('⚠️ simpleWebAuthn is not defined after script load');
+                }
+            };
+            webauthnScript.onerror = () => {
+                console.error('❌ Failed to load WebAuthn script');
+            };
+            document.body.appendChild(webauthnScript);
         });
     </script>
     <script>
@@ -180,12 +191,19 @@
             console.log('🔐 بدء عملية تسجيل الدخول...');
             
             try {
-                // التحقق من الحظر
-                const clientIP = securityManager.getClientIP();
-                if (securityManager.isBlocked(clientIP)) {
-                    console.error('❌ تم حظر IP:', clientIP);
-                    showMessage('تم حظرك مؤقتاً بسبب محاولات تسجيل دخول فاشلة متعددة. حاول مرة أخرى لاحقاً.', 'error');
-                    return;
+                // التحقق من الحظر (إذا كان securityManager متاحاً)
+                if (typeof securityManager !== 'undefined' && securityManager) {
+                    try {
+                        const clientIP = securityManager.getClientIP();
+                        if (securityManager.isBlocked && securityManager.isBlocked(clientIP)) {
+                            console.error('❌ تم حظر IP:', clientIP);
+                            showMessage('تم حظرك مؤقتاً بسبب محاولات تسجيل دخول فاشلة متعددة. حاول مرة أخرى لاحقاً.', 'error');
+                            return;
+                        }
+                    } catch (e) {
+                        // تجاهل الأخطاء في securityManager
+                        console.warn('تحذير: خطأ في securityManager:', e);
+                    }
                 }
                 
                 const username = document.getElementById('username').value;
@@ -216,28 +234,18 @@
             }
         }
 
-        // التحقق من تسجيل الدخول بعد تحميل الصفحة بالكامل (غير متزامن)
-        window.addEventListener('DOMContentLoaded', () => {
+        // التحقق من تسجيل الدخول بعد تحميل الصفحة (مرة واحدة فقط)
+        let authCheckDone = false;
+        
+        function initPage() {
+            if (authCheckDone) return;
+            authCheckDone = true;
+            
             // إعداد زر تسجيل الدخول بالبصمة
             const biometricBtn = document.getElementById('biometricLoginBtn');
             if (biometricBtn) {
-                // التحقق من دعم WebAuthn بشكل غير متزامن
-                setTimeout(() => {
-                    // التحقق من وجود simpleWebAuthn
-                    if (typeof simpleWebAuthn === 'undefined') {
-                        console.warn('WebAuthn script not loaded yet, retrying...');
-                        // إعادة المحاولة بعد ثانية
-                        setTimeout(() => {
-                            if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
-                                biometricBtn.style.display = 'flex';
-                            } else {
-                                biometricBtn.style.display = 'none';
-                            }
-                        }, 1000);
-                        return;
-                    }
-                    
-                    if (simpleWebAuthn.isSupported()) {
+                const setupBiometricButton = () => {
+                    if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
                         biometricBtn.style.display = 'flex';
                         biometricBtn.addEventListener('click', async () => {
                             try {
@@ -255,30 +263,57 @@
                                 }
                             } catch (error) {
                                 console.error('خطأ في تسجيل الدخول بالبصمة:', error);
-                                showMessage('حدث خطأ أثناء تسجيل الدخول بالبصمة: ' + (error.message || error), 'error');
+                                const errorMsg = error.message || error.toString();
+                                showMessage('حدث خطأ أثناء تسجيل الدخول بالبصمة: ' + errorMsg, 'error');
                                 biometricBtn.disabled = false;
                                 biometricBtn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل الدخول بالبصمة</span>';
                             }
                         });
                     } else {
-                        // إخفاء الزر إذا لم يكن WebAuthn مدعوماً
                         biometricBtn.style.display = 'none';
                     }
-                }, 500);
+                };
+                
+                // محاولة إعداد الزر بعد تحميل الملف
+                setTimeout(() => {
+                    if (typeof simpleWebAuthn !== 'undefined') {
+                        setupBiometricButton();
+                    } else {
+                        // انتظار تحميل الملف (بحد أقصى 5 ثوان)
+                        const maxAttempts = 25;
+                        let attempts = 0;
+                        const checkInterval = setInterval(() => {
+                            attempts++;
+                            if (typeof simpleWebAuthn !== 'undefined' || attempts >= maxAttempts) {
+                                clearInterval(checkInterval);
+                                if (typeof simpleWebAuthn !== 'undefined') {
+                                    setupBiometricButton();
+                                }
+                            }
+                        }, 200);
+                    }
+                }, 1500);
             }
             
-            // تأخير التحقق من تسجيل الدخول لضمان تحميل جميع الملفات أولاً
+            // التحقق من تسجيل الدخول (مرة واحدة فقط)
             setTimeout(async () => {
                 try {
                     const result = await API.checkAuth();
-                    if (result.success) {
+                    if (result && result.success) {
                         window.location.href = 'dashboard.html';
                     }
                 } catch (error) {
                     // تجاهل الأخطاء في التحقق من الجلسة
                 }
-            }, 500);
-        });
+            }, 800);
+        }
+        
+        // استدعاء initPage مرة واحدة فقط
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPage);
+        } else {
+            initPage();
+        }
         
         // تحميل Service Worker بشكل غير متزامن (lazy loading) بعد تحميل الصفحة
         window.addEventListener('load', () => {

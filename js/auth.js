@@ -5,36 +5,36 @@ let checkLoginInProgress = false;
 let lastCheckLoginTime = 0;
 let cachedAuthResult = null;
 let cacheTime = 0;
-const CHECK_LOGIN_COOLDOWN = 500; // 0.5 ثانية بين الطلبات
-const AUTH_CACHE_DURATION = 5000; // 5 ثواني للتخزين المؤقت
+const CHECK_LOGIN_COOLDOWN = 1000; // 1 ثانية بين الطلبات
+const AUTH_CACHE_DURATION = 3000; // 3 ثواني للتخزين المؤقت
 
 // التحقق من تسجيل الدخول
 async function checkLogin() {
     const now = Date.now();
     
     // استخدام التخزين المؤقت إذا كان صالحاً
-    if (cachedAuthResult && (now - cacheTime < AUTH_CACHE_DURATION)) {
+    if (cachedAuthResult !== null && (now - cacheTime < AUTH_CACHE_DURATION)) {
         return cachedAuthResult;
     }
     
-    // منع الطلبات المتكررة
+    // منع الطلبات المتكررة - إذا كان هناك طلب قيد التنفيذ، انتظر
     if (checkLoginInProgress) {
-        // انتظار انتهاء الطلب الحالي (بحد أقصى 3 ثوان)
-        let waitTime = 0;
-        while (checkLoginInProgress && waitTime < 3000) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-            waitTime += 50;
-            // إذا كان هناك نتيجة مخزنة مؤقتاً أثناء الانتظار، استخدمها
-            if (cachedAuthResult && (Date.now() - cacheTime < AUTH_CACHE_DURATION)) {
+        // انتظار انتهاء الطلب الحالي (بحد أقصى 2 ثانية)
+        const startWait = Date.now();
+        while (checkLoginInProgress && (Date.now() - startWait < 2000)) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            // إذا أصبحت النتيجة متاحة أثناء الانتظار، استخدمها
+            if (cachedAuthResult !== null && (Date.now() - cacheTime < AUTH_CACHE_DURATION)) {
                 return cachedAuthResult;
             }
         }
+        // إذا انتهى الانتظار ولم تكن هناك نتيجة، أرجع null
         return null;
     }
     
-    // تطبيق cooldown
-    if (now - lastCheckLoginTime < CHECK_LOGIN_COOLDOWN) {
-        return cachedAuthResult || null;
+    // تطبيق cooldown - إذا كان آخر طلب منذ أقل من cooldown، استخدم النتيجة المخزنة
+    if (now - lastCheckLoginTime < CHECK_LOGIN_COOLDOWN && cachedAuthResult !== null) {
+        return cachedAuthResult;
     }
     
     checkLoginInProgress = true;
@@ -43,28 +43,31 @@ async function checkLogin() {
     try {
         const result = await API.checkAuth();
         
-        if (!result.success) {
+        if (!result || !result.success) {
             cachedAuthResult = null;
             cacheTime = 0;
             // مسح جميع البيانات المحلية
             localStorage.clear();
             sessionStorage.clear();
             
-            // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول
+            // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول (فقط إذا لم نكن في صفحة تسجيل الدخول)
             const currentPage = window.location.pathname;
             if (!currentPage.includes('index.html') && currentPage !== '/') {
-                showLoginRequiredMessage();
+                if (typeof showLoginRequiredMessage === 'function') {
+                    showLoginRequiredMessage();
+                }
             }
             return null;
         }
         
         // حفظ بيانات المستخدم
         const user = result.data;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        
-        // حفظ في التخزين المؤقت
-        cachedAuthResult = user;
-        cacheTime = Date.now();
+        if (user) {
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            // حفظ في التخزين المؤقت
+            cachedAuthResult = user;
+            cacheTime = Date.now();
+        }
         
         return user;
     } catch (error) {

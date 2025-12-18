@@ -87,6 +87,40 @@ class SimpleWebAuthn {
     }
 
     /**
+     * الحصول على معلومات الدعم
+     */
+    getSupportInfo() {
+        const hasPublicKeyCredential = !!(window.PublicKeyCredential);
+        const hasCredentials = !!(navigator.credentials && navigator.credentials.create && navigator.credentials.get);
+        const hostname = window.location.hostname.toLowerCase();
+        const isLocalhost = hostname === 'localhost' || 
+                           hostname === '127.0.0.1' || 
+                           hostname === '[::1]' ||
+                           hostname.startsWith('192.168.') ||
+                           hostname.startsWith('10.');
+        const isSecure = window.location.protocol === 'https:' || isLocalhost;
+        
+        let info = 'معلومات الدعم:\n';
+        info += `- PublicKeyCredential: ${hasPublicKeyCredential ? '✅' : '❌'}\n`;
+        info += `- navigator.credentials: ${hasCredentials ? '✅' : '❌'}\n`;
+        info += `- HTTPS/Localhost: ${isSecure ? '✅' : '❌'} (${window.location.protocol})\n\n`;
+        
+        if (!hasPublicKeyCredential || !hasCredentials) {
+            info += 'المتصفحات المدعومة:\n';
+            info += '- Chrome 67+\n';
+            info += '- Firefox 60+\n';
+            info += '- Safari 14+ (iOS 14+)\n';
+            info += '- Edge 18+\n';
+        }
+        
+        if (!isSecure) {
+            info += '\nملاحظة: WebAuthn يتطلب HTTPS أو localhost';
+        }
+        
+        return info;
+    }
+
+    /**
      * تحويل Base64 إلى ArrayBuffer
      */
     base64ToArrayBuffer(base64) {
@@ -422,9 +456,16 @@ class SimpleWebAuthn {
                 throw new Error('WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث.');
             }
 
-            // التحقق من HTTPS
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                throw new Error('WebAuthn يتطلب HTTPS. الموقع الحالي: ' + window.location.protocol);
+            // التحقق من HTTPS (مطلوب لـ WebAuthn إلا في localhost)
+            const hostname = window.location.hostname.toLowerCase();
+            const isLocalhost = hostname === 'localhost' || 
+                               hostname === '127.0.0.1' || 
+                               hostname === '[::1]' ||
+                               hostname.startsWith('192.168.') ||
+                               hostname.startsWith('10.');
+            
+            if (window.location.protocol !== 'https:' && !isLocalhost) {
+                throw new Error('WebAuthn يتطلب HTTPS. الموقع الحالي: ' + window.location.protocol + '://' + window.location.hostname);
             }
 
             if (!username) {
@@ -583,10 +624,6 @@ class SimpleWebAuthn {
             return false;
         }
     }
-}
-
-// إنشاء كائن عام
-const simpleWebAuthn = new SimpleWebAuthn();
 
     /**
      * الحصول على الحسابات المرتبطة بالبصمة على الجهاز
@@ -632,12 +669,21 @@ const simpleWebAuthn = new SimpleWebAuthn();
         try {
             // التحقق من الدعم
             if (!this.isSupported()) {
-                throw new Error('WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث.');
+                // رسالة توضيحية أكثر
+                const supportInfo = this.getSupportInfo();
+                throw new Error('WebAuthn غير مدعوم في هذا المتصفح.\n\n' + supportInfo);
             }
 
-            // التحقق من HTTPS
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                throw new Error('WebAuthn يتطلب HTTPS. الموقع الحالي: ' + window.location.protocol);
+            // التحقق من HTTPS (مطلوب لـ WebAuthn إلا في localhost)
+            const hostname = window.location.hostname.toLowerCase();
+            const isLocalhost = hostname === 'localhost' || 
+                               hostname === '127.0.0.1' || 
+                               hostname === '[::1]' ||
+                               hostname.startsWith('192.168.') ||
+                               hostname.startsWith('10.');
+            
+            if (window.location.protocol !== 'https:' && !isLocalhost) {
+                throw new Error('WebAuthn يتطلب HTTPS. الموقع الحالي: ' + window.location.protocol + '://' + window.location.hostname);
             }
 
             // الحصول على الحسابات المرتبطة بالبصمة
@@ -763,7 +809,7 @@ const simpleWebAuthn = new SimpleWebAuthn();
                     modalContent.style.pointerEvents = 'none';
                     
                     try {
-                        const result = await this.login(account.username);
+                        const result = await simpleWebAuthn.login(account.username);
                         if (result && result.success) {
                             document.body.removeChild(modal);
                             resolve(result);
@@ -806,6 +852,9 @@ const simpleWebAuthn = new SimpleWebAuthn();
         });
     }
 }
+
+// إنشاء كائن عام
+const simpleWebAuthn = new SimpleWebAuthn();
 
 // للتوافق مع الكود القديم
 const webauthnManager = {
