@@ -3,24 +3,38 @@
 // متغير لمنع الطلبات المتكررة
 let checkLoginInProgress = false;
 let lastCheckLoginTime = 0;
-const CHECK_LOGIN_COOLDOWN = 1000; // 1 ثانية بين الطلبات
+let cachedAuthResult = null;
+let cacheTime = 0;
+const CHECK_LOGIN_COOLDOWN = 500; // 0.5 ثانية بين الطلبات
+const AUTH_CACHE_DURATION = 5000; // 5 ثواني للتخزين المؤقت
 
 // التحقق من تسجيل الدخول
 async function checkLogin() {
     const now = Date.now();
     
+    // استخدام التخزين المؤقت إذا كان صالحاً
+    if (cachedAuthResult && (now - cacheTime < AUTH_CACHE_DURATION)) {
+        return cachedAuthResult;
+    }
+    
     // منع الطلبات المتكررة
     if (checkLoginInProgress) {
-        // انتظار انتهاء الطلب الحالي
-        while (checkLoginInProgress && (Date.now() - now < 5000)) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+        // انتظار انتهاء الطلب الحالي (بحد أقصى 3 ثوان)
+        let waitTime = 0;
+        while (checkLoginInProgress && waitTime < 3000) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            waitTime += 50;
+            // إذا كان هناك نتيجة مخزنة مؤقتاً أثناء الانتظار، استخدمها
+            if (cachedAuthResult && (Date.now() - cacheTime < AUTH_CACHE_DURATION)) {
+                return cachedAuthResult;
+            }
         }
         return null;
     }
     
     // تطبيق cooldown
     if (now - lastCheckLoginTime < CHECK_LOGIN_COOLDOWN) {
-        return null;
+        return cachedAuthResult || null;
     }
     
     checkLoginInProgress = true;
@@ -30,6 +44,8 @@ async function checkLogin() {
         const result = await API.checkAuth();
         
         if (!result.success) {
+            cachedAuthResult = null;
+            cacheTime = 0;
             // مسح جميع البيانات المحلية
             localStorage.clear();
             sessionStorage.clear();
@@ -46,9 +62,15 @@ async function checkLogin() {
         const user = result.data;
         localStorage.setItem('currentUser', JSON.stringify(user));
         
+        // حفظ في التخزين المؤقت
+        cachedAuthResult = user;
+        cacheTime = Date.now();
+        
         return user;
     } catch (error) {
         console.error('خطأ في checkLogin:', error);
+        cachedAuthResult = null;
+        cacheTime = 0;
         return null;
     } finally {
         checkLoginInProgress = false;

@@ -140,10 +140,32 @@
 
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
-    <script src="js/data-protection.js"></script>
-    <script src="js/security.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="webauthn/webauthn.js"></script>
+    <!-- تحميل الملفات بشكل غير متزامن لتحسين الأداء -->
+    <script src="js/auth.js" defer></script>
+    <script>
+        // تحميل الملفات الثقيلة بشكل غير متزامن بعد تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', () => {
+            // تحميل data-protection.js بشكل غير متزامن
+            const dataProtectionScript = document.createElement('script');
+            dataProtectionScript.src = 'js/data-protection.js';
+            dataProtectionScript.defer = true;
+            document.body.appendChild(dataProtectionScript);
+            
+            // تحميل security.js بشكل غير متزامن
+            const securityScript = document.createElement('script');
+            securityScript.src = 'js/security.js';
+            securityScript.defer = true;
+            document.body.appendChild(securityScript);
+            
+            // تحميل webauthn.js بشكل غير متزامن (فقط عند الحاجة)
+            setTimeout(() => {
+                const webauthnScript = document.createElement('script');
+                webauthnScript.src = 'webauthn/webauthn.js';
+                webauthnScript.defer = true;
+                document.body.appendChild(webauthnScript);
+            }, 500);
+        });
+    </script>
     <script>
         // تفعيل وضع المطور - السماح بالزر الأيمن وفتح الكونسول
         (function() {
@@ -194,129 +216,84 @@
             }
         }
 
-        // التحقق إذا كان مسجل الدخول مسبقاً
-        window.addEventListener('DOMContentLoaded', async () => {
-            const result = await API.checkAuth();
-            if (result.success) {
-                window.location.href = 'dashboard.html';
-            }
-            
+        // التحقق من تسجيل الدخول بعد تحميل الصفحة بالكامل (غير متزامن)
+        window.addEventListener('DOMContentLoaded', () => {
             // إعداد زر تسجيل الدخول بالبصمة
             const biometricBtn = document.getElementById('biometricLoginBtn');
             if (biometricBtn) {
-                // التحقق من دعم WebAuthn
-                if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
-                    biometricBtn.style.display = 'flex';
-                    biometricBtn.addEventListener('click', async () => {
-                        try {
-                            biometricBtn.disabled = true;
-                            biometricBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري التحقق...';
-                            
-                            const result = await simpleWebAuthn.loginWithBiometric();
-                            
-                            if (result && result.success) {
-                                // سيتم التوجيه تلقائياً في دالة login
-                            } else {
-                                showMessage(result?.message || 'فشل تسجيل الدخول بالبصمة', 'error');
+                // التحقق من دعم WebAuthn بشكل غير متزامن
+                setTimeout(() => {
+                    if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
+                        biometricBtn.style.display = 'flex';
+                        biometricBtn.addEventListener('click', async () => {
+                            try {
+                                biometricBtn.disabled = true;
+                                biometricBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري التحقق...';
+                                
+                                const result = await simpleWebAuthn.loginWithBiometric();
+                                
+                                if (result && result.success) {
+                                    // سيتم التوجيه تلقائياً في دالة login
+                                } else {
+                                    showMessage(result?.message || 'فشل تسجيل الدخول بالبصمة', 'error');
+                                    biometricBtn.disabled = false;
+                                    biometricBtn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل الدخول بالبصمة</span>';
+                                }
+                            } catch (error) {
+                                console.error('خطأ في تسجيل الدخول بالبصمة:', error);
+                                showMessage('حدث خطأ أثناء تسجيل الدخول بالبصمة: ' + (error.message || error), 'error');
                                 biometricBtn.disabled = false;
                                 biometricBtn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل الدخول بالبصمة</span>';
                             }
-                        } catch (error) {
-                            console.error('خطأ في تسجيل الدخول بالبصمة:', error);
-                            showMessage('حدث خطأ أثناء تسجيل الدخول بالبصمة: ' + (error.message || error), 'error');
-                            biometricBtn.disabled = false;
-                            biometricBtn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل الدخول بالبصمة</span>';
-                        }
-                    });
-                } else {
-                    // إخفاء الزر إذا لم يكن WebAuthn مدعوماً
-                    biometricBtn.style.display = 'none';
-                }
+                        });
+                    } else {
+                        // إخفاء الزر إذا لم يكن WebAuthn مدعوماً
+                        biometricBtn.style.display = 'none';
+                    }
+                }, 500);
             }
             
-            // تسجيل Service Worker مع دعم المتصفحات القديمة
-            if ('serviceWorker' in navigator) {
+            // تأخير التحقق من تسجيل الدخول لضمان تحميل جميع الملفات أولاً
+            setTimeout(async () => {
                 try {
-                    // التحقق من دعم Service Worker
-                    if (!navigator.serviceWorker.register) {
-                        console.warn('⚠️ Service Worker API not fully supported');
-                        return;
-                    }
-                    
-                    // تسجيل Service Worker مع cache busting
-                    const appVersion = window.APP_VERSION || 'v' + Date.now();
-                    const registration = await navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
-                        scope: '/',
-                        updateViaCache: 'none' // لا cache لـ Service Worker
-                    }).catch(error => {
-                        console.warn('⚠️ Service Worker registration failed (may be old browser):', error);
-                        return null;
-                    });
-                    
-                    if (registration) {
-                        const appVersion = window.APP_VERSION || 'v' + Date.now();
-                        console.log('✅ Service Worker registered:', registration);
-                        console.log('📦 App Version:', appVersion);
-                        
-                        // التحقق من التحديثات
-                        if (registration.addEventListener) {
-                            registration.addEventListener('updatefound', () => {
-                                const newWorker = registration.installing;
-                                if (newWorker && newWorker.addEventListener) {
-                                    newWorker.addEventListener('statechange', () => {
-                                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                            console.log('🔄 New Service Worker available. Reloading...');
-                                            // إعادة تحميل الصفحة تلقائياً
-                                            setTimeout(() => {
-                                                window.location.reload();
-                                            }, 1000);
-                                        }
-                                    });
-                                }
-                            });
-                        }
-                        
-                        // التحقق من التحديثات بشكل دوري
-                        setInterval(async () => {
-                            try {
-                                await registration.update();
-                            } catch (error) {
-                                console.warn('⚠️ Service Worker update check failed:', error);
-                            }
-                        }, 60000); // كل دقيقة
-                        
-                        // تسجيل Background Sync (إذا كان مدعوماً)
-                        if (registration.sync && registration.sync.register) {
-                            try {
-                                await registration.sync.register('sync-data');
-                                console.log('✅ Background Sync registered');
-                            } catch (syncError) {
-                                console.log('⚠️ Background Sync not supported:', syncError);
-                            }
-                        }
+                    const result = await API.checkAuth();
+                    if (result.success) {
+                        window.location.href = 'dashboard.html';
                     }
                 } catch (error) {
-                    console.error('❌ Service Worker registration failed:', error);
-                    // في حالة الفشل، الموقع سيعمل بشكل طبيعي بدون Service Worker
+                    // تجاهل الأخطاء في التحقق من الجلسة
                 }
-            } else {
-                console.warn('⚠️ Service Worker not supported in this browser');
-            }
-            
-            // معالجة رسائل من Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.addEventListener('message', event => {
-                    if (event.data && event.data.type === 'SYNC_COMPLETE') {
-                        console.log('Sync completed:', event.data.message);
-                    } else if (event.data && event.data.type === 'SW_UPDATED') {
-                        console.log('🔄 ' + event.data.message, 'Version:', event.data.version);
-                        // إعادة تحميل الصفحة تلقائياً عند تحديث Service Worker
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
+            }, 500);
+        });
+        
+        // تحميل Service Worker بشكل غير متزامن (lazy loading) بعد تحميل الصفحة
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if ('serviceWorker' in navigator) {
+                    try {
+                        const appVersion = window.APP_VERSION || 'v' + Date.now();
+                        navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                            scope: '/',
+                            updateViaCache: 'none'
+                        }).then(registration => {
+                            console.log('✅ Service Worker registered');
+                            
+                            // التحقق من التحديثات بشكل دوري (كل 5 دقائق بدلاً من كل دقيقة)
+                            setInterval(async () => {
+                                try {
+                                    await registration.update();
+                                } catch (error) {
+                                    // تجاهل الأخطاء
+                                }
+                            }, 300000); // كل 5 دقائق
+                        }).catch(error => {
+                            // تجاهل الأخطاء في تسجيل Service Worker
+                        });
+                    } catch (error) {
+                        // تجاهل الأخطاء
                     }
-                });
-            }
+                }
+            }, 1000); // تأخير ثانية واحدة بعد تحميل الصفحة
         });
     </script>
 </body>
