@@ -8,7 +8,15 @@ if (!function_exists('isLoggedIn')) {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
-        return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+        // التحقق من وجود user_id في الجلسة
+        $isLoggedIn = isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+        
+        // تسجيل للمساعدة في التصحيح
+        if (!$isLoggedIn) {
+            error_log('User not logged in. Session data: ' . json_encode($_SESSION ?? []));
+        }
+        
+        return $isLoggedIn;
     }
 }
 
