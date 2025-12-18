@@ -317,6 +317,35 @@
     
     <script>
         let currentSection = 'dashboard';
+        
+        // نظام حفظ واستعادة الصفحة الحالية
+        const PAGE_STORAGE_KEY = 'current_page_section';
+        const INVENTORY_TAB_STORAGE_KEY = 'current_inventory_tab';
+        
+        // حفظ الصفحة الحالية في localStorage
+        function saveCurrentPage(section) {
+            try {
+                localStorage.setItem(PAGE_STORAGE_KEY, section);
+                localStorage.setItem(PAGE_STORAGE_KEY + '_timestamp', Date.now().toString());
+                console.log('💾 تم حفظ الصفحة الحالية:', section);
+            } catch (error) {
+                console.error('خطأ في حفظ الصفحة:', error);
+            }
+        }
+        
+        // استعادة الصفحة الحالية من localStorage
+        function restoreCurrentPage() {
+            try {
+                const savedSection = localStorage.getItem(PAGE_STORAGE_KEY);
+                if (savedSection) {
+                    console.log('📂 استعادة الصفحة الحالية:', savedSection);
+                    return savedSection;
+                }
+            } catch (error) {
+                console.error('خطأ في استعادة الصفحة:', error);
+            }
+            return 'dashboard';
+        }
 
         // حماية الصفحة - منع الوصول بدون تسجيل دخول
         (async function() {
@@ -402,6 +431,45 @@
                 }
             }
             
+            // استعادة الصفحة الحالية من localStorage
+            const savedSection = restoreCurrentPage();
+            currentSection = savedSection;
+            
+            // تحديث العنوان حسب الصفحة المحفوظة
+            const titles = {
+                'dashboard': 'لوحة التحكم',
+                'repairs': 'عمليات الصيانة',
+                'customers': 'العملاء',
+                'inventory': 'المخزون',
+                'expenses': 'المصروفات',
+                'reports': 'التقارير المالية',
+                'settings': 'الإعدادات'
+            };
+            if (titles[savedSection]) {
+                document.getElementById('pageTitle').textContent = titles[savedSection];
+            }
+            
+            // تحديث الروابط حسب الصفحة المحفوظة
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(`'${savedSection}'`)) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // تحديث الـ navbar العائم
+            document.querySelectorAll('.mobile-nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${savedSection}'`)) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // إخفاء جميع الأقسام أولاً
+            document.querySelectorAll('.section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
             // تحميل البيانات الأولية
             await loadDashboardData();
             
@@ -415,6 +483,11 @@
             loadExpensesSection();
             loadReportsSection();
             loadSettingsSection();
+            
+            // عرض الصفحة المحفوظة بعد تحميل الأقسام
+            setTimeout(() => {
+                showSection(savedSection, true); // true = بدون حفظ (لأننا استعدناها)
+            }, 100);
             
             // تهيئة نظام المزامنة مع تأخير لضمان تحميل كل شيء
             setTimeout(() => {
@@ -495,7 +568,12 @@
         }
 
         // عرض قسم معين
-        function showSection(section) {
+        function showSection(section, skipSave = false) {
+            // حفظ الصفحة الحالية في localStorage (إلا إذا كان skipSave = true)
+            if (!skipSave) {
+                saveCurrentPage(section);
+            }
+            
             // إخفاء جميع الأقسام
             document.querySelectorAll('.section').forEach(sec => {
                 sec.classList.remove('active');
@@ -506,11 +584,63 @@
                 link.classList.remove('active');
             });
             
+            // إزالة التحديد من الـ navbar العائم
+            document.querySelectorAll('.mobile-nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
             // عرض القسم المحدد
-            document.getElementById(`${section}-section`).classList.add('active');
+            const targetSection = document.getElementById(`${section}-section`);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            } else {
+                console.warn('القسم غير موجود:', section);
+                // إعادة تحميل القسم إذا لم يكن موجوداً
+                if (section === 'repairs' && typeof loadRepairsSection === 'function') {
+                    loadRepairsSection();
+                } else if (section === 'customers' && typeof loadCustomersSection === 'function') {
+                    loadCustomersSection();
+                } else if (section === 'inventory' && typeof loadInventorySection === 'function') {
+                    loadInventorySection();
+                } else if (section === 'expenses' && typeof loadExpensesSection === 'function') {
+                    loadExpensesSection();
+                } else if (section === 'reports' && typeof loadReportsSection === 'function') {
+                    loadReportsSection();
+                } else if (section === 'settings' && typeof loadSettingsSection === 'function') {
+                    loadSettingsSection();
+                }
+                // إعادة المحاولة بعد تحميل القسم
+                setTimeout(() => {
+                    const retrySection = document.getElementById(`${section}-section`);
+                    if (retrySection) {
+                        retrySection.classList.add('active');
+                    }
+                }, 100);
+            }
             
             // تحديد الرابط
-            event.target.closest('.nav-link').classList.add('active');
+            if (event && event.target) {
+                const navLink = event.target.closest('.nav-link');
+                if (navLink) {
+                    navLink.classList.add('active');
+                }
+                const mobileNavItem = event.target.closest('.mobile-nav-item');
+                if (mobileNavItem) {
+                    mobileNavItem.classList.add('active');
+                }
+            } else {
+                // إذا لم يكن هناك event، نبحث عن الرابط يدوياً
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(`'${section}'`)) {
+                        link.classList.add('active');
+                    }
+                });
+                document.querySelectorAll('.mobile-nav-item').forEach(item => {
+                    if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${section}'`)) {
+                        item.classList.add('active');
+                    }
+                });
+            }
             
             // تحديث عنوان الصفحة
             const titles = {
@@ -522,11 +652,13 @@
                 'reports': 'التقارير المالية',
                 'settings': 'الإعدادات'
             };
-            document.getElementById('pageTitle').textContent = titles[section];
+            if (titles[section]) {
+                document.getElementById('pageTitle').textContent = titles[section];
+            }
             currentSection = section;
             
-            // تحديث البيانات عند تغيير التبويبات
-            updateSectionData(section);
+            // تحديث البيانات عند تغيير التبويبات - مع إعادة تحميل كاملة
+            updateSectionData(section, true); // true = إعادة تحميل كاملة
             
             // تحديث الـ navbar العائم
             updateMobileNavbar(section);
@@ -545,7 +677,7 @@
         }
 
         // تحديث البيانات عند تغيير التبويبات
-        async function updateSectionData(section) {
+        async function updateSectionData(section, forceReload = false) {
             try {
                 switch (section) {
                     case 'dashboard':
@@ -553,32 +685,67 @@
                         break;
                     case 'repairs':
                         if (typeof loadRepairsSection === 'function') {
-                            loadRepairsSection();
+                            // إعادة تحميل كاملة للقسم
+                            if (forceReload) {
+                                console.log('🔄 إعادة تحميل قسم عمليات الصيانة...');
+                                loadRepairsSection();
+                            }
                         }
                         break;
                     case 'customers':
                         if (typeof loadCustomersSection === 'function') {
-                            loadCustomersSection();
+                            // إعادة تحميل كاملة للقسم
+                            if (forceReload) {
+                                console.log('🔄 إعادة تحميل قسم العملاء...');
+                                loadCustomersSection();
+                            }
                         }
                         break;
                     case 'inventory':
                         if (typeof loadInventorySection === 'function') {
-                            loadInventorySection();
+                            // إعادة تحميل كاملة للقسم لضمان عرض العناصر
+                            if (forceReload) {
+                                console.log('🔄 إعادة تحميل قسم المخزون...');
+                                loadInventorySection();
+                                
+                                // استعادة التبويب المحفوظ بعد تحميل القسم
+                                setTimeout(() => {
+                                    const savedTab = localStorage.getItem('current_inventory_tab');
+                                    if (savedTab && typeof switchInventoryTab === 'function') {
+                                        const tabElement = document.querySelector(`.inventory-tab[onclick*="'${savedTab}'"]`);
+                                        if (tabElement) {
+                                            switchInventoryTab(savedTab, tabElement);
+                                        }
+                                    }
+                                }, 200);
+                            }
                         }
                         break;
                     case 'expenses':
                         if (typeof loadExpensesSection === 'function') {
-                            loadExpensesSection();
+                            // إعادة تحميل كاملة للقسم
+                            if (forceReload) {
+                                console.log('🔄 إعادة تحميل قسم المصروفات...');
+                                loadExpensesSection();
+                            }
                         }
                         break;
                     case 'reports':
                         if (typeof loadReportsSection === 'function') {
-                            loadReportsSection();
+                            // إعادة تحميل كاملة للقسم
+                            if (forceReload) {
+                                console.log('🔄 إعادة تحميل قسم التقارير...');
+                                loadReportsSection();
+                            }
                         }
                         break;
                     case 'settings':
                         if (typeof loadSettingsSection === 'function') {
-                            loadSettingsSection();
+                            // إعادة تحميل كاملة للقسم
+                            if (forceReload) {
+                                console.log('🔄 إعادة تحميل قسم الإعدادات...');
+                                loadSettingsSection();
+                            }
                         }
                         break;
                 }

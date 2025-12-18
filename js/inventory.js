@@ -63,6 +63,13 @@ const phoneBrands = [
 function switchInventoryTab(tab, element) {
     currentInventoryTab = tab;
     
+    // حفظ التبويب الحالي في localStorage
+    try {
+        localStorage.setItem('current_inventory_tab', tab);
+    } catch (error) {
+        console.error('خطأ في حفظ التبويب:', error);
+    }
+    
     // تحديث التبويبات
     document.querySelectorAll('.inventory-tab').forEach(t => t.classList.remove('active'));
     if (element) {
@@ -83,28 +90,20 @@ function switchInventoryTab(tab, element) {
         targetSection.classList.add('active');
     }
     
-    // إعادة تحميل البيانات عند التبديل لضمان عرض العناصر
+    // إعادة تحميل البيانات دائماً عند التبديل لضمان عرض العناصر
+    console.log('🔄 التبديل إلى تبويب:', tab);
     switch(tab) {
         case 'spare_parts':
-            if (allSpareParts.length === 0 || document.getElementById('sparePartsGrid').innerHTML.trim() === '') {
-                loadSpareParts();
-            } else {
-                displaySpareParts(allSpareParts);
-            }
+            // إعادة تحميل دائماً لضمان عرض العناصر
+            loadSpareParts();
             break;
         case 'accessories':
-            if (allAccessories.length === 0 || document.getElementById('accessoriesGrid').innerHTML.trim() === '') {
-                loadAccessories();
-            } else {
-                displayAccessories(allAccessories);
-            }
+            // إعادة تحميل دائماً لضمان عرض العناصر
+            loadAccessories();
             break;
         case 'phones':
-            if (allPhones.length === 0 || document.getElementById('phonesGrid').innerHTML.trim() === '') {
-                loadPhones();
-            } else {
-                displayPhones(allPhones);
-            }
+            // إعادة تحميل دائماً لضمان عرض العناصر
+            loadPhones();
             break;
     }
 }
@@ -1632,6 +1631,18 @@ function compressImage(file, maxWidth = 800, quality = 0.8) {
 // إنشاء النماذج عند تحميل القسم
 function loadInventorySection() {
     const section = document.getElementById('inventory-section');
+    if (!section) {
+        console.error('قسم المخزون غير موجود');
+        return;
+    }
+    
+    console.log('📦 تحميل قسم المخزون...');
+    
+    // مسح البيانات القديمة
+    allSpareParts = [];
+    allAccessories = [];
+    allPhones = [];
+    
     section.innerHTML = `
         <div class="section-header">
             <h2><i class="bi bi-box-seam"></i> المخزون</h2>
@@ -1687,7 +1698,31 @@ function loadInventorySection() {
     // إنشاء النماذج
     createInventoryModals();
     
-    // تحميل البيانات
+    // استعادة التبويب المحفوظ
+    const savedTab = localStorage.getItem('current_inventory_tab') || 'spare_parts';
+    currentInventoryTab = savedTab;
+    
+    // تحديث التبويبات حسب المحفوظ
+    document.querySelectorAll('.inventory-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.inventory-section').forEach(s => s.classList.remove('active'));
+    
+    const savedTabElement = document.querySelector(`.inventory-tab[onclick*="'${savedTab}'"]`);
+    if (savedTabElement) {
+        savedTabElement.classList.add('active');
+    } else {
+        // إذا لم يوجد، نستخدم الأول
+        document.querySelector('.inventory-tab').classList.add('active');
+    }
+    
+    const savedSection = document.getElementById(`${savedTab}-section`);
+    if (savedSection) {
+        savedSection.classList.add('active');
+    } else {
+        document.getElementById('spare-parts-section').classList.add('active');
+    }
+    
+    // تحميل البيانات - دائماً إعادة تحميل كاملة
+    console.log('📥 تحميل بيانات المخزون...');
     loadSpareParts();
     loadAccessories();
     loadPhones();
@@ -1697,6 +1732,8 @@ function loadInventorySection() {
     createPhoneBrands();
     
     hideByPermission();
+    
+    console.log('✅ تم تحميل قسم المخزون بنجاح');
 }
 
 // ============================================
@@ -1923,7 +1960,6 @@ function printSparePartBarcode(partId, barcode, barcodeImage) {
                     </div>
                     <div class="barcode-label-barcode">
                         <img src="${barcodeImage}" alt="Barcode ${barcode}">
-                        <div class="barcode-label-code">${barcode}</div>
                     </div>
                 </div>
             </div>
