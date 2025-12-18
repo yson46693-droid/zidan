@@ -188,8 +188,16 @@ if ($method === 'POST') {
         // إضافة للمخزون القديم (للتوافق)
         $name = trim($data['name'] ?? '');
         $quantity = intval($data['quantity'] ?? 0);
-        $purchase_price = floatval($data['purchase_price'] ?? 0);
-        $selling_price = floatval($data['selling_price'] ?? 0);
+        
+        // دعم الحقول القديمة: إذا كان price موجوداً، استخدمه كـ selling_price
+        if (isset($data['price']) && !isset($data['purchase_price']) && !isset($data['selling_price'])) {
+            $purchase_price = 0;
+            $selling_price = floatval($data['price'] ?? 0);
+        } else {
+            $purchase_price = floatval($data['purchase_price'] ?? 0);
+            $selling_price = floatval($data['selling_price'] ?? 0);
+        }
+        
         $category = trim($data['category'] ?? '');
         
         if (empty($name)) {
@@ -467,14 +475,22 @@ if ($method === 'PUT') {
             $updateFields[] = "quantity = ?";
             $updateParams[] = intval($data['quantity']);
         }
-        if (isset($data['purchase_price'])) {
-            $updateFields[] = "purchase_price = ?";
-            $updateParams[] = floatval($data['purchase_price']);
-        }
-        if (isset($data['selling_price'])) {
+        
+        // دعم الحقول القديمة: إذا كان price موجوداً، استخدمه كـ selling_price
+        if (isset($data['price']) && !isset($data['purchase_price']) && !isset($data['selling_price'])) {
             $updateFields[] = "selling_price = ?";
-            $updateParams[] = floatval($data['selling_price']);
+            $updateParams[] = floatval($data['price']);
+        } else {
+            if (isset($data['purchase_price'])) {
+                $updateFields[] = "purchase_price = ?";
+                $updateParams[] = floatval($data['purchase_price']);
+            }
+            if (isset($data['selling_price'])) {
+                $updateFields[] = "selling_price = ?";
+                $updateParams[] = floatval($data['selling_price']);
+            }
         }
+        
         if (isset($data['category'])) {
             $updateFields[] = "category = ?";
             $updateParams[] = trim($data['category']);

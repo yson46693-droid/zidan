@@ -90,25 +90,9 @@
     <script>
         // تفعيل وضع المطور - السماح بالزر الأيمن وفتح الكونسول
         (function() {
-            // السماح بالزر الأيمن
-            document.addEventListener('contextmenu', function(e) {
-                e.stopPropagation();
-            }, true);
-            
-            // تفعيل اختصارات لوحة المفاتيح
-            document.addEventListener('keydown', function(e) {
-                // F12 - فتح أدوات المطور
-                if (e.key === 'F12') {
-                    e.preventDefault();
-                    console.log('تم الضغط على F12 - افتح أدوات المطور من القائمة');
-                }
-                
-                // Ctrl+Shift+I أو Ctrl+Shift+J
-                if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) {
-                    e.preventDefault();
-                    console.log('استخدم F12 أو اضغط بزر الماوس الأيمن واختر "فحص العنصر"');
-                }
-            });
+            // السماح بالزر الأيمن - لا حاجة لمنعه
+            // السماح بجميع اختصارات لوحة المفاتيح - لا حاجة لمنعها
+            console.log('✅ وضع المطور مفعّل - يمكنك استخدام F12 و Ctrl+Shift+I لفتح الكونسول');
         })();
         
         async function handleLogin(event) {

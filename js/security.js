@@ -63,45 +63,9 @@ class SecurityManager {
 
     // تطبيق الحماية الأساسية
     applyBasicProtection() {
-        // منع الضغط بالزر الأيمن (خفيف)
-        document.addEventListener('contextmenu', (e) => {
-            // السماح بالضغط بالزر الأيمن في المناطق الآمنة
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                return; // السماح بالضغط بالزر الأيمن في حقول الإدخال
-            }
-            e.preventDefault();
-        });
-
-        // منع اختصارات لوحة المفاتيح الخطيرة فقط
-        document.addEventListener('keydown', (e) => {
-            // منع F12 و Ctrl+Shift+I و Ctrl+U فقط
-            if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && e.key === 'I') ||
-                (e.ctrlKey && e.key === 'u')) {
-                e.preventDefault();
-            }
-        });
-
-        // السماح بالسحب والإفلات في المناطق الآمنة
-        document.addEventListener('dragstart', (e) => {
-            // السماح بالسحب في المناطق الآمنة
-            if (e.target.tagName === 'IMG' || e.target.classList.contains('draggable')) {
-                return;
-            }
-            e.preventDefault();
-        });
-
-        // السماح بتحديد النص في حقول الإدخال
-        document.addEventListener('selectstart', (e) => {
-            // السماح بتحديد النص في حقول الإدخال
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                return;
-            }
-            e.preventDefault();
-        });
-
-        // إخفاء شريط المطور (خفيف)
-        this.hideDeveloperTools();
+        // تم تعطيل الحماية التي تمنع النسخ وفتح الكونسول
+        // وضع المطور مفعّل - السماح بالزر الأيمن، النسخ، وفتح الكونسول
+        console.log('[Security] وضع المطور مفعّل - السماح بالنسخ وفتح الكونسول');
 
         // السماح بطباعة الصفحة
         // تم إزالة منع الطباعة
