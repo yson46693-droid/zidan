@@ -24,7 +24,9 @@ function getDBConnection() {
             $connection = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
             
             if ($connection->connect_error) {
-                error_log('خطأ في الاتصال بقاعدة البيانات: ' . $connection->connect_error);
+                $errorMsg = 'خطأ في الاتصال بقاعدة البيانات: ' . $connection->connect_error . 
+                           ' | Host: ' . DB_HOST . ' | User: ' . DB_USER . ' | Database: ' . DB_NAME;
+                error_log($errorMsg);
                 return null;
             }
             

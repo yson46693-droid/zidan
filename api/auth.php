@@ -36,29 +36,58 @@ if ($method === 'POST') {
     $username = $data['username'] ?? '';
     $password = $data['password'] ?? '';
     
+    // تفعيل عرض الأخطاء للتصحيح
+    error_log("تسجيل الدخول - اسم المستخدم: " . $username);
+    
     if (empty($username) || empty($password)) {
+        error_log("خطأ: اسم المستخدم أو كلمة المرور فارغة");
         response(false, 'اسم المستخدم وكلمة المرور مطلوبة', null, 400);
     }
     
-    // البحث عن المستخدم في قاعدة البيانات
-    $user = dbSelectOne(
-        "SELECT id, username, password, name, role FROM users WHERE username = ?",
-        [$username]
-    );
+    // التحقق من الاتصال بقاعدة البيانات
+    $conn = getDBConnection();
+    if (!$conn) {
+        error_log("خطأ: فشل الاتصال بقاعدة البيانات");
+        response(false, 'خطأ في الاتصال بقاعدة البيانات. تحقق من إعدادات قاعدة البيانات.', null, 500);
+    }
     
-    if ($user && password_verify($password, $user['password'])) {
-        session_start();
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['name'] = $user['name'];
-        $_SESSION['role'] = $user['role'];
+    // البحث عن المستخدم في قاعدة البيانات
+    try {
+        $user = dbSelectOne(
+            "SELECT id, username, password, name, role FROM users WHERE username = ?",
+            [$username]
+        );
         
-        response(true, 'تم تسجيل الدخول بنجاح', [
-            'id' => $user['id'],
-            'username' => $user['username'],
-            'name' => $user['name'],
-            'role' => $user['role']
-        ]);
+        error_log("نتيجة البحث عن المستخدم: " . ($user ? "موجود" : "غير موجود"));
+        
+        if ($user) {
+            error_log("المستخدم موجود - التحقق من كلمة المرور...");
+            $passwordMatch = password_verify($password, $user['password']);
+            error_log("نتيجة التحقق من كلمة المرور: " . ($passwordMatch ? "صحيحة" : "غير صحيحة"));
+            
+            if ($passwordMatch) {
+                session_start();
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['name'] = $user['name'];
+                $_SESSION['role'] = $user['role'];
+                
+                error_log("تم تسجيل الدخول بنجاح للمستخدم: " . $username);
+                response(true, 'تم تسجيل الدخول بنجاح', [
+                    'id' => $user['id'],
+                    'username' => $user['username'],
+                    'name' => $user['name'],
+                    'role' => $user['role']
+                ]);
+            } else {
+                error_log("كلمة المرور غير صحيحة للمستخدم: " . $username);
+            }
+        } else {
+            error_log("المستخدم غير موجود: " . $username);
+        }
+    } catch (Exception $e) {
+        error_log("خطأ في استعلام قاعدة البيانات: " . $e->getMessage());
+        response(false, 'خطأ في قاعدة البيانات: ' . $e->getMessage(), null, 500);
     }
     
     response(false, 'اسم المستخدم أو كلمة المرور غير صحيحة', null, 401);

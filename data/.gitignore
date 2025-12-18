@@ -1,9 +1,0 @@
-# ملفات البيانات الحساسة
-*.json
-*.key
-*.backup
-
-# استثناءات
-!settings.json
-!README.md
-!.htaccess

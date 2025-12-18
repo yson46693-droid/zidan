@@ -512,6 +512,58 @@
             }
         });
 
+        // تفعيل وضع المطور - السماح بالزر الأيمن وفتح الكونسول
+        (function() {
+            // السماح بالزر الأيمن
+            document.addEventListener('contextmenu', function(e) {
+                e.stopPropagation();
+            }, true);
+            
+            // تفعيل اختصارات لوحة المفاتيح
+            document.addEventListener('keydown', function(e) {
+                // F12 - فتح أدوات المطور
+                if (e.key === 'F12') {
+                    e.preventDefault();
+                    console.log('تم الضغط على F12 - افتح أدوات المطور من القائمة');
+                }
+                
+                // Ctrl+Shift+I أو Ctrl+Shift+J
+                if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'i' || e.key === 'j')) {
+                    e.preventDefault();
+                    console.log('استخدم F12 أو اضغط بزر الماوس الأيمن واختر "فحص العنصر"');
+                }
+            });
+            
+            // إضافة زر لفتح الكونسول يدوياً
+            const devButton = document.createElement('button');
+            devButton.innerHTML = '🔧 وضع المطور';
+            devButton.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                z-index: 99999;
+                padding: 10px 15px;
+                background: #2196F3;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 12px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            `;
+            devButton.onclick = function() {
+                alert('لفتح أدوات المطور:\n\n1. اضغط F12\n2. أو اضغط Ctrl+Shift+I (Windows/Linux)\n3. أو Cmd+Option+I (Mac)\n4. أو اضغط بزر الماوس الأيمن واختر "فحص العنصر"');
+            };
+            document.body.appendChild(devButton);
+            
+            console.log('%c🔧 وضع المطور مفعّل', 'color: #2196F3; font-size: 16px; font-weight: bold;');
+            console.log('%cيمكنك الآن استخدام الكونسول لرؤية الأخطاء', 'color: #4CAF50; font-size: 12px;');
+            
+            // عرض معلومات الاتصال بقاعدة البيانات
+            console.log('%c📊 معلومات النظام:', 'color: #2196F3; font-size: 14px; font-weight: bold;');
+            console.log('API Base URL:', API_BASE_URL);
+        })();
+
     </script>
 </body>
 </html>

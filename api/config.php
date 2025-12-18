@@ -20,10 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// معالجة أخطاء PHP للاستضافات المجانية
+// معالجة أخطاء PHP - تفعيل وضع التطوير
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1); // تفعيل عرض الأخطاء على الشاشة
 ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
 // إنشاء مجلد السجلات إذا لم يكن موجوداً
 $logDir = __DIR__ . '/../logs';

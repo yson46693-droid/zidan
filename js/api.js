@@ -30,7 +30,10 @@ const API = {
         }
 
         try {
-            console.log(`إرسال طلب ${actualMethod} إلى: ${API_BASE_URL + endpoint}`);
+            console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${API_BASE_URL + endpoint}`);
+            if (data && actualMethod !== 'GET') {
+                console.log('📦 بيانات الطلب:', data);
+            }
             
             // إضافة timeout للطلبات
             const controller = new AbortController();
@@ -41,15 +44,27 @@ const API = {
             const response = await fetch(API_BASE_URL + endpoint, options);
             clearTimeout(timeoutId);
             
-            console.log(`استجابة الخادم: ${response.status} ${response.statusText}`);
+            console.log(`%c📥 استجابة الخادم: ${response.status} ${response.statusText}`, 
+                response.ok ? 'color: #4CAF50;' : 'color: #f44336;');
             
             // التحقق من حالة الاستجابة
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`خطأ HTTP ${response.status}:`, errorText);
+                console.error(`%c❌ خطأ HTTP ${response.status}:`, 'color: #f44336; font-weight: bold;', errorText);
+                
+                // محاولة تحليل JSON إذا كان موجوداً
+                let errorData = null;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    // ليس JSON
+                }
+                
                 return { 
                     success: false, 
-                    message: `خطأ في الخادم (${response.status}): ${response.statusText}` 
+                    message: errorData?.message || `خطأ في الخادم (${response.status}): ${response.statusText}`,
+                    error: errorText,
+                    status: response.status
                 };
             }
             
@@ -57,44 +72,55 @@ const API = {
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
-                console.error('الاستجابة ليست JSON:', text);
+                console.error('%c❌ الاستجابة ليست JSON:', 'color: #f44336; font-weight: bold;', text);
                 return { 
                     success: false, 
-                    message: 'خطأ في تنسيق الاستجابة من الخادم. قد تكون مشكلة في الاستضافة.' 
+                    message: 'خطأ في تنسيق الاستجابة من الخادم. قد تكون مشكلة في الاستضافة.',
+                    error: text
                 };
             }
             
             const result = await response.json();
-            console.log('نتيجة الطلب:', result);
+            if (result.success) {
+                console.log('%c✅ نجح الطلب:', 'color: #4CAF50; font-weight: bold;', result);
+            } else {
+                console.error('%c❌ فشل الطلب:', 'color: #f44336; font-weight: bold;', result);
+            }
             return result;
         } catch (error) {
-            console.error('خطأ في الاتصال:', error);
+            console.error('%c❌ خطأ في الاتصال:', 'color: #f44336; font-size: 14px; font-weight: bold;', error);
+            console.error('تفاصيل الخطأ:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             
             // التحقق إذا كان الخطأ بسبب الإلغاء
             if (error.name === 'AbortError') {
                 return { 
                     success: false, 
-                    message: 'تم إلغاء الطلب',
+                    message: 'انتهت مهلة الاتصال بالخادم. تحقق من اتصال الإنترنت.',
                     error: 'AbortError'
                 };
             }
             
             // تحديد نوع الخطأ
             let errorMessage = 'خطأ في الاتصال بالخادم';
-            if (error.name === 'AbortError') {
-                errorMessage = 'انتهت مهلة الاتصال بالخادم. تحقق من اتصال الإنترنت.';
-            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                errorMessage = 'خطأ في الاتصال بالخادم. تحقق من اتصال الإنترنت أو إعدادات الاستضافة.';
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'خطأ في الاتصال بالخادم. تحقق من:\n1. اتصال الإنترنت\n2. إعدادات الاستضافة\n3. مسار API صحيح';
             } else if (error.name === 'SyntaxError') {
-                errorMessage = 'خطأ في تحليل الاستجابة من الخادم.';
+                errorMessage = 'خطأ في تحليل الاستجابة من الخادم. قد يكون الخادم يعيد HTML بدلاً من JSON.';
             } else if (error.message.includes('CORS')) {
                 errorMessage = 'خطأ CORS. تحقق من إعدادات الخادم.';
+            } else {
+                errorMessage = `خطأ: ${error.message}`;
             }
             
             return { 
                 success: false, 
                 message: errorMessage,
-                error: error.message
+                error: error.message,
+                errorName: error.name
             };
         }
     },
