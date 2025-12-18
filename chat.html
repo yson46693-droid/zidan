@@ -214,7 +214,12 @@
             
             // تهيئة الشات
             if (window.initChat) {
+                // تعيين مسار API للشات
+                window.CHAT_API_BASE = 'api/chat';
+                console.log('Initializing chat with user:', user);
                 window.initChat(user);
+            } else {
+                console.error('initChat function not found');
             }
         });
         

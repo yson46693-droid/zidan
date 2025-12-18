@@ -48,11 +48,15 @@ try {
             exit;
         }
         
+        error_log("WebAuthn Login API - Creating challenge for username: " . $username);
+        
         $challenge = WebAuthn::createLoginChallenge($username);
         
-        if ($challenge) {
+        if ($challenge && is_array($challenge)) {
+            error_log("WebAuthn Login API - Challenge created successfully. allowCredentials count: " . (isset($challenge['allowCredentials']) ? count($challenge['allowCredentials']) : 0));
             echo json_encode(['success' => true, 'challenge' => $challenge], JSON_UNESCAPED_UNICODE);
         } else {
+            error_log("WebAuthn Login API - Failed to create challenge. Challenge type: " . gettype($challenge));
             http_response_code(404);
             echo json_encode(['success' => false, 'error' => 'لا توجد بصمات مسجلة لهذا المستخدم'], JSON_UNESCAPED_UNICODE);
         }
@@ -77,7 +81,14 @@ try {
         }
         
         // إرسال response object كامل إلى verifyLogin
+        error_log("WebAuthn Login API - Verifying login. Response keys: " . implode(', ', array_keys($response)));
+        if (isset($response['rawId'])) {
+            error_log("WebAuthn Login API - rawId (first 30 chars): " . substr($response['rawId'], 0, 30));
+        }
+        
         $userId = WebAuthn::verifyLogin(json_encode($response));
+        
+        error_log("WebAuthn Login API - verifyLogin returned: " . ($userId ? $userId : 'false'));
         
         if ($userId) {
             // الحصول على بيانات المستخدم
@@ -120,8 +131,40 @@ try {
         echo json_encode(['success' => false, 'error' => 'إجراء غير صحيح'], JSON_UNESCAPED_UNICODE);
     }
 } catch (Exception $e) {
-    error_log("WebAuthn Login API Error: " . $e->getMessage());
+    $errorDetails = [
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+    ];
+    error_log("WebAuthn Login API Error: " . json_encode($errorDetails, JSON_UNESCAPED_UNICODE));
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'حدث خطأ: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    
+    $userMessage = $e->getMessage();
+    if (strpos($e->getMessage(), 'Direct access not allowed') !== false) {
+        $userMessage = 'خطأ في تحميل نظام WebAuthn. تحقق من إعدادات الخادم.';
+    }
+    
+    echo json_encode([
+        'success' => false, 
+        'error' => $userMessage,
+        'message' => $userMessage,
+        'debug' => (defined('DEBUG_MODE') && DEBUG_MODE) ? $errorDetails : null
+    ], JSON_UNESCAPED_UNICODE);
+} catch (Error $e) {
+    $errorDetails = [
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+    ];
+    error_log("WebAuthn Login API Fatal Error: " . json_encode($errorDetails, JSON_UNESCAPED_UNICODE));
+    http_response_code(500);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'حدث خطأ قاتل في النظام',
+        'message' => 'حدث خطأ قاتل: ' . $e->getMessage(),
+        'debug' => (defined('DEBUG_MODE') && DEBUG_MODE) ? $errorDetails : null
+    ], JSON_UNESCAPED_UNICODE);
 }
 ?>

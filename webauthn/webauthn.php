@@ -269,17 +269,27 @@ class WebAuthn {
             }
             
             // حفظ بيانات الاعتماد
+            // credential_id يتم استخراجه من authData وهو binary data
+            // عند تسجيل الدخول، credential.rawId هو نفس credential_id لكن كـ ArrayBuffer
+            // JavaScript يحوله إلى base64 باستخدام arrayBufferToBase64 (base64 عادي)
+            // لذلك يجب حفظه كـ base64 عادي أيضاً
             $credentialIdEncoded = base64_encode($credentialId);
             $publicKeyEncoded = base64_encode($publicKey);
             $deviceName = $responseData['deviceName'] ?? 'Unknown Device';
             
-            try {
-            // التحقق من وجود الاعتماد أولاً
-            $existing = dbSelectOne(
-                "SELECT id FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
-                [$userId, $credentialIdEncoded]
-            );
+            error_log("WebAuthn Registration: Saving credential. User ID: $userId");
+            error_log("WebAuthn Registration: Credential ID binary length: " . strlen($credentialId));
+            error_log("WebAuthn Registration: Credential ID base64 (first 50 chars): " . substr($credentialIdEncoded, 0, 50));
+            error_log("WebAuthn Registration: Credential ID base64 length: " . strlen($credentialIdEncoded));
+            error_log("WebAuthn Registration: Device: $deviceName");
             
+            try {
+                // التحقق من وجود الاعتماد أولاً
+                $existing = dbSelectOne(
+                    "SELECT id FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
+                    [$userId, $credentialIdEncoded]
+                );
+                
                 if ($existing && isset($existing['id'])) {
                     // تحديث الاعتماد الموجود
                     $updateResult = dbExecute(
@@ -290,6 +300,7 @@ class WebAuthn {
                         error_log("WebAuthn: Failed to update existing credential");
                         return false;
                     }
+                    error_log("WebAuthn Registration: Updated existing credential ID: " . $existing['id']);
                 } else {
                     // إضافة اعتماد جديد
                     $insertResult = dbExecute(
@@ -301,6 +312,7 @@ class WebAuthn {
                         error_log("WebAuthn: Failed to insert new credential");
                         return false;
                     }
+                    error_log("WebAuthn Registration: Inserted new credential. Insert ID: " . ($insertResult > 0 ? $insertResult : 'N/A'));
                 }
             } catch (Exception $e) {
                 error_log("WebAuthn: Database insert error: " . $e->getMessage());
@@ -460,12 +472,16 @@ class WebAuthn {
             if (is_string($response)) {
                 $responseData = json_decode($response, true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
-                    error_log("WebAuthn Login: Invalid JSON response. Error: " . json_last_error_msg());
+                    error_log("WebAuthn Login: Invalid JSON response. Error: " . json_last_error_msg() . ", Response: " . substr($response, 0, 200));
                     return false;
                 }
             } else {
                 $responseData = $response;
             }
+            
+            error_log("WebAuthn Login: verifyLogin called. Response keys: " . implode(', ', array_keys($responseData)));
+            error_log("WebAuthn Login: Session challenge: " . (isset($_SESSION['webauthn_login_challenge']) ? 'set (' . substr($_SESSION['webauthn_login_challenge'], 0, 20) . '...)' : 'not set'));
+            error_log("WebAuthn Login: Session user_id: " . (isset($_SESSION['webauthn_login_user_id']) ? $_SESSION['webauthn_login_user_id'] : 'not set'));
             
             if (!isset($_SESSION['webauthn_login_challenge']) || 
                 !isset($_SESSION['webauthn_login_user_id'])) {
@@ -506,9 +522,32 @@ class WebAuthn {
             $expectedChallenge = $challenge;
             $receivedChallenge = $clientData['challenge'] ?? '';
             
-            if ($receivedChallenge !== $expectedChallenge) {
-                error_log("WebAuthn Login: Challenge mismatch. Expected: $expectedChallenge, Received: $receivedChallenge");
-                return false;
+            // تحويل receivedChallenge من base64url إلى base64url للمقارنة
+            // لأن challenge يتم إرساله كـ base64url من createLoginChallenge
+            $expectedChallengeNormalized = strtr($expectedChallenge, '-_', '+/');
+            $receivedChallengeNormalized = strtr($receivedChallenge, '-_', '+/');
+            
+            // إضافة padding إذا لزم الأمر
+            $mod = strlen($expectedChallengeNormalized) % 4;
+            if ($mod) {
+                $expectedChallengeNormalized .= str_repeat('=', 4 - $mod);
+            }
+            $mod = strlen($receivedChallengeNormalized) % 4;
+            if ($mod) {
+                $receivedChallengeNormalized .= str_repeat('=', 4 - $mod);
+            }
+            
+            // محاولة فك الترميز والمقارنة
+            $expectedDecoded = base64_decode($expectedChallengeNormalized, true);
+            $receivedDecoded = base64_decode($receivedChallengeNormalized, true);
+            
+            if ($expectedDecoded === false || $receivedDecoded === false || $expectedDecoded !== $receivedDecoded) {
+                // إذا فشلت المقارنة بعد فك الترميز، نحاول المقارنة المباشرة
+                if ($receivedChallenge !== $expectedChallenge && $receivedChallengeNormalized !== $expectedChallengeNormalized) {
+                    error_log("WebAuthn Login: Challenge mismatch. Expected: $expectedChallenge, Received: $receivedChallenge");
+                    error_log("WebAuthn Login: Challenge normalized - Expected: $expectedChallengeNormalized, Received: $receivedChallengeNormalized");
+                    return false;
+                }
             }
             
             // التحقق من الأصل (مع مرونة أكثر للموبايل)
@@ -540,33 +579,128 @@ class WebAuthn {
             }
             
             // التحقق من credential ID
-            // قد يكون id أو rawId (base64 encoded)
+            // rawId يأتي من JavaScript كـ base64 عادي (من arrayBufferToBase64)
+            // يجب أن يطابق credential_id المخزن في قاعدة البيانات (base64_encode)
             $credentialIdRaw = $responseData['rawId'] ?? $responseData['id'] ?? '';
             
             if (empty($credentialIdRaw)) {
-                error_log("WebAuthn Login: Missing credential ID");
+                error_log("WebAuthn Login: Missing credential ID. Response keys: " . implode(', ', array_keys($responseData)));
                 return false;
             }
             
-            // تحويل credential ID إلى base64 إذا لزم الأمر (قد يكون base64url)
-            $credentialIdEncoded = strtr($credentialIdRaw, '-_', '+/');
+            // rawId من JavaScript هو base64 عادي (من arrayBufferToBase64)
+            // تنظيفه من المسافات والأحرف الخاصة
+            $credentialIdEncoded = trim($credentialIdRaw);
             
-            // إذا كان credential ID ليس base64 padded، نضيف padding
+            // إزالة أي أحرف غير base64
+            $credentialIdEncoded = preg_replace('/[^A-Za-z0-9+\/]/', '', $credentialIdEncoded);
+            
+            // إضافة padding إذا لزم الأمر
             $mod = strlen($credentialIdEncoded) % 4;
             if ($mod) {
                 $credentialIdEncoded .= str_repeat('=', 4 - $mod);
             }
             
-            // البحث عن credential في قاعدة البيانات (credential_id مخزن كـ base64)
+            error_log("WebAuthn Login: Searching for credential. User ID: $userId");
+            error_log("WebAuthn Login: Received credential ID (first 50 chars): " . substr($credentialIdEncoded, 0, 50));
+            error_log("WebAuthn Login: Received credential ID length: " . strlen($credentialIdEncoded));
+            
+            // جلب جميع البصمات للمستخدم للمقارنة
+            $allCredentials = dbSelect(
+                "SELECT id, credential_id, device_name, LENGTH(credential_id) as cred_length FROM webauthn_credentials WHERE user_id = ?",
+                [$userId]
+            );
+            
+            if (empty($allCredentials)) {
+                error_log("WebAuthn Login: No credentials found for user: $userId");
+                return false;
+            }
+            
+            error_log("WebAuthn Login: User has " . count($allCredentials) . " credentials. Comparing...");
+            
+            // البحث عن credential مطابق
+            // نستخدم LIKE للبحث المرن لأن الترميز قد يختلف قليلاً
+            $credential = null;
+            
+            // أولاً: محاولة البحث المباشر
             $credential = dbSelectOne(
                 "SELECT * FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
                 [$userId, $credentialIdEncoded]
             );
             
+            if ($credential) {
+                error_log("WebAuthn Login: Direct match found! Credential ID: " . $credential['id']);
+            } else {
+                // ثانياً: البحث بدون padding
+                $credentialIdNoPadding = rtrim($credentialIdEncoded, '=');
+                $credential = dbSelectOne(
+                    "SELECT * FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
+                    [$userId, $credentialIdNoPadding]
+                );
+                
+                if ($credential) {
+                    error_log("WebAuthn Login: Match found (without padding)! Credential ID: " . $credential['id']);
+                } else {
+                    // ثالثاً: البحث بجميع البصمات ومقارنة binary
+                    error_log("WebAuthn Login: No direct match. Comparing with all credentials...");
+                    foreach ($allCredentials as $cred) {
+                        $dbCredentialId = trim($cred['credential_id']);
+                        
+                        // تنظيف credential_id من قاعدة البيانات
+                        $dbCredentialId = preg_replace('/[^A-Za-z0-9+\/]/', '', $dbCredentialId);
+                        
+                        // إضافة padding إذا لزم الأمر
+                        $mod = strlen($dbCredentialId) % 4;
+                        if ($mod) {
+                            $dbCredentialId .= str_repeat('=', 4 - $mod);
+                        }
+                        
+                        error_log("WebAuthn Login: Comparing with DB credential (first 50 chars): " . substr($dbCredentialId, 0, 50) . ", length: " . strlen($dbCredentialId));
+                        
+                        // مقارنة مباشرة
+                        if ($dbCredentialId === $credentialIdEncoded) {
+                            $credential = $cred;
+                            error_log("WebAuthn Login: Exact match found! Credential ID: " . $cred['id']);
+                            break;
+                        }
+                        
+                        // محاولة مقارنة بدون padding
+                        $dbCredNoPadding = rtrim($dbCredentialId, '=');
+                        $receivedNoPadding = rtrim($credentialIdEncoded, '=');
+                        if ($dbCredNoPadding === $receivedNoPadding) {
+                            $credential = $cred;
+                            error_log("WebAuthn Login: Match found (without padding)! Credential ID: " . $cred['id']);
+                            break;
+                        }
+                        
+                        // محاولة فك الترميز والمقارنة كـ binary
+                        try {
+                            $dbDecoded = base64_decode($dbCredentialId, true);
+                            $receivedDecoded = base64_decode($credentialIdEncoded, true);
+                            if ($dbDecoded !== false && $receivedDecoded !== false && $dbDecoded === $receivedDecoded) {
+                                $credential = $cred;
+                                error_log("WebAuthn Login: Match found (decoded binary)! Credential ID: " . $cred['id']);
+                                break;
+                            }
+                        } catch (Exception $e) {
+                            // تجاهل أخطاء فك الترميز
+                        }
+                    }
+                }
+            }
+            
             if (!$credential) {
-                error_log("WebAuthn Login: Credential not found for user_id: $userId, credential_id: " . substr($credentialIdEncoded, 0, 20) . "...");
+                error_log("WebAuthn Login: Credential not found after comparing all " . count($allCredentials) . " credentials");
+                error_log("WebAuthn Login: Received credential ID (full, first 100 chars): " . substr($credentialIdEncoded, 0, 100));
+                error_log("WebAuthn Login: Available credential IDs:");
+                foreach ($allCredentials as $cred) {
+                    $dbCred = trim($cred['credential_id']);
+                    error_log("  - " . substr($dbCred, 0, 50) . " (device: " . ($cred['device_name'] ?? 'unknown') . ", length: " . $cred['cred_length'] . ")");
+                }
                 return false;
             }
+            
+            error_log("WebAuthn Login: Credential found! ID: " . $credential['id'] . ", Device: " . ($credential['device_name'] ?? 'unknown'));
             
             // التحقق من التوقيع (يجب التحقق من signature باستخدام public key)
             // هذا يتطلب فك ترميز public key من CBOR والتحقق من signature

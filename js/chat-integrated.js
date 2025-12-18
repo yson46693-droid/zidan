@@ -55,9 +55,12 @@
       return;
     }
 
-    currentUser.id = parseInt(user.id || '0', 10);
+    // استخدام ID كما هو (قد يكون string)
+    currentUser.id = user.id || user.user_id || '0';
     currentUser.name = user.name || user.username || 'مستخدم';
     currentUser.role = user.role || 'member';
+
+    console.log('Chat initialized with user:', currentUser);
 
     // تعيين بيانات المستخدم في العنصر
     const app = document.querySelector(selectors.app);
@@ -96,10 +99,12 @@
 
     // استخدام بيانات المستخدم من النظام
     if (!currentUser.id && app.dataset.currentUserId) {
-      currentUser.id = parseInt(app.dataset.currentUserId || '0', 10);
+      currentUser.id = app.dataset.currentUserId || '0';
       currentUser.name = app.dataset.currentUserName || '';
       currentUser.role = app.dataset.currentUserRole || '';
     }
+    
+    console.log('Current user in init:', currentUser);
 
     initTheme();
     bindEvents();
@@ -333,14 +338,14 @@
 
     if (action === 'reply') {
       setReply(message);
-    } else if (action === 'edit') {
-      if (message.user_id !== currentUser.id || message.deleted) {
+    } else     if (action === 'edit') {
+      if (String(message.user_id) !== String(currentUser.id) || message.deleted) {
         showToast('يمكنك تعديل رسائلك فقط', true);
         return;
       }
       setEdit(message);
     } else if (action === 'delete') {
-      if (message.user_id !== currentUser.id || message.deleted) {
+      if (String(message.user_id) !== String(currentUser.id) || message.deleted) {
         showToast('يمكنك حذف رسائلك فقط', true);
         return;
       }
@@ -422,7 +427,10 @@
     toggleComposerDisabled(true);
 
     try {
-      const response = await fetch(`${API_BASE}/send_message.php`, {
+      const url = `${API_BASE}/send_message.php`;
+      console.log('Sending message to:', url);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -432,9 +440,15 @@
         }),
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Send message error:', response.status, errorText);
+        throw new Error(`فشل في إرسال الرسالة: ${response.status}`);
+      }
+
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || 'تعذر إرسال الرسالة');
       }
 
@@ -458,7 +472,7 @@
 
   async function updateMessage(messageId, message) {
     const msgToUpdate = state.messages.find((m) => m.id === messageId);
-    if (!msgToUpdate || msgToUpdate.user_id !== currentUser.id || msgToUpdate.deleted) {
+    if (!msgToUpdate || String(msgToUpdate.user_id) !== String(currentUser.id) || msgToUpdate.deleted) {
       showToast('يمكنك تعديل رسائلك فقط', true);
       return;
     }
@@ -534,7 +548,7 @@
   }
 
   async function confirmDelete(message) {
-    if (message.user_id !== currentUser.id || message.deleted) {
+    if (String(message.user_id) !== String(currentUser.id) || message.deleted) {
       showToast('يمكنك حذف رسائلك فقط', true);
       return;
     }
@@ -587,12 +601,18 @@
         params.set('after_id', state.lastMessageId);
       }
 
-      const response = await fetch(`${API_BASE}/get_messages.php?${params.toString()}`, {
+      const url = `${API_BASE}/get_messages.php?${params.toString()}`;
+      console.log('Fetching messages from:', url);
+      
+      const response = await fetch(url, {
         credentials: 'include',
       });
 
       if (!response.ok) {
-        throw new Error('فشل في تحميل الرسائل');
+        console.error('Response not OK:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`فشل في تحميل الرسائل: ${response.status} ${response.statusText}`);
       }
 
       const payload = await response.json();
@@ -650,7 +670,7 @@
       if (!existingIds.has(message.id)) {
         state.messages.push(message);
         state.lastMessageId = Math.max(state.lastMessageId, message.id);
-        hasNew = message.user_id !== currentUser.id;
+        hasNew = String(message.user_id) !== String(currentUser.id);
       } else if (applyMessageUpdate(message)) {
         hasNew = true;
       }
@@ -701,7 +721,8 @@
   }
 
   function createMessageElement(message, totalUsers) {
-    const outgoing = message.user_id === currentUser.id;
+    // مقارنة ID كـ string لتجنب مشاكل التحويل
+    const outgoing = String(message.user_id) === String(currentUser.id);
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${outgoing ? 'outgoing' : 'incoming'}${message.deleted ? ' deleted' : ''}${message.edited && !message.deleted ? ' edited' : ''}`;
     messageElement.dataset.chatMessageId = String(message.id);

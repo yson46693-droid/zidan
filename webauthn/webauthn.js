@@ -383,9 +383,14 @@ class SimpleWebAuthn {
             }
 
             // 7. تحويل البيانات إلى base64
+            // credential.rawId هو نفس credential_id المستخرج من authData في PHP
+            // يجب تحويله إلى base64 عادي (ليس base64url) لمطابقة ما سيتم حفظه في قاعدة البيانات
             const credentialId = this.arrayBufferToBase64(credential.rawId);
             const attestationObject = this.arrayBufferToBase64(credential.response.attestationObject);
             const clientDataJSON = this.arrayBufferToBase64(credential.response.clientDataJSON);
+            
+            console.log('WebAuthn Register - Credential ID (first 50 chars):', credentialId.substring(0, 50));
+            console.log('WebAuthn Register - Credential ID length:', credentialId.length);
 
             // 8. إرسال البيانات للتحقق
             const verifyResponse = await fetch('api/webauthn_register.php', {
@@ -547,10 +552,21 @@ class SimpleWebAuthn {
             challenge.challenge = this.base64ToArrayBuffer(challenge.challenge);
 
             if (challenge.allowCredentials && Array.isArray(challenge.allowCredentials)) {
-                challenge.allowCredentials = challenge.allowCredentials.map(cred => ({
-                    id: this.base64ToArrayBuffer(cred.id),
-                    type: cred.type || 'public-key'
-                })).filter(cred => cred !== null);
+                console.log('WebAuthn Login - allowCredentials count:', challenge.allowCredentials.length);
+                challenge.allowCredentials = challenge.allowCredentials.map(cred => {
+                    try {
+                        const idBuffer = this.base64ToArrayBuffer(cred.id);
+                        console.log('WebAuthn Login - Converting credential ID (first 30 chars):', cred.id.substring(0, 30));
+                        return {
+                            id: idBuffer,
+                            type: cred.type || 'public-key'
+                        };
+                    } catch (error) {
+                        console.warn('WebAuthn Login: Failed to convert credential ID:', error);
+                        return null;
+                    }
+                }).filter(cred => cred !== null);
+                console.log('WebAuthn Login - Converted allowCredentials count:', challenge.allowCredentials.length);
             }
 
             // 3. إعداد rpId
@@ -582,7 +598,12 @@ class SimpleWebAuthn {
             const clientDataJSON = this.arrayBufferToBase64(credential.response.clientDataJSON);
             const authenticatorData = this.arrayBufferToBase64(credential.response.authenticatorData);
             const signature = this.arrayBufferToBase64(credential.response.signature);
+            // rawId هو نفس credential_id المستخرج من authData عند التسجيل
+            // يجب تحويله إلى base64 عادي (ليس base64url) لمطابقة ما تم حفظه في قاعدة البيانات
             const credentialIdBase64 = this.arrayBufferToBase64(credential.rawId);
+            
+            console.log('WebAuthn Login - Credential ID (first 50 chars):', credentialIdBase64.substring(0, 50));
+            console.log('WebAuthn Login - Credential ID length:', credentialIdBase64.length);
 
             // 7. التحقق من البصمة
             const verifyResponse = await fetch(loginApiPath, {
@@ -606,16 +627,23 @@ class SimpleWebAuthn {
                 })
             });
             
-            console.log('Verify response status:', verifyResponse.status, verifyResponse.statusText);
+            console.log('WebAuthn Login - Verify response status:', verifyResponse.status, verifyResponse.statusText);
             
             if (!verifyResponse.ok) {
                 const errorText = await verifyResponse.text();
-                console.error('Verify error response:', errorText);
-                throw new Error(`خطأ في التحقق: ${verifyResponse.status} - ${errorText}`);
+                console.error('WebAuthn Login - Verify error response:', errorText);
+                let errorData = null;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    // ليس JSON
+                }
+                const errorMsg = errorData?.error || errorData?.message || `خطأ في التحقق: ${verifyResponse.status} - ${errorText.substring(0, 200)}`;
+                throw new Error(errorMsg);
             }
 
             const verifyData = await verifyResponse.json();
-            console.log('Verify data:', verifyData);
+            console.log('WebAuthn Login - Verify data:', verifyData);
 
             if (verifyData.success) {
                 // حفظ بيانات المستخدم في localStorage
