@@ -113,6 +113,27 @@
                 </div>
                 
                 <button type="submit" class="btn btn-primary btn-block">تسجيل الدخول</button>
+                
+                <div style="margin-top: 20px; text-align: center;">
+                    <div style="margin: 15px 0; color: #666; font-size: 14px;">أو</div>
+                    <button type="button" id="biometricLoginBtn" class="btn btn-secondary btn-block" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border: none;
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 10px;
+                        transition: all 0.3s;
+                    ">
+                        <i class="bi bi-fingerprint" style="font-size: 20px;"></i>
+                        <span>تسجيل الدخول بالبصمة</span>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -122,6 +143,7 @@
     <script src="js/data-protection.js"></script>
     <script src="js/security.js"></script>
     <script src="js/auth.js"></script>
+    <script src="webauthn/webauthn.js"></script>
     <script>
         // تفعيل وضع المطور - السماح بالزر الأيمن وفتح الكونسول
         (function() {
@@ -177,6 +199,39 @@
             const result = await API.checkAuth();
             if (result.success) {
                 window.location.href = 'dashboard.html';
+            }
+            
+            // إعداد زر تسجيل الدخول بالبصمة
+            const biometricBtn = document.getElementById('biometricLoginBtn');
+            if (biometricBtn) {
+                // التحقق من دعم WebAuthn
+                if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
+                    biometricBtn.style.display = 'flex';
+                    biometricBtn.addEventListener('click', async () => {
+                        try {
+                            biometricBtn.disabled = true;
+                            biometricBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري التحقق...';
+                            
+                            const result = await simpleWebAuthn.loginWithBiometric();
+                            
+                            if (result && result.success) {
+                                // سيتم التوجيه تلقائياً في دالة login
+                            } else {
+                                showMessage(result?.message || 'فشل تسجيل الدخول بالبصمة', 'error');
+                                biometricBtn.disabled = false;
+                                biometricBtn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل الدخول بالبصمة</span>';
+                            }
+                        } catch (error) {
+                            console.error('خطأ في تسجيل الدخول بالبصمة:', error);
+                            showMessage('حدث خطأ أثناء تسجيل الدخول بالبصمة: ' + (error.message || error), 'error');
+                            biometricBtn.disabled = false;
+                            biometricBtn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل الدخول بالبصمة</span>';
+                        }
+                    });
+                } else {
+                    // إخفاء الزر إذا لم يكن WebAuthn مدعوماً
+                    biometricBtn.style.display = 'none';
+                }
             }
             
             // تسجيل Service Worker مع دعم المتصفحات القديمة

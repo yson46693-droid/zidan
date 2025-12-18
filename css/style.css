@@ -3211,3 +3211,166 @@ body {
     }
 }
 
+/* Profile Styles */
+.profile-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.profile-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-section h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-info-card {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.profile-info-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-right: 3px solid #2196F3;
+}
+
+.profile-info-item label {
+    font-weight: bold;
+    color: #555;
+    min-width: 150px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-info-item span {
+    color: #333;
+    flex: 1;
+}
+
+.biometric-register-section {
+    margin-bottom: 30px;
+}
+
+.credentials-list-section {
+    margin-top: 30px;
+}
+
+.credentials-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.credential-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s;
+}
+
+.credential-item:hover {
+    border-color: #2196F3;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+}
+
+.credential-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.credential-icon {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.credential-details {
+    flex: 1;
+}
+
+.credential-name {
+    font-weight: bold;
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.credential-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 13px;
+    color: #666;
+    flex-wrap: wrap;
+}
+
+.credential-meta span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Responsive design for profile */
+@media (max-width: 768px) {
+    .profile-container {
+        padding: 10px;
+    }
+    
+    .profile-section {
+        padding: 15px;
+    }
+    
+    .profile-info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .profile-info-item label {
+        min-width: auto;
+    }
+    
+    .credential-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .credential-item button {
+        width: 100%;
+    }
+    
+    .credential-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+

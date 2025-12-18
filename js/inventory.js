@@ -9,6 +9,12 @@ let currentSparePartBrandFilter = 'all';
 let currentAccessoryFilter = 'all';
 let currentPhoneBrand = 'all';
 
+// متغيرات لمنع الاستدعاءات المتكررة
+let isLoadingSpareParts = false;
+let isLoadingAccessories = false;
+let isLoadingPhones = false;
+let isLoadingInventorySection = false;
+
 // قائمة أنواع قطع الغيار
 const sparePartTypes = [
     { id: 'screen', name: 'شاشة', icon: 'bi-display' },
@@ -92,20 +98,32 @@ function switchInventoryTab(tab, element) {
     
     // إعادة تحميل البيانات دائماً عند التبديل لضمان عرض العناصر
     console.log('🔄 التبديل إلى تبويب:', tab);
-    switch(tab) {
-        case 'spare_parts':
-            // إعادة تحميل دائماً لضمان عرض العناصر
-            loadSpareParts();
-            break;
-        case 'accessories':
-            // إعادة تحميل دائماً لضمان عرض العناصر
-            loadAccessories();
-            break;
-        case 'phones':
-            // إعادة تحميل دائماً لضمان عرض العناصر
-            loadPhones();
-            break;
+    
+    // التأكد من أن القسم مرئي قبل تحميل البيانات
+    if (targetSection) {
+        targetSection.classList.add('active');
     }
+    
+    // إعطاء وقت قصير للـ DOM للتحديث
+    setTimeout(() => {
+        switch(tab) {
+            case 'spare_parts':
+                // إعادة تحميل دائماً لضمان عرض العناصر
+                console.log('📦 تحميل قطع الغيار...');
+                loadSpareParts();
+                break;
+            case 'accessories':
+                // إعادة تحميل دائماً لضمان عرض العناصر
+                console.log('📦 تحميل الإكسسوارات...');
+                loadAccessories();
+                break;
+            case 'phones':
+                // إعادة تحميل دائماً لضمان عرض العناصر
+                console.log('📦 تحميل الهواتف...');
+                loadPhones();
+                break;
+        }
+    }, 50);
 }
 
 // ============================================
@@ -113,25 +131,97 @@ function switchInventoryTab(tab, element) {
 // ============================================
 
 async function loadSpareParts() {
+    // منع الاستدعاءات المتكررة
+    if (isLoadingSpareParts) {
+        console.log('⏳ تحميل قطع الغيار قيد التنفيذ بالفعل...');
+        return;
+    }
+    
+    isLoadingSpareParts = true;
     try {
+        console.log('📥 بدء تحميل قطع الغيار...');
         const result = await API.getSpareParts();
         if (result.success) {
             allSpareParts = result.data || [];
+            console.log('✅ تم تحميل قطع الغيار:', allSpareParts.length, 'قطعة');
+            
+            // التأكد من وجود العنصر قبل العرض
+            const grid = document.getElementById('sparePartsGrid');
+            if (!grid) {
+                console.warn('⚠️ العنصر sparePartsGrid غير موجود، إعادة المحاولة...');
+                setTimeout(() => {
+                    const retryGrid = document.getElementById('sparePartsGrid');
+                    if (retryGrid) {
+                        displaySpareParts(allSpareParts);
+                        createSparePartsBrandFilters();
+                    } else {
+                        console.error('❌ العنصر sparePartsGrid غير موجود بعد المحاولة');
+                    }
+                }, 300);
+                return;
+            }
+            
             displaySpareParts(allSpareParts);
             createSparePartsBrandFilters();
         } else {
-            console.error('خطأ في تحميل قطع الغيار:', result.message);
+            console.error('❌ خطأ في تحميل قطع الغيار:', result.message);
             showMessage(result.message || 'خطأ في تحميل قطع الغيار', 'error');
+            
+            // عرض رسالة فارغة في Grid
+            const grid = document.getElementById('sparePartsGrid');
+            if (grid) {
+                grid.innerHTML = `
+                    <div class="inventory-empty">
+                        <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                        <div class="inventory-empty-text">${result.message || 'خطأ في تحميل قطع الغيار'}</div>
+                    </div>
+                `;
+            }
         }
     } catch (error) {
-        console.error('خطأ في تحميل قطع الغيار:', error);
+        console.error('❌ خطأ في تحميل قطع الغيار:', error);
         showMessage('حدث خطأ في تحميل قطع الغيار', 'error');
+        
+        // عرض رسالة خطأ في Grid
+        const grid = document.getElementById('sparePartsGrid');
+        if (grid) {
+            grid.innerHTML = `
+                <div class="inventory-empty">
+                    <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                    <div class="inventory-empty-text">حدث خطأ في تحميل قطع الغيار</div>
+                </div>
+            `;
+        }
+    } finally {
+        isLoadingSpareParts = false;
     }
 }
 
 function displaySpareParts(parts) {
+    // التأكد من أن القسم نشط
+    const section = document.getElementById('spare-parts-section');
+    if (section && !section.classList.contains('active')) {
+        // جعل القسم نشطاً
+        document.querySelectorAll('.inventory-section').forEach(s => s.classList.remove('active'));
+        section.classList.add('active');
+    }
+    
     const grid = document.getElementById('sparePartsGrid');
-    if (!grid) return;
+    if (!grid) {
+        console.error('❌ العنصر sparePartsGrid غير موجود في displaySpareParts');
+        // إعادة المحاولة بعد قليل
+        setTimeout(() => {
+            const retryGrid = document.getElementById('sparePartsGrid');
+            if (retryGrid && parts) {
+                displaySpareParts(parts);
+            } else {
+                console.error('❌ فشل في العثور على sparePartsGrid بعد المحاولة');
+            }
+        }, 300);
+        return;
+    }
+    
+    console.log('📊 عرض قطع الغيار:', parts ? parts.length : 0, 'قطعة');
     
     if (!parts || parts.length === 0) {
         grid.innerHTML = `
@@ -451,24 +541,95 @@ function filterAccessoriesByType(type, element) {
 }
 
 async function loadAccessories() {
+    // منع الاستدعاءات المتكررة
+    if (isLoadingAccessories) {
+        console.log('⏳ تحميل الإكسسوارات قيد التنفيذ بالفعل...');
+        return;
+    }
+    
+    isLoadingAccessories = true;
     try {
+        console.log('📥 بدء تحميل الإكسسوارات...');
         const result = await API.getAccessories();
         if (result.success) {
             allAccessories = result.data || [];
+            console.log('✅ تم تحميل الإكسسوارات:', allAccessories.length, 'إكسسوار');
+            
+            // التأكد من وجود العنصر قبل العرض
+            const grid = document.getElementById('accessoriesGrid');
+            if (!grid) {
+                console.warn('⚠️ العنصر accessoriesGrid غير موجود، إعادة المحاولة...');
+                setTimeout(() => {
+                    const retryGrid = document.getElementById('accessoriesGrid');
+                    if (retryGrid) {
+                        displayAccessories(allAccessories);
+                    } else {
+                        console.error('❌ العنصر accessoriesGrid غير موجود بعد المحاولة');
+                    }
+                }, 300);
+                return;
+            }
+            
             displayAccessories(allAccessories);
         } else {
-            console.error('خطأ في تحميل الإكسسوارات:', result.message);
+            console.error('❌ خطأ في تحميل الإكسسوارات:', result.message);
             showMessage(result.message || 'خطأ في تحميل الإكسسوارات', 'error');
+            
+            // عرض رسالة فارغة في Grid
+            const grid = document.getElementById('accessoriesGrid');
+            if (grid) {
+                grid.innerHTML = `
+                    <div class="inventory-empty">
+                        <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                        <div class="inventory-empty-text">${result.message || 'خطأ في تحميل الإكسسوارات'}</div>
+                    </div>
+                `;
+            }
         }
     } catch (error) {
-        console.error('خطأ في تحميل الإكسسوارات:', error);
+        console.error('❌ خطأ في تحميل الإكسسوارات:', error);
         showMessage('حدث خطأ في تحميل الإكسسوارات', 'error');
+        
+        // عرض رسالة خطأ في Grid
+        const grid = document.getElementById('accessoriesGrid');
+        if (grid) {
+            grid.innerHTML = `
+                <div class="inventory-empty">
+                    <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                    <div class="inventory-empty-text">حدث خطأ في تحميل الإكسسوارات</div>
+                </div>
+            `;
+        }
+    } finally {
+        isLoadingAccessories = false;
     }
 }
 
 function displayAccessories(accessories) {
+    // التأكد من أن القسم نشط
+    const section = document.getElementById('accessories-section');
+    if (section && !section.classList.contains('active')) {
+        // جعل القسم نشطاً
+        document.querySelectorAll('.inventory-section').forEach(s => s.classList.remove('active'));
+        section.classList.add('active');
+    }
+    
     const grid = document.getElementById('accessoriesGrid');
-    if (!grid) return;
+    if (!grid) {
+        console.error('❌ العنصر accessoriesGrid غير موجود في displayAccessories');
+        // إعادة المحاولة بعد قليل
+        setTimeout(() => {
+            const retryGrid = document.getElementById('accessoriesGrid');
+            if (retryGrid && accessories) {
+                displayAccessories(accessories);
+            } else {
+                console.error('❌ فشل في العثور على accessoriesGrid بعد المحاولة');
+            }
+        }, 300);
+        return;
+    }
+    
+    console.log('📊 عرض الإكسسوارات:', accessories ? accessories.length : 0, 'إكسسوار');
     
     if (!accessories || accessories.length === 0) {
         grid.innerHTML = `
@@ -595,24 +756,95 @@ function filterPhonesByBrand(brand, element) {
 }
 
 async function loadPhones() {
+    // منع الاستدعاءات المتكررة
+    if (isLoadingPhones) {
+        console.log('⏳ تحميل الهواتف قيد التنفيذ بالفعل...');
+        return;
+    }
+    
+    isLoadingPhones = true;
     try {
+        console.log('📥 بدء تحميل الهواتف...');
         const result = await API.getPhones();
         if (result.success) {
             allPhones = result.data || [];
+            console.log('✅ تم تحميل الهواتف:', allPhones.length, 'هاتف');
+            
+            // التأكد من وجود العنصر قبل العرض
+            const grid = document.getElementById('phonesGrid');
+            if (!grid) {
+                console.warn('⚠️ العنصر phonesGrid غير موجود، إعادة المحاولة...');
+                setTimeout(() => {
+                    const retryGrid = document.getElementById('phonesGrid');
+                    if (retryGrid) {
+                        displayPhones(allPhones);
+                    } else {
+                        console.error('❌ العنصر phonesGrid غير موجود بعد المحاولة');
+                    }
+                }, 300);
+                return;
+            }
+            
             displayPhones(allPhones);
         } else {
-            console.error('خطأ في تحميل الهواتف:', result.message);
+            console.error('❌ خطأ في تحميل الهواتف:', result.message);
             showMessage(result.message || 'خطأ في تحميل الهواتف', 'error');
+            
+            // عرض رسالة فارغة في Grid
+            const grid = document.getElementById('phonesGrid');
+            if (grid) {
+                grid.innerHTML = `
+                    <div class="inventory-empty">
+                        <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                        <div class="inventory-empty-text">${result.message || 'خطأ في تحميل الهواتف'}</div>
+                    </div>
+                `;
+            }
         }
     } catch (error) {
-        console.error('خطأ في تحميل الهواتف:', error);
+        console.error('❌ خطأ في تحميل الهواتف:', error);
         showMessage('حدث خطأ في تحميل الهواتف', 'error');
+        
+        // عرض رسالة خطأ في Grid
+        const grid = document.getElementById('phonesGrid');
+        if (grid) {
+            grid.innerHTML = `
+                <div class="inventory-empty">
+                    <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                    <div class="inventory-empty-text">حدث خطأ في تحميل الهواتف</div>
+                </div>
+            `;
+        }
+    } finally {
+        isLoadingPhones = false;
     }
 }
 
 function displayPhones(phones) {
+    // التأكد من أن القسم نشط
+    const section = document.getElementById('phones-section');
+    if (section && !section.classList.contains('active')) {
+        // جعل القسم نشطاً
+        document.querySelectorAll('.inventory-section').forEach(s => s.classList.remove('active'));
+        section.classList.add('active');
+    }
+    
     const grid = document.getElementById('phonesGrid');
-    if (!grid) return;
+    if (!grid) {
+        console.error('❌ العنصر phonesGrid غير موجود في displayPhones');
+        // إعادة المحاولة بعد قليل
+        setTimeout(() => {
+            const retryGrid = document.getElementById('phonesGrid');
+            if (retryGrid && phones) {
+                displayPhones(phones);
+            } else {
+                console.error('❌ فشل في العثور على phonesGrid بعد المحاولة');
+            }
+        }, 300);
+        return;
+    }
+    
+    console.log('📊 عرض الهواتف:', phones ? phones.length : 0, 'هاتف');
     
     if (!phones || phones.length === 0) {
         grid.innerHTML = `
@@ -1630,12 +1862,19 @@ function compressImage(file, maxWidth = 800, quality = 0.8) {
 
 // إنشاء النماذج عند تحميل القسم
 function loadInventorySection() {
+    // منع الاستدعاءات المتكررة
+    if (isLoadingInventorySection) {
+        console.log('⏳ تحميل قسم المخزون قيد التنفيذ بالفعل...');
+        return;
+    }
+    
     const section = document.getElementById('inventory-section');
     if (!section) {
         console.error('قسم المخزون غير موجود');
         return;
     }
     
+    isLoadingInventorySection = true;
     console.log('📦 تحميل قسم المخزون...');
     
     // مسح البيانات القديمة
@@ -1723,17 +1962,32 @@ function loadInventorySection() {
     
     // تحميل البيانات - دائماً إعادة تحميل كاملة
     console.log('📥 تحميل بيانات المخزون...');
-    loadSpareParts();
-    loadAccessories();
-    loadPhones();
     
-    // إنشاء أزرار الفلترة
-    createAccessoryFilters();
-    createPhoneBrands();
-    
-    hideByPermission();
-    
-    console.log('✅ تم تحميل قسم المخزون بنجاح');
+    // تحميل البيانات بعد تأخير قصير لضمان أن DOM جاهز
+    setTimeout(() => {
+        // تحميل البيانات حسب التبويب المحفوظ
+        if (savedTab === 'spare_parts') {
+            loadSpareParts();
+        } else if (savedTab === 'accessories') {
+            loadAccessories();
+        } else if (savedTab === 'phones') {
+            loadPhones();
+        } else {
+            // تحميل جميع البيانات
+            loadSpareParts();
+            loadAccessories();
+            loadPhones();
+        }
+        
+        // إنشاء أزرار الفلترة
+        createAccessoryFilters();
+        createPhoneBrands();
+        
+        hideByPermission();
+        
+        console.log('✅ تم تحميل قسم المخزون بنجاح');
+        isLoadingInventorySection = false;
+    }, 100);
 }
 
 // ============================================

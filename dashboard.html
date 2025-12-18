@@ -128,6 +128,10 @@
                 <i class="bi bi-gear"></i>
                 <span>الإعدادات</span>
             </a>
+            <a href="#profile" class="mobile-nav-item" onclick="showSection('profile')">
+                <i class="bi bi-person-circle"></i>
+                <span>الملف الشخصي</span>
+            </a>
         </div>
     </nav>
 
@@ -158,6 +162,9 @@
             </a>
             <a href="#settings" class="nav-link" onclick="showSection('settings')" data-permission="manager">
                 <i class="bi bi-gear"></i> الإعدادات
+            </a>
+            <a href="#profile" class="nav-link" onclick="showSection('profile')">
+                <i class="bi bi-person-circle"></i> الملف الشخصي
             </a>
         </nav>
         
@@ -245,6 +252,16 @@
             <!-- عمليات الصيانة -->
             <section id="repairs-section" class="section"></section>
 
+            <!-- الملف الشخصي -->
+            <section id="profile-section" class="section">
+                <div class="section-header">
+                    <h2><i class="bi bi-person-circle"></i> الملف الشخصي</h2>
+                </div>
+                <div class="section-content" id="profile-content">
+                    <p>جاري التحميل...</p>
+                </div>
+            </section>
+
             <!-- العملاء -->
             <section id="customers-section" class="section"></section>
 
@@ -282,6 +299,8 @@
     <script src="js/reports.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/pwa-install.js"></script>
+    <script src="webauthn/webauthn.js"></script>
+    <script src="js/profile.js"></script>
     
     <script>
         // معالجة تحديث Service Worker
@@ -688,7 +707,8 @@
                 'inventory': 'المخزون',
                 'expenses': 'المصروفات',
                 'reports': 'التقارير المالية',
-                'settings': 'الإعدادات'
+                'settings': 'الإعدادات',
+                'profile': 'الملف الشخصي'
             };
             if (titles[section]) {
                 document.getElementById('pageTitle').textContent = titles[section];
@@ -783,6 +803,15 @@
                             if (forceReload) {
                                 console.log('🔄 إعادة تحميل قسم الإعدادات...');
                                 loadSettingsSection();
+                            }
+                        }
+                        break;
+                    case 'profile':
+                        if (typeof loadProfileSection === 'function') {
+                            // إعادة تحميل كاملة للقسم
+                            if (forceReload) {
+                                console.log('🔄 إعادة تحميل قسم الملف الشخصي...');
+                                loadProfileSection();
                             }
                         }
                         break;
