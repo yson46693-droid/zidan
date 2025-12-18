@@ -9,7 +9,7 @@ define('DB_HOST', 'sql100.infinityfree.com');
 define('DB_USER', 'if0_40710456');
 define('DB_PORT', '3306');
 define('DB_PASS', 'Osama7444');
-define('DB_NAME', 'zd');
+define('DB_NAME', 'if0_40710456_zd');
 define('DB_CHARSET', 'utf8mb4');
 
 /**
