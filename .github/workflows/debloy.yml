@@ -24,7 +24,7 @@ jobs:
           password: Osama7444
 
           local-dir: ./
-          server-dir: /htdocs/v1/
+          server-dir: /htdocs/
 
           protocol: ftp
           port: 21
