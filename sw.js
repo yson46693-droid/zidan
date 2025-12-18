@@ -146,32 +146,47 @@ self.addEventListener('fetch', event => {
         url = { pathname: request.url };
     }
     
-    // تجاهل طلبات API - Network First مع fallback للـ cache
+    // معالجة طلبات API - السماح بمرور جميع الاستجابات من الخادم
     if (url.pathname.includes('/api/')) {
+        // عدم اعتراض طلبات API - السماح بمرورها مباشرة للخادم
+        // هذا يضمن أن الأخطاء من الخادم (401, 404, 500) تصل للكود بشكل صحيح
         event.respondWith(
             fetch(request)
                 .then(response => {
-                    // إذا نجح الطلب، نعيد الاستجابة
-                    if (response && response.ok) {
-                        return response;
-                    }
-                    throw new Error('Network request failed');
+                    // إرجاع الاستجابة كما هي (حتى لو كانت خطأ من الخادم)
+                    // هذا يسمح للكود بمعالجة الأخطاء بشكل صحيح
+                    return response;
                 })
-                .catch(() => {
-                    // إذا فشل، نعيد رسالة خطأ JSON
-                    return new Response(
-                        JSON.stringify({ 
-                            success: false, 
-                            message: 'لا يوجد اتصال بالإنترنت. يرجى المحاولة لاحقاً.',
-                            offline: true
-                        }),
-                        { 
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'Cache-Control': 'no-cache'
-                            } 
-                        }
-                    );
+                .catch(error => {
+                    // فقط في حالة NetworkError (فشل الطلب تماماً)، نعرض رسالة عدم الاتصال
+                    const isNetworkError = error.name === 'TypeError' || 
+                                         error.name === 'NetworkError' ||
+                                         (error.message && (
+                                             error.message.includes('Failed to fetch') ||
+                                             error.message.includes('NetworkError') ||
+                                             error.message.includes('Network request failed') ||
+                                             error.message.includes('Load failed')
+                                         ));
+                    
+                    // فقط إذا كان خطأ شبكة فعلي، نعرض رسالة عدم الاتصال
+                    if (isNetworkError) {
+                        return new Response(
+                            JSON.stringify({ 
+                                success: false, 
+                                message: 'لا يوجد اتصال بالإنترنت. يرجى المحاولة لاحقاً.',
+                                offline: true
+                            }),
+                            { 
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'Cache-Control': 'no-cache'
+                                } 
+                            }
+                        );
+                    }
+                    
+                    // في حالة وجود خطأ آخر، نعيد الخطأ الأصلي للكود لمعالجته
+                    throw error;
                 })
         );
         return;
