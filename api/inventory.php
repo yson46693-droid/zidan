@@ -70,6 +70,9 @@ if ($method === 'POST') {
     
     if ($type === 'spare_parts') {
         // إضافة قطعة غيار
+        // إزالة حقل price القديم إذا كان موجوداً (للتأكد من عدم استخدامه)
+        unset($data['price']);
+        
         $brand = trim($data['brand'] ?? '');
         $model = trim($data['model'] ?? '');
         $barcode = trim($data['barcode'] ?? '');
@@ -290,6 +293,9 @@ if ($method === 'PUT') {
             response(false, 'قطعة الغيار غير موجودة', null, 404);
         }
         
+        // إزالة حقل price القديم إذا كان موجوداً (للتأكد من عدم استخدامه)
+        unset($data['price']);
+        
         $updateFields = [];
         $updateParams = [];
         
@@ -322,7 +328,13 @@ if ($method === 'PUT') {
             $updateFields[] = "updated_at = NOW()";
             $updateParams[] = $id;
             $query = "UPDATE spare_parts SET " . implode(', ', $updateFields) . " WHERE id = ?";
-            dbExecute($query, $updateParams);
+            $result = dbExecute($query, $updateParams);
+            
+            if ($result === false) {
+                global $lastDbError;
+                $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+                response(false, 'خطأ في تعديل قطعة الغيار: ' . $error, null, 500);
+            }
         }
         
         // تحديث تفاصيل القطع
@@ -340,11 +352,17 @@ if ($method === 'PUT') {
                 $customValue = trim($item['custom_value'] ?? '');
                 
                 if (!empty($itemType)) {
-                    dbExecute(
+                    $insertResult = dbExecute(
                         "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
                         [$itemId, $id, $itemType, $quantity, $itemPrice, $notes, $customValue]
                     );
+                    
+                    if ($insertResult === false) {
+                        global $lastDbError;
+                        $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+                        response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
+                    }
                 }
             }
         }

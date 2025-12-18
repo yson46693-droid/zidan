@@ -3401,7 +3401,7 @@ body {
 }
 
 .credential-item:hover {
-    border-color: #2196F3;
+    border-color: rgba(79, 90, 100, 1);
     box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
 }
 
