@@ -2,20 +2,41 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="نظام إدارة شامل لمحلات صيانة الهواتف المحمولة">
     <meta name="theme-color" content="#2196F3">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="محل الصيانه">
+    
+    <!-- Windows Meta Tags -->
+    <meta name="msapplication-TileColor" content="#2196F3">
+    <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
+    <meta name="msapplication-navbutton-color" content="#2196F3">
+    
     <title>لوحة التحكم - نظام إدارة محل صيانة الهواتف</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     
     <!-- Icons -->
-    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon.svg">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-96x96.png">
+    <link rel="shortcut icon" href="favicon.ico">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png">
     
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -106,6 +127,7 @@
             <h1 id="pageTitle">لوحة التحكم</h1>
             <div class="header-actions">
                 <span id="syncIndicator" class="sync-indicator" onclick="syncManager.manualSync()" title="اضغط للمزامنة يدوياً"><i class="bi bi-arrow-repeat"></i> جاري التحميل...</span>
+                <a href="install.html" class="btn btn-icon" title="تثبيت التطبيق" id="installLink" style="display: none;"><i class="bi bi-download"></i></a>
                 <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
             </div>
         </header>
@@ -209,6 +231,7 @@
     <script src="js/expenses.js"></script>
     <script src="js/reports.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/pwa-install.js"></script>
     
     <script>
         let currentSection = 'dashboard';
@@ -238,6 +261,49 @@
             hideByPermission();
             loadDarkMode();
             setupModalCloseOnClickOutside();
+            
+            // إدارة زر التثبيت
+            if (typeof pwaInstallManager !== 'undefined') {
+                const installInfo = pwaInstallManager.getInstallInfo();
+                const installLink = document.getElementById('installLink');
+                if (installLink && !installInfo.isInstalled) {
+                    installLink.style.display = 'inline-block';
+                }
+            } else {
+                // تهيئة PWA Install Manager
+                setTimeout(() => {
+                    if (typeof PWAInstallManager !== 'undefined') {
+                        window.pwaInstallManager = new PWAInstallManager();
+                        const installInfo = window.pwaInstallManager.getInstallInfo();
+                        const installLink = document.getElementById('installLink');
+                        if (installLink && !installInfo.isInstalled) {
+                            installLink.style.display = 'inline-block';
+                        }
+                    }
+                }, 1000);
+            }
+            
+            // تسجيل Service Worker
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js', {
+                        scope: '/'
+                    });
+                    console.log('✅ Service Worker registered:', registration);
+                    
+                    // التحقق من التحديثات
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('🔄 New Service Worker available. Reload to update.');
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.error('❌ Service Worker registration failed:', error);
+                }
+            }
             
             // تحميل البيانات الأولية
             await loadDashboardData();

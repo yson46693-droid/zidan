@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="تثبيت تطبيق محل صيانة الهواتف على جهازك">
+    <meta name="theme-color" content="#2196F3">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="محل الصيانه">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="msapplication-TileColor" content="#2196F3">
+    <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
+    <meta name="msapplication-config" content="browserconfig.xml">
+    
+    <title>تثبيت التطبيق - محل صيانة الهواتف</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <link rel="stylesheet" href="css/style.css">
+    
+    <style>
+        .install-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .install-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .install-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(33, 150, 243, 0.3);
+        }
+        
+        .install-box h1 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+        
+        .install-box p {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.8;
+            font-size: 16px;
+        }
+        
+        .install-button {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            box-shadow: 0 5px 20px rgba(33, 150, 243, 0.4);
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .install-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.5);
+        }
+        
+        .install-button:active {
+            transform: translateY(0);
+        }
+        
+        .install-button.hidden {
+            display: none;
+        }
+        
+        .instructions {
+            background: #f5f5f5;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            text-align: right;
+        }
+        
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        
+        .instruction-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+        
+        .instruction-item i {
+            color: #2196F3;
+            font-size: 24px;
+            margin-top: 5px;
+        }
+        
+        .instruction-item div {
+            flex: 1;
+            text-align: right;
+        }
+        
+        .instruction-item strong {
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .instruction-item span {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .device-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .device-button {
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            padding: 15px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .device-button:hover {
+            background: #e3f2fd;
+            border-color: #2196F3;
+        }
+        
+        .device-button i {
+            font-size: 32px;
+            color: #2196F3;
+            display: block;
+            margin-bottom: 10px;
+        }
+        
+        .device-button strong {
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .device-button span {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+            display: block;
+        }
+        
+        .status-message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #f44336;
+            display: block;
+        }
+        
+        .status-message.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #2196F3;
+            display: block;
+        }
+        
+        @media (max-width: 600px) {
+            .install-box {
+                padding: 30px 20px;
+            }
+            
+            .install-box h1 {
+                font-size: 24px;
+            }
+            
+            .device-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="install-container">
+        <div class="install-box">
+            <div class="install-icon">
+                <i class="bi bi-phone-fill"></i>
+            </div>
+            
+            <h1>تثبيت تطبيق محل الصيانة</h1>
+            <p>قم بتثبيت التطبيق على جهازك للوصول السريع والاستخدام بدون إنترنت</p>
+            
+            <div id="statusMessage" class="status-message"></div>
+            
+            <button id="installButton" class="install-button hidden">
+                <i class="bi bi-download"></i>
+                <span>تثبيت التطبيق</span>
+            </button>
+            
+            <div class="device-buttons">
+                <div class="device-button" onclick="showInstructions('ios')">
+                    <i class="bi bi-apple"></i>
+                    <strong>iPhone / iPad</strong>
+                    <span>تعليمات التثبيت</span>
+                </div>
+                <div class="device-button" onclick="showInstructions('android')">
+                    <i class="bi bi-android2"></i>
+                    <strong>Android</strong>
+                    <span>تعليمات التثبيت</span>
+                </div>
+                <div class="device-button" onclick="showInstructions('desktop')">
+                    <i class="bi bi-laptop"></i>
+                    <strong>كمبيوتر</strong>
+                    <span>تعليمات التثبيت</span>
+                </div>
+            </div>
+            
+            <div id="instructions" class="instructions" style="display: none;">
+                <h3 id="instructionsTitle"></h3>
+                <div id="instructionsContent"></div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <a href="index.html" style="color: #2196F3; text-decoration: none;">
+                    <i class="bi bi-arrow-left"></i> العودة إلى الصفحة الرئيسية
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/pwa-install.js"></script>
+    <script>
+        // إظهار التعليمات حسب نوع الجهاز
+        function showInstructions(device) {
+            const instructions = document.getElementById('instructions');
+            const title = document.getElementById('instructionsTitle');
+            const content = document.getElementById('instructionsContent');
+            
+            const instructionsData = {
+                ios: {
+                    title: 'تثبيت على iPhone أو iPad',
+                    steps: [
+                        {
+                            icon: 'bi-safari',
+                            title: 'افتح الموقع في Safari',
+                            text: 'تأكد من فتح الموقع في متصفح Safari وليس Chrome أو Firefox'
+                        },
+                        {
+                            icon: 'bi-share',
+                            title: 'اضغط على زر المشاركة',
+                            text: 'اضغط على زر المشاركة (المربع مع السهم) في أسفل الشاشة'
+                        },
+                        {
+                            icon: 'bi-plus-square',
+                            title: 'اختر "إضافة إلى الشاشة الرئيسية"',
+                            text: 'قم بالتمرير واختر "إضافة إلى الشاشة الرئيسية" (Add to Home Screen)'
+                        },
+                        {
+                            icon: 'bi-check-circle',
+                            title: 'تأكيد التثبيت',
+                            text: 'اضغط "إضافة" في الزاوية العلوية اليمنى'
+                        }
+                    ]
+                },
+                android: {
+                    title: 'تثبيت على Android',
+                    steps: [
+                        {
+                            icon: 'bi-chrome',
+                            title: 'افتح الموقع في Chrome',
+                            text: 'تأكد من فتح الموقع في متصفح Chrome'
+                        },
+                        {
+                            icon: 'bi-three-dots-vertical',
+                            title: 'افتح القائمة',
+                            text: 'اضغط على القائمة (النقاط الثلاث) في الزاوية العلوية اليمنى'
+                        },
+                        {
+                            icon: 'bi-download',
+                            title: 'اختر "تثبيت التطبيق"',
+                            text: 'ابحث عن "تثبيت التطبيق" أو "Install app" واضغط عليه'
+                        },
+                        {
+                            icon: 'bi-check-circle',
+                            title: 'تأكيد التثبيت',
+                            text: 'اضغط "تثبيت" في النافذة المنبثقة'
+                        }
+                    ]
+                },
+                desktop: {
+                    title: 'تثبيت على الكمبيوتر',
+                    steps: [
+                        {
+                            icon: 'bi-chrome',
+                            title: 'Chrome / Edge',
+                            text: 'في شريط العنوان، اضغط على أيقونة التثبيت (➕) أو اذهب إلى القائمة → تثبيت التطبيق'
+                        },
+                        {
+                            icon: 'bi-firefox',
+                            title: 'Firefox',
+                            text: 'افتح القائمة → المزيد من الأدوات → تثبيت كتطبيق'
+                        },
+                        {
+                            icon: 'bi-safari',
+                            title: 'Safari (Mac)',
+                            text: 'افتح القائمة → File → Add to Dock'
+                        },
+                        {
+                            icon: 'bi-check-circle',
+                            title: 'تأكيد التثبيت',
+                            text: 'اتبع التعليمات على الشاشة لإكمال التثبيت'
+                        }
+                    ]
+                }
+            };
+            
+            const data = instructionsData[device];
+            title.textContent = data.title;
+            content.innerHTML = data.steps.map((step, index) => `
+                <div class="instruction-item">
+                    <i class="bi ${step.icon}"></i>
+                    <div>
+                        <strong>${index + 1}. ${step.title}</strong>
+                        <span>${step.text}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            instructions.style.display = 'block';
+            instructions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>
