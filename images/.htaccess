@@ -1,0 +1,36 @@
+# حماية مجلد الصور
+<Files "*.jpg">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+<Files "*.jpeg">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+<Files "*.png">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+<Files "*.gif">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+# منع الوصول المباشر للملفات الأخرى
+<FilesMatch "^(?!.*\.(jpg|jpeg|png|gif)$).*$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# منع عرض محتويات المجلد
+Options -Indexes
+
+# إضافة headers للأمان
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>

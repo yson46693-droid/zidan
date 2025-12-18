@@ -1,0 +1,63 @@
+# تفعيل PHP
+AddType application/x-httpd-php .php
+
+# الصفحة الافتراضية
+DirectoryIndex index.html index.php
+
+# حل مشكلة CORS للاستضافات المجانية
+<IfModule mod_headers.c>
+    # السماح بجميع المصادر
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"
+    Header always set Access-Control-Allow-Credentials "true"
+    Header always set Access-Control-Max-Age "3600"
+    
+    # إضافة headers إضافية للاستضافات المجانية
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# معالجة طلبات OPTIONS (preflight)
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ - [R=200,L]
+
+# إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
+RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
+RewriteRule ^api/(.*)$ api/$1 [L]
+
+# تفعيل ضغط الملفات
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# التخزين المؤقت
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+</IfModule>
+
+# حماية ملفات النظام
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# منع الوصول المباشر لملف الخطة
+<Files "mobile-repair-shop-system.plan.md">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# إعادة التوجيه إلى HTTPS (اختياري - قم بإزالة التعليق عند الحاجة)
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+

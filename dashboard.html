@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="نظام إدارة شامل لمحلات صيانة الهواتف المحمولة">
+    <meta name="theme-color" content="#2196F3">
+    <title>لوحة التحكم - نظام إدارة محل صيانة الهواتف</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon.svg">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dark-mode.css">
+    <link rel="stylesheet" href="css/security.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+</head>
+<body>
+  
+    <nav class="mobile-navbar" id="mobileNavbar">
+        <div class="mobile-nav-container">
+            <a href="#dashboard" class="mobile-nav-item active" onclick="showSection('dashboard')">
+                <i class="bi bi-speedometer2"></i>
+                <span>التحكم</span>
+            </a>
+            <a href="#repairs" class="mobile-nav-item" onclick="showSection('repairs')">
+                <i class="bi bi-tools"></i>
+                <span>الصيانة</span>
+            </a>
+            <a href="#customers" class="mobile-nav-item" onclick="showSection('customers')">
+                <i class="bi bi-people"></i>
+                <span>العملاء</span>
+            </a>
+            <a href="#inventory" class="mobile-nav-item" onclick="showSection('inventory')">
+                <i class="bi bi-box-seam"></i>
+                <span>المخزون</span>
+            </a>
+            <a href="#expenses" class="mobile-nav-item" onclick="showSection('expenses')">
+                <i class="bi bi-cash-stack"></i>
+                <span>المصروفات</span>
+            </a>
+            <a href="#reports" class="mobile-nav-item" onclick="showSection('reports')" data-permission="manager">
+                <i class="bi bi-graph-up"></i>
+                <span>التقارير</span>
+            </a>
+            <a href="#settings" class="mobile-nav-item" onclick="showSection('settings')" data-permission="manager">
+                <i class="bi bi-gear"></i>
+                <span>الإعدادات</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- القائمة الجانبية -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="bi bi-phone"></i> محل الصيانة</h2>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">
+                <i class="bi bi-speedometer2"></i> لوحة التحكم
+            </a>
+            <a href="#repairs" class="nav-link" onclick="showSection('repairs')">
+                <i class="bi bi-tools"></i> عمليات الصيانة
+            </a>
+            <a href="#customers" class="nav-link" onclick="showSection('customers')">
+                <i class="bi bi-people"></i> العملاء
+            </a>
+            <a href="#inventory" class="nav-link" onclick="showSection('inventory')">
+                <i class="bi bi-box-seam"></i> المخزون
+            </a>
+            <a href="#expenses" class="nav-link" onclick="showSection('expenses')">
+                <i class="bi bi-cash-stack"></i> المصروفات
+            </a>
+            <a href="#reports" class="nav-link" onclick="showSection('reports')" data-permission="manager">
+                <i class="bi bi-graph-up"></i> التقارير المالية
+            </a>
+            <a href="#settings" class="nav-link" onclick="showSection('settings')" data-permission="manager">
+                <i class="bi bi-gear"></i> الإعدادات
+            </a>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <p><i class="bi bi-person-circle"></i> <strong id="userName">المستخدم</strong></p>
+                <p><i class="bi bi-shield-check"></i> <span id="userRole">الدور</span></p>
+            </div>
+            <button onclick="logout()" class="btn btn-danger btn-sm"><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</button>
+        </div>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="btn-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+            <h1 id="pageTitle">لوحة التحكم</h1>
+            <div class="header-actions">
+                <span id="syncIndicator" class="sync-indicator" onclick="syncManager.manualSync()" title="اضغط للمزامنة يدوياً"><i class="bi bi-arrow-repeat"></i> جاري التحميل...</span>
+                <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- لوحة التحكم -->
+            <section id="dashboard-section" class="section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="bi bi-receipt-cutoff"></i></div>
+                        <div class="stat-info">
+                            <h3>عمليات اليوم</h3>
+                            <p class="stat-value" id="todayRepairs">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="bi bi-currency-exchange"></i></div>
+                        <div class="stat-info">
+                            <h3>إيرادات اليوم</h3>
+                            <p class="stat-value" id="todayRevenue">0 ج.م</p>
+                            <small style="font-size: 0.75em; color: #999;">صافي ربح العمليات</small>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+                        <div class="stat-info">
+                            <h3>المصروفات الكلية</h3>
+                            <p class="stat-value" id="todayExpenses">0 ج.م</p>
+                            <small style="font-size: 0.75em; color: #999;">مصروفات + مخزون</small>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="bi bi-piggy-bank"></i></div>
+                        <div class="stat-info">
+                            <h3>صافي الربح النهائي</h3>
+                            <p class="stat-value" id="todayProfit">0 ج.م</p>
+                            <small style="font-size: 0.75em; color: #999;">الإيرادات - المصروفات</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-content">
+                    <h2>العمليات الحالية</h2>
+                    <div class="table-container">
+                        <table class="data-table" id="currentRepairsTable">
+                            <thead>
+                                <tr>
+                                    <th>رقم العملية</th>
+                                    <th>العميل</th>
+                                    <th>الجهاز</th>
+                                    <th>الحالة</th>
+                                    <th>التاريخ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="currentRepairsBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center;">لا توجد عمليات حالية</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- عمليات الصيانة -->
+            <section id="repairs-section" class="section"></section>
+
+            <!-- العملاء -->
+            <section id="customers-section" class="section"></section>
+
+            <!-- المخزون -->
+            <section id="inventory-section" class="section"></section>
+
+            <!-- المصروفات -->
+            <section id="expenses-section" class="section"></section>
+
+            <!-- التقارير -->
+            <section id="reports-section" class="section"></section>
+
+            <!-- الإعدادات -->
+            <section id="settings-section" class="section"></section>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/data-protection.js"></script>
+    <script src="js/security.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/encryption.js"></script>
+    <script src="js/encryption-settings.js"></script>
+    <script src="js/barcode.js"></script>
+    <script src="js/small-label.js"></script>
+    <script src="js/image-management.js"></script>
+    <script src="js/test-connection.js"></script>
+    <script src="js/backup-management.js"></script>
+    <script src="js/repairs.js"></script>
+    <script src="js/customers.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/expenses.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/settings.js"></script>
+    
+    <script>
+        let currentSection = 'dashboard';
+
+        // حماية الصفحة - منع الوصول بدون تسجيل دخول
+        (async function() {
+            const user = await checkLogin();
+            if (!user) {
+                localStorage.clear();
+                sessionStorage.clear();
+                showLoginRequiredMessage();
+                return;
+            }
+        })();
+
+        // التحقق من تسجيل الدخول عند تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkLogin();
+            if (!user) {
+                localStorage.clear();
+                sessionStorage.clear();
+                showLoginRequiredMessage();
+                return;
+            }
+            
+            displayUserInfo();
+            hideByPermission();
+            loadDarkMode();
+            setupModalCloseOnClickOutside();
+            
+            // تحميل البيانات الأولية
+            await loadDashboardData();
+            
+            // تهيئة النسخ الاحتياطي التلقائي
+            await initializeAutoBackup();
+            
+            // تحميل محتوى الأقسام
+            loadRepairsSection();
+            loadCustomersSection();
+            loadInventorySection();
+            loadExpensesSection();
+            loadReportsSection();
+            loadSettingsSection();
+            
+            // تهيئة نظام المزامنة مع تأخير لضمان تحميل كل شيء
+            setTimeout(() => {
+                if (typeof syncManager !== 'undefined' && !syncManager.isInitialized) {
+                    console.log('[Dashboard] بدء تهيئة نظام المزامنة');
+                    syncManager.startAutoSync();
+                }
+            }, 3000);
+        });
+
+        // إدارة إغلاق التبويب
+        window.addEventListener('beforeunload', (event) => {
+            // إيقاف نظام المزامنة
+            if (typeof syncManager !== 'undefined' && syncManager.isInitialized) {
+                console.log('[Dashboard] إيقاف نظام المزامنة قبل إغلاق التبويب');
+                syncManager.stopAutoSync();
+            }
+            
+            // إيقاف جميع العمليات المعلقة
+            if (typeof window.currentCameraStream !== 'undefined' && window.currentCameraStream) {
+                window.currentCameraStream.getTracks().forEach(track => track.stop());
+                window.currentCameraStream = null;
+            }
+            
+            // إيقاف قارئ الباركود إذا كان مفتوحاً
+            if (typeof Quagga !== 'undefined') {
+                try {
+                    Quagga.stop();
+                    Quagga.offDetected();
+                } catch (e) {
+                    console.log('تم إيقاف قارئ الباركود بالفعل');
+                }
+            }
+            
+            // تنظيف الذاكرة
+            if (typeof allRepairs !== 'undefined') allRepairs = [];
+            if (typeof allCustomers !== 'undefined') allCustomers = [];
+            if (typeof allInventory !== 'undefined') allInventory = [];
+            if (typeof allExpenses !== 'undefined') allExpenses = [];
+            
+            // إزالة مستمعي الأحداث
+            window.removeEventListener('online', () => {});
+            window.removeEventListener('offline', () => {});
+            window.removeEventListener('resize', () => {});
+            
+            // إرسال رسالة تنظيف إلى Service Worker
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'CLEANUP'
+                });
+            }
+            
+            console.log('[Dashboard] تم تنظيف الموارد قبل إغلاق التبويب');
+        });
+
+        // إدارة إخفاء التبويب
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // إيقاف المزامنة عند إخفاء التبويب
+                if (typeof syncManager !== 'undefined' && syncManager.isInitialized) {
+                    console.log('[Dashboard] إيقاف المزامنة - التبويب مخفي');
+                    syncManager.stopAutoSync();
+                }
+            } else {
+                // إعادة تشغيل المزامنة عند إظهار التبويب
+                if (typeof syncManager !== 'undefined' && !syncManager.isInitialized) {
+                    console.log('[Dashboard] إعادة تشغيل المزامنة - التبويب مرئي');
+                    syncManager.startAutoSync();
+                }
+            }
+        });
+
+        // تبديل القائمة الجانبية
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            sidebar.classList.toggle('show');
+        }
+
+        // عرض قسم معين
+        function showSection(section) {
+            // إخفاء جميع الأقسام
+            document.querySelectorAll('.section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            // إزالة التحديد من جميع الروابط
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // عرض القسم المحدد
+            document.getElementById(`${section}-section`).classList.add('active');
+            
+            // تحديد الرابط
+            event.target.closest('.nav-link').classList.add('active');
+            
+            // تحديث عنوان الصفحة
+            const titles = {
+                'dashboard': 'لوحة التحكم',
+                'repairs': 'عمليات الصيانة',
+                'customers': 'العملاء',
+                'inventory': 'المخزون',
+                'expenses': 'المصروفات',
+                'reports': 'التقارير المالية',
+                'settings': 'الإعدادات'
+            };
+            document.getElementById('pageTitle').textContent = titles[section];
+            currentSection = section;
+            
+            // تحديث البيانات عند تغيير التبويبات
+            updateSectionData(section);
+            
+            // تحديث الـ navbar العائم
+            updateMobileNavbar(section);
+            
+            // إغلاق الـ sidebar في واجهة الهاتف بعد اختيار تبويب
+            if (window.innerWidth <= 575.98) {
+                const sidebar = document.getElementById('sidebar');
+                const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+                sidebar.classList.remove('open');
+                mobileMenuBtn.innerHTML = '<i class="bi bi-list"></i>';
+            }
+        }
+
+        // تحديث البيانات عند تغيير التبويبات
+        async function updateSectionData(section) {
+            try {
+                switch (section) {
+                    case 'dashboard':
+                        await loadDashboardData();
+                        break;
+                    case 'repairs':
+                        if (typeof loadRepairsSection === 'function') {
+                            loadRepairsSection();
+                        }
+                        break;
+                    case 'customers':
+                        if (typeof loadCustomersSection === 'function') {
+                            loadCustomersSection();
+                        }
+                        break;
+                    case 'inventory':
+                        if (typeof loadInventorySection === 'function') {
+                            loadInventorySection();
+                        }
+                        break;
+                    case 'expenses':
+                        if (typeof loadExpensesSection === 'function') {
+                            loadExpensesSection();
+                        }
+                        break;
+                    case 'reports':
+                        if (typeof loadReportsSection === 'function') {
+                            loadReportsSection();
+                        }
+                        break;
+                    case 'settings':
+                        if (typeof loadSettingsSection === 'function') {
+                            loadSettingsSection();
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error(`خطأ في تحديث بيانات ${section}:`, error);
+            }
+        }
+
+        // تحميل بيانات لوحة التحكم
+        async function loadDashboardData() {
+            const today = getTodayDate();
+            const result = await API.getReport('daily', today);
+            
+            if (result.success) {
+                const data = result.data;
+                document.getElementById('todayRepairs').textContent = data.repairs_count;
+                document.getElementById('todayRevenue').textContent = formatCurrency(data.revenue);
+                document.getElementById('todayExpenses').textContent = formatCurrency(data.expenses);
+                document.getElementById('todayProfit').textContent = formatCurrency(data.profit);
+            }
+            
+            // تحميل العمليات الحالية
+            const repairsResult = await API.getRepairs();
+            if (repairsResult.success) {
+                const currentRepairs = repairsResult.data.filter(r => 
+                    r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready'
+                );
+                displayCurrentRepairs(currentRepairs);
+            }
+        }
+
+        // عرض العمليات الحالية
+        function displayCurrentRepairs(repairs) {
+            const tbody = document.getElementById('currentRepairsBody');
+            
+            if (repairs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد عمليات حالية</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = repairs.slice(0, 10).map(repair => `
+                <tr>
+                    <td>${repair.repair_number}</td>
+                    <td>${repair.customer_name}</td>
+                    <td>${repair.device_type} ${repair.device_model || ''}</td>
+                    <td><span class="status-badge" style="background: ${getStatusColor(repair.status)}">${getStatusText(repair.status)}</span></td>
+                    <td>${formatDate(repair.created_at)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // إدارة القائمة المتنقلة
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                mobileMenuBtn.innerHTML = '<i class="bi bi-list"></i>';
+            } else {
+                sidebar.classList.add('open');
+                mobileMenuBtn.innerHTML = '<i class="bi bi-x"></i>';
+            }
+        }
+
+        // تحديث الـ navbar العائم عند تغيير التبويب
+        function updateMobileNavbar(activeSection) {
+            const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+            mobileNavItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === '#' + activeSection) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // إغلاق القائمة عند النقر خارجها
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            
+            if (window.innerWidth <= 575.98) {
+                if (!sidebar.contains(event.target) && !mobileMenuBtn.contains(event.target)) {
+                    sidebar.classList.remove('open');
+                    mobileMenuBtn.innerHTML = '<i class="bi bi-list"></i>';
+                }
+            }
+        });
+
+        // إغلاق القائمة عند تغيير حجم الشاشة
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            
+            if (window.innerWidth > 575.98) {
+                sidebar.classList.remove('open');
+                mobileMenuBtn.innerHTML = '<i class="bi bi-list"></i>';
+            }
+        });
+
+    </script>
+</body>
+</html>
+

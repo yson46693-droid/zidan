@@ -1,0 +1,53 @@
+name: Deploy to InfinityFree
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Upload via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ftpupload.net
+          username: if0_40710456
+          password: Osama7444
+
+          local-dir: ./
+          server-dir: /htdocs/v1/
+
+          protocol: ftp
+          port: 21
+          timeout: 50000
+          security: loose
+
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env
+            **/.env.*
+            **/README.md
+            **/.github/**
+            **/.vscode/**
+            **/.idea/**
+            **/*.log
+            **/backups/**
+            **/temp/**
+            **/tmp/**
+            git-push.*
+            quick-push.*
+            .gitignore
+            .editorconfig
+            .DS_Store
+            Thumbs.db

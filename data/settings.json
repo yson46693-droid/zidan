@@ -1,0 +1,22 @@
+{
+    "shop_name": "مركز التقنية المتقدمة لصيانة الهواتف",
+    "shop_phone": "01012345678",
+    "shop_address": "شارع التحرير، وسط البلد، القاهرة، مصر",
+    "shop_logo": "",
+    "low_stock_alert": 3,
+    "currency": "ج.م",
+    "theme": "light",
+    "working_hours": "9:00 ص - 10:00 م",
+    "email": "info@techrepair.com",
+    "website": "www.techrepair.com",
+    "tax_number": "123456789",
+    "warranty_period": 90,
+    "backup_frequency": "daily",
+    "auto_sync": true,
+    "notifications": {
+        "low_stock": true,
+        "new_repair": true,
+        "repair_ready": true,
+        "expense_alert": true
+    }
+}

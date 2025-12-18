@@ -1,0 +1,260 @@
+/**
+ * أنماط الحماية البصرية
+ * Visual Security Styles
+ */
+
+/* منع تحديد النص */
+* {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* منع السحب والإفلات */
+* {
+    -webkit-user-drag: none !important;
+    -khtml-user-drag: none !important;
+    -moz-user-drag: none !important;
+    -o-user-drag: none !important;
+    user-drag: none !important;
+}
+
+/* إخفاء شريط التمرير في بعض المتصفحات */
+::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* منع الطباعة */
+@media print {
+    * {
+        display: none !important;
+    }
+    
+    body::before {
+        content: "الوصول للطباعة محظور لأسباب أمنية";
+        display: block !important;
+        text-align: center;
+        font-size: 24px;
+        color: red;
+        margin-top: 50vh;
+    }
+}
+
+/* رسالة الحماية */
+.security-warning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(45deg, #ff0000, #ff4444);
+    color: white;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+    z-index: 999999;
+    animation: securityPulse 2s infinite;
+}
+
+@keyframes securityPulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* إخفاء العناصر الحساسة */
+.sensitive-data {
+    filter: blur(5px);
+    transition: filter 0.3s ease;
+}
+
+.sensitive-data:hover {
+    filter: blur(0px);
+}
+
+/* حماية الصور */
+img {
+    pointer-events: none;
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+}
+
+/* منع النسخ */
+.no-copy {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* رسالة الحظر */
+.blocked-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ff0000;
+    color: white;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 999999;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+    animation: blockedShake 0.5s infinite;
+}
+
+@keyframes blockedShake {
+    0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+    25% { transform: translate(-50%, -50%) rotate(-1deg); }
+    75% { transform: translate(-50%, -50%) rotate(1deg); }
+}
+
+/* إخفاء محتوى الصفحة عند اكتشاف تهديد */
+.security-lockdown {
+    filter: blur(20px);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* رسالة التنبيه الأمني */
+.security-alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ff4444;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+    z-index: 999998;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* حماية النماذج */
+form {
+    position: relative;
+}
+
+form::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* إخفاء الروابط الخارجية */
+a[href^="http"] {
+    position: relative;
+}
+
+a[href^="http"]::after {
+    content: '🔒';
+    position: absolute;
+    right: -20px;
+    top: 0;
+    font-size: 12px;
+    color: #ff0000;
+}
+
+/* حماية الجداول */
+table {
+    position: relative;
+}
+
+table::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* رسالة الحماية العامة */
+.protection-notice {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    text-align: center;
+    padding: 5px;
+    font-size: 12px;
+    z-index: 999997;
+}
+
+/* إخفاء العناصر في وضع التطوير */
+.dev-tools-hidden {
+    display: none !important;
+}
+
+/* حماية من فحص العناصر */
+.inspect-protection {
+    position: relative;
+}
+
+.inspect-protection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 999999;
+    pointer-events: none;
+}
+
+/* رسالة الحظر المؤقت */
+.temporary-block {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(255, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999999;
+    color: white;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.temporary-block h1 {
+    margin-bottom: 20px;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}

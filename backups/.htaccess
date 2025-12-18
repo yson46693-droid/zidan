@@ -1,0 +1,15 @@
+# حماية مجلد النسخ الاحتياطية
+Order Deny,Allow
+Deny from all
+
+# السماح فقط للملفات المطلوبة
+<Files "*.zip">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+# منع الوصول المباشر للملفات
+<FilesMatch "\.(json|txt|log)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>

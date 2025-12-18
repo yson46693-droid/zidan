@@ -1,0 +1,33 @@
+# إعدادات خاصة بمجلد API
+
+# تفعيل PHP
+AddType application/x-httpd-php .php
+
+# حل مشكلة CORS للاستضافات المجانية
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
+    Header always set Access-Control-Allow-Credentials "true"
+    Header always set Access-Control-Max-Age "3600"
+    
+    # إضافة headers إضافية للأمان
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# معالجة طلبات OPTIONS (preflight)
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ - [R=200,L]
+
+# إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
+RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
+RewriteRule ^(.*)$ $1 [L]
+
+# السماح بملفات API العامة
+<FilesMatch "\.(php)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
