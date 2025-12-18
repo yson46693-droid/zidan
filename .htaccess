@@ -21,6 +21,12 @@ DirectoryIndex index.html index.php
 
 # معالجة طلبات OPTIONS (preflight)
 RewriteEngine On
+
+# السماح بالوصول إلى chat.html (يجب أن يكون في البداية)
+RewriteCond %{REQUEST_URI} ^/chat\.html$ [NC,OR]
+RewriteCond %{REQUEST_URI} ^chat\.html$ [NC]
+RewriteRule ^ - [L]
+
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ - [R=200,L]
 
@@ -92,6 +98,20 @@ RewriteRule ^api/(.*)$ api/$1 [L]
     ExpiresByType application/json "access plus 0 seconds"
     ExpiresByType application/manifest+json "access plus 1 hour"
 </IfModule>
+
+# السماح بالوصول إلى chat.html أولاً (قبل أي قواعد منع)
+<Files "chat.html">
+    Order allow,deny
+    Allow from all
+    Satisfy Any
+</Files>
+
+# السماح بالوصول إلى جميع ملفات HTML
+<FilesMatch "\.(html|htm)$">
+    Order allow,deny
+    Allow from all
+    Satisfy Any
+</FilesMatch>
 
 # حماية ملفات النظام
 <FilesMatch "^\.">

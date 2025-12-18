@@ -159,6 +159,11 @@ body {
     color: var(--text-light);
 }
 
+/* معلومات المستخدم في الـ top-bar للهواتف - مخفي افتراضياً */
+.mobile-top-user-info {
+    display: none;
+}
+
 /* المحتوى الرئيسي */
 .main-content {
     margin-right: 260px;
@@ -437,6 +442,11 @@ body {
 .btn-sm {
     padding: 5px 10px;
     font-size: 0.9em;
+}
+
+.btn-xs {
+    padding: 4px 8px;
+    font-size: 0.8em;
 }
 
 .btn-block {
@@ -1409,6 +1419,107 @@ body {
     .nav-link {
         padding: 12px 20px;
         font-size: 1em;
+    }
+    
+    /* معلومات المستخدم وزر تسجيل الخروج في الـ top-bar للهواتف */
+    .mobile-top-user-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 0;
+        margin-top: 10px;
+        border-top: 1px solid var(--border-color);
+        gap: 10px;
+    }
+    
+    .mobile-user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        flex: 1;
+    }
+    
+    .mobile-user-info p {
+        margin: 0;
+        font-size: 0.8em;
+        color: var(--text-light);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .mobile-user-info i {
+        font-size: 0.9em;
+        color: var(--primary-color);
+    }
+    
+    .mobile-user-info strong {
+        color: var(--text-dark);
+        font-weight: 600;
+    }
+    
+    .mobile-top-user-info .btn-xs {
+        padding: 6px 12px;
+        font-size: 0.75em;
+        white-space: nowrap;
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .mobile-top-user-info .btn-xs i {
+        font-size: 0.85em;
+    }
+    
+    /* تصغير الأزرار في header-actions للهواتف */
+    .top-bar {
+        flex-wrap: wrap;
+        padding: 10px 12px !important;
+    }
+    
+    .top-bar h1 {
+        font-size: 1.1em;
+        margin: 0;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .header-actions {
+        gap: 6px !important;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .header-actions .btn-icon {
+        min-width: 32px !important;
+        min-height: 32px !important;
+        padding: 6px !important;
+        font-size: 0.9em !important;
+    }
+    
+    .header-actions .sync-indicator {
+        min-height: 32px !important;
+        padding: 6px 10px !important;
+        font-size: 0.75em !important;
+    }
+    
+    .header-actions .sync-indicator i {
+        font-size: 0.85em;
+    }
+    
+    /* الوضع الليلي */
+    .dark-mode .mobile-top-user-info {
+        border-top-color: #444;
+    }
+    
+    .dark-mode .mobile-user-info p {
+        color: #ccc;
+    }
+    
+    .dark-mode .mobile-user-info strong {
+        color: #fff;
     }
     
 /* Navbar عائم للهاتف */

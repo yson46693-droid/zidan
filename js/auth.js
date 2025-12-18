@@ -219,6 +219,18 @@ function displayUserInfo() {
     if (userRoleElement) {
         userRoleElement.textContent = getRoleText(user.role);
     }
+    
+    // تحديث معلومات المستخدم في الـ top-bar للهواتف
+    const mobileUserNameElement = document.getElementById('mobileUserName');
+    const mobileUserRoleElement = document.getElementById('mobileUserRole');
+    
+    if (mobileUserNameElement) {
+        mobileUserNameElement.textContent = user.name;
+    }
+    
+    if (mobileUserRoleElement) {
+        mobileUserRoleElement.textContent = getRoleText(user.role);
+    }
 }
 
 // عرض رسالة تسجيل الدخول المطلوب

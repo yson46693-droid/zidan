@@ -194,6 +194,14 @@
                 <a href="install.html" class="btn btn-icon" title="تثبيت التطبيق" id="installLink" style="display: none;"><i class="bi bi-download"></i></a>
                 <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
             </div>
+            <!-- معلومات المستخدم وزر تسجيل الخروج للهواتف -->
+            <div class="mobile-top-user-info">
+                <div class="mobile-user-info">
+                    <p><i class="bi bi-person-circle"></i> <strong id="mobileUserName">المستخدم</strong></p>
+                    <p><i class="bi bi-shield-check"></i> <span id="mobileUserRole">الدور</span></p>
+                </div>
+                <button onclick="logout()" class="btn btn-danger btn-xs"><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</button>
+            </div>
         </header>
 
         <div class="content">
