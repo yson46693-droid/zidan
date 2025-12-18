@@ -45,7 +45,7 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #224099 100%);
+            background: linear-gradient(135deg, #3567e4 0%, #224099 100%);
         }
         
         .install-box {
@@ -276,6 +276,11 @@
                     <strong>كمبيوتر</strong>
                     <span>تعليمات التثبيت</span>
                 </div>
+                <div class="device-button" onclick="showInstructions('legacy')">
+                    <i class="bi bi-browser-chrome"></i>
+                    <strong>متصفحات قديمة</strong>
+                    <span>تعليمات التثبيت</span>
+                </div>
             </div>
             
             <div id="instructions" class="instructions" style="display: none;">
@@ -293,6 +298,32 @@
     
     <script src="js/pwa-install.js"></script>
     <script>
+        // كشف المتصفح والجهاز تلقائياً
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof pwaInstallManager !== 'undefined') {
+                const info = pwaInstallManager.getInstallInfo();
+                console.log('Device Info:', info);
+                
+                // إظهار زر التثبيت إذا كان متاحاً
+                if (info.canAutoInstall && document.getElementById('installButton')) {
+                    document.getElementById('installButton').classList.remove('hidden');
+                }
+                
+                // إظهار تعليمات تلقائية حسب الجهاز
+                if (!info.isInstalled) {
+                    if (info.isIOS) {
+                        setTimeout(() => showInstructions('ios'), 1000);
+                    } else if (info.isAndroid && !info.canAutoInstall) {
+                        setTimeout(() => showInstructions('android'), 1000);
+                    } else if (info.browser === 'firefox') {
+                        setTimeout(() => showInstructions('desktop'), 1000);
+                    } else if (!info.isSupported) {
+                        setTimeout(() => showInstructions('legacy'), 1000);
+                    }
+                }
+            }
+        });
+        
         // إظهار التعليمات حسب نوع الجهاز
         function showInstructions(device) {
             const instructions = document.getElementById('instructions');
@@ -372,6 +403,31 @@
                             icon: 'bi-check-circle',
                             title: 'تأكيد التثبيت',
                             text: 'اتبع التعليمات على الشاشة لإكمال التثبيت'
+                        }
+                    ]
+                },
+                legacy: {
+                    title: 'تثبيت على المتصفحات القديمة',
+                    steps: [
+                        {
+                            icon: 'bi-browser-chrome',
+                            title: 'Internet Explorer',
+                            text: 'IE لا يدعم PWA بشكل كامل. يرجى الترقية إلى Edge أو Chrome'
+                        },
+                        {
+                            icon: 'bi-bookmark',
+                            title: 'إضافة إلى المفضلة',
+                            text: 'يمكنك إضافة الموقع إلى المفضلة (Ctrl+D) للوصول السريع'
+                        },
+                        {
+                            icon: 'bi-house',
+                            title: 'إضافة إلى الشاشة الرئيسية',
+                            text: 'في Windows: انقر بزر الماوس الأيمن على الموقع → إضافة إلى الشاشة الرئيسية'
+                        },
+                        {
+                            icon: 'bi-arrow-up-circle',
+                            title: 'ترقية المتصفح',
+                            text: 'للاستفادة الكاملة من PWA، يرجى ترقية متصفحك إلى أحدث إصدار'
                         }
                     ]
                 }

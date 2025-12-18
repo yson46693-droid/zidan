@@ -16,6 +16,20 @@
     <meta name="msapplication-TileColor" content="#2196F3">
     <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
     <meta name="msapplication-navbutton-color" content="#2196F3">
+    <meta name="msapplication-starturl" content="/index.html">
+    <meta name="msapplication-tooltip" content="ALAA ZIDAN - APP">
+    <meta name="msapplication-window" content="width=1024;height=768">
+    
+    <!-- Meta Tags للمتصفحات القديمة -->
+    <meta name="application-name" content="ALAA ZIDAN - APP">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-itunes-app" content="app-id=">
+    
+    <!-- Open Graph (للمتصفحات القديمة) -->
+    <meta property="og:title" content="ALAA ZIDAN - APP">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="icons/icon-192x192.png">
     
     <title>تسجيل الدخول - نظام إدارة سلسلة فروع م/ علاء زيدان  </title>
     
@@ -181,32 +195,55 @@
                 window.location.href = 'dashboard.html';
             }
             
-            // تسجيل Service Worker
+            // تسجيل Service Worker مع دعم المتصفحات القديمة
             if ('serviceWorker' in navigator) {
                 try {
+                    // التحقق من دعم Service Worker
+                    if (!navigator.serviceWorker.register) {
+                        console.warn('⚠️ Service Worker API not fully supported');
+                        return;
+                    }
+                    
                     const registration = await navigator.serviceWorker.register('/sw.js', {
                         scope: '/'
+                    }).catch(error => {
+                        console.warn('⚠️ Service Worker registration failed (may be old browser):', error);
+                        return null;
                     });
-                    console.log('✅ Service Worker registered:', registration);
                     
-                    // التحقق من التحديثات
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('🔄 New Service Worker available. Reload to update.');
+                    if (registration) {
+                        console.log('✅ Service Worker registered:', registration);
+                        
+                        // التحقق من التحديثات
+                        if (registration.addEventListener) {
+                            registration.addEventListener('updatefound', () => {
+                                const newWorker = registration.installing;
+                                if (newWorker && newWorker.addEventListener) {
+                                    newWorker.addEventListener('statechange', () => {
+                                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                            console.log('🔄 New Service Worker available. Reload to update.');
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        
+                        // تسجيل Background Sync (إذا كان مدعوماً)
+                        if (registration.sync && registration.sync.register) {
+                            try {
+                                await registration.sync.register('sync-data');
+                                console.log('✅ Background Sync registered');
+                            } catch (syncError) {
+                                console.log('⚠️ Background Sync not supported:', syncError);
                             }
-                        });
-                    });
-                    
-                    // تسجيل Background Sync
-                    if ('sync' in registration) {
-                        await registration.sync.register('sync-data');
-                        console.log('✅ Background Sync registered');
+                        }
                     }
                 } catch (error) {
                     console.error('❌ Service Worker registration failed:', error);
+                    // في حالة الفشل، الموقع سيعمل بشكل طبيعي بدون Service Worker
                 }
+            } else {
+                console.warn('⚠️ Service Worker not supported in this browser');
             }
             
             // معالجة رسائل من Service Worker

@@ -1,5 +1,12 @@
 // Service Worker للعمل بدون إنترنت
+// دعم المتصفحات القديمة والحديثة
 const CACHE_NAME = 'mobile-repair-shop-v2.0.0';
+
+// Polyfill للمتصفحات القديمة
+if (typeof self !== 'undefined' && !self.caches) {
+    // Fallback بسيط للمتصفحات التي لا تدعم Cache API
+    console.warn('[SW] Cache API not supported, using fallback');
+}
 const urlsToCache = [
     '/',
     '/index.html',
@@ -41,21 +48,40 @@ let pendingOperations = new Set();
 // التثبيت - حفظ الملفات في الـ cache
 self.addEventListener('install', event => {
     console.log('[Service Worker] Installing...');
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('[Service Worker] Caching app shell');
-                return cache.addAll(urlsToCache);
-            })
-            .then(() => self.skipWaiting())
-    );
+    
+    // دعم المتصفحات القديمة
+    const installPromise = caches.open(CACHE_NAME)
+        .then(cache => {
+            console.log('[Service Worker] Caching app shell');
+            // محاولة إضافة جميع الملفات
+            return cache.addAll(urlsToCache).catch(error => {
+                console.warn('[Service Worker] Some files failed to cache:', error);
+                // في حالة الفشل، نحاول إضافة الملفات الأساسية فقط
+                const essentialFiles = [
+                    '/',
+                    '/index.html',
+                    '/manifest.json',
+                    '/icons/icon-192x192.png'
+                ];
+                return cache.addAll(essentialFiles);
+            });
+        })
+        .then(() => {
+            // تفعيل Service Worker فوراً (للمتصفحات القديمة)
+            if (self.skipWaiting) {
+                return self.skipWaiting();
+            }
+        });
+    
+    event.waitUntil(installPromise);
 });
 
 // التفعيل - تنظيف الـ cache القديم
 self.addEventListener('activate', event => {
     console.log('[Service Worker] Activating...');
-    event.waitUntil(
-        caches.keys().then(cacheNames => {
+    
+    const activatePromise = caches.keys()
+        .then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
                     if (cacheName !== CACHE_NAME) {
@@ -64,14 +90,29 @@ self.addEventListener('activate', event => {
                     }
                 })
             );
-        }).then(() => self.clients.claim())
-    );
+        })
+        .then(() => {
+            // تفعيل Service Worker لجميع العملاء (للمتصفحات القديمة)
+            if (self.clients && self.clients.claim) {
+                return self.clients.claim();
+            }
+        });
+    
+    event.waitUntil(activatePromise);
 });
 
 // اعتراض الطلبات - استخدام الـ cache أو الشبكة
 self.addEventListener('fetch', event => {
     const { request } = event;
-    const url = new URL(request.url);
+    
+    // دعم المتصفحات القديمة التي لا تدعم URL constructor
+    let url;
+    try {
+        url = new URL(request.url);
+    } catch (e) {
+        // للمتصفحات القديمة
+        url = { pathname: request.url };
+    }
     
     // تجاهل طلبات API - Network First مع fallback للـ cache
     if (url.pathname.includes('/api/')) {
@@ -111,54 +152,72 @@ self.addEventListener('fetch', event => {
     }
 
     // استراتيجية Cache First للملفات الثابتة
-    event.respondWith(
-        caches.match(request)
-            .then(cachedResponse => {
-                // إذا كان موجود في الـ cache، نعيده
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-                
-                // محاولة جلب من الشبكة
-                return fetch(request).then(response => {
-                    // التحقق من صحة الاستجابة
-                    if (!response || response.status !== 200 || response.type === 'error') {
-                        return response;
+    // مع دعم المتصفحات القديمة
+    if (typeof caches !== 'undefined' && caches.match) {
+        event.respondWith(
+            caches.match(request)
+                .then(cachedResponse => {
+                    // إذا كان موجود في الـ cache، نعيده
+                    if (cachedResponse) {
+                        return cachedResponse;
                     }
-
-                    // حفظ في الـ cache للاستخدام لاحقاً
-                    const responseToCache = response.clone();
-                    caches.open(CACHE_NAME).then(cache => {
-                        // التحقق من أن الطلب قابل للتخزين
-                        if (request.method === 'GET' && response.status === 200) {
-                            cache.put(request, responseToCache).catch(err => {
-                                console.log('[SW] Cache put failed:', err);
-                            });
+                    
+                    // محاولة جلب من الشبكة
+                    return fetch(request).then(response => {
+                        // التحقق من صحة الاستجابة
+                        if (!response || response.status !== 200 || response.type === 'error') {
+                            return response;
                         }
-                    });
 
-                    return response;
-                }).catch(error => {
-                    console.log('[SW] Fetch failed:', error);
-                    
-                    // إذا كان طلب HTML، نعيد صفحة offline
-                    if (request.headers.get('accept').includes('text/html')) {
-                        return new Response(
-                            '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>لا يوجد اتصال</title><style>body{font-family:Arial;text-align:center;padding:50px;background:#f5f5f5;}h1{color:#f44336;}</style></head><body><h1>⚠️ لا يوجد اتصال بالإنترنت</h1><p>يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى</p><button onclick="location.reload()">إعادة المحاولة</button></body></html>',
-                            { 
-                                headers: { 
-                                    'Content-Type': 'text/html; charset=utf-8',
-                                    'Cache-Control': 'no-cache'
-                                } 
+                        // حفظ في الـ cache للاستخدام لاحقاً
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            // التحقق من أن الطلب قابل للتخزين
+                            if (request.method === 'GET' && response.status === 200) {
+                                cache.put(request, responseToCache).catch(err => {
+                                    console.log('[SW] Cache put failed:', err);
+                                });
                             }
-                        );
-                    }
-                    
-                    // للطلبات الأخرى، نعيد استجابة فارغة
-                    return new Response('', { status: 408 });
-                });
-            })
-    );
+                        }).catch(err => {
+                            console.log('[SW] Cache open failed:', err);
+                        });
+
+                        return response;
+                    }).catch(error => {
+                        console.log('[SW] Fetch failed:', error);
+                        
+                        // إذا كان طلب HTML، نعيد صفحة offline
+                        const acceptHeader = request.headers ? request.headers.get('accept') : '';
+                        if (acceptHeader && acceptHeader.includes('text/html')) {
+                            return new Response(
+                                '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>لا يوجد اتصال</title><style>body{font-family:Arial;text-align:center;padding:50px;background:#f5f5f5;}h1{color:#f44336;}</style></head><body><h1>⚠️ لا يوجد اتصال بالإنترنت</h1><p>يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى</p><button onclick="location.reload()">إعادة المحاولة</button></body></html>',
+                                { 
+                                    headers: { 
+                                        'Content-Type': 'text/html; charset=utf-8',
+                                        'Cache-Control': 'no-cache'
+                                    } 
+                                }
+                            );
+                        }
+                        
+                        // للطلبات الأخرى، نعيد استجابة فارغة
+                        return new Response('', { status: 408 });
+                    });
+                })
+                .catch(error => {
+                    // في حالة فشل كل شيء، نجرب fetch مباشرة
+                    console.log('[SW] Cache match failed, trying direct fetch:', error);
+                    return fetch(request).catch(() => {
+                        return new Response('', { status: 408 });
+                    });
+                })
+        );
+    } else {
+        // للمتصفحات القديمة التي لا تدعم Cache API
+        event.respondWith(fetch(request).catch(() => {
+            return new Response('', { status: 408 });
+        }));
+    }
 });
 
 // الإشعارات Push (جاهز للتفعيل لاحقاً)

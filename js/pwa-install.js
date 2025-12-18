@@ -36,6 +36,13 @@ class PWAInstallManager {
             console.log('✅ App is running in standalone mode');
         }
         
+        // التحقق من جميع الأنظمة
+        const browser = this.getBrowser();
+        const installInfo = this.getInstallInfo();
+        
+        console.log('📱 Device Info:', installInfo);
+        console.log('🌐 Browser:', browser);
+        
         // التحقق من iOS
         if (this.isIOS()) {
             this.handleIOSInstall();
@@ -44,6 +51,21 @@ class PWAInstallManager {
         // التحقق من Android
         if (this.isAndroid()) {
             this.handleAndroidInstall();
+        }
+        
+        // التحقق من Windows
+        if (this.isWindows()) {
+            this.handleWindowsInstall();
+        }
+        
+        // التحقق من المتصفحات القديمة
+        if (browser === 'ie' || !this.isSupported()) {
+            this.handleLegacyBrowser();
+        }
+        
+        // التحقق من Firefox
+        if (browser === 'firefox') {
+            this.handleFirefoxInstall();
         }
     }
     
@@ -75,10 +97,36 @@ class PWAInstallManager {
         return /Android/.test(navigator.userAgent);
     }
     
+    isWindows() {
+        return /Windows/.test(navigator.userAgent);
+    }
+    
+    isMacOS() {
+        return /Macintosh|Mac OS X/.test(navigator.userAgent);
+    }
+    
+    isLinux() {
+        return /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+    }
+    
+    getBrowser() {
+        const ua = navigator.userAgent;
+        if (ua.includes('Chrome') && !ua.includes('Edg') && !ua.includes('OPR')) return 'chrome';
+        if (ua.includes('Firefox')) return 'firefox';
+        if (ua.includes('Safari') && !ua.includes('Chrome')) return 'safari';
+        if (ua.includes('Edg')) return 'edge';
+        if (ua.includes('OPR')) return 'opera';
+        if (ua.includes('MSIE') || ua.includes('Trident')) return 'ie';
+        return 'unknown';
+    }
+    
     isStandaloneMode() {
-        return window.matchMedia('(display-mode: standalone)').matches ||
-               window.navigator.standalone ||
-               document.referrer.includes('android-app://');
+        // دعم جميع الطرق للتحقق من وضع standalone
+        return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+               (window.navigator && window.navigator.standalone === true) ||
+               (document.referrer && document.referrer.includes('android-app://')) ||
+               (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) ||
+               (window.matchMedia && window.matchMedia('(display-mode: minimal-ui)').matches);
     }
     
     async install() {
@@ -142,6 +190,25 @@ class PWAInstallManager {
         }
     }
     
+    handleWindowsInstall() {
+        // Windows 10+ يدعم PWA
+        if (!this.isStandaloneMode()) {
+            console.log('🪟 Windows detected - PWA supported');
+        }
+    }
+    
+    handleFirefoxInstall() {
+        // Firefox يدعم PWA لكن بطريقة مختلفة
+        if (!this.isStandaloneMode()) {
+            console.log('🦊 Firefox detected - manual install required');
+        }
+    }
+    
+    handleLegacyBrowser() {
+        // المتصفحات القديمة - عرض تعليمات بديلة
+        console.log('⚠️ Legacy browser detected - showing alternative instructions');
+    }
+    
     showIOSInstructions() {
         // يمكن إضافة تعليمات خاصة بـ iOS هنا
         console.log('Show iOS install instructions');
@@ -177,7 +244,35 @@ class PWAInstallManager {
     
     // التحقق من دعم PWA
     isSupported() {
-        return 'serviceWorker' in navigator && 'PushManager' in window;
+        // دعم أساسي: Service Worker
+        const hasServiceWorker = 'serviceWorker' in navigator;
+        
+        // دعم Manifest (حتى في المتصفحات القديمة)
+        const hasManifest = 'onbeforeinstallprompt' in window || 
+                           document.querySelector('link[rel="manifest"]') !== null;
+        
+        // دعم Cache API (للمتصفحات القديمة)
+        const hasCache = 'caches' in window || 'cache' in window;
+        
+        return hasServiceWorker || hasManifest || hasCache;
+    }
+    
+    // التحقق من دعم التثبيت التلقائي
+    canAutoInstall() {
+        // Chrome/Edge/Opera (Android & Desktop)
+        if (this.deferredPrompt) return true;
+        
+        // iOS Safari (يدوي فقط)
+        if (this.isIOS() && this.getBrowser() === 'safari') return false;
+        
+        // Firefox (يدوي)
+        if (this.getBrowser() === 'firefox') return false;
+        
+        // IE (لا يدعم)
+        if (this.getBrowser() === 'ie') return false;
+        
+        // المتصفحات القديمة الأخرى
+        return false;
     }
     
     // الحصول على معلومات التثبيت
@@ -187,7 +282,12 @@ class PWAInstallManager {
             isStandalone: this.isStandalone,
             isIOS: this.isIOS(),
             isAndroid: this.isAndroid(),
+            isWindows: this.isWindows(),
+            isMacOS: this.isMacOS(),
+            isLinux: this.isLinux(),
+            browser: this.getBrowser(),
             canInstall: !!this.deferredPrompt,
+            canAutoInstall: this.canAutoInstall(),
             isSupported: this.isSupported()
         };
     }
