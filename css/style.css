@@ -228,6 +228,12 @@ body {
     box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
 }
 
+.header-actions .btn-icon.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
 .header-actions .sync-indicator {
     min-height: 44px;
     display: flex;
