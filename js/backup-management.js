@@ -7,7 +7,7 @@ let backupList = [];
 // تحميل إعدادات النسخ الاحتياطي
 async function loadBackupConfig() {
     try {
-        const result = await API.getTelegramBackupStatus();
+        const result = await API.getTelegramBackupConfig();
         if (result.success) {
             backupConfig = result.data;
             return backupConfig;

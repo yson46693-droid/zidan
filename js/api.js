@@ -299,6 +299,23 @@ const API = {
 
     async deleteLossOperation(id) {
         return await this.request('loss-operations.php', 'DELETE', { id });
+    },
+
+    // النسخ الاحتياطي عبر Telegram
+    async getTelegramBackupConfig() {
+        return await this.request('telegram-backup.php?action=get_config', 'GET');
+    },
+
+    async getTelegramBackupStatus() {
+        return await this.request('telegram-backup.php?action=get_backup_status', 'GET');
+    },
+
+    async listBackups() {
+        return await this.request('telegram-backup.php?action=list_backups', 'GET');
+    },
+
+    async getCleanupStatus() {
+        return await this.request('telegram-backup.php?action=get_cleanup_status', 'GET');
     }
 };
 
