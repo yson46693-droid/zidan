@@ -54,7 +54,7 @@ async function loadProfileSection() {
                 <!-- زر تسجيل بصمة جديدة -->
                 <div class="biometric-register-section">
                     <button id="registerBiometricBtn" class="btn btn-primary" style="
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
                         border: none;
                         color: white;
                         padding: 15px 30px;
