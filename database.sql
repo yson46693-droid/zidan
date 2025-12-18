@@ -269,7 +269,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `name`, `role`, `created_at`, `updated_at`) VALUES
-('admin_1766045240', '1', '$2y$12$a0P7RSZBqNKE.ivxgb.L0OY8In3WBtfzdFBarl6XDtWpo4CaVJwrq', 'المدير', 'admin', '2025-12-18 00:07:20', NULL);
+('admin_1766045240', '1', '$2y$12$5BqYDsqaEtrxR3Jpy8RCte04crOTe4/rM7Hu0m4e9LfyzfFXuim1e', 'المدير', 'admin', '2025-12-18 00:07:20', NULL);
 
 --
 -- Indexes for dumped tables
