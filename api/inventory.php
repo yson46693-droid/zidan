@@ -26,7 +26,7 @@ if ($method === 'GET') {
         
         // جلب تفاصيل القطع لكل قطعة غيار
         foreach ($spareParts as &$part) {
-            $items = dbSelect("SELECT * FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, COALESCE(purchase_price, price, 0) as purchase_price, COALESCE(selling_price, price, 0) as selling_price, notes, custom_value, created_at, updated_at FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
             $part['items'] = $items ? $items : [];
         }
         
@@ -110,25 +110,65 @@ if ($method === 'POST') {
         // إضافة تفاصيل القطع
         if (is_array($items) && !empty($items)) {
             foreach ($items as $item) {
-                $itemId = generateId();
+                $itemId = isset($item['id']) && !empty($item['id']) ? trim($item['id']) : generateId();
                 $itemType = trim($item['item_type'] ?? '');
                 $quantity = intval($item['quantity'] ?? 1);
-                $itemPrice = floatval($item['price'] ?? 0);
+                $purchasePrice = floatval($item['purchase_price'] ?? $item['price'] ?? 0);
+                $sellingPrice = floatval($item['selling_price'] ?? $item['price'] ?? 0);
                 $notes = trim($item['notes'] ?? '');
                 $customValue = trim($item['custom_value'] ?? '');
                 
                 if (!empty($itemType)) {
-                    dbExecute(
-                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
-                        [$itemId, $partId, $itemType, $quantity, $itemPrice, $notes, $customValue]
+                    // محاولة استخدام purchase_price و selling_price أولاً، وإذا لم تكن موجودة في الجدول، استخدم price
+                    $insertResult = dbExecute(
+                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, price, notes, custom_value, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                         ON DUPLICATE KEY UPDATE 
+                         item_type = VALUES(item_type),
+                         quantity = VALUES(quantity),
+                         purchase_price = VALUES(purchase_price),
+                         selling_price = VALUES(selling_price),
+                         price = VALUES(price),
+                         notes = VALUES(notes),
+                         custom_value = VALUES(custom_value),
+                         updated_at = NOW()",
+                        [$itemId, $partId, $itemType, $quantity, $purchasePrice, $sellingPrice, $sellingPrice, $notes, $customValue]
                     );
+                    
+                    if ($insertResult === false) {
+                        global $lastDbError;
+                        $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+                        
+                        // التحقق إذا كان الخطأ بسبب عدم وجود purchase_price أو selling_price
+                        if (stripos($error, 'Unknown column') !== false && 
+                            (stripos($error, 'purchase_price') !== false || stripos($error, 'selling_price') !== false)) {
+                            // محاولة إدراج بدون purchase_price و selling_price إذا لم تكن موجودة
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 price = VALUES(price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $partId, $itemType, $quantity, $sellingPrice, $notes, $customValue]
+                            );
+                            if ($insertResult === false) {
+                                global $lastDbError;
+                                response(false, 'خطأ في إضافة تفاصيل القطع: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
+                            }
+                        } else {
+                            response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
+                        }
+                    }
                 }
             }
         }
         
         $newPart = dbSelectOne("SELECT * FROM spare_parts WHERE id = ?", [$partId]);
-        $items = dbSelect("SELECT * FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+        $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, COALESCE(purchase_price, price, 0) as purchase_price, COALESCE(selling_price, price, 0) as selling_price, notes, custom_value, created_at, updated_at FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
         $newPart['items'] = $items ? $items : [];
         
         response(true, 'تم إضافة قطعة الغيار بنجاح', $newPart);
@@ -323,14 +363,7 @@ if ($method === 'PUT') {
             $updateFields[] = "image = ?";
             $updateParams[] = trim($data['image']);
         }
-        if (isset($data['purchase_price'])) {
-            $updateFields[] = "purchase_price = ?";
-            $updateParams[] = floatval($data['purchase_price']);
-        }
-        if (isset($data['selling_price'])) {
-            $updateFields[] = "selling_price = ?";
-            $updateParams[] = floatval($data['selling_price']);
-        }
+        // لا نعدل purchase_price و selling_price في spare_parts الرئيسي - تم إزالتها
         
         // التأكد من عدم وجود price في الحقول المحدثة
         if (in_array('price', $updateFields, true) || isset($data['price'])) {
@@ -368,24 +401,57 @@ if ($method === 'PUT') {
             
             // إضافة القطع الجديدة
             foreach ($data['items'] as $item) {
-                $itemId = generateId();
+                $itemId = isset($item['id']) && !empty($item['id']) ? trim($item['id']) : generateId();
                 $itemType = trim($item['item_type'] ?? '');
                 $quantity = intval($item['quantity'] ?? 1);
-                $itemPrice = floatval($item['price'] ?? 0);
+                $purchasePrice = floatval($item['purchase_price'] ?? $item['price'] ?? 0);
+                $sellingPrice = floatval($item['selling_price'] ?? $item['price'] ?? 0);
                 $notes = trim($item['notes'] ?? '');
                 $customValue = trim($item['custom_value'] ?? '');
                 
                 if (!empty($itemType)) {
+                    // محاولة استخدام purchase_price و selling_price أولاً، وإذا لم تكن موجودة في الجدول، استخدم price
                     $insertResult = dbExecute(
-                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
-                        [$itemId, $id, $itemType, $quantity, $itemPrice, $notes, $customValue]
+                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, price, notes, custom_value, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                         ON DUPLICATE KEY UPDATE 
+                         item_type = VALUES(item_type),
+                         quantity = VALUES(quantity),
+                         purchase_price = VALUES(purchase_price),
+                         selling_price = VALUES(selling_price),
+                         price = VALUES(price),
+                         notes = VALUES(notes),
+                         custom_value = VALUES(custom_value),
+                         updated_at = NOW()",
+                        [$itemId, $id, $itemType, $quantity, $purchasePrice, $sellingPrice, $sellingPrice, $notes, $customValue]
                     );
                     
                     if ($insertResult === false) {
                         global $lastDbError;
                         $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
-                        response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
+                        
+                        // التحقق إذا كان الخطأ بسبب عدم وجود purchase_price أو selling_price
+                        if (stripos($error, 'Unknown column') !== false && 
+                            (stripos($error, 'purchase_price') !== false || stripos($error, 'selling_price') !== false)) {
+                            // محاولة إدراج بدون purchase_price و selling_price إذا لم تكن موجودة
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 price = VALUES(price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $id, $itemType, $quantity, $sellingPrice, $notes, $customValue]
+                            );
+                            if ($insertResult === false) {
+                                response(false, 'خطأ في إضافة تفاصيل القطع: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
+                            }
+                        } else {
+                            response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
+                        }
                     }
                 }
             }
@@ -427,6 +493,10 @@ if ($method === 'PUT') {
         if (isset($data['selling_price'])) {
             $updateFields[] = "selling_price = ?";
             $updateParams[] = floatval($data['selling_price']);
+        }
+        if (isset($data['quantity'])) {
+            $updateFields[] = "quantity = ?";
+            $updateParams[] = intval($data['quantity']);
         }
         
         if (empty($updateFields)) {

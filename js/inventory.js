@@ -52,15 +52,15 @@ const accessoryTypes = [
 
 // قائمة الماركات الشائعة
 const phoneBrands = [
-    { id: 'samsung', name: 'Samsung', icon: 'bi-phone' },
-    { id: 'apple', name: 'Apple', icon: 'bi-apple' },
-    { id: 'xiaomi', name: 'Xiaomi', icon: 'bi-phone' },
-    { id: 'huawei', name: 'Huawei', icon: 'bi-phone' },
-    { id: 'oppo', name: 'Oppo', icon: 'bi-phone' },
-    { id: 'vivo', name: 'Vivo', icon: 'bi-phone' },
-    { id: 'realme', name: 'Realme', icon: 'bi-phone' },
-    { id: 'oneplus', name: 'OnePlus', icon: 'bi-phone' },
-    { id: 'other', name: 'أخرى', icon: 'bi-phone' }
+    { id: 'samsung', name: 'Samsung', icon: 'bi-phone', logo: 'brands/samsung.svg' },
+    { id: 'apple', name: 'Apple', icon: 'bi-apple', logo: 'brands/apple.svg' },
+    { id: 'xiaomi', name: 'Xiaomi', icon: 'bi-phone', logo: 'brands/xiaomi.svg' },
+    { id: 'huawei', name: 'Huawei', icon: 'bi-phone', logo: 'brands/huawei.svg' },
+    { id: 'oppo', name: 'Oppo', icon: 'bi-phone', logo: 'brands/oppo.svg' },
+    { id: 'vivo', name: 'Vivo', icon: 'bi-phone', logo: 'brands/vivo.svg' },
+    { id: 'realme', name: 'Realme', icon: 'bi-phone', logo: 'brands/realme.svg' },
+    { id: 'oneplus', name: 'OnePlus', icon: 'bi-phone', logo: 'brands/oneplus.svg' },
+    { id: 'other', name: 'أخرى', icon: 'bi-phone', logo: 'brands/other.svg' }
 ];
 
 // تهيئة قسم المخزون
@@ -283,11 +283,24 @@ function displaySpareParts(parts) {
                             </button>
                         </div>
                     </div>
-                </div>
-                
-                <div class="inventory-card-price">
-                    <span class="inventory-card-price-label">سعر البيع:</span>
-                    <span class="inventory-card-price-value">${formatCurrency(part.selling_price || 0)}</span>
+                    
+                    ${part.items && part.items.length > 0 ? `
+                        <div class="inventory-card-items" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+                            <div style="font-weight: bold; margin-bottom: 8px; color: var(--text-color);">القطع المتوفرة:</div>
+                            <div style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto;">
+                                ${part.items.map(item => {
+                                    const type = sparePartTypes.find(t => t.id === item.item_type);
+                                    const itemName = type ? type.name : (item.item_type || 'غير محدد');
+                                    return `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px; background: var(--light-bg); border-radius: 4px; font-size: 0.85em;">
+                                            <span>${itemName} (${item.quantity || 1})</span>
+                                            <span style="color: var(--primary-color); font-weight: bold;">${formatCurrency(item.selling_price || item.price || 0)}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <div class="inventory-card-actions">
@@ -397,8 +410,6 @@ function editSparePart(id) {
     document.getElementById('sparePartModel').value = part.model;
     document.getElementById('sparePartBarcode').value = part.barcode || '';
     document.getElementById('sparePartImage').value = part.image || '';
-    document.getElementById('sparePartPurchasePrice').value = part.purchase_price || 0;
-    document.getElementById('sparePartSellingPrice').value = part.selling_price || 0;
     
     // عرض معاينة الصورة
     if (part.image) {
@@ -426,7 +437,7 @@ function loadSparePartItems(items) {
         const isOther = item.item_type === 'other' || !type;
         
         return `
-            <div class="spare-part-item-row" data-item-id="${item.id || ''}">
+            <div class="spare-part-item-row" data-item-id="${item.id || ''}" style="display: grid; grid-template-columns: 1.5fr 80px 100px 100px auto; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;">
                 <select class="spare-part-item-type" onchange="handleSparePartItemTypeChange(this)">
                     ${sparePartTypes.map(t => `
                         <option value="${t.id}" ${item.item_type === t.id ? 'selected' : ''}>${t.name}</option>
@@ -434,8 +445,9 @@ function loadSparePartItems(items) {
                     ${isOther && !type ? `<option value="other" selected>${item.item_type || 'أخرى'}</option>` : ''}
                 </select>
                 <input type="number" class="spare-part-item-quantity" value="${item.quantity || 1}" min="1" placeholder="الكمية">
-                <input type="number" class="spare-part-item-price" step="0.01" min="0" value="${item.price || 0}" placeholder="السعر">
-                <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'};">
+                <input type="number" class="spare-part-item-purchase-price" step="0.01" min="0" value="${item.purchase_price || 0}" placeholder="سعر التكلفة">
+                <input type="number" class="spare-part-item-selling-price" step="0.01" min="0" value="${item.selling_price || item.price || 0}" placeholder="سعر البيع">
+                <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'}; grid-column: 1 / -1;">
                 <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
             </div>
         `;
@@ -487,16 +499,25 @@ function previewSparePart(id) {
             }).join('')}
         </div>
         
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--light-bg);">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span>سعر التكلفة:</span>
-                <strong>${formatCurrency(part.purchase_price || 0)}</strong>
+        ${(part.items || []).length > 0 ? `
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--light-bg);">
+                <h4 style="margin-bottom: 15px; color: var(--text-color);">تفاصيل القطع وأسعارها:</h4>
+                ${(part.items || []).map(item => {
+                    const type = sparePartTypes.find(t => t.id === item.item_type);
+                    const itemName = type ? type.name : (item.item_type || 'غير محدد');
+                    return `
+                        <div style="padding: 10px; margin-bottom: 10px; background: var(--light-bg); border-radius: 6px;">
+                            <div style="font-weight: bold; margin-bottom: 5px;">${itemName} (الكمية: ${item.quantity || 1})</div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
+                                <span>سعر التكلفة: <strong>${formatCurrency(item.purchase_price || 0)}</strong></span>
+                                <span>سعر البيع: <strong style="color: var(--primary-color);">${formatCurrency(item.selling_price || item.price || 0)}</strong></span>
+                            </div>
+                            ${item.custom_value ? `<div style="margin-top: 5px; font-size: 0.85em; color: #666;">${item.custom_value}</div>` : ''}
+                        </div>
+                    `;
+                }).join('')}
             </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span>سعر البيع:</span>
-                <strong style="color: var(--primary-color);">${formatCurrency(part.selling_price || 0)}</strong>
-            </div>
-        </div>
+        ` : ''}
     `;
     
     modal.style.display = 'block';
@@ -673,6 +694,11 @@ function displayAccessories(accessories) {
                     <span class="inventory-card-price-value">${formatCurrency(accessory.selling_price || 0)}</span>
                 </div>
                 
+                <div class="inventory-card-quantity" style="margin-top: 10px; padding: 8px; background: var(--light-bg); border-radius: 6px; text-align: center;">
+                    <span style="font-weight: bold; color: var(--text-color);">الكمية المتوفرة: </span>
+                    <span style="font-size: 1.2em; font-weight: bold; color: var(--primary-color);">${accessory.quantity || 0}</span>
+                </div>
+                
                 <div class="inventory-card-actions">
                     <button onclick="printAccessoryBarcode('${accessory.id}')" class="btn btn-info btn-sm">
                         <i class="bi bi-printer"></i> طباعة باركود
@@ -734,7 +760,13 @@ function createPhoneBrands() {
         </div>
         ${phoneBrands.map(brand => `
             <div class="brand-button" onclick="filterPhonesByBrand('${brand.id}', this)">
-                <div class="brand-button-icon"><i class="bi ${brand.icon}"></i></div>
+                ${brand.logo ? `
+                    <div class="brand-button-icon">
+                        <img src="${brand.logo}" alt="${brand.name}" class="brand-button-image">
+                    </div>
+                ` : `
+                    <div class="brand-button-icon"><i class="bi ${brand.icon}"></i></div>
+                `}
                 <div class="brand-button-name">${brand.name}</div>
             </div>
         `).join('')}
@@ -1094,17 +1126,6 @@ function createInventoryModals() {
                         </button>
                     </div>
                     
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="sparePartPurchasePrice">سعر التكلفة</label>
-                            <input type="number" id="sparePartPurchasePrice" step="0.01" min="0" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="sparePartSellingPrice">سعر البيع</label>
-                            <input type="number" id="sparePartSellingPrice" step="0.01" min="0" value="0">
-                        </div>
-                    </div>
-                    
                     <div class="modal-footer">
                         <button type="button" onclick="closeSparePartModal()" class="btn btn-secondary">إلغاء</button>
                         <button type="submit" class="btn btn-primary">حفظ</button>
@@ -1167,6 +1188,11 @@ function createInventoryModals() {
                             <label for="accessorySellingPrice">سعر البيع</label>
                             <input type="number" id="accessorySellingPrice" step="0.01" min="0" value="0">
                         </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="accessoryQuantity">الكمية المتوفرة</label>
+                        <input type="number" id="accessoryQuantity" min="0" value="0">
                     </div>
                     
                     <div class="modal-footer">
@@ -1331,10 +1357,12 @@ function addSparePartItem() {
             `).join('')}
         </select>
         <input type="number" class="spare-part-item-quantity" value="1" min="1" placeholder="الكمية">
-        <input type="number" class="spare-part-item-price" step="0.01" min="0" value="0" placeholder="السعر">
-        <input type="text" class="spare-part-item-custom" style="display: none;" placeholder="القيمة">
+        <input type="number" class="spare-part-item-purchase-price" step="0.01" min="0" value="0" placeholder="سعر التكلفة">
+        <input type="number" class="spare-part-item-selling-price" step="0.01" min="0" value="0" placeholder="سعر البيع">
+        <input type="text" class="spare-part-item-custom" style="display: none; grid-column: 1 / -1;" placeholder="أدخل النوع يدوياً">
         <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
     `;
+    itemRow.style.cssText = 'display: grid; grid-template-columns: 1.5fr 80px 100px 100px auto; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;';
     container.appendChild(itemRow);
 }
 
@@ -1346,6 +1374,7 @@ function handleSparePartItemTypeChange(select) {
     // إذا كان النوع "أخرى" أو يحتوي على "other" أو "custom"
     if (select.value === 'other' || select.value.includes('other') || (type && type.isCustom)) {
         customInput.style.display = 'block';
+        customInput.style.gridColumn = '1 / -1';
         customInput.required = true;
         customInput.placeholder = 'أدخل النوع يدوياً';
     } else {
@@ -1377,8 +1406,6 @@ async function saveSparePart(event) {
     const model = document.getElementById('sparePartModel').value.trim();
     let barcode = document.getElementById('sparePartBarcode').value.trim();
     let image = document.getElementById('sparePartImage').value.trim();
-    const purchase_price = parseFloat(document.getElementById('sparePartPurchasePrice').value) || 0;
-    const selling_price = parseFloat(document.getElementById('sparePartSellingPrice').value) || 0;
     
     // معالجة رفع الصورة
     const imageFile = document.getElementById('sparePartImageFile').files[0];
@@ -1407,7 +1434,8 @@ async function saveSparePart(event) {
     document.querySelectorAll('.spare-part-item-row').forEach(row => {
         let itemType = row.querySelector('.spare-part-item-type').value;
         const quantity = parseInt(row.querySelector('.spare-part-item-quantity').value) || 1;
-        const itemPrice = parseFloat(row.querySelector('.spare-part-item-price').value) || 0;
+        const purchasePrice = parseFloat(row.querySelector('.spare-part-item-purchase-price').value) || 0;
+        const sellingPrice = parseFloat(row.querySelector('.spare-part-item-selling-price').value) || 0;
         const customInput = row.querySelector('.spare-part-item-custom');
         const customValue = customInput && customInput.style.display !== 'none' ? customInput.value.trim() : '';
         
@@ -1417,12 +1445,23 @@ async function saveSparePart(event) {
         }
         
         if (itemType) {
-            items.push({
+            const itemData = {
                 item_type: itemType,
                 quantity: quantity,
-                price: itemPrice,
+                purchase_price: purchasePrice,
+                selling_price: sellingPrice,
                 custom_value: customValue
-            });
+            };
+            
+            // الحفاظ على id إذا كان موجوداً (وليس id مؤقت)
+            const itemId = row.dataset.itemId;
+            if (itemId && !itemId.startsWith('item_')) {
+                // id حقيقي من قاعدة البيانات
+                itemData.id = itemId;
+            }
+            // إذا كان id مؤقتاً (يبدأ بـ item_)، لن نرسله - سينشئ الـ API id جديد
+            
+            items.push(itemData);
         }
     });
     
@@ -1431,8 +1470,6 @@ async function saveSparePart(event) {
         model,
         barcode,
         image,
-        purchase_price,
-        selling_price,
         items
     };
     
@@ -1488,6 +1525,7 @@ function editAccessory(id) {
     document.getElementById('accessoryImage').value = accessory.image || '';
     document.getElementById('accessoryPurchasePrice').value = accessory.purchase_price || 0;
     document.getElementById('accessorySellingPrice').value = accessory.selling_price || 0;
+    document.getElementById('accessoryQuantity').value = accessory.quantity || 0;
     
     // عرض معاينة الصورة
     if (accessory.image) {
@@ -1555,6 +1593,7 @@ async function saveAccessory(event) {
     let image = document.getElementById('accessoryImage').value.trim();
     const purchase_price = parseFloat(document.getElementById('accessoryPurchasePrice').value) || 0;
     const selling_price = parseFloat(document.getElementById('accessorySellingPrice').value) || 0;
+    const quantity = parseInt(document.getElementById('accessoryQuantity').value) || 0;
     
     // معالجة رفع الصورة
     const imageFile = document.getElementById('accessoryImageFile').files[0];
@@ -1578,7 +1617,8 @@ async function saveAccessory(event) {
         type,
         image,
         purchase_price,
-        selling_price
+        selling_price,
+        quantity
     };
     
     let result;

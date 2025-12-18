@@ -119,6 +119,7 @@ function setupDatabase() {
               `image` text DEFAULT NULL,
               `purchase_price` decimal(10,2) DEFAULT 0.00,
               `selling_price` decimal(10,2) DEFAULT 0.00,
+              `quantity` int(11) NOT NULL DEFAULT 0,
               `created_at` datetime NOT NULL,
               `updated_at` datetime DEFAULT NULL,
               `created_by` varchar(50) DEFAULT NULL,
