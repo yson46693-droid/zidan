@@ -1189,16 +1189,11 @@ async function showInvoice(saleData) {
         // استخدام لوجو المتجر من الإعدادات مع مسارات احتياطية
         logoHtml = `<img src="${shopLogo}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
     } else {
-        // استخدام اللوجو الافتراضي من الكاش المحلي
-        // سنستخدم async function لتحديث الصورة بعد إنشاء HTML
-        let defaultLogoUrl = defaultLogoPath;
-        
         // محاولة الحصول على الشعار من الكاش المحلي (إذا كانت الدالة متاحة)
+        let defaultLogoUrl = defaultLogoPath;
         if (typeof getCachedDefaultLogo === 'function') {
             try {
-                // استخدام Promise بشكل متزامن قدر الإمكان
-                // سنستخدم placeholder ثم نحدّثه لاحقاً
-                logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" id="invoice-default-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};">`;
+                defaultLogoUrl = await getCachedDefaultLogo();
             } catch (e) {
                 logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};">`;
             }
