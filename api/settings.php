@@ -17,7 +17,15 @@ if ($method === 'GET') {
     
     $settings = [];
     foreach ($settingsRows as $row) {
-        $settings[$row['key']] = $row['value'];
+        if (isset($row['key']) && isset($row['value'])) {
+            $settings[$row['key']] = $row['value'];
+        }
+    }
+    
+    // إذا كانت الإعدادات فارغة، نرجع object فارغ بدلاً من array فارغ
+    // هذا يضمن أن JavaScript يتعامل معها كـ object وليس array
+    if (empty($settings)) {
+        $settings = (object)[]; // object فارغ
     }
     
     response(true, '', $settings);

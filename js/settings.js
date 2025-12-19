@@ -176,6 +176,47 @@ function loadSettingsSection() {
                 const userModal = document.getElementById('userModal');
                 if (!userModal) {
                     console.error('userModal was not created successfully');
+                    console.error('section.innerHTML length:', section.innerHTML.length);
+                    // محاولة إعادة إنشاء userModal إذا لم يكن موجوداً
+                    const modalHTML = `
+                        <div id="userModal" class="modal">
+                            <div class="modal-content modal-sm">
+                                <div class="modal-header">
+                                    <h3 id="userModalTitle">إضافة مستخدم</h3>
+                                    <button onclick="closeUserModal()" class="btn-close">&times;</button>
+                                </div>
+                                <form id="userForm" onsubmit="saveUser(event)">
+                                    <input type="hidden" id="userId">
+                                    <div class="form-group">
+                                        <label for="userName">الاسم *</label>
+                                        <input type="text" id="userName" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="userUsername">اسم المستخدم *</label>
+                                        <input type="text" id="userUsername" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="userPassword">كلمة المرور <span id="passwordHint">(اتركه فارغاً للاحتفاظ بالقديمة)</span></label>
+                                        <input type="password" id="userPassword">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="userRole">الدور *</label>
+                                        <select id="userRole" required>
+                                            <option value="employee">موظف</option>
+                                            <option value="manager">مدير</option>
+                                            <option value="admin">مالك</option>
+                                        </select>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" onclick="closeUserModal()" class="btn btn-secondary">إلغاء</button>
+                                        <button type="submit" class="btn btn-primary">حفظ</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    `;
+                    section.insertAdjacentHTML('beforeend', modalHTML);
+                    console.log('تم إعادة إنشاء userModal');
                 } else {
                     console.log('userModal created successfully');
                 }
@@ -186,8 +227,13 @@ function loadSettingsSection() {
             setTimeout(() => {
                 Promise.allSettled([
                     loadSettings().catch(err => {
+                        // طباعة الخطأ الحقيقي
                         console.error('خطأ في تحميل الإعدادات:', err);
-                        const errorMsg = err?.message || 'خطأ غير معروف';
+                        console.error('نوع الخطأ:', err?.name || 'Unknown');
+                        console.error('رسالة الخطأ:', err?.message || 'No message');
+                        console.error('تفاصيل الخطأ الكاملة:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                        
+                        const errorMsg = err?.message || err?.toString() || 'خطأ غير معروف';
                         if (typeof showMessage === 'function') {
                             showMessage('خطأ في تحميل الإعدادات: ' + errorMsg, 'error');
                         }
@@ -201,10 +247,17 @@ function loadSettingsSection() {
                             errorDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> فشل تحميل الإعدادات. يرجى المحاولة مرة أخرى.';
                             shopNameField.parentElement.appendChild(errorDiv);
                         }
+                        // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
+                        return null;
                     }),
                     loadUsers().catch(err => {
+                        // طباعة الخطأ الحقيقي
                         console.error('خطأ في تحميل المستخدمين:', err);
-                        const errorMsg = err?.message || 'خطأ غير معروف';
+                        console.error('نوع الخطأ:', err?.name || 'Unknown');
+                        console.error('رسالة الخطأ:', err?.message || 'No message');
+                        console.error('تفاصيل الخطأ الكاملة:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                        
+                        const errorMsg = err?.message || err?.toString() || 'خطأ غير معروف';
                         if (typeof showMessage === 'function') {
                             showMessage('خطأ في تحميل قائمة المستخدمين: ' + errorMsg, 'error');
                         }
@@ -226,28 +279,46 @@ function loadSettingsSection() {
                         } else {
                             console.error('usersTableBody not found when trying to display error');
                         }
+                        // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
+                        return null;
                     }),
                     loadSyncFrequency().catch(err => {
                         console.error('خطأ في تحميل تردد المزامنة:', err);
+                        console.error('تفاصيل الخطأ:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                        // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
+                        return null;
                     }),
                     loadBackupInfo().catch(err => {
                         console.error('خطأ في تحميل معلومات النسخ الاحتياطية:', err);
+                        console.error('تفاصيل الخطأ:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                        // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
+                        return null;
                     })
                 ]).then((results) => {
                     console.log('تم تحميل قسم الإعدادات بنجاح');
                     // التحقق من وجود أخطاء
                     const errors = results.filter(r => r.status === 'rejected');
                     if (errors.length > 0) {
-                        console.warn('تم تحميل القسم مع بعض الأخطاء:', errors);
+                        console.warn('تم تحميل القسم مع بعض الأخطاء:', errors.length, 'خطأ');
+                        errors.forEach((errorResult, index) => {
+                            console.warn(`خطأ ${index + 1}:`, errorResult.reason);
+                        });
                     }
                 });
             }, 150); // تأخير 150ms لضمان أن DOM جاهز
         } catch (error) {
+            // طباعة الخطأ الحقيقي
             console.error('خطأ في تحميل قسم الإعدادات:', error);
+            console.error('نوع الخطأ:', error?.name || 'Unknown');
+            console.error('رسالة الخطأ:', error?.message || 'No message');
+            console.error('تفاصيل الخطأ الكاملة:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+            
+            const errorMsg = error?.message || error?.toString() || 'خطأ غير معروف';
             section.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--danger-color);">
                     <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
                     <p>حدث خطأ في تحميل الإعدادات</p>
+                    <p style="font-size: 0.9em; margin-top: 10px; color: #999;">${escapeHtml(errorMsg)}</p>
                     <button onclick="if(typeof loadSettingsSection === 'function') loadSettingsSection(); else location.reload();" class="btn btn-primary" style="margin-top: 20px;">
                         <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
                     </button>
@@ -332,27 +403,79 @@ function formatDate(dateString) {
 async function loadSettings() {
     try {
         const result = await API.getSettings();
-        if (result.success) {
-            currentSettings = result.data;
-            displaySettings(currentSettings);
-        } else {
+        
+        // التحقق من response.success بدلاً من الاعتماد على status code فقط
+        if (!result || result.success === false) {
             // تحديد نوع الخطأ
-            let errorMessage = result.message || 'فشل تحميل الإعدادات';
-            if (result.status === 401) {
+            let errorMessage = result?.message || 'فشل تحميل الإعدادات';
+            if (result?.status === 401) {
                 errorMessage = 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.';
+            } else if (result?.networkError) {
+                errorMessage = 'خطأ في الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
             }
             throw new Error(errorMessage);
         }
+        
+        // التحقق من وجود البيانات
+        if (!result.data) {
+            console.warn('API رجع success=true لكن data غير موجودة - استخدام إعدادات افتراضية');
+            // استخدام إعدادات افتراضية
+            currentSettings = {
+                shop_name: '',
+                shop_phone: '',
+                shop_address: '',
+                currency: 'ريال'
+            };
+        } else {
+            currentSettings = result.data;
+        }
+        
+        // التحقق من أن settings ليست مصفوفة فارغة
+        if (Array.isArray(currentSettings) && currentSettings.length === 0) {
+            console.warn('settings هي مصفوفة فارغة - استخدام إعدادات افتراضية');
+            currentSettings = {
+                shop_name: '',
+                shop_phone: '',
+                shop_address: '',
+                currency: 'ريال'
+            };
+        }
+        
+        displaySettings(currentSettings);
     } catch (error) {
+        // طباعة الخطأ الحقيقي بدلاً من Object
         console.error('خطأ في loadSettings:', error);
+        console.error('نوع الخطأ:', error?.name || 'Unknown');
+        console.error('رسالة الخطأ:', error?.message || 'No message');
+        console.error('تفاصيل الخطأ الكاملة:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
         throw error;
     }
 }
 
 function displaySettings(settings) {
     if (!settings) {
-        console.warn('displaySettings: settings is null or undefined');
-        return;
+        console.warn('displaySettings: settings is null or undefined - استخدام إعدادات افتراضية');
+        settings = {
+            shop_name: '',
+            shop_phone: '',
+            shop_address: '',
+            currency: 'ريال'
+        };
+    }
+    
+    // التحقق من أن settings ليست مصفوفة
+    if (Array.isArray(settings)) {
+        console.warn('displaySettings: settings هي مصفوفة - تحويل إلى object');
+        // تحويل المصفوفة إلى object إذا كانت من API
+        const settingsObj = {};
+        if (settings.length > 0) {
+            settings.forEach(item => {
+                if (item && item.key && item.value !== undefined) {
+                    settingsObj[item.key] = item.value;
+                }
+            });
+        }
+        settings = settingsObj;
     }
     
     const shopName = document.getElementById('shopName');
@@ -395,30 +518,47 @@ async function loadUsers() {
             setTimeout(() => {
                 loadUsers().catch(err => {
                     console.error('خطأ في إعادة محاولة تحميل المستخدمين:', err);
+                    // طباعة الخطأ الحقيقي
+                    console.error('تفاصيل الخطأ:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
                 });
             }, 200);
             return;
         }
         
         const result = await API.getUsers();
-        if (result.success) {
-            displayUsers(result.data);
-        } else {
+        
+        // التحقق من response.success بدلاً من الاعتماد على status code فقط
+        if (!result || result.success === false) {
             // تحديد نوع الخطأ
-            let errorMessage = result.message || 'فشل تحميل قائمة المستخدمين';
-            if (result.status === 403) {
+            let errorMessage = result?.message || 'فشل تحميل قائمة المستخدمين';
+            if (result?.status === 403) {
                 errorMessage = 'ليس لديك صلاحية لعرض قائمة المستخدمين. يجب أن تكون مالك (admin) للوصول إلى هذه الصفحة.';
-            } else if (result.status === 401) {
+            } else if (result?.status === 401) {
                 errorMessage = 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.';
+            } else if (result?.networkError) {
+                errorMessage = 'خطأ في الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
             }
             throw new Error(errorMessage);
         }
+        
+        // التحقق من وجود البيانات وصحتها
+        if (!result.data) {
+            console.warn('API رجع success=true لكن data غير موجودة');
+            throw new Error('البيانات غير متوفرة من الخادم');
+        }
+        
+        displayUsers(result.data);
     } catch (error) {
+        // طباعة الخطأ الحقيقي بدلاً من Object
         console.error('خطأ في loadUsers:', error);
+        console.error('نوع الخطأ:', error?.name || 'Unknown');
+        console.error('رسالة الخطأ:', error?.message || 'No message');
+        console.error('تفاصيل الخطأ الكاملة:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        
         // عرض رسالة الخطأ في الجدول إذا كان موجوداً
         const tbody = document.getElementById('usersTableBody');
         if (tbody) {
-            const errorMsg = error?.message || 'خطأ غير معروف';
+            const errorMsg = error?.message || error?.toString() || 'خطأ غير معروف';
             tbody.innerHTML = `
                 <tr>
                     <td colspan="4" style="text-align: center; color: var(--danger-color); padding: 20px;">
@@ -445,8 +585,16 @@ function displayUsers(users) {
         return;
     }
     
-    if (!users || !Array.isArray(users)) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">خطأ في تحميل البيانات</td></tr>';
+    // التحقق من صحة البيانات قبل الاستخدام
+    if (!users) {
+        console.error('displayUsers: users is null or undefined');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">خطأ: البيانات غير متوفرة</td></tr>';
+        return;
+    }
+    
+    if (!Array.isArray(users)) {
+        console.error('displayUsers: users is not an array:', typeof users, users);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">خطأ في تنسيق البيانات</td></tr>';
         return;
     }
     
@@ -455,17 +603,53 @@ function displayUsers(users) {
         return;
     }
 
-    tbody.innerHTML = users.map(user => `
+    // التحقق من صحة كل مستخدم قبل عرضه
+    const validUsers = users.filter(user => {
+        if (!user || typeof user !== 'object') {
+            console.warn('displayUsers: مستخدم غير صحيح:', user);
+            return false;
+        }
+        if (!user.id) {
+            console.warn('displayUsers: مستخدم بدون id:', user);
+            return false;
+        }
+        return true;
+    });
+    
+    if (validUsers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">لا توجد بيانات صحيحة للعرض</td></tr>';
+        return;
+    }
+
+    // دالة مساعدة للحصول على نص الدور
+    const getRoleTextFunc = typeof getRoleText === 'function' ? getRoleText : (role) => {
+        const roles = {
+            'admin': 'مالك',
+            'manager': 'مدير',
+            'employee': 'موظف'
+        };
+        return roles[role] || role || 'غير محدد';
+    };
+    
+    tbody.innerHTML = validUsers.map(user => {
+        // التحقق من وجود جميع الحقول المطلوبة
+        const userId = escapeHtml(String(user.id || ''));
+        const username = escapeHtml(String(user.username || ''));
+        const name = escapeHtml(String(user.name || ''));
+        const role = escapeHtml(String(user.role || 'employee'));
+        
+        return `
         <tr>
-            <td>${escapeHtml(user.username || '')}</td>
-            <td>${escapeHtml(user.name || '')}</td>
-            <td>${getRoleText(user.role)}</td>
+            <td>${username}</td>
+            <td>${name}</td>
+            <td>${getRoleTextFunc(role)}</td>
             <td>
-                <button onclick="editUser('${escapeHtml(user.id || '')}', '${escapeHtml(user.username || '')}', '${escapeHtml(user.name || '')}', '${escapeHtml(user.role || '')}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
-                <button onclick="deleteUser('${escapeHtml(user.id || '')}')" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
+                <button onclick="editUser('${userId}', '${username}', '${name}', '${role}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
+                <button onclick="deleteUser('${userId}')" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 // دالة مساعدة لتجنب XSS

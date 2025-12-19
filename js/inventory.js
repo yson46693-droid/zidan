@@ -2042,6 +2042,13 @@ function loadInventorySection() {
         return;
     }
     
+    // التأكد من أن قسم المخزون هو القسم النشط قبل تحميل المحتوى
+    const isActive = section.classList.contains('active');
+    if (!isActive) {
+        console.log('⚠️ قسم المخزون غير نشط، لن يتم تحميل المحتوى');
+        return;
+    }
+    
     isLoadingInventorySection = true;
     console.log('📦 تحميل قسم المخزون...');
     
@@ -2135,9 +2142,27 @@ function loadInventorySection() {
     setTimeout(() => {
         // التأكد من أن القسم مرئي قبل تحميل البيانات
         const inventorySection = document.getElementById('inventory-section');
-        if (inventorySection) {
-            inventorySection.classList.add('active');
+        if (!inventorySection) {
+            console.error('❌ قسم المخزون غير موجود');
+            isLoadingInventorySection = false;
+            return;
         }
+        
+        // التأكد من أن قسم المخزون هو القسم النشط الوحيد
+        const isActive = inventorySection.classList.contains('active');
+        if (!isActive) {
+            console.log('⚠️ قسم المخزون غير نشط، لن يتم تحميل البيانات');
+            isLoadingInventorySection = false;
+            return;
+        }
+        
+        // التأكد من إخفاء جميع الأقسام الأخرى
+        document.querySelectorAll('.section').forEach(sec => {
+            if (sec !== inventorySection) {
+                sec.classList.remove('active');
+                sec.style.display = 'none';
+            }
+        });
         
         // تأخير إضافي لضمان أن DOM جاهز تماماً
         setTimeout(() => {

@@ -302,11 +302,20 @@ body {
 
 /* الأقسام */
 .section {
-    display: none;
+    display: none !important;
 }
 
 .section.active {
-    display: block;
+    display: block !important;
+}
+
+/* منع عرض الأقسام الفرعية للمخزون إلا عند الحاجة */
+.inventory-section {
+    display: none !important;
+}
+
+.inventory-section.active {
+    display: block !important;
 }
 
 .section-header {

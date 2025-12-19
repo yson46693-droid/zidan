@@ -14,7 +14,20 @@ if ($method === 'GET') {
         response(false, 'خطأ في قراءة المستخدمين', null, 500);
     }
     
-    response(true, '', $users);
+    // التأكد من أن $users هي array (حتى لو كانت فارغة)
+    if (!is_array($users)) {
+        $users = [];
+    }
+    
+    // التحقق من صحة كل مستخدم قبل الإرجاع
+    $validUsers = [];
+    foreach ($users as $user) {
+        if (is_array($user) && isset($user['id'])) {
+            $validUsers[] = $user;
+        }
+    }
+    
+    response(true, '', $validUsers);
 }
 
 // إضافة مستخدم جديد

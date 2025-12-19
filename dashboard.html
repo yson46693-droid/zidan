@@ -647,9 +647,16 @@
                 }
             });
             
-            // إخفاء جميع الأقسام أولاً
+            // إخفاء جميع الأقسام أولاً بشكل قوي
             document.querySelectorAll('.section').forEach(sec => {
                 sec.classList.remove('active');
+                sec.style.display = 'none';
+            });
+            
+            // إخفاء جميع الأقسام الفرعية للمخزون
+            document.querySelectorAll('.inventory-section').forEach(sec => {
+                sec.classList.remove('active');
+                sec.style.display = 'none';
             });
             
             // عرض القسم المحفوظ أو dashboard افتراضياً
@@ -657,6 +664,15 @@
             const sectionElement = document.getElementById(sectionToShow + '-section');
             if (sectionElement) {
                 sectionElement.classList.add('active');
+                sectionElement.style.display = 'block';
+                
+                // التأكد من إخفاء جميع الأقسام الأخرى
+                document.querySelectorAll('.section').forEach(sec => {
+                    if (sec !== sectionElement) {
+                        sec.classList.remove('active');
+                        sec.style.display = 'none';
+                    }
+                });
             } else if (sectionToShow === 'dashboard') {
                 // التأكد من عرض dashboard-section إذا كان القسم المطلوب
                 const dashboardSection = document.getElementById('dashboard-section');
@@ -941,9 +957,17 @@
                 saveCurrentPage(section);
             }
             
-            // إخفاء جميع الأقسام
+            // إخفاء جميع الأقسام بشكل قوي - منع أي تعارضات
             document.querySelectorAll('.section').forEach(sec => {
                 sec.classList.remove('active');
+                // إضافة style مباشر لضمان الإخفاء
+                sec.style.display = 'none';
+            });
+            
+            // إخفاء جميع الأقسام الفرعية للمخزون أيضاً
+            document.querySelectorAll('.inventory-section').forEach(sec => {
+                sec.classList.remove('active');
+                sec.style.display = 'none';
             });
             
             // إزالة التحديد من جميع الروابط
@@ -966,7 +990,25 @@
             console.log(`📊 حالة القسم ${section}: hasContent=${hasContent}, hasMinContent=${hasMinContent}, length=${targetSection ? targetSection.innerHTML.trim().length : 0}`);
             
             if (targetSection) {
+                // إظهار القسم المحدد فقط
                 targetSection.classList.add('active');
+                targetSection.style.display = 'block';
+                
+                // التأكد من إخفاء جميع الأقسام الأخرى مرة أخرى
+                document.querySelectorAll('.section').forEach(sec => {
+                    if (sec !== targetSection) {
+                        sec.classList.remove('active');
+                        sec.style.display = 'none';
+                    }
+                });
+                
+                // إخفاء جميع الأقسام الفرعية للمخزون إذا لم يكن القسم المحدد هو المخزون
+                if (section !== 'inventory') {
+                    document.querySelectorAll('.inventory-section').forEach(sec => {
+                        sec.classList.remove('active');
+                        sec.style.display = 'none';
+                    });
+                }
                 
                 // إذا كان القسم فارغاً أو لا يحتوي على محتوى كافٍ، نعيد تحميله
                 if (!hasContent || !hasMinContent) {
@@ -1152,6 +1194,32 @@
                 // تأخير إضافي لضمان أن DOM جاهز تماماً
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
+                // التأكد من أن القسم المحدد هو القسم النشط الوحيد
+                const targetSection = document.getElementById(`${section}-section`);
+                if (targetSection) {
+                    const isActive = targetSection.classList.contains('active');
+                    if (!isActive) {
+                        console.log(`⚠️ القسم ${section} غير نشط، لن يتم تحميل البيانات`);
+                        return;
+                    }
+                    
+                    // التأكد من إخفاء جميع الأقسام الأخرى
+                    document.querySelectorAll('.section').forEach(sec => {
+                        if (sec !== targetSection) {
+                            sec.classList.remove('active');
+                            sec.style.display = 'none';
+                        }
+                    });
+                    
+                    // إخفاء جميع الأقسام الفرعية للمخزون إذا لم يكن القسم المحدد هو المخزون
+                    if (section !== 'inventory') {
+                        document.querySelectorAll('.inventory-section').forEach(sec => {
+                            sec.classList.remove('active');
+                            sec.style.display = 'none';
+                        });
+                    }
+                }
+                
                 switch (section) {
                     case 'dashboard':
                         await loadDashboardData();
@@ -1211,9 +1279,25 @@
                                 
                                 // التحقق من أن القسم موجود ومرئي
                                 const inventorySection = document.getElementById('inventory-section');
-                                if (inventorySection) {
-                                    inventorySection.classList.add('active');
+                                if (!inventorySection) {
+                                    console.warn('⚠️ قسم المخزون غير موجود');
+                                    return;
                                 }
+                                
+                                // التأكد من أن قسم المخزون هو القسم النشط الوحيد
+                                const isActive = inventorySection.classList.contains('active');
+                                if (!isActive) {
+                                    console.log('⚠️ قسم المخزون غير نشط، لن يتم تحميل المحتوى');
+                                    return;
+                                }
+                                
+                                // التأكد من إخفاء جميع الأقسام الأخرى
+                                document.querySelectorAll('.section').forEach(sec => {
+                                    if (sec !== inventorySection) {
+                                        sec.classList.remove('active');
+                                        sec.style.display = 'none';
+                                    }
+                                });
                                 
                                 // إعادة تحميل القسم
                                 loadInventorySection();
@@ -1416,6 +1500,34 @@
 
         // تحميل بيانات لوحة التحكم
         async function loadDashboardData() {
+            // التأكد من أن لوحة التحكم هي القسم النشط
+            const dashboardSection = document.getElementById('dashboard-section');
+            if (!dashboardSection) {
+                console.error('❌ قسم لوحة التحكم غير موجود');
+                return;
+            }
+            
+            // التأكد من أن لوحة التحكم هي القسم النشط الوحيد
+            const isActive = dashboardSection.classList.contains('active');
+            if (!isActive) {
+                console.log('⚠️ لوحة التحكم غير نشطة، لن يتم تحميل البيانات');
+                return;
+            }
+            
+            // التأكد من إخفاء جميع الأقسام الأخرى
+            document.querySelectorAll('.section').forEach(sec => {
+                if (sec !== dashboardSection) {
+                    sec.classList.remove('active');
+                    sec.style.display = 'none';
+                }
+            });
+            
+            // إخفاء جميع الأقسام الفرعية للمخزون
+            document.querySelectorAll('.inventory-section').forEach(sec => {
+                sec.classList.remove('active');
+                sec.style.display = 'none';
+            });
+            
             const syncIndicator = document.getElementById('syncIndicator');
             let hasError = false;
             let errorMessage = '';
