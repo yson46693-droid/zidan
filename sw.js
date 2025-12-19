@@ -27,7 +27,6 @@ const essentialFiles = [
     '/css/dark-mode.css',
     '/css/print.css',
     '/css/security.css',
-    '/css/chat-integrated.css',
     '/js/version.js',
     '/js/api.js',
     '/js/auth.js',
@@ -40,6 +39,7 @@ const essentialFiles = [
 
 // قائمة الملفات الاختيارية - يمكن أن تفشل بدون مشكلة
 const optionalFiles = [
+    '/css/chat-integrated.css', // ملف CSS للدردشة - اختياري
     '/js/chat-integrated.js',
     '/js/data-protection.js',
     '/js/security.js',
@@ -97,9 +97,8 @@ async function cacheFilesSafely(cache, files, isEssential = false) {
                 return { url, success: true };
             } catch (error) {
                 console.warn(`[SW] Failed to cache ${url}:`, error.message);
-                if (isEssential) {
-                    throw error; // إعادة رمي الخطأ للملفات الأساسية
-                }
+                // حتى للملفات الأساسية، لا نرمي الخطأ - نكمل مع باقي الملفات
+                // لأن فشل ملف واحد لا يجب أن يمنع تحميل باقي الملفات
                 return { url, success: false, error: error.message };
             }
         })
@@ -123,13 +122,12 @@ self.addEventListener('install', event => {
         .then(async cache => {
             console.log('[Service Worker] Caching essential files...');
             
-            // إضافة الملفات الأساسية أولاً (يجب أن تنجح)
-            try {
-                await cacheFilesSafely(cache, essentialFiles, true);
-                console.log('[Service Worker] Essential files cached successfully');
-            } catch (error) {
-                console.error('[Service Worker] Critical error caching essential files:', error);
-                // حتى لو فشلت الملفات الأساسية، نكمل العملية
+            // إضافة الملفات الأساسية أولاً
+            const essentialResult = await cacheFilesSafely(cache, essentialFiles, false);
+            if (essentialResult.failed > 0) {
+                console.warn(`[Service Worker] ${essentialResult.failed} essential file(s) failed to cache`);
+            } else {
+                console.log('[Service Worker] All essential files cached successfully');
             }
             
             // إضافة الملفات الاختيارية (يمكن أن تفشل بدون مشكلة)

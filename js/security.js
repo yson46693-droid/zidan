@@ -233,9 +233,29 @@ class SecurityManager {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach((node) => {
                         if (node.nodeType === Node.ELEMENT_NODE) {
-                            // فحص scripts مشبوهة
+                            // فحص scripts مشبوهة - فقط للـ scripts الخارجية فعلاً
                             if (node.tagName === 'SCRIPT' && node.src) {
-                                this.logSuspiciousActivity(`إضافة script خارجي: ${node.src}`, 'MEDIUM');
+                                try {
+                                    // تحويل المسار إلى URL كامل (يدعم المسارات النسبية)
+                                    const scriptUrl = new URL(node.src, window.location.href);
+                                    const currentOrigin = window.location.origin;
+                                    
+                                    // تجاهل scripts محلية (من نفس النطاق)
+                                    if (scriptUrl.origin === currentOrigin) {
+                                        return; // script محلي - لا حاجة للتحذير
+                                    }
+                                    
+                                    // التحقق من أن الـ script من نطاق مختلف (خارجي فعلاً)
+                                    // تجاهل data: و blob: URLs (مسموح بها)
+                                    if (scriptUrl.origin !== 'null' && 
+                                        !scriptUrl.protocol.startsWith('data:') &&
+                                        !scriptUrl.protocol.startsWith('blob:')) {
+                                        this.logSuspiciousActivity(`إضافة script خارجي: ${node.src}`, 'MEDIUM');
+                                    }
+                                } catch (e) {
+                                    // في حالة فشل تحليل URL، تجاهل (قد يكون مسار نسبي غير صالح)
+                                    // لا نحذر من scripts بدون src صالحة
+                                }
                             }
                         }
                     });
