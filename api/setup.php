@@ -32,12 +32,15 @@ function setupDatabase() {
               `name` varchar(255) NOT NULL,
               `phone` varchar(50) NOT NULL,
               `address` text DEFAULT NULL,
+              `customer_type` enum('retail','commercial') NOT NULL DEFAULT 'retail',
+              `shop_name` varchar(255) DEFAULT NULL,
               `created_at` datetime NOT NULL,
               `updated_at` datetime DEFAULT NULL,
               `created_by` varchar(50) DEFAULT NULL,
               PRIMARY KEY (`id`),
               KEY `idx_phone` (`phone`),
-              KEY `idx_name` (`name`)
+              KEY `idx_name` (`name`),
+              KEY `idx_customer_type` (`customer_type`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
@@ -331,6 +334,7 @@ function setupDatabase() {
               `discount` decimal(10,2) NOT NULL DEFAULT 0.00,
               `tax` decimal(10,2) NOT NULL DEFAULT 0.00,
               `final_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+              `customer_id` varchar(50) DEFAULT NULL,
               `customer_name` varchar(255) DEFAULT NULL,
               `customer_phone` varchar(50) DEFAULT NULL,
               `created_at` datetime NOT NULL,
@@ -339,8 +343,10 @@ function setupDatabase() {
               PRIMARY KEY (`id`),
               UNIQUE KEY `sale_number` (`sale_number`),
               KEY `idx_sale_number` (`sale_number`),
+              KEY `idx_customer_id` (`customer_id`),
               KEY `idx_created_at` (`created_at`),
-              KEY `idx_created_by` (`created_by`)
+              KEY `idx_created_by` (`created_by`),
+              CONSTRAINT `sales_ibfk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         

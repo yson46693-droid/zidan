@@ -135,6 +135,7 @@ if ($method === 'POST') {
     $discount = floatval($data['discount'] ?? 0);
     $tax = floatval($data['tax'] ?? 0);
     $finalAmount = floatval($data['final_amount'] ?? 0);
+    $customerId = trim($data['customer_id'] ?? '');
     $customerName = trim($data['customer_name'] ?? '');
     $customerPhone = trim($data['customer_phone'] ?? '');
     
@@ -174,9 +175,9 @@ if ($method === 'POST') {
     try {
         // إنشاء عملية البيع
         $result = dbExecute(
-            "INSERT INTO sales (id, sale_number, total_amount, discount, tax, final_amount, customer_name, customer_phone, created_at, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
-            [$saleId, $saleNumber, $totalAmount, $discount, $tax, $finalAmount, $customerName, $customerPhone, $session['user_id']]
+            "INSERT INTO sales (id, sale_number, total_amount, discount, tax, final_amount, customer_id, customer_name, customer_phone, created_at, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+            [$saleId, $saleNumber, $totalAmount, $discount, $tax, $finalAmount, $customerId ?: null, $customerName, $customerPhone, $session['user_id']]
         );
         
         if ($result === false) {
