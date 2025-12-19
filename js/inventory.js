@@ -255,8 +255,8 @@ function displaySpareParts(parts) {
             <div class="inventory-card">
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
-                        <h2>${part.brand}</h2>
-                        <h1> الموديل : ${part.model}</h1>
+                        <h3>${part.brand}</h3>
+                        <h2> الموديل : ${part.model}</h2>
                     </div>
                     <div class="inventory-card-icon">
                         <i class="bi bi-phone"></i>
