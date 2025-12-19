@@ -20,7 +20,7 @@ const urlsToCache = [
     '/',
     '/index.html',
     '/dashboard.html',
-    '/chat.php',
+    // '/chat.php', // ملفات PHP ديناميكية - لا يجب تخزينها في الـ cache
     '/install.html',
     '/manifest.json',
     '/css/style.css',
@@ -146,9 +146,9 @@ self.addEventListener('fetch', event => {
         url = { pathname: request.url };
     }
     
-    // معالجة طلبات API - السماح بمرور جميع الاستجابات من الخادم
-    if (url.pathname.includes('/api/')) {
-        // عدم اعتراض طلبات API - السماح بمرورها مباشرة للخادم
+    // معالجة طلبات API وملفات PHP - السماح بمرور جميع الاستجابات من الخادم
+    if (url.pathname.includes('/api/') || url.pathname.endsWith('.php')) {
+        // عدم اعتراض طلبات API وملفات PHP - السماح بمرورها مباشرة للخادم
         // هذا يضمن أن الأخطاء من الخادم (401, 404, 500) تصل للكود بشكل صحيح
         event.respondWith(
             fetch(request)

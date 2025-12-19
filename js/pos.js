@@ -924,15 +924,15 @@ function showInvoice(saleData) {
     // Get logo - try multiple sources
     let logoHtml = '';
     // مسارات اللوجو الاحتياطية (نسبية من المجلد الرئيسي)
-    const defaultLogoPath = 'photo_5922357566287580087_y.jpg';  // اللوجو في المجلد الرئيسي
-    const fallbackLogoPath1 = 'icons/icon-192x192.png';         // أيقونة من مجلد الأيقونات
-    const fallbackLogoPath2 = 'icons/icon-512x512.png';         // أيقونة أكبر
+    const defaultLogoPath = 'vertopal.com_photo_5922357566287580087_y.png';  // اللوجو PNG في المجلد الرئيسي
+    const fallbackLogoPath1 = 'photo_5922357566287580087_y.jpg';             // اللوجو JPG القديم
+    const fallbackLogoPath2 = 'icons/icon-192x192.png';                      // أيقونة من مجلد الأيقونات
     
     if (shopLogo && shopLogo.trim() !== '') {
         // استخدام لوجو المتجر من الإعدادات مع مسارات احتياطية
         logoHtml = `<img src="${shopLogo}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
     } else {
-        // استخدام اللوجو الافتراضي مع مسارات احتياطية
+        // استخدام اللوجو الافتراضي PNG مع مسارات احتياطية
         logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};">`;
     }
     

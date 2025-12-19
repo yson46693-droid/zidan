@@ -2,9 +2,9 @@
 <browserconfig>
     <msapplication>
         <tile>
-            <square70x70logo src="photo_5922357566287580087_y.jpg"/>
-            <square150x150logo src="photo_5922357566287580087_y.jpg"/>
-            <square310x310logo src="photo_5922357566287580087_y.jpg"/>
+            <square70x70logo src="vertopal.com_photo_5922357566287580087_y.png"/>
+            <square150x150logo src="vertopal.com_photo_5922357566287580087_y.png"/>
+            <square310x310logo src="vertopal.com_photo_5922357566287580087_y.png"/>
             <TileColor>#2196F3</TileColor>
         </tile>
     </msapplication>

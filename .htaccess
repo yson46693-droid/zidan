@@ -1,139 +1,59 @@
-# تفعيل PHP
-AddType application/x-httpd-php .php
-
-# الصفحة الافتراضية
-DirectoryIndex index.html index.php
-
-# حل مشكلة CORS للاستضافات المجانية
-<IfModule mod_headers.c>
-    # السماح بجميع المصادر
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"
-    Header always set Access-Control-Allow-Credentials "true"
-    Header always set Access-Control-Max-Age "3600"
-    
-    # إضافة headers إضافية للاستضافات المجانية
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set X-XSS-Protection "1; mode=block"
+# تفعيل معالجة ملفات PHP
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_log logs/php_errors.log
 </IfModule>
 
-# معالجة طلبات OPTIONS (preflight)
-RewriteEngine On
+# إعادة كتابة URL لملفات PHP
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    
+    # السماح بالوصول المباشر لملفات PHP
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_FILENAME} \.php$
+    RewriteRule ^(.*)$ $1 [L]
+    
+    # منع الوصول المباشر للملفات الحساسة
+    <FilesMatch "\.(htaccess|htpasswd|ini|log|sql|bak)$">
+        Order Allow,Deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
 
-# السماح بالوصول إلى chat.html (يجب أن يكون في البداية)
-RewriteCond %{REQUEST_URI} ^/chat\.html$ [NC,OR]
-RewriteCond %{REQUEST_URI} ^chat\.html$ [NC]
-RewriteRule ^ - [L]
+# إعدادات CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"
+</IfModule>
 
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ - [R=200,L]
+# منع عرض قائمة الملفات
+Options -Indexes
 
-# إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
-RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
-RewriteRule ^api/(.*)$ api/$1 [L]
-
-# تفعيل ضغط الملفات
+# ضغط الملفات
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
 </IfModule>
 
-# إعدادات PWA
-<IfModule mod_headers.c>
-    # MIME types لـ PWA
-    AddType application/manifest+json .json
-    AddType application/javascript .js
-    
-    # Headers لـ manifest.json - cache قصير مع revalidation
-    <FilesMatch "manifest\.json$">
-        Header set Content-Type "application/manifest+json"
-        Header set Cache-Control "public, max-age=3600, must-revalidate"
-    </FilesMatch>
-    
-    # Headers لـ Service Worker - لا cache أبداً
-    <FilesMatch "sw\.js$">
-        Header set Content-Type "application/javascript"
-        Header set Service-Worker-Allowed "/"
-        Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
-    
-    # Headers لـ version.js - لا cache أبداً (مهم جداً)
-    <FilesMatch "version\.js$">
-        Header set Content-Type "application/javascript"
-        Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
-    
-    # Headers لملفات HTML - cache قصير مع revalidation
-    <FilesMatch "\.(html|htm)$">
-        Header set Cache-Control "public, max-age=0, must-revalidate"
-        Header set Pragma "no-cache"
-    </FilesMatch>
-</IfModule>
-
-# التخزين المؤقت - مع دعم cache busting
+# Cache Control للملفات الثابتة
 <IfModule mod_expires.c>
     ExpiresActive On
-    
-    # ملفات CSS/JS - cache قصير مع revalidation (لأننا نستخدم query parameters)
-    ExpiresByType text/css "access plus 1 day"
-    ExpiresByType application/javascript "access plus 1 day"
-    
-    # ملفات HTML - لا cache
-    ExpiresByType text/html "access plus 0 seconds"
-    
-    # الصور - cache طويل
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/jpg "access plus 1 year"
     ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
     ExpiresByType image/gif "access plus 1 year"
-    ExpiresByType image/webp "access plus 1 year"
     ExpiresByType image/svg+xml "access plus 1 year"
-    
-    # ملفات أخرى
-    ExpiresByType application/json "access plus 0 seconds"
-    ExpiresByType application/manifest+json "access plus 1 hour"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
 </IfModule>
 
-# السماح بالوصول إلى chat.html أولاً (قبل أي قواعد منع)
-<Files "chat.html">
-    Order allow,deny
-    Allow from all
-    Satisfy Any
-</Files>
-
-# السماح بالوصول إلى جميع ملفات HTML
-<FilesMatch "\.(html|htm)$">
-    Order allow,deny
-    Allow from all
-    Satisfy Any
+# منع Cache لملفات PHP
+<FilesMatch "\.php$">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </IfModule>
 </FilesMatch>
-
-# السماح بالوصول إلى ملفات CSS و JS
-<FilesMatch "\.(css|js)$">
-    Order allow,deny
-    Allow from all
-    Satisfy Any
-</FilesMatch>
-
-# حماية ملفات النظام
-<FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# منع الوصول المباشر لملف الخطة
-<Files "mobile-repair-shop-system.plan.md">
-    Order allow,deny
-    Deny from all
-</Files>
-
-# إعادة التوجيه إلى HTTPS (اختياري - قم بإزالة التعليق عند الحاجة)
-# RewriteEngine On
-# RewriteCond %{HTTPS} off
-# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-

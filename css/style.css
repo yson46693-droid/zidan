@@ -94,11 +94,27 @@ body {
     padding: 20px;
     border-bottom: 1px solid var(--border-color);
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.sidebar-logo {
+    max-width: 100%;
+    max-height: 80px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
 }
 
 .sidebar-header h2 {
     color: var(--primary-color);
     font-size: 1.3em;
+    margin: 0;
 }
 
 .sidebar-nav {
@@ -1902,8 +1918,9 @@ body {
         display: none !important;
     }
     
+    /* إخفاء زر القائمة على أجهزة الكمبيوتر */
     .btn-menu {
-        display: block !important;
+        display: none !important;
     }
     
     .main-content {
@@ -1914,6 +1931,11 @@ body {
 
 /* الهواتف المتوسطة (576px - 767px) */
 @media (min-width: 576px) and (max-width: 767.98px) {
+    /* إظهار زر القائمة على الشاشات المتوسطة */
+    .btn-menu {
+        display: block !important;
+    }
+    
     .sidebar {
         width: 280px;
     }

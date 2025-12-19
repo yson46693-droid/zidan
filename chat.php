@@ -13,6 +13,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// منع الـ cache لهذه الصفحة
+header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 // معالجة الأخطاء
 set_error_handler(function ($errno, $errstr, $errfile, $errline) {
     error_log("PHP Error [$errno]: $errstr in $errfile on line $errline");
