@@ -283,24 +283,6 @@ function displaySpareParts(parts) {
                             </button>
                         </div>
                     </div>
-                    
-                    ${part.items && part.items.length > 0 ? `
-                        <div class="inventory-card-items" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
-                            <div style="font-weight: bold; margin-bottom: 8px; color: var(--text-color);">القطع المتوفرة:</div>
-                            <div style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto;">
-                                ${part.items.map(item => {
-                                    const type = sparePartTypes.find(t => t.id === item.item_type);
-                                    const itemName = type ? type.name : (item.item_type || 'غير محدد');
-                                    return `
-                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px; background: var(--light-bg); border-radius: 4px; font-size: 0.85em;">
-                                            <span>${itemName} (${item.quantity || 1})</span>
-                                            <span style="color: var(--primary-color); font-weight: bold;">${formatCurrency(item.selling_price || item.price || 0)}</span>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
                 </div>
                 
                 <div class="inventory-card-actions">
