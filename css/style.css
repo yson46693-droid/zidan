@@ -316,6 +316,13 @@ body {
     min-height: 500px !important;
     display: block !important;
     box-sizing: border-box !important;
+    position: relative !important;
+}
+
+.content.chat-page-content .chat-app {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* الأقسام */

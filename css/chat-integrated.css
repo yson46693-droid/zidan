@@ -74,6 +74,7 @@
   min-height: 500px !important;
   box-sizing: border-box !important;
   display: block !important;
+  position: relative !important;
 }
 
 .content.chat-page-content {
@@ -83,6 +84,15 @@
   min-height: 500px !important;
   display: block !important;
   box-sizing: border-box !important;
+  position: relative !important;
+}
+
+.content.chat-page-content .chat-app {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: 100% !important;
+  width: 100% !important;
 }
 
 .chat-app {
@@ -154,13 +164,13 @@
 
 /* Sidebar */
 .chat-sidebar {
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
-  background: var(--chat-sidebar-bg);
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+  background: var(--chat-sidebar-bg, linear-gradient(180deg, rgba(33, 150, 243, 0.15) 0%, rgba(100, 181, 246, 0.08) 42%, rgba(255, 255, 255, 0.94) 100%)) !important;
   display: flex !important;
   flex-direction: column;
-  border-right: 1px solid var(--chat-border);
+  border-right: 1px solid var(--chat-border, rgba(0, 0, 0, 0.08));
   backdrop-filter: blur(18px);
   position: relative;
   overflow: hidden;
@@ -170,6 +180,8 @@
   height: 100%;
   visibility: visible !important;
   opacity: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .chat-sidebar::after {
@@ -344,17 +356,19 @@
 
 /* Main Chat Area */
 .chat-main {
-  flex: 1;
+  flex: 1 !important;
   display: flex !important;
   flex-direction: column;
-  background: radial-gradient(circle at top left, rgba(33, 150, 243, 0.08), transparent 52%), var(--chat-bg);
+  background: radial-gradient(circle at top left, rgba(33, 150, 243, 0.08), transparent 52%), var(--chat-bg, linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 45%, #e8f4f8 100%));
   position: relative;
   height: 100%;
   overflow: hidden;
   min-height: 0;
   min-width: 0;
-  visibility: visible;
-  opacity: 1;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .chat-header {
@@ -437,7 +451,7 @@
 }
 
 .chat-messages {
-  flex: 1;
+  flex: 1 !important;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px;
@@ -448,8 +462,9 @@
   scrollbar-width: thin;
   min-height: 0;
   position: relative;
-  visibility: visible;
-  opacity: 1;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 !important;
 }
 
 .chat-messages::-webkit-scrollbar {
@@ -727,15 +742,16 @@
   display: flex !important;
   align-items: flex-end;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.78) !important;
   padding: 14px 18px;
   border-radius: 20px;
-  border: 1px solid var(--chat-border);
-  box-shadow: var(--chat-shadow-sm);
+  border: 1px solid var(--chat-border, rgba(0, 0, 0, 0.08));
+  box-shadow: var(--chat-shadow-sm, 0 12px 30px rgba(33, 150, 243, 0.15));
   transition: all 0.2s ease;
   min-height: 52px;
-  visibility: visible;
-  opacity: 1;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 !important;
 }
 
 .dark-mode .chat-input-wrapper {

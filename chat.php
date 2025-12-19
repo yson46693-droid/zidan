@@ -176,32 +176,224 @@ function getRoleName($role) {
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/chat-integrated.css">
     
-    <!-- Fallback CSS للتأكد من ظهور التصميم -->
+    <!-- Critical CSS للتأكد من ظهور التصميم فوراً -->
     <style>
+        /* CSS Variables */
+        :root {
+            --chat-primary: #2196F3;
+            --chat-secondary: #64B5F6;
+            --chat-bg: linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 45%, #e8f4f8 100%);
+            --chat-sidebar-bg: linear-gradient(180deg, rgba(33, 150, 243, 0.15) 0%, rgba(100, 181, 246, 0.08) 42%, rgba(255, 255, 255, 0.94) 100%);
+            --chat-text: #333;
+            --chat-muted: #666;
+            --chat-border: rgba(0, 0, 0, 0.08);
+            --chat-shadow-md: 0 22px 60px rgba(0, 0, 0, 0.12);
+        }
+        
+        /* Layout Critical Styles */
+        .chat-page-content {
+            padding: 20px !important;
+            height: calc(100vh - 80px) !important;
+            overflow: visible !important;
+            min-height: 500px !important;
+            box-sizing: border-box !important;
+            display: block !important;
+        }
+        
         .chat-app {
             display: flex !important;
-            visibility: visible !important;
+            height: 100% !important;
+            width: 100% !important;
+            background: var(--chat-bg) !important;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--chat-shadow-md);
+            position: relative;
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            min-height: 400px;
+            max-height: 100%;
             opacity: 1 !important;
-        }
-        .chat-main {
-            display: flex !important;
             visibility: visible !important;
-            opacity: 1 !important;
         }
-        .chat-messages {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        .chat-composer {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
+        
         .chat-sidebar {
+            width: 280px !important;
+            min-width: 280px !important;
+            max-width: 280px !important;
+            background: var(--chat-sidebar-bg) !important;
             display: flex !important;
+            flex-direction: column;
+            border-right: 1px solid var(--chat-border);
+            position: relative;
+            overflow: hidden;
+            z-index: 1001;
+            flex-shrink: 0;
+            height: 100%;
             visibility: visible !important;
             opacity: 1 !important;
+        }
+        
+        .chat-main {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column;
+            background: radial-gradient(circle at top left, rgba(33, 150, 243, 0.08), transparent 52%), var(--chat-bg);
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+            min-height: 0;
+            min-width: 0;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-header {
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.12), rgba(100, 181, 246, 0.1));
+            border-bottom: 1px solid var(--chat-border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            flex-shrink: 0;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-messages {
+            flex: 1 !important;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 24px;
+            display: flex !important;
+            flex-direction: column;
+            gap: 12px;
+            scroll-behavior: smooth;
+            min-height: 0;
+            position: relative;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-composer {
+            padding: 20px 24px !important;
+            border-top: 1px solid var(--chat-border);
+            background: var(--chat-sidebar-bg);
+            display: flex !important;
+            flex-direction: column;
+            gap: 16px;
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+            flex-shrink: 0;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-input-wrapper {
+            display: flex !important;
+            align-items: flex-end;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.78);
+            padding: 14px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--chat-border);
+            box-shadow: 0 12px 30px rgba(33, 150, 243, 0.15);
+            min-height: 52px;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-input {
+            flex: 1;
+            border: none;
+            resize: none;
+            background: transparent;
+            color: var(--chat-text);
+            font-size: 15px;
+            line-height: 1.6;
+            max-height: 160px;
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 24px;
+            outline: none;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-send-button {
+            width: 42px !important;
+            height: 42px !important;
+            border-radius: 50%;
+            border: none;
+            background: var(--chat-primary) !important;
+            color: #fff !important;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-empty-state {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            text-align: center;
+            color: var(--chat-muted);
+            gap: 12px;
+            padding: 40px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: calc(100% - 48px);
+            pointer-events: none;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .chat-sidebar-header {
+            padding: 24px 24px 16px;
+            border-bottom: 1px solid var(--chat-border);
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .chat-sidebar-search {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--chat-border);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .chat-sidebar-search input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--chat-border);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--chat-text);
+            font-size: 14px;
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .chat-user-list {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 14px 24px;
+            min-height: 0;
         }
     </style>
     
@@ -346,15 +538,43 @@ function getRoleName($role) {
                 document.body.classList.add('dark-mode');
             }
             
-            // التأكد من ظهور الشات
-            document.addEventListener('DOMContentLoaded', function() {
+            // التأكد من ظهور الشات فوراً
+            function ensureChatVisible() {
                 const chatApp = document.querySelector('.chat-app');
                 if (chatApp) {
-                    chatApp.style.display = 'flex';
-                    chatApp.style.visibility = 'visible';
-                    chatApp.style.opacity = '1';
+                    chatApp.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; height: 100% !important; width: 100% !important;';
                 }
-            });
+                
+                const chatMain = document.querySelector('.chat-main');
+                if (chatMain) {
+                    chatMain.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; flex: 1 !important;';
+                }
+                
+                const chatMessages = document.querySelector('.chat-messages');
+                if (chatMessages) {
+                    chatMessages.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; flex: 1 !important;';
+                }
+                
+                const chatComposer = document.querySelector('.chat-composer');
+                if (chatComposer) {
+                    chatComposer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+                }
+                
+                const chatSidebar = document.querySelector('.chat-sidebar');
+                if (chatSidebar) {
+                    chatSidebar.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+                }
+            }
+            
+            // تطبيق فوراً
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', ensureChatVisible);
+            } else {
+                ensureChatVisible();
+            }
+            
+            // تطبيق مرة أخرى بعد تحميل كامل
+            window.addEventListener('load', ensureChatVisible);
         })();
         
         // التحقق من تسجيل الدخول
