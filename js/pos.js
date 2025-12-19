@@ -1400,8 +1400,8 @@ async function showInvoice(saleData) {
             <div class="invoice-header">
                 <div class="invoice-shop-info">
                     ${shopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${shopAddress}</div>` : ''}
-                    ${shopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${shopPhone}</div>` : ''}
                     <div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${whatsappNumber}</div>
+                    ${shopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${shopPhone}</div>` : ''}
                 </div>
             </div>
             
@@ -1470,15 +1470,15 @@ async function showInvoice(saleData) {
                 </div>
             </div>
             
-            <!-- Invoice Terms -->
-            ${invoiceTerms}
-            
             <!-- QR Code -->
             ${qrCodeImage ? `
                 <div class="invoice-qrcode">
                     <img src="${qrCodeImage}" alt="QR Code">
                 </div>
             ` : ''}
+            
+            <!-- Invoice Terms - البنود في الجزء السفلي بعد QR Code -->
+            ${invoiceTerms}
             
             <!-- Footer -->
             <div class="invoice-footer">
