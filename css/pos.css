@@ -1574,7 +1574,8 @@
 
 .spare-part-item-price {
     color: var(--primary-color);
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1.1em;
 }
 
 .spare-part-item-stock {

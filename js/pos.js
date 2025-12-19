@@ -97,6 +97,9 @@ async function loadAllProducts() {
                 // حساب إجمالي الكمية من القطع الفرعية
                 const totalQuantity = (part.items || []).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
                 
+                // التأكد من أن items موجودة وليست null
+                const items = Array.isArray(part.items) ? part.items : [];
+                
                 allProducts.push({
                     id: part.id,
                     name: `${part.brand} ${part.model}`,
@@ -106,8 +109,13 @@ async function loadAllProducts() {
                     quantity: totalQuantity, // إجمالي الكمية من القطع الفرعية
                     brand: part.brand,
                     model: part.model,
-                    items: part.items || [] // حفظ القطع الفرعية
+                    items: items // حفظ القطع الفرعية
                 });
+                
+                // سجل للتأكد من تحميل القطع الفرعية
+                if (items.length > 0) {
+                    console.log(`تم تحميل قطعة غيار: ${part.brand} ${part.model} مع ${items.length} قطعة فرعية`);
+                }
             });
         }
         
@@ -413,10 +421,13 @@ function createProductCard(product) {
     const info = document.createElement('div');
     info.className = 'pos-product-info';
     
-    const price = document.createElement('div');
-    price.className = 'pos-product-price';
-    price.textContent = formatPrice(product.price);
-    info.appendChild(price);
+    // إخفاء السعر لقطع الغيار (السعر يظهر في النموذج المنبثق للقطع الفرعية)
+    if (product.type !== 'spare_part') {
+        const price = document.createElement('div');
+        price.className = 'pos-product-price';
+        price.textContent = formatPrice(product.price);
+        info.appendChild(price);
+    }
     
     const quantity = document.createElement('div');
     quantity.className = 'pos-product-quantity';
@@ -445,6 +456,7 @@ function createProductCard(product) {
             e.stopPropagation();
             // إذا كانت قطعة غيار ولديها قطع فرعية، اعرض popup اختيار
             if (product.type === 'spare_part' && product.items && product.items.length > 0) {
+                console.log('فتح popup اختيار القطع الفرعية للمنتج:', product.name, 'عدد القطع الفرعية:', product.items.length);
                 openSparePartItemsModal(product);
             } else {
                 addToCart(product);
@@ -464,6 +476,7 @@ function createProductCard(product) {
             if (!e.target.closest('.pos-product-add-btn')) {
                 // إذا كانت قطعة غيار ولديها قطع فرعية، اعرض popup اختيار
                 if (product.type === 'spare_part' && product.items && product.items.length > 0) {
+                    console.log('فتح popup اختيار القطع الفرعية للمنتج:', product.name, 'عدد القطع الفرعية:', product.items.length);
                     openSparePartItemsModal(product);
                 } else {
                     addToCart(product);
@@ -477,14 +490,18 @@ function createProductCard(product) {
 
 // Open Spare Part Items Modal
 function openSparePartItemsModal(product) {
-    const modal = document.getElementById('sparePartItemsModal');
-    if (!modal) {
-        // إنشاء النموذج المنبثق إذا لم يكن موجوداً
+    // إنشاء النموذج المنبثق إذا لم يكن موجوداً
+    let modalInstance = document.getElementById('sparePartItemsModal');
+    if (!modalInstance) {
         createSparePartItemsModal();
+        modalInstance = document.getElementById('sparePartItemsModal');
     }
     
-    const modalInstance = document.getElementById('sparePartItemsModal');
-    if (!modalInstance) return;
+    if (!modalInstance) {
+        console.error('فشل في إنشاء النموذج المنبثق');
+        showMessage('حدث خطأ في عرض القطع الفرعية', 'error');
+        return;
+    }
     
     // تعبئة بيانات المنتج
     document.getElementById('sparePartItemsProductName').textContent = product.name;
@@ -493,6 +510,8 @@ function openSparePartItemsModal(product) {
     // عرض القطع الفرعية المتوفرة (الكمية > 0)
     const availableItems = (product.items || []).filter(item => (parseInt(item.quantity) || 0) > 0);
     const itemsContainer = document.getElementById('sparePartItemsList');
+    
+    console.log('المنتج:', product.name, 'إجمالي القطع الفرعية:', (product.items || []).length, 'القطع المتوفرة:', availableItems.length);
     
     if (!availableItems || availableItems.length === 0) {
         itemsContainer.innerHTML = '<div class="pos-loading" style="text-align: center; padding: 20px;">لا توجد قطع فرعية متوفرة</div>';
@@ -533,7 +552,7 @@ function openSparePartItemsModal(product) {
                 <div class="spare-part-item-info">
                     <div class="spare-part-item-name">${itemTypeName}</div>
                     <div class="spare-part-item-details">
-                        <span class="spare-part-item-price">${formatPrice(itemPrice)} ج.م</span>
+                        <span class="spare-part-item-price"><strong>${formatPrice(itemPrice)} ج.م</strong></span>
                         <span class="spare-part-item-stock">المتاح: ${itemQuantity}</span>
                     </div>
                 </div>
