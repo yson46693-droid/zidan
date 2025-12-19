@@ -161,7 +161,7 @@
                 <i class="bi bi-gear"></i>
                 <span>الإعدادات</span>
             </a>
-            <a href="#chat.html" class="mobile-nav-item">
+            <a href="chat.php" class="mobile-nav-item">
                 <i class="bi bi-chat-dots"></i>
                 <span>الشات</span>
             </a>
@@ -199,7 +199,7 @@
             <a href="#settings" class="nav-link" onclick="showSection('settings')" data-permission="manager">
                 <i class="bi bi-gear"></i> الإعدادات
             </a>
-            <a href="chat.html" class="nav-link">
+            <a href="chat.php" class="nav-link">
                 <i class="bi bi-chat-dots"></i> الشات
             </a>
         </nav>
@@ -531,6 +531,16 @@
                 showLoginRequiredMessage();
                 return null;
             }
+        }
+
+        // التحقق من العودة من pos.html
+        const isReturningFromPOS = document.referrer.includes('pos.html') || 
+                                    sessionStorage.getItem('returning_from_pos') === 'true';
+        
+        // مسح العلامة بعد الاستخدام
+        if (isReturningFromPOS) {
+            sessionStorage.removeItem('returning_from_pos');
+            console.log('🔄 تم اكتشاف العودة من نقاط البيع - سيتم إعادة تحميل المحتوى');
         }
 
         // التحقق من تسجيل الدخول عند تحميل الصفحة

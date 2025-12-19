@@ -20,7 +20,7 @@ const urlsToCache = [
     '/',
     '/index.html',
     '/dashboard.html',
-    '/chat.html',
+    '/chat.php',
     '/install.html',
     '/manifest.json',
     '/css/style.css',
