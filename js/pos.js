@@ -1191,6 +1191,16 @@ async function processPayment() {
             return;
         }
         
+        // التأكد النهائي من وجود customerId قبل إرسال البيانات
+        if (!customerId) {
+            showMessage('خطأ في ربط العميل بالفاتورة. يرجى المحاولة مرة أخرى', 'error');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
+            }
+            return;
+        }
+        
         const saleData = {
             items: cart.map(item => ({
                 item_type: item.type === 'spare_part' ? 'spare_part' : item.type === 'accessory' ? 'accessory' : 'phone',
@@ -1205,10 +1215,13 @@ async function processPayment() {
             discount: discount,
             tax: tax,
             final_amount: Math.max(0, finalAmount),
-            customer_id: customerId,
+            customer_id: customerId, // هذا إلزامي
             customer_name: customerName,
             customer_phone: customerPhone
         };
+        
+        // Debug: Log sale data
+        console.log('Sending sale data:', saleData);
         
         const response = await API.request('sales.php', 'POST', saleData);
         

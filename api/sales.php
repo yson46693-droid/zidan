@@ -91,6 +91,7 @@ if ($method === 'GET') {
         
         if (!$sale) {
             response(false, 'الفاتورة غير موجودة', null, 404);
+            return;
         }
         
         // جلب عناصر الفاتورة
@@ -110,6 +111,25 @@ if ($method === 'GET') {
         $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
         $sale['discount'] = floatval($sale['discount'] ?? 0);
         $sale['tax'] = floatval($sale['tax'] ?? 0);
+        
+        // التأكد من وجود customer_id
+        if (empty($sale['customer_id'])) {
+            // محاولة البحث عن العميل برقم الهاتف
+            if (!empty($sale['customer_phone'])) {
+                $customer = dbSelectOne(
+                    "SELECT id FROM customers WHERE phone = ? LIMIT 1",
+                    [$sale['customer_phone']]
+                );
+                if ($customer) {
+                    $sale['customer_id'] = $customer['id'];
+                    // تحديث الفاتورة في قاعدة البيانات
+                    dbExecute(
+                        "UPDATE sales SET customer_id = ? WHERE id = ?",
+                        [$customer['id'], $saleId]
+                    );
+                }
+            }
+        }
         
         response(true, '', $sale);
         return;
@@ -150,11 +170,27 @@ if ($method === 'GET') {
     
     // جلب عناصر كل عملية بيع
     foreach ($sales as &$sale) {
+        // التأكد من وجود sale id
+        if (empty($sale['id'])) {
+            continue;
+        }
+        
         $items = dbSelect(
             "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
             [$sale['id']]
         );
-        $sale['items'] = $items ? $items : [];
+        $sale['items'] = (is_array($items) && count($items) > 0) ? $items : [];
+        
+        // التأكد من وجود sale_number
+        if (empty($sale['sale_number'])) {
+            $sale['sale_number'] = $sale['id'];
+        }
+        
+        // التأكد من وجود القيم الرقمية
+        $sale['total_amount'] = floatval($sale['total_amount'] ?? 0);
+        $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
+        $sale['discount'] = floatval($sale['discount'] ?? 0);
+        $sale['tax'] = floatval($sale['tax'] ?? 0);
     }
     
     response(true, '', $sales);
@@ -235,7 +271,20 @@ if ($method === 'POST') {
     
     $session = checkAuth();
     
-    // إذا لم يكن هناك customer_id بعد، إنشاء عميل جديد
+    // التأكد من وجود customer_id - هذا إلزامي
+    // إذا لم يكن هناك customer_id، البحث عن عميل موجود بنفس رقم الهاتف
+    if (empty($customerId)) {
+        $existingCustomer = dbSelectOne(
+            "SELECT id FROM customers WHERE phone = ? LIMIT 1",
+            [$customerPhone]
+        );
+        
+        if ($existingCustomer) {
+            $customerId = $existingCustomer['id'];
+        }
+    }
+    
+    // إذا لم يكن هناك customer_id بعد، إنشاء عميل جديد - هذا إلزامي
     if (empty($customerId)) {
         $newCustomerId = generateId();
         $result = dbExecute(
@@ -245,8 +294,19 @@ if ($method === 'POST') {
         
         if ($result !== false) {
             $customerId = $newCustomerId;
+        } else {
+            // إذا فشل إنشاء العميل، إرجاع خطأ
+            response(false, 'فشل في إنشاء العميل. يرجى المحاولة مرة أخرى', null, 500);
+            return;
         }
     }
+    
+    // التأكد النهائي من وجود customer_id - هذا إلزامي
+    if (empty($customerId)) {
+        response(false, 'خطأ في ربط العميل بالفاتورة. يرجى المحاولة مرة أخرى', null, 500);
+        return;
+    }
+    
     $saleId = generateId();
     
     // إنشاء رقم فاتورة عشوائي من 6 أرقام
@@ -258,24 +318,16 @@ if ($method === 'POST') {
     dbBeginTransaction();
     
     try {
-        // التأكد من أن customer_id غير فارغ قبل الحفظ
-        // إذا كان فارغاً، البحث مرة أخرى عن عميل موجود بنفس رقم الهاتف
+        // التأكد النهائي من أن customer_id غير فارغ قبل الحفظ - هذا إلزامي
         if (empty($customerId)) {
-            $existingCustomer = dbSelectOne(
-                "SELECT id FROM customers WHERE phone = ? LIMIT 1",
-                [$customerPhone]
-            );
-            
-            if ($existingCustomer) {
-                $customerId = $existingCustomer['id'];
-            }
+            throw new Exception('customer_id مطلوب لحفظ الفاتورة');
         }
         
-        // إنشاء عملية البيع - التأكد من حفظ customer_id بشكل صحيح
+        // إنشاء عملية البيع - التأكد من حفظ customer_id بشكل صحيح (إلزامي)
         $result = dbExecute(
             "INSERT INTO sales (id, sale_number, total_amount, discount, tax, final_amount, customer_id, customer_name, customer_phone, created_at, created_by) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
-            [$saleId, $saleNumber, $totalAmount, $discount, $tax, $finalAmount, !empty($customerId) ? $customerId : null, $customerName, $customerPhone, $session['user_id']]
+            [$saleId, $saleNumber, $totalAmount, $discount, $tax, $finalAmount, $customerId, $customerName, $customerPhone, $session['user_id']]
         );
         
         if ($result === false) {

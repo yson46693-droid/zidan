@@ -182,11 +182,18 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         response(false, 'معرف العميل مطلوب', null, 400);
     }
     
+    // التحقق من وجود العميل أولاً
+    $customer = dbSelectOne("SELECT id FROM customers WHERE id = ?", [$customerId]);
+    if (!$customer) {
+        response(false, 'العميل غير موجود', null, 404);
+    }
+    
+    // جلب مبيعات العميل فقط - التأكد من استخدام customer_id بشكل صحيح
     $sales = dbSelect(
         "SELECT s.*, u.name as created_by_name 
          FROM sales s 
          LEFT JOIN users u ON s.created_by = u.id 
-         WHERE s.customer_id = ? 
+         WHERE s.customer_id = ? AND s.customer_id IS NOT NULL
          ORDER BY s.created_at DESC",
         [$customerId]
     );
@@ -199,6 +206,14 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     if (!is_array($sales)) {
         $sales = [];
     }
+    
+    // فلترة المبيعات للتأكد من أنها تخص هذا العميل فقط
+    $sales = array_filter($sales, function($sale) use ($customerId) {
+        return !empty($sale['customer_id']) && $sale['customer_id'] === $customerId;
+    });
+    
+    // إعادة ترقيم المصفوفة
+    $sales = array_values($sales);
     
     // جلب عناصر كل عملية بيع
     foreach ($sales as &$sale) {
