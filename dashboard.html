@@ -669,38 +669,51 @@
             // تحميل البيانات الأولية للقسم المطلوب
             if (sectionToShow === 'dashboard') {
                 await loadDashboardData();
+                // إعادة المحاولة مرة واحدة إذا فشل التحميل الأولي
+                setTimeout(async () => {
+                    const syncIndicator = document.getElementById('syncIndicator');
+                    if (syncIndicator && syncIndicator.style.color === 'var(--danger-color)') {
+                        console.log('🔄 إعادة محاولة تحميل بيانات لوحة التحكم...');
+                        await loadDashboardData();
+                    }
+                }, 3000);
             } else {
                 // تحميل بيانات القسم المطلوب
                 await updateSectionData(sectionToShow, true);
             }
             
             // تهيئة النسخ الاحتياطي التلقائي
-            await initializeAutoBackup();
-            
-            // تحميل محتوى الأقسام بشكل آمن
             try {
-                if (typeof loadRepairsSection === 'function') loadRepairsSection();
-            } catch (e) { console.error('Error loading repairs section:', e); }
+                if (typeof initializeAutoBackup === 'function') {
+                    await initializeAutoBackup();
+                }
+            } catch (e) {
+                console.warn('خطأ في تهيئة النسخ الاحتياطي:', e);
+            }
             
-            try {
-                if (typeof loadCustomersSection === 'function') loadCustomersSection();
-            } catch (e) { console.error('Error loading customers section:', e); }
+            // تحميل محتوى الأقسام بشكل آمن مع معالجة أفضل للأخطاء
+            const loadSectionSafely = async (sectionName, loadFunction) => {
+                try {
+                    if (typeof loadFunction === 'function') {
+                        await loadFunction();
+                    } else {
+                        console.warn(`دالة تحميل ${sectionName} غير متوفرة`);
+                    }
+                } catch (e) {
+                    console.error(`خطأ في تحميل قسم ${sectionName}:`, e);
+                    // لا نوقف التنفيذ، فقط نسجل الخطأ
+                }
+            };
             
-            try {
-                if (typeof loadInventorySection === 'function') loadInventorySection();
-            } catch (e) { console.error('Error loading inventory section:', e); }
-            
-            try {
-                if (typeof loadExpensesSection === 'function') loadExpensesSection();
-            } catch (e) { console.error('Error loading expenses section:', e); }
-            
-            try {
-                if (typeof loadReportsSection === 'function') loadReportsSection();
-            } catch (e) { console.error('Error loading reports section:', e); }
-            
-            try {
-                if (typeof loadSettingsSection === 'function') loadSettingsSection();
-            } catch (e) { console.error('Error loading settings section:', e); }
+            // تحميل الأقسام بشكل متوازي لتحسين الأداء
+            await Promise.allSettled([
+                loadSectionSafely('repairs', loadRepairsSection),
+                loadSectionSafely('customers', loadCustomersSection),
+                loadSectionSafely('inventory', loadInventorySection),
+                loadSectionSafely('expenses', loadExpensesSection),
+                loadSectionSafely('reports', loadReportsSection),
+                loadSectionSafely('settings', loadSettingsSection)
+            ]);
             
             // عرض الصفحة المحفوظة بعد تحميل الأقسام
             setTimeout(() => {
@@ -1003,6 +1016,10 @@
 
         // تحميل بيانات لوحة التحكم
         async function loadDashboardData() {
+            const syncIndicator = document.getElementById('syncIndicator');
+            let hasError = false;
+            let errorMessage = '';
+            
             try {
                 // استخدام getTodayDate إذا كان متاحاً أو fallback
                 const getTodayDateFunc = typeof getTodayDate === 'function' ? getTodayDate : () => {
@@ -1011,49 +1028,58 @@
                 };
                 const today = getTodayDateFunc();
                 
-                // تحديث مؤشر التحميل
-                const syncIndicator = document.getElementById('syncIndicator');
-                if (syncIndicator) {
-                    syncIndicator.innerHTML = '<i class="bi bi-arrow-repeat"></i> جاري التحميل...';
-                }
-                
-                // تحميل تقرير اليوم
-                const result = await API.getReport('daily', today);
-                
                 // استخدام formatCurrency إذا كان متاحاً أو fallback (تعريف واحد فقط)
                 const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
                     return parseFloat(amount || 0).toFixed(2) + ' ج.م';
                 };
                 
-                if (result && result.success) {
-                    const data = result.data || {};
-                    
-                    // تحديث الإحصائيات
-                    const todayRepairsEl = document.getElementById('todayRepairs');
-                    const todayRevenueEl = document.getElementById('todayRevenue');
-                    const todayExpensesEl = document.getElementById('todayExpenses');
-                    const todayProfitEl = document.getElementById('todayProfit');
-                    
-                    if (todayRepairsEl) todayRepairsEl.textContent = data.repairs_count || 0;
-                    if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(data.revenue || 0);
-                    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(data.expenses || 0);
-                    if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(data.profit || 0);
+                // تحديث مؤشر التحميل
+                if (syncIndicator) {
+                    syncIndicator.innerHTML = '<i class="bi bi-arrow-repeat"></i> جاري التحميل...';
+                    syncIndicator.style.color = '';
+                }
+                
+                // تحميل تقرير اليوم مع معالجة الأخطاء بشكل منفصل
+                let reportData = null;
+                try {
+                    const result = await API.getReport('daily', today);
+                    if (result && result.success && result.data) {
+                        reportData = result.data;
+                    } else {
+                        console.warn('فشل تحميل تقرير اليوم:', result?.message || 'Unknown error');
+                        if (result?.message) {
+                            errorMessage = result.message;
+                            hasError = true;
+                        }
+                    }
+                } catch (reportError) {
+                    console.error('خطأ في تحميل تقرير اليوم:', reportError);
+                    hasError = true;
+                    if (reportError.message) {
+                        errorMessage = reportError.message;
+                    }
+                }
+                
+                // تحديث الإحصائيات (حتى لو فشل التقرير، نعرض القيم الافتراضية)
+                const todayRepairsEl = document.getElementById('todayRepairs');
+                const todayRevenueEl = document.getElementById('todayRevenue');
+                const todayExpensesEl = document.getElementById('todayExpenses');
+                const todayProfitEl = document.getElementById('todayProfit');
+                
+                if (reportData) {
+                    if (todayRepairsEl) todayRepairsEl.textContent = reportData.repairs_count || 0;
+                    if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(reportData.revenue || 0);
+                    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(reportData.expenses || 0);
+                    if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(reportData.profit || 0);
                 } else {
                     // في حالة الفشل، عرض القيم الافتراضية
-                    const todayRepairsEl = document.getElementById('todayRepairs');
-                    const todayRevenueEl = document.getElementById('todayRevenue');
-                    const todayExpensesEl = document.getElementById('todayExpenses');
-                    const todayProfitEl = document.getElementById('todayProfit');
-                    
                     if (todayRepairsEl) todayRepairsEl.textContent = '0';
                     if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(0);
                     if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
                     if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
-                    
-                    console.warn('فشل تحميل تقرير اليوم:', result?.message || 'Unknown error');
                 }
                 
-                // تحميل العمليات الحالية
+                // تحميل العمليات الحالية مع معالجة الأخطاء بشكل منفصل
                 try {
                     const repairsResult = await API.getRepairs();
                     if (repairsResult && repairsResult.success && repairsResult.data) {
@@ -1064,31 +1090,54 @@
                     } else {
                         // عرض رسالة "لا توجد عمليات حالية" في حالة الفشل
                         displayCurrentRepairs([]);
-                        console.warn('فشل تحميل العمليات:', repairsResult?.message || 'Unknown error');
+                        if (repairsResult?.message) {
+                            console.warn('فشل تحميل العمليات:', repairsResult.message);
+                            if (!errorMessage) {
+                                errorMessage = repairsResult.message;
+                                hasError = true;
+                            }
+                        }
                     }
                 } catch (repairsError) {
                     console.error('خطأ في تحميل العمليات:', repairsError);
                     displayCurrentRepairs([]);
+                    if (repairsError.message && !errorMessage) {
+                        errorMessage = repairsError.message;
+                        hasError = true;
+                    }
                 }
                 
-                // تحديث مؤشر التحميل عند النجاح
+                // تحديث مؤشر التحميل حسب النتيجة
                 if (syncIndicator) {
-                    syncIndicator.innerHTML = '<i class="bi bi-check-circle"></i> محدث';
-                    syncIndicator.style.color = 'var(--success-color)';
-                    setTimeout(() => {
-                        if (syncIndicator) {
-                            const now = new Date();
-                            const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-                            syncIndicator.innerHTML = `<i class="bi bi-check-circle"></i> آخر تحديث: ${timeStr}`;
-                        }
-                    }, 1000);
+                    if (hasError) {
+                        syncIndicator.innerHTML = '<i class="bi bi-exclamation-triangle"></i> خطأ في التحميل';
+                        syncIndicator.style.color = 'var(--danger-color)';
+                        syncIndicator.title = errorMessage || 'حدث خطأ أثناء تحميل البيانات';
+                    } else {
+                        syncIndicator.innerHTML = '<i class="bi bi-check-circle"></i> محدث';
+                        syncIndicator.style.color = 'var(--success-color)';
+                        syncIndicator.title = 'تم تحديث البيانات بنجاح';
+                        setTimeout(() => {
+                            if (syncIndicator) {
+                                const now = new Date();
+                                const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+                                syncIndicator.innerHTML = `<i class="bi bi-check-circle"></i> آخر تحديث: ${timeStr}`;
+                                syncIndicator.title = `آخر تحديث: ${timeStr}`;
+                            }
+                        }, 1000);
+                    }
+                }
+                
+                // عرض رسالة خطأ فقط إذا كان هناك خطأ حقيقي
+                if (hasError && errorMessage) {
+                    // لا نعرض رسالة خطأ إذا كانت البيانات الأساسية محملة (حتى لو فشل جزء منها)
+                    if (!reportData) {
+                        showMessage('خطأ في تحميل بعض البيانات: ' + errorMessage, 'error');
+                    }
                 }
                 
             } catch (error) {
                 console.error('خطأ في تحميل بيانات لوحة التحكم:', error);
-                
-                // عرض رسالة خطأ للمستخدم
-                showMessage('خطأ في تحميل البيانات: ' + (error.message || 'خطأ غير معروف'), 'error');
                 
                 // تعيين القيم الافتراضية في حالة الخطأ
                 const todayRepairsEl = document.getElementById('todayRepairs');
@@ -1110,11 +1159,14 @@
                 displayCurrentRepairs([]);
                 
                 // تحديث مؤشر التحميل ليعرض الخطأ
-                const syncIndicator = document.getElementById('syncIndicator');
                 if (syncIndicator) {
                     syncIndicator.innerHTML = '<i class="bi bi-exclamation-triangle"></i> خطأ في التحميل';
                     syncIndicator.style.color = 'var(--danger-color)';
+                    syncIndicator.title = error.message || 'حدث خطأ أثناء تحميل البيانات';
                 }
+                
+                // عرض رسالة خطأ للمستخدم
+                showMessage('خطأ في تحميل البيانات: ' + (error.message || 'خطأ غير معروف'), 'error');
             }
         }
 
@@ -1126,32 +1178,79 @@
                 return;
             }
             
-            if (!repairs || repairs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">لا توجد عمليات حالية</td></tr>';
-                return;
-            }
-            
             try {
+                // التحقق من صحة البيانات
+                if (!repairs || !Array.isArray(repairs) || repairs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد عمليات حالية</td></tr>';
+                    return;
+                }
+                
                 // استخدام الدوال المتاحة أو fallback
                 const formatDateFunc = typeof formatDate === 'function' ? formatDate : (date) => {
                     if (!date) return '-';
-                    return new Date(date).toLocaleDateString('ar-SA');
+                    try {
+                        return new Date(date).toLocaleDateString('ar-SA');
+                    } catch (e) {
+                        return '-';
+                    }
                 };
-                const getStatusColorFunc = typeof getStatusColor === 'function' ? getStatusColor : (status) => '#999';
-                const getStatusTextFunc = typeof getStatusText === 'function' ? getStatusText : (status) => status;
+                const getStatusColorFunc = typeof getStatusColor === 'function' ? getStatusColor : (status) => {
+                    const colors = {
+                        'pending': '#FFA500',
+                        'in_progress': '#2196F3',
+                        'ready': '#4CAF50',
+                        'delivered': '#4CAF50',
+                        'cancelled': '#f44336'
+                    };
+                    return colors[status] || '#999';
+                };
+                const getStatusTextFunc = typeof getStatusText === 'function' ? getStatusText : (status) => {
+                    const statuses = {
+                        'pending': 'قيد الانتظار',
+                        'in_progress': 'قيد الإصلاح',
+                        'ready': 'جاهز',
+                        'delivered': 'تم التسليم',
+                        'cancelled': 'ملغي'
+                    };
+                    return statuses[status] || status || '-';
+                };
                 
-                tbody.innerHTML = repairs.slice(0, 10).map(repair => {
-                    if (!repair) return '';
-                    return `
-                        <tr>
-                            <td>${repair.repair_number || '-'}</td>
-                            <td>${repair.customer_name || '-'}</td>
-                            <td>${repair.device_type || ''} ${repair.device_model || ''}</td>
-                            <td><span class="status-badge" style="background: ${getStatusColorFunc(repair.status || '')}">${getStatusTextFunc(repair.status || '')}</span></td>
-                            <td>${formatDateFunc(repair.created_at)}</td>
-                        </tr>
-                    `;
-                }).filter(row => row).join('');
+                // بناء HTML بشكل آمن
+                const rows = repairs.slice(0, 10)
+                    .filter(repair => repair && typeof repair === 'object')
+                    .map(repair => {
+                        try {
+                            const repairNumber = (repair.repair_number || '-').toString().trim();
+                            const customerName = (repair.customer_name || '-').toString().trim();
+                            const deviceType = (repair.device_type || '').toString().trim();
+                            const deviceModel = (repair.device_model || '').toString().trim();
+                            const deviceInfo = (deviceType + ' ' + deviceModel).trim() || '-';
+                            const status = repair.status || '';
+                            const statusColor = getStatusColorFunc(status);
+                            const statusText = getStatusTextFunc(status);
+                            const date = formatDateFunc(repair.created_at || repair.created_date);
+                            
+                            return `
+                                <tr>
+                                    <td>${repairNumber}</td>
+                                    <td>${customerName}</td>
+                                    <td>${deviceInfo}</td>
+                                    <td><span class="status-badge" style="background: ${statusColor}">${statusText}</span></td>
+                                    <td>${date}</td>
+                                </tr>
+                            `;
+                        } catch (rowError) {
+                            console.error('خطأ في معالجة صف:', rowError, repair);
+                            return '';
+                        }
+                    })
+                    .filter(row => row && row.trim().length > 0);
+                
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد عمليات حالية</td></tr>';
+                } else {
+                    tbody.innerHTML = rows.join('');
+                }
             } catch (error) {
                 console.error('خطأ في عرض العمليات:', error);
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--danger-color);">خطأ في عرض البيانات</td></tr>';

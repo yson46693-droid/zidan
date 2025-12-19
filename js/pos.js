@@ -305,27 +305,122 @@ function renderProducts() {
 function createProductCard(product) {
     const card = document.createElement('div');
     card.className = 'pos-product-card';
-    if (product.quantity === 0) {
+    
+    const isOutOfStock = product.quantity === 0;
+    if (isOutOfStock) {
         card.classList.add('out-of-stock');
     }
     
-    const imageHtml = product.image 
-        ? `<img src="${product.image}" alt="${product.name}" class="pos-product-image" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'pos-product-image-placeholder\\'><i class=\\'bi bi-image\\'></i></div>'">`
-        : `<div class="pos-product-image-placeholder"><i class="bi bi-image"></i></div>`;
+    // تحديد نوع البطاقة حسب نوع المنتج
+    let badgeText = '';
+    let badgeClass = '';
+    if (product.type === 'spare_part') {
+        badgeText = 'قطعة غيار';
+        badgeClass = '';
+    } else if (product.type === 'accessory') {
+        badgeText = 'إكسسوار';
+        badgeClass = '';
+    } else if (product.type === 'phone') {
+        badgeText = 'هاتف';
+        badgeClass = '';
+    }
     
-    const quantityText = product.quantity > 0 
-        ? `<div class="pos-product-quantity">المتاح: ${product.quantity}</div>`
-        : '<div class="pos-product-quantity" style="color: var(--danger-color);">غير متوفر</div>';
+    const imageContainer = document.createElement('div');
+    imageContainer.className = 'pos-product-image-container';
     
-    card.innerHTML = `
-        ${imageHtml}
-        <div class="pos-product-name">${product.name}</div>
-        ${quantityText}
-        <div class="pos-product-price">${formatPrice(product.price)}</div>
-    `;
+    if (product.image) {
+        const img = document.createElement('img');
+        img.src = product.image;
+        img.alt = product.name;
+        img.className = 'pos-product-image';
+        img.loading = 'lazy';
+        img.onerror = function() {
+            this.parentElement.innerHTML = '<div class="pos-product-image-placeholder"><i class="bi bi-image"></i></div>';
+        };
+        imageContainer.appendChild(img);
+    } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'pos-product-image-placeholder';
+        placeholder.innerHTML = '<i class="bi bi-image"></i>';
+        imageContainer.appendChild(placeholder);
+    }
     
-    if (product.quantity > 0) {
-        card.addEventListener('click', () => addToCart(product));
+    // Badge
+    if (badgeText) {
+        const badge = document.createElement('div');
+        badge.className = 'pos-product-badge';
+        badge.textContent = badgeText;
+        imageContainer.appendChild(badge);
+    }
+    
+    // Out of stock badge
+    if (isOutOfStock) {
+        const stockBadge = document.createElement('div');
+        stockBadge.className = 'pos-product-badge out-of-stock';
+        stockBadge.textContent = 'غير متوفر';
+        imageContainer.appendChild(stockBadge);
+    }
+    
+    // Content
+    const content = document.createElement('div');
+    content.className = 'pos-product-content';
+    
+    const name = document.createElement('div');
+    name.className = 'pos-product-name';
+    name.textContent = product.name;
+    content.appendChild(name);
+    
+    // Product info (price and quantity)
+    const info = document.createElement('div');
+    info.className = 'pos-product-info';
+    
+    const price = document.createElement('div');
+    price.className = 'pos-product-price';
+    price.textContent = formatPrice(product.price);
+    info.appendChild(price);
+    
+    const quantity = document.createElement('div');
+    quantity.className = 'pos-product-quantity';
+    
+    if (isOutOfStock) {
+        quantity.classList.add('out-of-stock');
+        quantity.innerHTML = '<i class="bi bi-x-circle"></i> غير متوفر';
+    } else if (product.quantity > 0 && product.quantity <= 5) {
+        quantity.classList.add('low-stock');
+        quantity.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${product.quantity}`;
+    } else {
+        quantity.classList.add('in-stock');
+        quantity.innerHTML = `<i class="bi bi-check-circle"></i> ${product.quantity}`;
+    }
+    
+    info.appendChild(quantity);
+    content.appendChild(info);
+    
+    // Add button (appears on hover)
+    if (!isOutOfStock) {
+        const addBtn = document.createElement('button');
+        addBtn.className = 'pos-product-add-btn';
+        addBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+        addBtn.title = 'إضافة للسلة';
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            addToCart(product);
+        });
+        card.appendChild(addBtn);
+    }
+    
+    // Append elements
+    card.appendChild(imageContainer);
+    card.appendChild(content);
+    
+    // Click to add (only if in stock)
+    if (!isOutOfStock) {
+        card.addEventListener('click', (e) => {
+            // Don't trigger if clicking the add button
+            if (!e.target.closest('.pos-product-add-btn')) {
+                addToCart(product);
+            }
+        });
     }
     
     return card;
