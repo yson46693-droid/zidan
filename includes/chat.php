@@ -29,9 +29,6 @@ function setupChatTables() {
         KEY `idx_reply_to` (`reply_to`),
         KEY `idx_deleted` (`deleted`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-    
-    // إضافة عمود read_by_count إذا لم يكن موجوداً
-    $addReadByCount = "ALTER TABLE `messages` ADD COLUMN IF NOT EXISTS `read_by_count` int(11) NOT NULL DEFAULT 0";
 
     // جدول قراءة الرسائل
     $readTable = "CREATE TABLE IF NOT EXISTS `message_reads` (
@@ -363,7 +360,7 @@ function updateUserPresence($userId, $isOnline) {
             is_online = VALUES(is_online),
             last_seen = NOW(),
             updated_at = NOW()
-    );
+    ");
 
     if ($stmtOld) {
         $stmtOld->bind_param('si', $userId, $online);
