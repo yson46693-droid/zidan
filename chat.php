@@ -2,12 +2,39 @@
 /**
  * صفحة الشات - صفحة واحدة فقط
  */
-require_once __DIR__ . '/includes/config.php';
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/chat.php';
-require_once __DIR__ . '/includes/path_helper.php';
 
+// بدء الجلسة أولاً
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// تحميل الملفات المطلوبة
+require_once __DIR__ . '/api/database.php';
+require_once __DIR__ . '/api/chat/auth_helper.php';
+require_once __DIR__ . '/includes/chat.php';
+
+// التحقق من تسجيل الدخول
+if (!isLoggedIn()) {
+    header('Location: index.html');
+    exit;
+}
+
+// دالة للتحقق من الصلاحيات
+function requireRole($allowedRoles) {
+    $currentUser = getCurrentUser();
+    if (!$currentUser) {
+        header('Location: index.html');
+        exit;
+    }
+    
+    $userRole = $currentUser['role'] ?? 'member';
+    if (!in_array($userRole, $allowedRoles)) {
+        header('Location: dashboard.html');
+        exit;
+    }
+}
+
+// التحقق من الصلاحيات
 requireRole(['manager', 'production', 'sales', 'accountant']);
 
 $currentUser = getCurrentUser();
@@ -17,7 +44,8 @@ $currentUserRole = $currentUser['role'] ?? 'member';
 $userName = $currentUser['full_name'] ?? ($currentUser['username'] ?? 'المستخدم');
 $userRole = $currentUser['role'] ?? 'member';
 
-$apiBase = getRelativeUrl('api/chat');
+// مسار API للشات
+$apiBase = 'api/chat';
 $roomName = 'الشات';
 
 $onlineUsers = getActiveUsers();

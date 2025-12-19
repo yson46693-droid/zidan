@@ -2131,7 +2131,7 @@ function loadInventorySection() {
     // تحميل البيانات - دائماً إعادة تحميل كاملة
     console.log('📥 تحميل بيانات المخزون...');
     
-    // تحميل البيانات بعد تأخير قصير لضمان أن DOM جاهز
+    // تحميل البيانات بعد تأخير لضمان أن DOM جاهز تماماً
     setTimeout(() => {
         // التأكد من أن القسم مرئي قبل تحميل البيانات
         const inventorySection = document.getElementById('inventory-section');
@@ -2139,34 +2139,37 @@ function loadInventorySection() {
             inventorySection.classList.add('active');
         }
         
-        // تحميل البيانات حسب التبويب المحفوظ
-        if (savedTab === 'spare_parts') {
-            loadSpareParts();
-        } else if (savedTab === 'accessories') {
-            loadAccessories();
-        } else if (savedTab === 'phones') {
-            loadPhones();
-        } else {
-            // تحميل جميع البيانات
-            loadSpareParts();
-            loadAccessories();
-            loadPhones();
-        }
-        
-        // إنشاء أزرار الفلترة بعد تأخير إضافي لضمان أن DOM جاهز
+        // تأخير إضافي لضمان أن DOM جاهز تماماً
         setTimeout(() => {
-            try {
-                createAccessoryFilters();
-                createPhoneBrands();
-                hideByPermission();
-            } catch (error) {
-                console.error('خطأ في إنشاء أزرار الفلترة:', error);
+            // تحميل البيانات حسب التبويب المحفوظ
+            if (savedTab === 'spare_parts') {
+                loadSpareParts();
+            } else if (savedTab === 'accessories') {
+                loadAccessories();
+            } else if (savedTab === 'phones') {
+                loadPhones();
+            } else {
+                // تحميل جميع البيانات
+                loadSpareParts();
+                loadAccessories();
+                loadPhones();
             }
-        }, 150);
-        
-        console.log('✅ تم تحميل قسم المخزون بنجاح');
-        isLoadingInventorySection = false;
-    }, 100);
+            
+            // إنشاء أزرار الفلترة بعد تأخير إضافي لضمان أن DOM جاهز
+            setTimeout(() => {
+                try {
+                    createAccessoryFilters();
+                    createPhoneBrands();
+                    hideByPermission();
+                } catch (error) {
+                    console.error('خطأ في إنشاء أزرار الفلترة:', error);
+                }
+            }, 300);
+            
+            console.log('✅ تم تحميل قسم المخزون بنجاح');
+            isLoadingInventorySection = false;
+        }, 200);
+    }, 200);
 }
 
 // ============================================

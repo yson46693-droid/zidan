@@ -533,9 +533,9 @@
             }
         }
 
-        // التحقق من العودة من pos.html
-        const isReturningFromPOS = document.referrer.includes('pos.html') || 
-                                    sessionStorage.getItem('returning_from_pos') === 'true';
+        // التحقق من العودة من pos.html (متغير عام)
+        let isReturningFromPOS = document.referrer.includes('pos.html') || 
+                                  sessionStorage.getItem('returning_from_pos') === 'true';
         
         // مسح العلامة بعد الاستخدام
         if (isReturningFromPOS) {
@@ -722,6 +722,12 @@
             };
             
             // تحميل الأقسام بشكل متوازي لتحسين الأداء
+            // إذا كنا نعود من pos.html، نضيف تأخير إضافي قبل تحميل الأقسام
+            if (isReturningFromPOS) {
+                console.log('⏳ انتظار تحميل جميع الـ scripts قبل تحميل الأقسام...');
+                await new Promise(resolve => setTimeout(resolve, 600));
+            }
+            
             await Promise.allSettled([
                 loadSectionSafely('repairs', loadRepairsSection),
                 loadSectionSafely('customers', loadCustomersSection),
@@ -731,23 +737,85 @@
                 loadSectionSafely('settings', loadSettingsSection)
             ]);
             
-            // عرض الصفحة المحفوظة بعد تحميل الأقسام
-            setTimeout(() => {
-                try {
-                    // إذا كنا نعود من pos.html، نضيف تأخير إضافي لضمان تحميل جميع الدوال
-                    const delay = isReturningFromPOS ? 500 : 100;
-                    
-                    setTimeout(() => {
-                        showSection(sectionToShow, true); // true = بدون حفظ (لأننا استعدناها)
-                        
-                        // إذا كنا نعود من pos.html، نعيد تحميل المحتوى مرة أخرى للتأكد
-                        if (isReturningFromPOS) {
-                            console.log('🔄 إعادة تحميل المحتوى بعد العودة من نقاط البيع...');
-                            setTimeout(() => {
-                                updateSectionData(sectionToShow, true);
-                            }, 300);
+            // إذا كنا نعود من pos.html، نضيف تأخير إضافي بعد تحميل الأقسام
+            if (isReturningFromPOS) {
+                console.log('⏳ انتظار إضافي بعد تحميل الأقسام...');
+                await new Promise(resolve => setTimeout(resolve, 400));
+            }
+            
+            // دالة للتحقق من تحميل الدوال المطلوبة
+            const waitForFunction = (funcName, maxAttempts = 20, delay = 100) => {
+                return new Promise((resolve, reject) => {
+                    let attempts = 0;
+                    const checkFunction = () => {
+                        attempts++;
+                        if (typeof window[funcName] === 'function') {
+                            console.log(`✅ تم العثور على الدالة ${funcName} بعد ${attempts} محاولة`);
+                            resolve();
+                        } else if (attempts >= maxAttempts) {
+                            console.warn(`⚠️ لم يتم العثور على الدالة ${funcName} بعد ${maxAttempts} محاولة`);
+                            reject(new Error(`Function ${funcName} not found`));
+                        } else {
+                            setTimeout(checkFunction, delay);
                         }
-                    }, delay);
+                    };
+                    checkFunction();
+                });
+            };
+            
+            // عرض الصفحة المحفوظة بعد تحميل الأقسام
+            setTimeout(async () => {
+                try {
+                    // إذا كنا نعود من pos.html، نضيف تأخير إضافي ونتحقق من تحميل الدوال
+                    if (isReturningFromPOS) {
+                        console.log('🔄 العودة من نقاط البيع - انتظار تحميل جميع الدوال...');
+                        
+                        // انتظار تحميل الدوال المطلوبة حسب القسم
+                        const requiredFunctions = {
+                            'repairs': 'loadRepairsSection',
+                            'customers': 'loadCustomersSection',
+                            'inventory': 'loadInventorySection',
+                            'expenses': 'loadExpensesSection',
+                            'reports': 'loadReportsSection'
+                        };
+                        
+                        const requiredFunc = requiredFunctions[sectionToShow];
+                        if (requiredFunc) {
+                            try {
+                                await waitForFunction(requiredFunc, 30, 150);
+                            } catch (e) {
+                                console.warn(`⚠️ لم يتم تحميل ${requiredFunc}، سيتم المحاولة بدونها`);
+                            }
+                        }
+                        
+                        // تأخير إضافي لضمان تحميل DOM
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                    
+                    // عرض القسم
+                    showSection(sectionToShow, true); // true = بدون حفظ (لأننا استعدناها)
+                    
+                    // إذا كنا نعود من pos.html، نعيد تحميل المحتوى مرة أخرى للتأكد
+                    if (isReturningFromPOS) {
+                        console.log('🔄 إعادة تحميل المحتوى بعد العودة من نقاط البيع...');
+                        
+                        // تأخير إضافي قبل إعادة التحميل
+                        setTimeout(() => {
+                            updateSectionData(sectionToShow, true);
+                            
+                            // إعادة محاولة إضافية بعد تأخير أطول
+                            setTimeout(() => {
+                                const targetSection = document.getElementById(`${sectionToShow}-section`);
+                                if (targetSection) {
+                                    const contentLength = targetSection.innerHTML.trim().length;
+                                    if (contentLength < 200) {
+                                        console.log('⚠️ المحتوى لا يزال فارغاً، إعادة المحاولة...');
+                                        updateSectionData(sectionToShow, true);
+                                    }
+                                }
+                            }, 1000);
+                        }, 500);
+                    }
                 } catch (e) {
                     console.error('Error showing section:', e);
                     // إذا فشل عرض القسم، عرض dashboard كبديل
@@ -756,7 +824,7 @@
                         dashboardSection.classList.add('active');
                     }
                 }
-            }, 100);
+            }, isReturningFromPOS ? 800 : 200);
             
             // تهيئة نظام المزامنة مع تأخير لضمان تحميل كل شيء
             const initSyncManager = () => {
@@ -866,6 +934,8 @@
 
         // عرض قسم معين
         function showSection(section, skipSave = false) {
+            console.log(`📄 عرض القسم: ${section}, isReturningFromPOS: ${isReturningFromPOS}`);
+            
             // حفظ الصفحة الحالية في localStorage (إلا إذا كان skipSave = true)
             if (!skipSave) {
                 saveCurrentPage(section);
@@ -893,13 +963,16 @@
             const hasContent = targetSection && targetSection.innerHTML.trim().length > 0;
             const hasMinContent = targetSection && targetSection.innerHTML.trim().length > 100;
             
+            console.log(`📊 حالة القسم ${section}: hasContent=${hasContent}, hasMinContent=${hasMinContent}, length=${targetSection ? targetSection.innerHTML.trim().length : 0}`);
+            
             if (targetSection) {
                 targetSection.classList.add('active');
                 
                 // إذا كان القسم فارغاً أو لا يحتوي على محتوى كافٍ، نعيد تحميله
                 if (!hasContent || !hasMinContent) {
                     console.log(`⚠️ القسم ${section} فارغ أو لا يحتوي على محتوى كافٍ (${targetSection.innerHTML.trim().length} حرف)، إعادة تحميل...`);
-                    // إعادة تحميل القسم بعد تأخير قصير
+                    // إعادة تحميل القسم بعد تأخير
+                    const reloadDelay = isReturningFromPOS ? 500 : 200;
                     setTimeout(() => {
                         if (section === 'repairs' && typeof loadRepairsSection === 'function') {
                             loadRepairsSection();
@@ -911,8 +984,13 @@
                             loadExpensesSection();
                         } else if (section === 'reports' && typeof loadReportsSection === 'function') {
                             loadReportsSection();
+                        } else {
+                            // إذا لم تكن الدالة متوفرة، ننتظر قليلاً ثم نحاول مرة أخرى
+                            setTimeout(() => {
+                                updateSectionData(section, true);
+                            }, 500);
                         }
-                    }, 100);
+                    }, reloadDelay);
                 }
             } else {
                 console.warn('القسم غير موجود:', section);
@@ -1046,10 +1124,11 @@
             currentSection = section;
             
             // تحديث البيانات عند تغيير التبويبات - مع إعادة تحميل كاملة
-            // إضافة تأخير صغير لضمان أن DOM جاهز
+            // إضافة تأخير لضمان أن DOM جاهز
+            const updateDelay = isReturningFromPOS ? 300 : 100;
             setTimeout(() => {
                 updateSectionData(section, true); // true = إعادة تحميل كاملة
-            }, 50);
+            }, updateDelay);
             
             // تحديث الـ navbar العائم
             updateMobileNavbar(section);
@@ -1070,44 +1149,64 @@
         // تحديث البيانات عند تغيير التبويبات
         async function updateSectionData(section, forceReload = false) {
             try {
+                // تأخير إضافي لضمان أن DOM جاهز تماماً
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
                 switch (section) {
                     case 'dashboard':
                         await loadDashboardData();
                         break;
                     case 'repairs':
-                        if (typeof loadRepairsSection === 'function') {
-                            // إعادة تحميل كاملة للقسم
-                            if (forceReload) {
+                        // التحقق من تحميل الدالة مع إعادة محاولة
+                        let attempts = 0;
+                        const checkRepairsFunction = () => {
+                            if (typeof loadRepairsSection === 'function') {
                                 console.log('🔄 إعادة تحميل قسم عمليات الصيانة...');
                                 const repairsSection = document.getElementById('repairs-section');
                                 if (repairsSection) {
                                     repairsSection.classList.add('active');
                                 }
                                 loadRepairsSection();
+                            } else if (attempts < 10) {
+                                attempts++;
+                                setTimeout(checkRepairsFunction, 150);
+                            } else {
+                                console.warn('⚠️ loadRepairsSection غير متوفرة بعد 10 محاولات');
                             }
-                        } else {
-                            console.warn('⚠️ loadRepairsSection غير متوفرة');
+                        };
+                        
+                        if (forceReload) {
+                            checkRepairsFunction();
                         }
                         break;
                     case 'customers':
-                        if (typeof loadCustomersSection === 'function') {
-                            // إعادة تحميل كاملة للقسم
-                            if (forceReload) {
+                        // التحقق من تحميل الدالة مع إعادة محاولة
+                        let customerAttempts = 0;
+                        const checkCustomersFunction = () => {
+                            if (typeof loadCustomersSection === 'function') {
                                 console.log('🔄 إعادة تحميل قسم العملاء...');
                                 const customersSection = document.getElementById('customers-section');
                                 if (customersSection) {
                                     customersSection.classList.add('active');
                                 }
                                 loadCustomersSection();
+                            } else if (customerAttempts < 10) {
+                                customerAttempts++;
+                                setTimeout(checkCustomersFunction, 150);
+                            } else {
+                                console.warn('⚠️ loadCustomersSection غير متوفرة بعد 10 محاولات');
                             }
-                        } else {
-                            console.warn('⚠️ loadCustomersSection غير متوفرة');
+                        };
+                        
+                        if (forceReload) {
+                            checkCustomersFunction();
                         }
                         break;
                     case 'inventory':
-                        if (typeof loadInventorySection === 'function') {
-                            // إعادة تحميل كاملة للقسم لضمان عرض العناصر
-                            if (forceReload) {
+                        // التحقق من تحميل الدالة مع إعادة محاولة
+                        let inventoryAttempts = 0;
+                        const checkInventoryFunction = () => {
+                            if (typeof loadInventorySection === 'function') {
                                 console.log('🔄 إعادة تحميل قسم المخزون...');
                                 
                                 // التحقق من أن القسم موجود ومرئي
@@ -1141,53 +1240,78 @@
                                                         switchInventoryTab('spare_parts', defaultTab);
                                                     }
                                                 }
-                                            }, 300);
+                                            }, 500);
                                         }
                                     }
-                                }, 300);
+                                }, 500);
+                            } else if (inventoryAttempts < 15) {
+                                inventoryAttempts++;
+                                setTimeout(checkInventoryFunction, 150);
+                            } else {
+                                console.warn('⚠️ loadInventorySection غير متوفرة بعد 15 محاولة، محاولة تحميل inventory.js...');
+                                // محاولة تحميل inventory.js يدوياً
+                                const script = document.createElement('script');
+                                script.src = 'js/inventory.js';
+                                script.defer = true;
+                                script.onload = () => {
+                                    setTimeout(() => {
+                                        if (typeof loadInventorySection === 'function') {
+                                            loadInventorySection();
+                                        }
+                                    }, 200);
+                                };
+                                document.body.appendChild(script);
                             }
-                        } else {
-                            console.warn('⚠️ loadInventorySection غير متوفرة، محاولة تحميل inventory.js...');
-                            // محاولة تحميل inventory.js يدوياً
-                            const script = document.createElement('script');
-                            script.src = 'js/inventory.js';
-                            script.defer = true;
-                            script.onload = () => {
-                                if (typeof loadInventorySection === 'function') {
-                                    loadInventorySection();
-                                }
-                            };
-                            document.body.appendChild(script);
+                        };
+                        
+                        if (forceReload) {
+                            checkInventoryFunction();
                         }
                         break;
                     case 'expenses':
-                        if (typeof loadExpensesSection === 'function') {
-                            // إعادة تحميل كاملة للقسم
-                            if (forceReload) {
+                        // التحقق من تحميل الدالة مع إعادة محاولة
+                        let expensesAttempts = 0;
+                        const checkExpensesFunction = () => {
+                            if (typeof loadExpensesSection === 'function') {
                                 console.log('🔄 إعادة تحميل قسم المصروفات...');
                                 const expensesSection = document.getElementById('expenses-section');
                                 if (expensesSection) {
                                     expensesSection.classList.add('active');
                                 }
                                 loadExpensesSection();
+                            } else if (expensesAttempts < 10) {
+                                expensesAttempts++;
+                                setTimeout(checkExpensesFunction, 150);
+                            } else {
+                                console.warn('⚠️ loadExpensesSection غير متوفرة بعد 10 محاولات');
                             }
-                        } else {
-                            console.warn('⚠️ loadExpensesSection غير متوفرة');
+                        };
+                        
+                        if (forceReload) {
+                            checkExpensesFunction();
                         }
                         break;
                     case 'reports':
-                        if (typeof loadReportsSection === 'function') {
-                            // إعادة تحميل كاملة للقسم
-                            if (forceReload) {
+                        // التحقق من تحميل الدالة مع إعادة محاولة
+                        let reportsAttempts = 0;
+                        const checkReportsFunction = () => {
+                            if (typeof loadReportsSection === 'function') {
                                 console.log('🔄 إعادة تحميل قسم التقارير...');
                                 const reportsSection = document.getElementById('reports-section');
                                 if (reportsSection) {
                                     reportsSection.classList.add('active');
                                 }
                                 loadReportsSection();
+                            } else if (reportsAttempts < 10) {
+                                reportsAttempts++;
+                                setTimeout(checkReportsFunction, 150);
+                            } else {
+                                console.warn('⚠️ loadReportsSection غير متوفرة بعد 10 محاولات');
                             }
-                        } else {
-                            console.warn('⚠️ loadReportsSection غير متوفرة');
+                        };
+                        
+                        if (forceReload) {
+                            checkReportsFunction();
                         }
                         break;
                     case 'settings':

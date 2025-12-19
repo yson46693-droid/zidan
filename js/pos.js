@@ -923,15 +923,17 @@ function showInvoice(saleData) {
     
     // Get logo - try multiple sources
     let logoHtml = '';
-    const defaultLogoPath = 'assets/c__Users_7mo_Ashraf_AppData_Roaming_Cursor_User_workspaceStorage_eb8d9b9ee4440ab0b7965fcea8e91bf6_images__1373DF86-1DB7-4A33-A05B-F20143E3ED2C_-29b74810-1906-4fd8-81a1-0d65fbd0ee60.png';
-    const fallbackLogoPath = 'assets/c__Users_7mo_Ashraf_Desktop_zidan_photo_5922357566287580087_y.jpg';
+    // مسارات اللوجو الاحتياطية (نسبية من المجلد الرئيسي)
+    const defaultLogoPath = 'photo_5922357566287580087_y.jpg';  // اللوجو في المجلد الرئيسي
+    const fallbackLogoPath1 = 'icons/icon-192x192.png';         // أيقونة من مجلد الأيقونات
+    const fallbackLogoPath2 = 'icons/icon-512x512.png';         // أيقونة أكبر
     
     if (shopLogo && shopLogo.trim() !== '') {
-        // Use shop logo from settings with fallback
-        logoHtml = `<img src="${shopLogo}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.src='${fallbackLogoPath}'; this.onerror=function(){this.style.display='none';};};">`;
+        // استخدام لوجو المتجر من الإعدادات مع مسارات احتياطية
+        logoHtml = `<img src="${shopLogo}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
     } else {
-        // Use default logo with fallback
-        logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath}'; this.onerror=function(){this.style.display='none';};">`;
+        // استخدام اللوجو الافتراضي مع مسارات احتياطية
+        logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};">`;
     }
     
     const invoiceHtml = `
@@ -998,18 +1000,13 @@ function showInvoice(saleData) {
                     <span>المجموع الفرعي:</span>
                     <span>${formatPrice(saleData.total_amount)} ${currency}</span>
                 </div>
-                ${saleData.discount > 0 ? `
+                ${saleData.discount > -1 ? `
                     <div class="summary-row">
                         <span>الخصم:</span>
                         <span>- ${formatPrice(saleData.discount)} ${currency}</span>
                     </div>
                 ` : ''}
-                ${saleData.tax > 0 ? `
-                    <div class="summary-row">
-                        <span>الضريبة:</span>
-                        <span>${formatPrice(saleData.tax)} ${currency}</span>
-                    </div>
-                ` : ''}
+               
                 <hr>
                 <div class="summary-row total">
                     <span>الإجمالي:</span>

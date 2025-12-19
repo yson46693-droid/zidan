@@ -182,61 +182,66 @@ function loadSettingsSection() {
             }, 100);
 
             // تحميل البيانات بشكل آمن مع معالجة الأخطاء
-            Promise.allSettled([
-                loadSettings().catch(err => {
-                    console.error('خطأ في تحميل الإعدادات:', err);
-                    const errorMsg = err?.message || 'خطأ غير معروف';
-                    if (typeof showMessage === 'function') {
-                        showMessage('خطأ في تحميل الإعدادات: ' + errorMsg, 'error');
+            // تأخير بسيط لضمان أن DOM جاهز
+            setTimeout(() => {
+                Promise.allSettled([
+                    loadSettings().catch(err => {
+                        console.error('خطأ في تحميل الإعدادات:', err);
+                        const errorMsg = err?.message || 'خطأ غير معروف';
+                        if (typeof showMessage === 'function') {
+                            showMessage('خطأ في تحميل الإعدادات: ' + errorMsg, 'error');
+                        }
+                        // عرض رسالة خطأ في الواجهة إذا فشل التحميل
+                        const shopNameField = document.getElementById('shopName');
+                        if (shopNameField && shopNameField.parentElement) {
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'error-message';
+                            errorDiv.style.color = 'var(--danger-color)';
+                            errorDiv.style.marginTop = '10px';
+                            errorDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> فشل تحميل الإعدادات. يرجى المحاولة مرة أخرى.';
+                            shopNameField.parentElement.appendChild(errorDiv);
+                        }
+                    }),
+                    loadUsers().catch(err => {
+                        console.error('خطأ في تحميل المستخدمين:', err);
+                        const errorMsg = err?.message || 'خطأ غير معروف';
+                        if (typeof showMessage === 'function') {
+                            showMessage('خطأ في تحميل قائمة المستخدمين: ' + errorMsg, 'error');
+                        }
+                        // عرض رسالة خطأ في الجدول إذا فشل التحميل
+                        const usersTableBody = document.getElementById('usersTableBody');
+                        if (usersTableBody) {
+                            usersTableBody.innerHTML = `
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: var(--danger-color); padding: 20px;">
+                                        <i class="bi bi-exclamation-triangle"></i> 
+                                        <p>فشل تحميل قائمة المستخدمين</p>
+                                        <p style="font-size: 0.9em; margin-top: 10px;">${escapeHtml(errorMsg)}</p>
+                                        <button onclick="loadUsers()" class="btn btn-sm btn-primary" style="margin-top: 10px;">
+                                            <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            console.error('usersTableBody not found when trying to display error');
+                        }
+                    }),
+                    loadSyncFrequency().catch(err => {
+                        console.error('خطأ في تحميل تردد المزامنة:', err);
+                    }),
+                    loadBackupInfo().catch(err => {
+                        console.error('خطأ في تحميل معلومات النسخ الاحتياطية:', err);
+                    })
+                ]).then((results) => {
+                    console.log('تم تحميل قسم الإعدادات بنجاح');
+                    // التحقق من وجود أخطاء
+                    const errors = results.filter(r => r.status === 'rejected');
+                    if (errors.length > 0) {
+                        console.warn('تم تحميل القسم مع بعض الأخطاء:', errors);
                     }
-                    // عرض رسالة خطأ في الواجهة إذا فشل التحميل
-                    const shopNameField = document.getElementById('shopName');
-                    if (shopNameField && shopNameField.parentElement) {
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'error-message';
-                        errorDiv.style.color = 'var(--danger-color)';
-                        errorDiv.style.marginTop = '10px';
-                        errorDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> فشل تحميل الإعدادات. يرجى المحاولة مرة أخرى.';
-                        shopNameField.parentElement.appendChild(errorDiv);
-                    }
-                }),
-                loadUsers().catch(err => {
-                    console.error('خطأ في تحميل المستخدمين:', err);
-                    const errorMsg = err?.message || 'خطأ غير معروف';
-                    if (typeof showMessage === 'function') {
-                        showMessage('خطأ في تحميل قائمة المستخدمين: ' + errorMsg, 'error');
-                    }
-                    // عرض رسالة خطأ في الجدول إذا فشل التحميل
-                    const usersTableBody = document.getElementById('usersTableBody');
-                    if (usersTableBody) {
-                        usersTableBody.innerHTML = `
-                            <tr>
-                                <td colspan="4" style="text-align: center; color: var(--danger-color); padding: 20px;">
-                                    <i class="bi bi-exclamation-triangle"></i> 
-                                    <p>فشل تحميل قائمة المستخدمين</p>
-                                    <p style="font-size: 0.9em; margin-top: 10px;">${errorMsg}</p>
-                                    <button onclick="loadUsers()" class="btn btn-sm btn-primary" style="margin-top: 10px;">
-                                        <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }
-                }),
-                loadSyncFrequency().catch(err => {
-                    console.error('خطأ في تحميل تردد المزامنة:', err);
-                }),
-                loadBackupInfo().catch(err => {
-                    console.error('خطأ في تحميل معلومات النسخ الاحتياطية:', err);
-                })
-            ]).then((results) => {
-                console.log('تم تحميل قسم الإعدادات بنجاح');
-                // التحقق من وجود أخطاء
-                const errors = results.filter(r => r.status === 'rejected');
-                if (errors.length > 0) {
-                    console.warn('تم تحميل القسم مع بعض الأخطاء:', errors);
-                }
-            });
+                });
+            }, 150); // تأخير 150ms لضمان أن DOM جاهز
         } catch (error) {
             console.error('خطأ في تحميل قسم الإعدادات:', error);
             section.innerHTML = `
@@ -345,6 +350,11 @@ async function loadSettings() {
 }
 
 function displaySettings(settings) {
+    if (!settings) {
+        console.warn('displaySettings: settings is null or undefined');
+        return;
+    }
+    
     const shopName = document.getElementById('shopName');
     const shopPhone = document.getElementById('shopPhone');
     const shopAddress = document.getElementById('shopAddress');
@@ -377,6 +387,19 @@ async function saveShopSettings(event) {
 
 async function loadUsers() {
     try {
+        // التحقق من وجود العنصر قبل محاولة التحميل
+        const tbody = document.getElementById('usersTableBody');
+        if (!tbody) {
+            console.warn('usersTableBody not found, waiting for DOM...');
+            // إعادة المحاولة بعد تأخير قصير
+            setTimeout(() => {
+                loadUsers().catch(err => {
+                    console.error('خطأ في إعادة محاولة تحميل المستخدمين:', err);
+                });
+            }, 200);
+            return;
+        }
+        
         const result = await API.getUsers();
         if (result.success) {
             displayUsers(result.data);
@@ -392,12 +415,40 @@ async function loadUsers() {
         }
     } catch (error) {
         console.error('خطأ في loadUsers:', error);
+        // عرض رسالة الخطأ في الجدول إذا كان موجوداً
+        const tbody = document.getElementById('usersTableBody');
+        if (tbody) {
+            const errorMsg = error?.message || 'خطأ غير معروف';
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--danger-color); padding: 20px;">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <p>فشل تحميل قائمة المستخدمين</p>
+                        <p style="font-size: 0.9em; margin-top: 10px;">${escapeHtml(errorMsg)}</p>
+                        <button onclick="loadUsers()" class="btn btn-sm btn-primary" style="margin-top: 10px;">
+                            <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
         throw error;
     }
 }
 
 function displayUsers(users) {
     const tbody = document.getElementById('usersTableBody');
+    
+    // التحقق من وجود العنصر قبل التعديل
+    if (!tbody) {
+        console.error('usersTableBody element not found');
+        return;
+    }
+    
+    if (!users || !Array.isArray(users)) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">خطأ في تحميل البيانات</td></tr>';
+        return;
+    }
     
     if (users.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">لا يوجد مستخدمين</td></tr>';
@@ -406,15 +457,23 @@ function displayUsers(users) {
 
     tbody.innerHTML = users.map(user => `
         <tr>
-            <td>${user.username}</td>
-            <td>${user.name}</td>
+            <td>${escapeHtml(user.username || '')}</td>
+            <td>${escapeHtml(user.name || '')}</td>
             <td>${getRoleText(user.role)}</td>
             <td>
-                <button onclick="editUser('${user.id}', '${user.username}', '${user.name}', '${user.role}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
-                <button onclick="deleteUser('${user.id}')" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
+                <button onclick="editUser('${escapeHtml(user.id || '')}', '${escapeHtml(user.username || '')}', '${escapeHtml(user.name || '')}', '${escapeHtml(user.role || '')}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
+                <button onclick="deleteUser('${escapeHtml(user.id || '')}')" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
             </td>
         </tr>
     `).join('');
+}
+
+// دالة مساعدة لتجنب XSS
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function showAddUserModal() {
