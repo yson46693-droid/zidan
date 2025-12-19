@@ -20,8 +20,8 @@ const API = {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            credentials: 'same-origin',
-            mode: 'cors', // يمكن تغييره إلى 'no-cors' إذا كانت هناك مشاكل CORS
+            credentials: 'include', // إرسال ملفات تعريف الارتباط مع جميع الطلبات (للمزامنة مع CORS credentials)
+            mode: 'cors',
             cache: 'no-cache',
             redirect: 'follow' // متابعة التوجيهات تلقائياً
         };

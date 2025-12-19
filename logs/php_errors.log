@@ -1,0 +1,7 @@
+[19-Dec-2025 17:12:05 UTC] PHP Error [2]: mysqli::__construct(): php_network_getaddresses: getaddrinfo for sql100.infinityfree.com failed: No such host is known in C:\Users\7mo Ashraf\Desktop\zidan\api\database.php on line 27
+[19-Dec-2025 17:12:05 UTC] PHP Warning:  mysqli::__construct(): php_network_getaddresses: getaddrinfo for sql100.infinityfree.com failed: No such host is known in C:\Users\7mo Ashraf\Desktop\zidan\api\database.php on line 27
+[19-Dec-2025 17:12:05 UTC] خطأ في الاتصال بقاعدة البيانات: php_network_getaddresses: getaddrinfo for sql100.infinityfree.com failed: No such host is known
+[19-Dec-2025 17:12:05 UTC] PHP Error [2]: mysqli::__construct(): php_network_getaddresses: getaddrinfo for sql100.infinityfree.com failed: No such host is known in C:\Users\7mo Ashraf\Desktop\zidan\api\database.php on line 27
+[19-Dec-2025 17:12:05 UTC] PHP Warning:  mysqli::__construct(): php_network_getaddresses: getaddrinfo for sql100.infinityfree.com failed: No such host is known in C:\Users\7mo Ashraf\Desktop\zidan\api\database.php on line 27
+[19-Dec-2025 17:12:05 UTC] خطأ في الاتصال بقاعدة البيانات: php_network_getaddresses: getaddrinfo for sql100.infinityfree.com failed: No such host is known
+[19-Dec-2025 17:12:05 UTC] تحذير: لا يمكن الاتصال بقاعدة البيانات أثناء التهيئة

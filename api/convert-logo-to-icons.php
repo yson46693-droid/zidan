@@ -4,10 +4,17 @@
  * يجب تشغيل هذا السكريبت مرة واحدة لإنشاء الأيقونات من اللوجو
  */
 
-require_once 'config.php';
+// تجاوز متطلبات config.php للاستخدام من سطر الأوامر
+if (!defined('DB_HOST')) {
+    // لا نحتاج قاعدة البيانات لهذا السكريبت
+    define('DB_HOST', '');
+    define('DB_USER', '');
+    define('DB_PASS', '');
+    define('DB_NAME', '');
+}
 
-// مسار اللوجو الأصلي
-$logoPath = '../photo_5922357566287580087_y.jpg';
+// مسار اللوجو الأصلي (PNG الجديد)
+$logoPath = '../vertopal.com_photo_5922357566287580087_y.png';
 $iconsDir = '../icons/';
 
 // التحقق من وجود مكتبة GD
@@ -25,8 +32,27 @@ if (!is_dir($iconsDir)) {
     mkdir($iconsDir, 0755, true);
 }
 
-// قراءة اللوجو
-$sourceImage = imagecreatefromjpeg($logoPath);
+// قراءة اللوجو (PNG أو JPG)
+$imageInfo = getimagesize($logoPath);
+if (!$imageInfo) {
+    die('فشل قراءة معلومات اللوجو: ' . $logoPath);
+}
+
+$mimeType = $imageInfo['mime'];
+$sourceImage = null;
+
+switch ($mimeType) {
+    case 'image/png':
+        $sourceImage = imagecreatefrompng($logoPath);
+        break;
+    case 'image/jpeg':
+    case 'image/jpg':
+        $sourceImage = imagecreatefromjpeg($logoPath);
+        break;
+    default:
+        die('نوع الصورة غير مدعوم: ' . $mimeType);
+}
+
 if (!$sourceImage) {
     die('فشل قراءة اللوجو');
 }
@@ -68,9 +94,10 @@ foreach ($sizes as $size) {
         $sourceWidth, $sourceHeight
     );
     
-    // حفظ الأيقونة
-    $outputPath = $iconsDir . 'icon-' . $size . 'x' . $size . '.png';
-    imagepng($newImage, $outputPath, 9); // جودة 9 (0-9)
+        // حفظ الأيقونة
+        $outputPath = $iconsDir . 'icon-' . $size . 'x' . $size . '.png';
+        // استخدام جودة عالية للأيقونات
+        imagepng($newImage, $outputPath, 0); // جودة 0 (أفضل جودة، بدون ضغط)
     
     // تنظيف الذاكرة
     imagedestroy($newImage);

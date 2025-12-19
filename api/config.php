@@ -9,10 +9,38 @@ ob_start();
 header('Content-Type: application/json; charset=utf-8');
 
 // تحسين CORS للاستضافات المجانية
-header('Access-Control-Allow-Origin: *');
+// السماح بالأصل المحدد في الطلب (للسماح بملفات تعريف الارتباط)
+$allowedOrigins = [
+    'https://alaa-zidan.free.nf',
+    'http://alaa-zidan.free.nf',
+    'https://www.alaa-zidan.free.nf',
+    'http://www.alaa-zidan.free.nf'
+];
+
+$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$origin = '*';
+
+// إذا كان الطلب من أصل مسموح، استخدمه مع credentials
+if (!empty($requestOrigin)) {
+    // التحقق من أن الأصل مسموح به
+    foreach ($allowedOrigins as $allowedOrigin) {
+        if (strpos($requestOrigin, $allowedOrigin) !== false || $requestOrigin === $allowedOrigin) {
+            $origin = $requestOrigin;
+            break;
+        }
+    }
+}
+
+if ($origin !== '*') {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Credentials: false');
+}
+
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override');
-header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Max-Age: 3600');
 
 // إضافة headers إضافية للأمان
@@ -65,9 +93,22 @@ ini_set('error_log', $logDir . '/php_errors.log');
 // تحميل ملف قاعدة البيانات
 require_once __DIR__ . '/database.php';
 
-// إعداد قاعدة البيانات تلقائياً (إنشاء الجداول إذا لم تكن موجودة)
-// يتم استدعاؤها مرة واحدة فقط عند أول استخدام
-if (!isset($_SESSION)) {
+// إعدادات الجلسة (قبل بدء الجلسة)
+if (session_status() === PHP_SESSION_NONE) {
+    // تكوين ملفات تعريف الارتباط للجلسة للعمل مع CORS
+    $cookieParams = session_get_cookie_params();
+    $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+    
+    // إذا كان HTTPS متاحاً، استخدم SameSite=None للسماح بالطلبات عبر المواقع
+    // إذا لم يكن HTTPS، استخدم SameSite=Lax (أكثر أماناً)
+    session_set_cookie_params([
+        'lifetime' => $cookieParams['lifetime'] ?: 86400, // 24 ساعة
+        'path' => '/',
+        'domain' => '', // فارغ للسماح بأي domain
+        'secure' => $isSecure,
+        'httponly' => true,
+        'samesite' => $isSecure ? 'None' : 'Lax' // None يتطلب Secure=true
+    ]);
     session_start();
 }
 
