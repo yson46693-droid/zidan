@@ -236,10 +236,42 @@
     <!-- Scripts -->
     <script src="js/api.js" defer></script>
     <script src="js/utils.js" defer></script>
+    <script src="js/auth.js" defer></script>
     <script src="js/barcode.js" defer></script>
     <script src="js/pos.js" defer></script>
     
     <script>
+        // فحص المصادقة عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', async function() {
+            // انتظار تحميل API و auth.js
+            let attempts = 0;
+            const maxAttempts = 50; // 5 ثواني كحد أقصى
+            
+            const checkAuth = async () => {
+                if (typeof API === 'undefined' || typeof checkLogin === 'undefined') {
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        setTimeout(checkAuth, 100);
+                        return;
+                    } else {
+                        console.error('فشل تحميل ملفات المصادقة');
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                }
+                
+                // التحقق من تسجيل الدخول
+                const user = await checkLogin();
+                if (!user) {
+                    // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول
+                    window.location.href = 'index.html';
+                    return;
+                }
+            };
+            
+            checkAuth();
+        });
+        
         // دالة للعودة إلى لوحة التحكم مع تحديد علامة
         function returnToDashboard() {
             // تحديد علامة في sessionStorage للإشارة إلى أننا نعود من pos.html

@@ -1280,7 +1280,7 @@ async function showInvoice(saleData) {
         // استخدام لوجو المتجر من الإعدادات مع مسارات احتياطية
         logoHtml = createLogoHtml(shopLogo);
     } else {
-        // استخدام اللوجو الافتراضي PNG مع مسارات احتياطية
+        // استخدام اللوجو الافتراضي PNG مع مسارات احتياطية1
         logoHtml = createLogoHtml(defaultLogoPath);
     }
     
