@@ -848,6 +848,19 @@
                     loadReportsSection();
                 } else if (section === 'settings' && typeof loadSettingsSection === 'function') {
                     loadSettingsSection();
+                } else if (section === 'profile') {
+                    // تحميل profile.js إذا لم يكن محملاً
+                    if (typeof loadProfileSection !== 'function') {
+                        loadScriptOnDemand('profile-script').then(() => {
+                            if (typeof loadProfileSection === 'function') {
+                                loadProfileSection();
+                            }
+                        }).catch(err => {
+                            console.error('خطأ في تحميل profile.js:', err);
+                        });
+                    } else {
+                        loadProfileSection();
+                    }
                 }
                 // إعادة المحاولة بعد تحميل القسم
                 setTimeout(() => {
@@ -856,6 +869,22 @@
                         retrySection.classList.add('active');
                     }
                 }, 100);
+            }
+            
+            // تحميل قسم الملف الشخصي مباشرة إذا كان القسم المطلوب
+            if (section === 'profile') {
+                // تحميل profile.js إذا لم يكن محملاً
+                if (typeof loadProfileSection !== 'function') {
+                    loadScriptOnDemand('profile-script').then(() => {
+                        if (typeof loadProfileSection === 'function') {
+                            loadProfileSection();
+                        }
+                    }).catch(err => {
+                        console.error('خطأ في تحميل profile.js:', err);
+                    });
+                } else {
+                    loadProfileSection();
+                }
             }
             
             // تحديد الرابط
@@ -1000,11 +1029,49 @@
                         }
                         break;
                     case 'profile':
+                        // تحميل profile.js إذا لم يكن محملاً
+                        if (typeof loadProfileSection !== 'function') {
+                            console.log('📦 تحميل profile.js...');
+                            await loadScriptOnDemand('profile-script').catch(err => {
+                                console.error('خطأ في تحميل profile.js:', err);
+                            });
+                        }
+                        
                         if (typeof loadProfileSection === 'function') {
                             // إعادة تحميل كاملة للقسم
                             if (forceReload) {
                                 console.log('🔄 إعادة تحميل قسم الملف الشخصي...');
-                                loadProfileSection();
+                                try {
+                                    await loadProfileSection();
+                                } catch (profileError) {
+                                    console.error('خطأ في تحميل قسم الملف الشخصي:', profileError);
+                                    const profileContent = document.getElementById('profile-content');
+                                    if (profileContent) {
+                                        profileContent.innerHTML = `
+                                            <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                                <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                                <p>حدث خطأ في تحميل الملف الشخصي</p>
+                                                <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                                    إعادة تحميل الصفحة
+                                                </button>
+                                            </div>
+                                        `;
+                                    }
+                                }
+                            }
+                        } else {
+                            console.error('loadProfileSection غير متوفرة');
+                            const profileContent = document.getElementById('profile-content');
+                            if (profileContent) {
+                                profileContent.innerHTML = `
+                                    <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                        <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                        <p>خطأ في تحميل ملف الملف الشخصي</p>
+                                        <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                            إعادة تحميل الصفحة
+                                        </button>
+                                    </div>
+                                `;
                             }
                         }
                         break;

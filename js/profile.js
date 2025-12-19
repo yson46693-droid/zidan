@@ -11,18 +11,62 @@ async function loadProfileSection() {
         return;
     }
 
-    // الحصول على بيانات المستخدم الحالي
-    currentUser = getCurrentUser();
-    if (!currentUser) {
-        section.innerHTML = '<p style="color: red;">خطأ: لم يتم العثور على بيانات المستخدم</p>';
-        return;
-    }
+    try {
+        // عرض حالة التحميل
+        section.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-light);"><i class="bi bi-hourglass-split"></i> جاري التحميل...</p>';
 
-    // تحميل البصمات المسجلة
-    await loadCredentials();
+        // التحقق من وجود الدوال المطلوبة
+        if (typeof getCurrentUser !== 'function') {
+            throw new Error('دالة getCurrentUser غير متوفرة. تأكد من تحميل auth.js');
+        }
 
-    // عرض واجهة الملف الشخصي
-    section.innerHTML = `
+        if (typeof getRoleText !== 'function') {
+            console.warn('دالة getRoleText غير متوفرة، سيتم استخدام قيمة افتراضية');
+            window.getRoleText = window.getRoleText || function(role) {
+                const roles = {
+                    'admin': 'مالك',
+                    'manager': 'مدير',
+                    'employee': 'موظف'
+                };
+                return roles[role] || role;
+            };
+        }
+
+        // الحصول على بيانات المستخدم الحالي
+        currentUser = getCurrentUser();
+        if (!currentUser) {
+            // محاولة الحصول على المستخدم من checkLogin
+            try {
+                if (typeof checkLogin === 'function') {
+                    const user = await checkLogin();
+                    if (user) {
+                        currentUser = user;
+                    }
+                }
+            } catch (e) {
+                console.warn('فشل الحصول على المستخدم من checkLogin:', e);
+            }
+
+            if (!currentUser) {
+                section.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                        <p>خطأ: لم يتم العثور على بيانات المستخدم</p>
+                        <p style="font-size: 14px; color: var(--text-light); margin-top: 10px;">يرجى تسجيل الدخول مرة أخرى</p>
+                        <button onclick="location.href='index.html'" class="btn btn-primary" style="margin-top: 20px;">
+                            <i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+        }
+
+        // تحميل البصمات المسجلة
+        await loadCredentials();
+
+        // عرض واجهة الملف الشخصي
+        section.innerHTML = `
         <div class="profile-container">
             <!-- معلومات الحساب -->
             <div class="profile-section">
@@ -116,10 +160,26 @@ async function loadProfileSection() {
         </div>
     `;
 
-    // إضافة event listener لزر تسجيل البصمة
-    const registerBtn = document.getElementById('registerBiometricBtn');
-    if (registerBtn) {
-        registerBtn.addEventListener('click', handleRegisterBiometric);
+        // إضافة event listener لزر تسجيل البصمة
+        const registerBtn = document.getElementById('registerBiometricBtn');
+        if (registerBtn) {
+            registerBtn.addEventListener('click', handleRegisterBiometric);
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل قسم الملف الشخصي:', error);
+        const section = document.getElementById('profile-content');
+        if (section) {
+            section.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                    <p>حدث خطأ في تحميل الملف الشخصي</p>
+                    <p style="font-size: 14px; color: var(--text-light); margin-top: 10px;">${error.message || 'خطأ غير معروف'}</p>
+                    <button onclick="if(typeof loadProfileSection === 'function') loadProfileSection(); else location.reload();" class="btn btn-primary" style="margin-top: 20px;">
+                        <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 

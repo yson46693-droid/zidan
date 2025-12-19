@@ -199,30 +199,66 @@ if ($method === 'POST') {
             
             // تحديث الكمية في المخزون
             if ($itemType === 'spare_part') {
-                // لقطع الغيار، نتحقق من الكمية في spare_part_items
-                // لكن في POS نبيع القطع نفسها، لذا سنحتاج لتحديث الكمية في الجدول المناسب
-                // يمكن تخطي هذا إذا كان النظام لا يتبع الكمية لقطع الغيار
-            } elseif ($itemType === 'accessory') {
-                // تحديث كمية الإكسسوارات
-                $updateResult = dbExecute(
-                    "UPDATE accessories SET quantity = quantity - ? WHERE id = ? AND quantity >= ?",
-                    [$quantity, $originalItemId, $quantity]
+                // لقطع الغيار، نتحقق من الكمية في spare_part_items أولاً
+                // إذا كانت هناك items فرعية، نخصم من الكمية الأصغر
+                $sparePartItems = dbSelect(
+                    "SELECT id, quantity FROM spare_part_items WHERE spare_part_id = ? AND quantity > 0 ORDER BY quantity ASC LIMIT 1",
+                    [$originalItemId]
                 );
-                if ($updateResult === false) {
-                    // لا نوقف العملية، فقط نسجل تحذير
-                    error_log("تحذير: فشل تحديث كمية الإكسسوار: $originalItemId");
+                
+                if ($sparePartItems && count($sparePartItems) > 0) {
+                    // خصم من spare_part_items
+                    $itemToUpdate = $sparePartItems[0];
+                    $newQuantity = max(0, intval($itemToUpdate['quantity']) - $quantity);
+                    dbExecute(
+                        "UPDATE spare_part_items SET quantity = ? WHERE id = ?",
+                        [$newQuantity, $itemToUpdate['id']]
+                    );
+                }
+                // ملاحظة: قطع الغيار الرئيسية لا تحتوي على quantity field
+            } elseif ($itemType === 'accessory') {
+                // تحديث كمية الإكسسوارات - التحقق من الكمية أولاً
+                $currentItem = dbSelectOne("SELECT quantity FROM accessories WHERE id = ?", [$originalItemId]);
+                if ($currentItem) {
+                    $currentQuantity = intval($currentItem['quantity'] ?? 0);
+                    if ($currentQuantity >= $quantity) {
+                        $newQuantity = $currentQuantity - $quantity;
+                        $updateResult = dbExecute(
+                            "UPDATE accessories SET quantity = ? WHERE id = ?",
+                            [$newQuantity, $originalItemId]
+                        );
+                        if ($updateResult === false) {
+                            throw new Exception("فشل تحديث كمية الإكسسوار: $originalItemId");
+                        }
+                    } else {
+                        throw new Exception("الكمية المتاحة غير كافية للإكسسوار: $originalItemId (المتاح: $currentQuantity، المطلوب: $quantity)");
+                    }
+                } else {
+                    throw new Exception("الإكسسوار غير موجود: $originalItemId");
                 }
             } elseif ($itemType === 'phone') {
-                // للهواتف، عادة ما يكون الكمية 1 فقط
-                // يمكن تخطي التحديث أو حذف الهاتف من المخزون
+                // للهواتف، يمكن حذفها من المخزون أو وضع علامة عليها
+                // نتركها كما هي لأن الهواتف عادة ما تكون عناصر فريدة
+                // يمكن إضافة منطق خاص هنا إذا لزم الأمر
             } elseif ($itemType === 'inventory') {
-                // تحديث كمية المخزون القديم
-                $updateResult = dbExecute(
-                    "UPDATE inventory SET quantity = quantity - ? WHERE id = ? AND quantity >= ?",
-                    [$quantity, $originalItemId, $quantity]
-                );
-                if ($updateResult === false) {
-                    error_log("تحذير: فشل تحديث كمية المخزون: $originalItemId");
+                // تحديث كمية المخزون القديم - التحقق من الكمية أولاً
+                $currentItem = dbSelectOne("SELECT quantity FROM inventory WHERE id = ?", [$originalItemId]);
+                if ($currentItem) {
+                    $currentQuantity = intval($currentItem['quantity'] ?? 0);
+                    if ($currentQuantity >= $quantity) {
+                        $newQuantity = $currentQuantity - $quantity;
+                        $updateResult = dbExecute(
+                            "UPDATE inventory SET quantity = ? WHERE id = ?",
+                            [$newQuantity, $originalItemId]
+                        );
+                        if ($updateResult === false) {
+                            throw new Exception("فشل تحديث كمية المخزون: $originalItemId");
+                        }
+                    } else {
+                        throw new Exception("الكمية المتاحة غير كافية: $originalItemId (المتاح: $currentQuantity، المطلوب: $quantity)");
+                    }
+                } else {
+                    throw new Exception("العنصر غير موجود في المخزون: $originalItemId");
                 }
             }
         }

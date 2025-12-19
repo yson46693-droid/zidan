@@ -328,14 +328,25 @@ function createProductCard(product) {
     const imageContainer = document.createElement('div');
     imageContainer.className = 'pos-product-image-container';
     
-    if (product.image) {
+    if (product.image && product.image.trim() !== '') {
         const img = document.createElement('img');
         img.src = product.image;
         img.alt = product.name;
         img.className = 'pos-product-image';
         img.loading = 'lazy';
+        img.decoding = 'async';
         img.onerror = function() {
-            this.parentElement.innerHTML = '<div class="pos-product-image-placeholder"><i class="bi bi-image"></i></div>';
+            // استبدال الصورة المكسورة بـ placeholder
+            const placeholder = document.createElement('div');
+            placeholder.className = 'pos-product-image-placeholder';
+            placeholder.innerHTML = '<i class="bi bi-image"></i>';
+            this.parentElement.replaceChild(placeholder, this);
+        };
+        img.onload = function() {
+            // التأكد من أن الصورة تم تحميلها بشكل صحيح
+            if (this.naturalWidth === 0 || this.naturalHeight === 0) {
+                this.onerror();
+            }
         };
         imageContainer.appendChild(img);
     } else {
@@ -662,6 +673,11 @@ async function processPayment() {
             showInvoice(response.data);
             cart = [];
             updateCartDisplay();
+            
+            // إعادة تحميل المنتجات لتحديث الكميات
+            await loadAllProducts();
+            filterProducts();
+            
             showMessage('تم إتمام عملية البيع بنجاح', 'success');
         } else {
             showMessage(response?.message || 'حدث خطأ في معالجة الدفع', 'error');
