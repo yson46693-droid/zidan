@@ -305,3 +305,112 @@ function createPaginationButtons(container, totalPages, currentPage, onPageChang
     }
 }
 
+// تخزين الشعار الافتراضي في localStorage
+const DEFAULT_LOGO_KEY = 'default_logo_cached';
+const DEFAULT_LOGO_VERSION_KEY = 'default_logo_version';
+const DEFAULT_LOGO_PATH = 'vertopal.com_photo_5922357566287580087_y.png';
+const LOGO_VERSION = '1.0'; // زيادة هذا الرقم لإجبار تحديث الكاش
+
+/**
+ * تحميل الشعار الافتراضي من localStorage أو من الملف
+ * @returns {Promise<string>} Base64 data URL للشعار
+ */
+async function getCachedDefaultLogo() {
+    try {
+        // التحقق من وجود نسخة محفوظة في localStorage
+        const cachedLogo = localStorage.getItem(DEFAULT_LOGO_KEY);
+        const cachedVersion = localStorage.getItem(DEFAULT_LOGO_VERSION_KEY);
+        
+        // إذا كان موجوداً وبنفس الإصدار، نرجعه مباشرة
+        if (cachedLogo && cachedVersion === LOGO_VERSION) {
+            console.log('✅ استخدام الشعار من الكاش المحلي');
+            return cachedLogo;
+        }
+        
+        // تحميل الصورة وتحويلها إلى base64
+        console.log('📥 تحميل الشعار الافتراضي...');
+        const logoDataUrl = await loadImageAsDataUrl(DEFAULT_LOGO_PATH);
+        
+        // حفظ في localStorage
+        try {
+            localStorage.setItem(DEFAULT_LOGO_KEY, logoDataUrl);
+            localStorage.setItem(DEFAULT_LOGO_VERSION_KEY, LOGO_VERSION);
+            console.log('✅ تم حفظ الشعار في الكاش المحلي');
+        } catch (e) {
+            // في حالة امتلاء localStorage، نتجاهل الخطأ ونستخدم البيانات مباشرة
+            console.warn('⚠️ لا يمكن حفظ الشعار في localStorage (قد يكون ممتلئاً)، سيتم استخدامه مباشرة');
+        }
+        
+        return logoDataUrl;
+    } catch (error) {
+        console.error('❌ خطأ في تحميل الشعار الافتراضي:', error);
+        // إرجاع مسار الصورة الأصلي كبديل
+        return DEFAULT_LOGO_PATH;
+    }
+}
+
+/**
+ * تحميل صورة وتحويلها إلى base64 data URL
+ * @param {string} imagePath - مسار الصورة
+ * @returns {Promise<string>} Base64 data URL
+ */
+function loadImageAsDataUrl(imagePath) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // للسماح بتحويل الصور إلى base64
+        
+        img.onload = function() {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                // تحويل إلى base64
+                const dataUrl = canvas.toDataURL('image/png');
+                resolve(dataUrl);
+            } catch (error) {
+                console.error('خطأ في تحويل الصورة إلى base64:', error);
+                // في حالة الفشل، نرجع المسار الأصلي
+                resolve(imagePath);
+            }
+        };
+        
+        img.onerror = function() {
+            console.error('فشل تحميل الصورة:', imagePath);
+            // في حالة الفشل، نرجع المسار الأصلي
+            resolve(imagePath);
+        };
+        
+        // محاولة تحميل الصورة
+        img.src = imagePath + '?v=' + LOGO_VERSION; // إضافة version للتحايل على الكاش
+    });
+}
+
+/**
+ * تحديث الشعار في عنصر img باستخدام الكاش المحلي
+ * @param {HTMLImageElement|string} imgElement - عنصر img أو selector
+ */
+async function setCachedLogo(imgElement) {
+    const img = typeof imgElement === 'string' ? document.querySelector(imgElement) : imgElement;
+    if (!img) {
+        console.warn('عنصر الصورة غير موجود');
+        return;
+    }
+    
+    try {
+        const logoUrl = await getCachedDefaultLogo();
+        img.src = logoUrl;
+        img.onerror = function() {
+            // في حالة الفشل، استخدام المسار الأصلي
+            console.warn('فشل تحميل الشعار من الكاش، استخدام المسار الأصلي');
+            img.src = DEFAULT_LOGO_PATH;
+        };
+    } catch (error) {
+        console.error('خطأ في تعيين الشعار:', error);
+        img.src = DEFAULT_LOGO_PATH;
+    }
+}
+

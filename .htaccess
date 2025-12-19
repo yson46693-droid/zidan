@@ -13,6 +13,13 @@ AddType application/x-httpd-php .php
     SetHandler application/x-httpd-php
 </FilesMatch>
 
+# قاعدة خاصة لملف chat.php
+<Files "chat.php">
+    SetHandler application/x-httpd-php
+    Order allow,deny
+    Allow from all
+</Files>
+
 # إعادة كتابة URL لملفات PHP
 <IfModule mod_rewrite.c>
     RewriteEngine On

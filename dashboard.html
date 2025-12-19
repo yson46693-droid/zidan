@@ -546,6 +546,13 @@
 
         // التحقق من تسجيل الدخول عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', async () => {
+            // تحميل الشعار من الكاش المحلي
+            if (typeof setCachedLogo !== 'undefined') {
+                setCachedLogo('.sidebar-logo').catch(err => {
+                    console.warn('فشل تحميل الشعار من الكاش:', err);
+                });
+            }
+            
             const user = await performAuthCheck();
             if (!user) {
                 return;
