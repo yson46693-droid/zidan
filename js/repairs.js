@@ -1151,7 +1151,7 @@ async function checkAndShowImage(repairId) {
 }
 
 // قارئ الباركود
-function openBarcodeScanner() {
+async function openBarcodeScanner() {
     // التحقق من وجود ماسح مفتوح بالفعل
     if (isScannerOpen) {
         console.log('يوجد ماسح مفتوح بالفعل');
@@ -1170,6 +1170,16 @@ function openBarcodeScanner() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         showMessage('الكاميرا غير متوفرة في هذا المتصفح', 'error');
         return;
+    }
+    
+    // تحميل Quagga أولاً إذا لم يكن محملاً
+    if (typeof Quagga === 'undefined' && typeof window.loadQuagga === 'function') {
+        try {
+            await window.loadQuagga();
+        } catch (error) {
+            showMessage('فشل تحميل مكتبة الباركود', 'error');
+            return;
+        }
     }
     
     // تعيين حالة الماسح كمفتوح
@@ -1232,18 +1242,30 @@ function openBarcodeScanner() {
     }
 }
 
-function initializeBarcodeScanner() {
+async function initializeBarcodeScanner() {
     const scannerArea = document.getElementById('scanner-area');
     if (!scannerArea) return;
 
     // إضافة مؤشر التحميل
-    scannerArea.innerHTML = '<div class="scanner-loading"><i class="bi bi-camera"></i> جاري تحميل الكاميرا...</div>';
+    scannerArea.innerHTML = '<div class="scanner-loading"><i class="bi bi-camera"></i> جاري تحميل مكتبة الباركود...</div>';
 
-    // التحقق من توفر Quagga
+    // تحميل Quagga إذا لم يكن محملاً
     if (typeof Quagga === 'undefined') {
-        scannerArea.innerHTML = '<div class="scanner-error"><i class="bi bi-exclamation-triangle"></i> خطأ: مكتبة الباركود غير محملة</div>';
-        return;
+        if (typeof window.loadQuagga === 'function') {
+            try {
+                await window.loadQuagga();
+            } catch (error) {
+                scannerArea.innerHTML = '<div class="scanner-error"><i class="bi bi-exclamation-triangle"></i> خطأ: فشل تحميل مكتبة الباركود</div>';
+                console.error('Failed to load Quagga:', error);
+                return;
+            }
+        } else {
+            scannerArea.innerHTML = '<div class="scanner-error"><i class="bi bi-exclamation-triangle"></i> خطأ: مكتبة الباركود غير متاحة</div>';
+            return;
+        }
     }
+    
+    scannerArea.innerHTML = '<div class="scanner-loading"><i class="bi bi-camera"></i> جاري تحميل الكاميرا...</div>';
 
     // إعدادات محسنة للكاميرا
     const config = {

@@ -51,8 +51,14 @@
     <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png">
     <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png">
     
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Bootstrap Icons - تحميل غير متزامن لتحسين الأداء -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
+    
+    <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
@@ -91,10 +97,33 @@
         })();
     </script>
     
+    <!-- Critical CSS - تحميل فوري -->
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/dark-mode.css">
-    <link rel="stylesheet" href="css/security.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    
+    <!-- Non-Critical CSS - تحميل غير متزامن -->
+    <link rel="preload" href="css/dark-mode.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/dark-mode.css"></noscript>
+    
+    <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/security.css"></noscript>
+    
+    <!-- Quagga - تحميل فقط عند الحاجة (lazy load) -->
+    <script>
+        // تحميل Quagga فقط عند الحاجة (عند فتح قسم الباركود)
+        window.loadQuagga = function() {
+            if (window.quaggaLoaded) return Promise.resolve();
+            window.quaggaLoaded = true;
+            
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js';
+                script.async = true;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load Quagga'));
+                document.head.appendChild(script);
+            });
+        };
+    </script>
 </head>
 <body>
   
@@ -115,6 +144,10 @@
             <a href="#inventory" class="mobile-nav-item" onclick="showSection('inventory')">
                 <i class="bi bi-box-seam"></i>
                 <span>المخزون</span>
+            </a>
+            <a href="pos.html" class="mobile-nav-item">
+                <i class="bi bi-cash-register"></i>
+                <span>نقاط البيع</span>
             </a>
             <a href="#expenses" class="mobile-nav-item" onclick="showSection('expenses')">
                 <i class="bi bi-cash-stack"></i>
@@ -153,6 +186,9 @@
             </a>
             <a href="#inventory" class="nav-link" onclick="showSection('inventory')">
                 <i class="bi bi-box-seam"></i> المخزون
+            </a>
+            <a href="pos.html" class="nav-link">
+                <i class="bi bi-cash-register"></i> نقاط البيع
             </a>
             <a href="#expenses" class="nav-link" onclick="showSection('expenses')">
                 <i class="bi bi-cash-stack"></i> المصروفات
@@ -292,14 +328,14 @@
     <script src="js/utils.js"></script>
     <script src="js/auth.js" defer></script>
     
-    <!-- Security Scripts - تحميل بأولوية عالية -->
+    <!-- Security Scripts - تحميل بأولوية عالية (defer للتحميل غير المتزامن) -->
     <script src="js/data-protection.js" defer></script>
     <script src="js/security.js" defer></script>
     
-    <!-- Core Features - تحميل متزامن (defer) -->
-    <script src="js/sync.js" defer></script>
-    <script src="js/encryption.js" defer></script>
-    <script src="js/encryption-settings.js" defer></script>
+    <!-- Core Features - تحميل متأخر (async) -->
+    <script src="js/sync.js" async></script>
+    <script src="js/encryption.js" async></script>
+    <script src="js/encryption-settings.js" async></script>
     
     <!-- Module Scripts - تحميل ديناميكي عند الحاجة (Lazy Loading) -->
     <script>
@@ -325,14 +361,21 @@
                 ]
             };
             
-            // تحميل Critical Scripts بعد DOMContentLoaded
+            // تحميل Critical Scripts بعد DOMContentLoaded مع تأخير لتقليل التحميل الفوري
             document.addEventListener('DOMContentLoaded', () => {
-                scripts.critical.forEach(script => {
-                    const el = document.createElement('script');
-                    el.src = script.src;
-                    if (script.defer) el.defer = true;
-                    document.body.appendChild(el);
-                });
+                // تأخير تحميل Critical Scripts بمقدار 100ms لتقليل التحميل الفوري
+                setTimeout(() => {
+                    scripts.critical.forEach((script, index) => {
+                        // تحميل كل script مع تأخير تدريجي لتقليل التحميل المتزامن
+                        setTimeout(() => {
+                            const el = document.createElement('script');
+                            el.src = script.src;
+                            if (script.defer) el.defer = true;
+                            el.async = true; // إضافة async للتحميل غير المتزامن
+                            document.body.appendChild(el);
+                        }, index * 50); // تأخير 50ms بين كل script
+                    });
+                }, 100);
                 
                 // تحميل On-Demand Scripts عند الحاجة (Lazy Loading)
                 window.loadScriptOnDemand = function(scriptId) {
@@ -355,13 +398,22 @@
                     });
                 };
                 
-                // Preload scripts عند التفاعل الأول (passive loading)
-                setTimeout(() => {
-                    // تحميل بعض المكونات الشائعة الاستخدام بعد ثانيتين
-                    ['barcode-script', 'label-script', 'image-script'].forEach(id => {
-                        window.loadScriptOnDemand(id).catch(() => {});
-                    });
-                }, 2000);
+                // Preload scripts عند التفاعل الأول (passive loading) - تأخير أكثر
+                // تحميل فقط عند التفاعل الفعلي مع المستخدم (عند hover أو click)
+                let userInteracted = false;
+                const markInteraction = () => {
+                    if (userInteracted) return;
+                    userInteracted = true;
+                    // تحميل بعض المكونات الشائعة بعد التفاعل
+                    setTimeout(() => {
+                        ['barcode-script', 'label-script'].forEach(id => {
+                            window.loadScriptOnDemand(id).catch(() => {});
+                        });
+                    }, 500);
+                };
+                
+                document.addEventListener('mouseover', markInteraction, { once: true, passive: true });
+                document.addEventListener('touchstart', markInteraction, { once: true, passive: true });
             });
         })();
     </script>

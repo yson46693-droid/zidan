@@ -52,8 +52,13 @@
     <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png">
     <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png">
     
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Bootstrap Icons - تحميل غير متزامن لتحسين الأداء -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
+    
+    <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
@@ -90,8 +95,12 @@
         })();
     </script>
     
+    <!-- Critical CSS - تحميل فوري -->
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/security.css">
+    
+    <!-- Non-Critical CSS - تحميل غير متزامن -->
+    <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/security.css"></noscript>
 </head>
 <body class="login-page">
     <div class="login-container">
@@ -143,38 +152,50 @@
     <!-- تحميل الملفات بشكل غير متزامن لتحسين الأداء -->
     <script src="js/auth.js" defer></script>
     <script>
-        // تحميل الملفات الثقيلة بشكل غير متزامن بعد تحميل الصفحة
+        // تحميل الملفات الثقيلة بشكل غير متزامن بعد تحميل الصفحة مع تأخير
         window.addEventListener('DOMContentLoaded', () => {
-            // تحميل data-protection.js بشكل غير متزامن
-            const dataProtectionScript = document.createElement('script');
-            dataProtectionScript.src = 'js/data-protection.js';
-            dataProtectionScript.defer = true;
-            document.body.appendChild(dataProtectionScript);
+            // تأخير تحميل الملفات غير الحرجة لتقليل التحميل الفوري
+            setTimeout(() => {
+                // تحميل data-protection.js بشكل غير متزامن
+                const dataProtectionScript = document.createElement('script');
+                dataProtectionScript.src = 'js/data-protection.js';
+                dataProtectionScript.async = true;
+                document.body.appendChild(dataProtectionScript);
+                
+                // تحميل security.js بشكل غير متزامن بعد 200ms
+                setTimeout(() => {
+                    const securityScript = document.createElement('script');
+                    securityScript.src = 'js/security.js';
+                    securityScript.async = true;
+                    document.body.appendChild(securityScript);
+                }, 200);
+                
+                // تحميل webauthn.js فقط عند الحاجة (عند النقر على زر البصمة)
+                // لا نحملها تلقائياً لتوفير الوقت
+            }, 300);
             
-            // تحميل security.js بشكل غير متزامن
-            const securityScript = document.createElement('script');
-            securityScript.src = 'js/security.js';
-            securityScript.defer = true;
-            document.body.appendChild(securityScript);
-            
-            // تحميل webauthn.js بشكل غير متزامن (فقط عند الحاجة)
-            // استخدام onload للتأكد من تحميل الملف
-            const webauthnScript = document.createElement('script');
-            webauthnScript.src = 'webauthn/webauthn.js';
-            webauthnScript.defer = true;
-            webauthnScript.onload = () => {
-                console.log('✅ WebAuthn script loaded successfully');
-                // التحقق من أن simpleWebAuthn متاح
-                if (typeof simpleWebAuthn !== 'undefined') {
-                    console.log('✅ simpleWebAuthn is available');
-                } else {
-                    console.warn('⚠️ simpleWebAuthn is not defined after script load');
-                }
-            };
-            webauthnScript.onerror = () => {
-                console.error('❌ Failed to load WebAuthn script');
-            };
-            document.body.appendChild(webauthnScript);
+            // تحميل webauthn.js عند الحاجة فقط
+            const biometricBtn = document.getElementById('biometricLoginBtn');
+            if (biometricBtn) {
+                let webauthnLoading = false;
+                biometricBtn.addEventListener('click', function loadWebAuthn() {
+                    if (webauthnLoading || typeof simpleWebAuthn !== 'undefined') return;
+                    webauthnLoading = true;
+                    
+                    const webauthnScript = document.createElement('script');
+                    webauthnScript.src = 'webauthn/webauthn.js';
+                    webauthnScript.async = true;
+                    webauthnScript.onload = () => {
+                        console.log('✅ WebAuthn script loaded successfully');
+                    };
+                    webauthnScript.onerror = () => {
+                        console.error('❌ Failed to load WebAuthn script');
+                        webauthnLoading = false;
+                    };
+                    document.body.appendChild(webauthnScript);
+                    biometricBtn.removeEventListener('click', loadWebAuthn);
+                }, { once: true });
+            }
         });
     </script>
     <script>

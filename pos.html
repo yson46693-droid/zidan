@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="نظام نقاط البيع - محل صيانة الهواتف">
+    <meta name="theme-color" content="#2196F3">
+    <title>نقاط البيع - POS</title>
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dark-mode.css">
+    <link rel="stylesheet" href="css/pos.css">
+</head>
+<body>
+    <div class="pos-container">
+        <!-- Header -->
+        <header class="pos-header">
+            <div class="pos-header-content">
+                <h1><i class="bi bi-cash-register"></i> نقاط البيع</h1>
+                <button class="btn-back" onclick="window.location.href='dashboard.html'">
+                    <i class="bi bi-arrow-right"></i> العودة للوحة التحكم
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="pos-main">
+            <!-- Left Side - Products -->
+            <div class="pos-products-section">
+                <!-- Search Bar -->
+                <div class="pos-search-bar">
+                    <input type="text" id="searchInput" placeholder="ابحث عن المنتجات..." autocomplete="off">
+                    <button class="btn-search" id="searchBtn">
+                        <i class="bi bi-search"></i> بحث
+                    </button>
+                </div>
+
+                <!-- Category Tabs -->
+                <div class="pos-tabs">
+                    <button class="pos-tab active" data-category="all">
+                        <i class="bi bi-grid"></i> الكل
+                    </button>
+                    <button class="pos-tab" data-category="spare_parts">
+                        <i class="bi bi-tools"></i> قطع الغيار
+                    </button>
+                    <button class="pos-tab" data-category="accessories">
+                        <i class="bi bi-headphones"></i> إكسسوارات
+                    </button>
+                    <button class="pos-tab" data-category="phones">
+                        <i class="bi bi-phone"></i> هواتف
+                    </button>
+                </div>
+
+                <!-- Products Grid -->
+                <div class="pos-products-grid" id="productsGrid">
+                    <div class="pos-loading">
+                        <i class="bi bi-arrow-repeat"></i> جاري التحميل...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side - Cart -->
+            <div class="pos-cart-section">
+                <div class="pos-cart-header">
+                    <h3><i class="bi bi-cart"></i> سلة التسوق</h3>
+                    <button class="btn-clear-cart" id="clearCartBtn" title="مسح السلة">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+
+                <!-- Cart Items -->
+                <div class="pos-cart-items" id="cartItems">
+                    <div class="pos-cart-empty">
+                        <i class="bi bi-cart-x"></i>
+                        <p>السلة فارغة</p>
+                    </div>
+                </div>
+
+                <!-- Cart Summary -->
+                <div class="pos-cart-summary">
+                    <div class="summary-row">
+                        <span>المجموع الفرعي:</span>
+                        <span id="subtotal">0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <label>
+                            <span>الخصم:</span>
+                            <input type="number" id="discountInput" value="0" min="0" step="0.01">
+                        </label>
+                        <span id="discountDisplay">0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <label>
+                            <span>الضريبة:</span>
+                            <input type="number" id="taxInput" value="0" min="0" step="0.01">
+                        </label>
+                        <span id="taxDisplay">0.00</span>
+                    </div>
+                    <hr>
+                    <div class="summary-row total-row">
+                        <span>الإجمالي:</span>
+                        <span id="totalAmount">0.00</span>
+                    </div>
+                </div>
+
+                <!-- Pay Button -->
+                <button class="btn-pay" id="payBtn" disabled>
+                    <i class="bi bi-credit-card"></i> الدفع الآن
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="pos-modal" id="paymentModal">
+        <div class="pos-modal-content">
+            <div class="pos-modal-header">
+                <h3>تأكيد الدفع</h3>
+                <button class="btn-close-modal" id="closePaymentModal">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="form-group">
+                    <label>اسم العميل (اختياري):</label>
+                    <input type="text" id="customerNameInput" placeholder="اسم العميل">
+                </div>
+                <div class="form-group">
+                    <label>رقم الهاتف (اختياري):</label>
+                    <input type="tel" id="customerPhoneInput" placeholder="رقم الهاتف">
+                </div>
+                <div class="payment-summary">
+                    <div class="summary-row">
+                        <span>المجموع الفرعي:</span>
+                        <span id="modalSubtotal">0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>الخصم:</span>
+                        <span id="modalDiscount">0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>الضريبة:</span>
+                        <span id="modalTax">0.00</span>
+                    </div>
+                    <hr>
+                    <div class="summary-row total-row">
+                        <span>الإجمالي:</span>
+                        <span id="modalTotal">0.00</span>
+                    </div>
+                </div>
+            </div>
+            <div class="pos-modal-footer">
+                <button class="btn btn-secondary" id="cancelPaymentBtn">إلغاء</button>
+                <button class="btn btn-primary" id="confirmPaymentBtn">
+                    <i class="bi bi-check-circle"></i> تأكيد الدفع
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Modal -->
+    <div class="pos-modal" id="invoiceModal">
+        <div class="pos-modal-content pos-invoice-content">
+            <div class="pos-modal-header">
+                <h3>فاتورة البيع</h3>
+                <div class="invoice-actions">
+                    <button class="btn-print" id="printInvoiceBtn">
+                        <i class="bi bi-printer"></i> طباعة
+                    </button>
+                    <button class="btn-close-modal" id="closeInvoiceModal">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="pos-invoice-body" id="invoiceBody">
+                <!-- Invoice content will be generated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js" defer></script>
+    <script src="js/utils.js" defer></script>
+    <script src="js/pos.js" defer></script>
+</body>
+</html>
