@@ -17,52 +17,36 @@ if (typeof self !== 'undefined' && !self.caches) {
     console.warn('[SW] Cache API not supported, using fallback');
 }
 // قائمة الملفات الأساسية فقط - الملفات المهمة التي يجب أن تكون موجودة
+// تم تقليل الملفات لتسريع التحميل الأولي
 const essentialFiles = [
     '/',
     '/index.html',
     '/dashboard.html',
-    '/install.html',
     '/manifest.json',
     '/css/style.css',
-    '/css/dark-mode.css',
-    '/css/print.css',
-    '/css/security.css',
     '/js/version.js',
     '/js/api.js',
-    '/js/auth.js',
     '/js/utils.js',
-    '/vertopal.com_photo_5922357566287580087_y.png',
     '/icons/icon-192x192.png',
-    '/icon-512x512.png',
     '/icons/icon-512x512.png'
 ];
 
 // قائمة الملفات الاختيارية - يمكن أن تفشل بدون مشكلة
+// تم تقليل الملفات - سيتم تحميلها عند الحاجة (lazy loading)
+// تم إزالة الملفات التي تسبب أخطاء 404 - سيتم تحميلها عند الحاجة من الصفحة
 const optionalFiles = [
-    '/css/chat-integrated.css', // ملف CSS للدردشة - اختياري
-    '/js/chat-integrated.js',
-    '/js/data-protection.js',
-    '/js/security.js',
-    '/js/sync.js',
-    '/js/encryption.js',
-    '/js/encryption-settings.js',
-    '/js/barcode.js',
-    '/js/small-label.js',
-    '/js/image-management.js',
-    '/js/backup-management.js',
-    '/js/repairs.js',
-    '/js/customers.js',
-    '/js/inventory.js',
-    '/js/expenses.js',
-    '/js/reports.js',
-    '/js/settings.js',
-    '/js/pwa-install.js',
+    '/install.html',
+    '/css/dark-mode.css',
+    '/css/security.css',
+    // تم إزالة chat-integrated.css و chat-integrated.js - سيتم تحميلهما عند الحاجة
     '/icons/icon-72x72.png',
     '/icons/icon-96x96.png',
     '/icons/icon-128x128.png',
     '/icons/icon-144x144.png',
     '/icons/icon-152x152.png',
-    '/icons/icon-384x384.png'
+    '/icons/icon-384x384.png',
+    '/vertopal.com_photo_5922357566287580087_y.png'
+    // باقي ملفات JS سيتم تحميلها عند الحاجة (lazy loading)
 ];
 
 // متغير لتتبع العمليات المعلقة
@@ -70,7 +54,7 @@ let pendingOperations = new Set();
 
 // دالة لإضافة ملفات بشكل آمن مع معالجة الأخطاء و timeout
 async function cacheFilesSafely(cache, files, isEssential = false) {
-    const CACHE_TIMEOUT = 5000; // 5 ثواني timeout لكل ملف
+    const CACHE_TIMEOUT = 3000; // تقليل timeout إلى 3 ثواني لتسريع التحميل
     
     // دالة مساعدة لإضافة timeout للطلبات
     const fetchWithTimeout = (url, timeout = CACHE_TIMEOUT) => {
@@ -130,9 +114,13 @@ self.addEventListener('install', event => {
                 console.log('[Service Worker] All essential files cached successfully');
             }
             
-            // إضافة الملفات الاختيارية (يمكن أن تفشل بدون مشكلة)
-            console.log('[Service Worker] Caching optional files...');
-            await cacheFilesSafely(cache, optionalFiles, false);
+            // إضافة الملفات الاختيارية بشكل متوازي (لكن بدون انتظار - non-blocking)
+            console.log('[Service Worker] Caching optional files in background...');
+            cacheFilesSafely(cache, optionalFiles, false).then(() => {
+                console.log('[Service Worker] Optional files cached');
+            }).catch(err => {
+                console.warn('[Service Worker] Some optional files failed:', err);
+            });
             
             console.log('[Service Worker] Installation complete');
         })

@@ -91,12 +91,21 @@
         })();
     </script>
     
-    <!-- Critical CSS - تحميل فوري -->
+    <!-- Critical CSS - تحميل فوري مع preload -->
+    <link rel="preload" href="css/style.css" as="style">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/security.css">
     
-    <!-- Bootstrap Icons - تحميل فوري لضمان عرض الأيقونات بشكل صحيح -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Security CSS - تحميل متأخر (non-blocking) -->
+    <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/security.css"></noscript>
+    
+    <!-- Preconnect للخوادم الخارجية -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    
+    <!-- Bootstrap Icons - تحميل متأخر (non-blocking) -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
     
     <!-- أنماط فورية لضمان عرض العناصر بشكل صحيح -->
     <style>
@@ -219,6 +228,11 @@
         </div>
     </div>
 
+    <!-- Preload Critical JS Files -->
+    <link rel="preload" href="js/api.js" as="script">
+    <link rel="preload" href="js/utils.js" as="script">
+    <link rel="preload" href="js/auth.js" as="script">
+    
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
     <!-- تحميل الملفات بشكل غير متزامن لتحسين الأداء -->
@@ -305,28 +319,30 @@
                 }
             }, 200);
             
-            // تحميل الملفات غير الحرجة بشكل متأخر
-            setTimeout(() => {
-                // تحميل data-protection.js بشكل غير متزامن
-                const dataProtectionScript = document.createElement('script');
-                dataProtectionScript.src = 'js/data-protection.js';
-                dataProtectionScript.async = true;
-                dataProtectionScript.onerror = () => {
-                    console.warn('⚠️ فشل تحميل data-protection.js');
-                };
-                document.body.appendChild(dataProtectionScript);
-                
-                // تحميل security.js بشكل غير متزامن بعد 200ms
+            // تحميل الملفات غير الحرجة بشكل متأخر جداً (بعد تحميل الصفحة)
+            window.addEventListener('load', () => {
                 setTimeout(() => {
-                    const securityScript = document.createElement('script');
-                    securityScript.src = 'js/security.js';
-                    securityScript.async = true;
-                    securityScript.onerror = () => {
-                        console.warn('⚠️ فشل تحميل security.js');
+                    // تحميل data-protection.js بشكل غير متزامن
+                    const dataProtectionScript = document.createElement('script');
+                    dataProtectionScript.src = 'js/data-protection.js';
+                    dataProtectionScript.async = true;
+                    dataProtectionScript.onerror = () => {
+                        console.warn('⚠️ فشل تحميل data-protection.js');
                     };
-                    document.body.appendChild(securityScript);
-                }, 200);
-            }, 300);
+                    document.body.appendChild(dataProtectionScript);
+                    
+                    // تحميل security.js بشكل غير متزامن بعد 500ms
+                    setTimeout(() => {
+                        const securityScript = document.createElement('script');
+                        securityScript.src = 'js/security.js';
+                        securityScript.async = true;
+                        securityScript.onerror = () => {
+                            console.warn('⚠️ فشل تحميل security.js');
+                        };
+                        document.body.appendChild(securityScript);
+                    }, 500);
+                }, 1000); // تأخير ثانية بعد تحميل الصفحة
+            });
             
             // تحميل webauthn.js عند الحاجة فقط
             const biometricBtn = document.getElementById('biometricLoginBtn');
@@ -443,6 +459,14 @@
                 // نجح تسجيل الدخول
                 console.log('✅ تم تسجيل الدخول بنجاح! سيتم التوجيه...');
                 showMessage('تم تسجيل الدخول بنجاح', 'success');
+                
+                // منع التوجيه المتعدد
+                if (isRedirecting) {
+                    console.log('⏸️ توجيه قيد التنفيذ بالفعل');
+                    return;
+                }
+                
+                isRedirecting = true;
                 // لا حاجة لإعادة تفعيل الزر لأننا سنتوجه للصفحة التالية
                 
             } catch (error) {
@@ -461,6 +485,7 @@
 
         // التحقق من تسجيل الدخول بعد تحميل الصفحة (مرة واحدة فقط)
         let authCheckDone = false;
+        let isRedirecting = false; // منع التوجيه المتعدد
         
         function initPage() {
             if (authCheckDone) return;
@@ -520,17 +545,47 @@
                 }, 1500);
             }
             
-            // التحقق من تسجيل الدخول (مرة واحدة فقط)
+            // التحقق من تسجيل الدخول (مرة واحدة فقط) - مع حماية من loop
             setTimeout(async () => {
+                // منع التحقق إذا كان هناك توجيه قيد التنفيذ
+                if (isRedirecting) {
+                    console.log('⏸️ توجيه قيد التنفيذ - تم إلغاء التحقق من تسجيل الدخول');
+                    return;
+                }
+                
+                // التحقق من أننا في صفحة index.html فعلاً
+                const currentPath = window.location.pathname;
+                if (!currentPath.includes('index.html') && currentPath !== '/') {
+                    console.log('⏸️ ليس في صفحة تسجيل الدخول - تم إلغاء التحقق');
+                    return;
+                }
+                
                 try {
+                    // التحقق من وجود token في localStorage أولاً لتجنب طلبات غير ضرورية
+                    const currentUser = localStorage.getItem('currentUser');
+                    if (!currentUser) {
+                        console.log('⏸️ لا يوجد مستخدم محفوظ - لا حاجة للتحقق');
+                        return;
+                    }
+                    
                     const result = await API.checkAuth();
                     if (result && result.success) {
-                        window.location.href = 'dashboard.html';
+                        // منع التوجيه المتعدد
+                        if (isRedirecting) {
+                            console.log('⏸️ توجيه قيد التنفيذ بالفعل - تم إلغاء التوجيه المكرر');
+                            return;
+                        }
+                        
+                        isRedirecting = true;
+                        console.log('✅ المستخدم مسجل دخول - التوجيه إلى dashboard.html');
+                        // استخدام replace بدلاً من href لمنع loop
+                        window.location.replace('dashboard.html');
                     }
                 } catch (error) {
                     // تجاهل الأخطاء في التحقق من الجلسة
+                    console.log('⏸️ خطأ في التحقق من الجلسة - تم تجاهله');
                 }
-            }, 800);
+            }, 1500); // زيادة التأخير إلى 1.5 ثانية لتجنب التداخل مع تسجيل الدخول
         }
         
         // استدعاء initPage مرة واحدة فقط

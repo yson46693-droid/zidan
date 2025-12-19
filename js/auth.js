@@ -80,6 +80,9 @@ async function checkLogin() {
     }
 }
 
+// متغير لمنع التوجيه المتعدد
+let isRedirectingAfterLogin = false;
+
 // تسجيل الدخول
 async function login(username, password) {
     try {
@@ -87,6 +90,14 @@ async function login(username, password) {
         
         // التحقق من النتيجة بشكل صحيح
         if (result && result.success === true && result.data) {
+            // منع التوجيه المتعدد
+            if (isRedirectingAfterLogin) {
+                console.log('⏸️ توجيه قيد التنفيذ بالفعل - تم إلغاء التوجيه المكرر');
+                return result;
+            }
+            
+            isRedirectingAfterLogin = true;
+            
             // مسح البيانات القديمة أولاً
             localStorage.clear();
             sessionStorage.clear();
@@ -101,6 +112,7 @@ async function login(username, password) {
                 window.syncManager = new SyncManager();
             }
             
+            console.log('✅ تسجيل الدخول ناجح - التوجيه إلى dashboard.html');
             // استخدام window.location.replace بدلاً من href لتجنب مشاكل التوجيه المتعددة
             window.location.replace('dashboard.html');
             return result;

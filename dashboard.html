@@ -51,13 +51,13 @@
     <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png">
     <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png">
     
-    <!-- Bootstrap Icons - تحميل فوري لضمان عرض الأيقونات -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
     <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    
+    <!-- Bootstrap Icons - تحميل متأخر (non-blocking) -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
     
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
@@ -96,10 +96,11 @@
         })();
     </script>
     
-    <!-- Critical CSS - تحميل فوري -->
+    <!-- Critical CSS - تحميل فوري مع preload -->
+    <link rel="preload" href="css/style.css" as="style">
     <link rel="stylesheet" href="css/style.css">
     
-    <!-- Non-Critical CSS - تحميل غير متزامن -->
+    <!-- Non-Critical CSS - تحميل غير متزامن (lazy load) -->
     <link rel="preload" href="css/dark-mode.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="css/dark-mode.css"></noscript>
     
@@ -322,19 +323,82 @@
         </div>
     </main>
 
+    <!-- Preload Critical JS Files -->
+    <link rel="preload" href="js/api.js" as="script">
+    <link rel="preload" href="js/utils.js" as="script">
+    <link rel="preload" href="js/auth.js" as="script">
+    
     <!-- Critical Scripts - تحميل فوري (مطلوبة للتشغيل الأساسي) -->
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/auth.js" defer></script>
     
-    <!-- Security Scripts - تحميل بأولوية عالية (defer للتحميل غير المتزامن) -->
-    <script src="js/data-protection.js" defer></script>
-    <script src="js/security.js" defer></script>
+    <!-- Security Scripts - تحميل متأخر (lazy load بعد تحميل الصفحة) -->
+    <script>
+        // تحميل ملفات الأمان بعد تحميل الصفحة بالكامل
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const securityScripts = [
+                    { src: 'js/data-protection.js', id: 'data-protection-script' },
+                    { src: 'js/security.js', id: 'security-script' }
+                ];
+                
+                securityScripts.forEach(script => {
+                    if (!document.getElementById(script.id)) {
+                        const el = document.createElement('script');
+                        el.id = script.id;
+                        el.src = script.src;
+                        el.async = true;
+                        document.body.appendChild(el);
+                    }
+                });
+            }, 500); // تأخير 500ms بعد تحميل الصفحة
+        });
+    </script>
     
-    <!-- Core Features - تحميل متأخر (async) -->
-    <script src="js/sync.js" async></script>
-    <script src="js/encryption.js" async></script>
-    <script src="js/encryption-settings.js" async></script>
+    <!-- Core Features - تحميل متأخر جداً (lazy load) -->
+    <script>
+        // تحميل الملفات غير الحرجة بعد التفاعل الأول
+        let coreFeaturesLoaded = false;
+        const loadCoreFeatures = () => {
+            if (coreFeaturesLoaded) return;
+            coreFeaturesLoaded = true;
+            
+            const scripts = [
+                'js/sync.js',
+                'js/encryption.js',
+                'js/encryption-settings.js'
+            ];
+            
+            scripts.forEach((src, index) => {
+                setTimeout(() => {
+                    const el = document.createElement('script');
+                    el.src = src;
+                    el.async = true;
+                    document.body.appendChild(el);
+                }, index * 100);
+            });
+        };
+        
+        // تحميل عند التفاعل الأول أو بعد 3 ثوان
+        document.addEventListener('DOMContentLoaded', () => {
+            let loaded = false;
+            const triggerLoad = () => {
+                if (!loaded) {
+                    loaded = true;
+                    loadCoreFeatures();
+                }
+            };
+            
+            // تحميل عند التفاعل
+            ['mousedown', 'touchstart', 'keydown'].forEach(event => {
+                document.addEventListener(event, triggerLoad, { once: true, passive: true });
+            });
+            
+            // تحميل بعد 3 ثوان كحد أقصى
+            setTimeout(triggerLoad, 3000);
+        });
+    </script>
     
     <!-- Module Scripts - تحميل ديناميكي عند الحاجة (Lazy Loading) -->
     <script>
@@ -362,7 +426,16 @@
             
             // تحميل Critical Scripts بعد DOMContentLoaded مع تأخير لتقليل التحميل الفوري
             document.addEventListener('DOMContentLoaded', () => {
-                // تأخير تحميل Critical Scripts بمقدار 100ms لتقليل التحميل الفوري
+                // Preload Critical Scripts أولاً
+                scripts.critical.forEach(script => {
+                    const link = document.createElement('link');
+                    link.rel = 'preload';
+                    link.href = script.src;
+                    link.as = 'script';
+                    document.head.appendChild(link);
+                });
+                
+                // تأخير تحميل Critical Scripts بمقدار 200ms لتقليل التحميل الفوري
                 setTimeout(() => {
                     scripts.critical.forEach((script, index) => {
                         // تحميل كل script مع تأخير تدريجي لتقليل التحميل المتزامن
@@ -372,9 +445,9 @@
                             if (script.defer) el.defer = true;
                             el.async = true; // إضافة async للتحميل غير المتزامن
                             document.body.appendChild(el);
-                        }, index * 50); // تأخير 50ms بين كل script
+                        }, index * 100); // تأخير 100ms بين كل script
                     });
-                }, 100);
+                }, 200);
                 
                 // تحميل On-Demand Scripts عند الحاجة (Lazy Loading)
                 window.loadScriptOnDemand = function(scriptId) {
@@ -418,15 +491,21 @@
     </script>
     
     <script>
+        // منع إعادة التحميل المتعددة
+        let isReloading = false;
+        
         // معالجة تحديث Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.addEventListener('message', event => {
                 if (event.data && event.data.type === 'SW_UPDATED') {
                     console.log('🔄 ' + event.data.message, 'Version:', event.data.version);
-                    // إعادة تحميل الصفحة تلقائياً عند تحديث Service Worker
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
+                    // إعادة تحميل الصفحة تلقائياً عند تحديث Service Worker (مرة واحدة فقط)
+                    if (!isReloading) {
+                        isReloading = true;
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
                 }
             });
             
@@ -439,7 +518,11 @@
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                     console.log('🔄 Service Worker updated - reloading...');
-                                    window.location.reload();
+                                    // منع إعادة التحميل المتعددة
+                                    if (!isReloading) {
+                                        isReloading = true;
+                                        window.location.reload();
+                                    }
                                 }
                             });
                         }
