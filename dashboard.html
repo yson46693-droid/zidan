@@ -694,7 +694,24 @@
             // تحميل محتوى الأقسام بشكل آمن مع معالجة أفضل للأخطاء
             const loadSectionSafely = async (sectionName, loadFunction) => {
                 try {
-                    if (typeof loadFunction === 'function') {
+                    // للقسم settings و profile، نحتاج لتحميل الـ script أولاً
+                    if (sectionName === 'settings' && typeof loadFunction !== 'function') {
+                        await loadScriptOnDemand('settings-script');
+                        // إعادة محاولة بعد تحميل الـ script
+                        if (typeof loadSettingsSection === 'function') {
+                            await loadSettingsSection();
+                        } else {
+                            console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد تحميل الـ script`);
+                        }
+                    } else if (sectionName === 'profile' && typeof loadFunction !== 'function') {
+                        await loadScriptOnDemand('profile-script');
+                        // إعادة محاولة بعد تحميل الـ script
+                        if (typeof loadProfileSection === 'function') {
+                            await loadProfileSection();
+                        } else {
+                            console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد تحميل الـ script`);
+                        }
+                    } else if (typeof loadFunction === 'function') {
                         await loadFunction();
                     } else {
                         console.warn(`دالة تحميل ${sectionName} غير متوفرة`);
@@ -730,12 +747,40 @@
             }, 100);
             
             // تهيئة نظام المزامنة مع تأخير لضمان تحميل كل شيء
-            setTimeout(() => {
+            const initSyncManager = () => {
                 if (typeof syncManager !== 'undefined' && !syncManager.isInitialized) {
                     console.log('[Dashboard] بدء تهيئة نظام المزامنة');
                     syncManager.startAutoSync();
+                    return true;
                 }
-            }, 3000);
+                return false;
+            };
+            
+            // محاولة فورية
+            if (!initSyncManager()) {
+                // محاولة بعد 1 ثانية
+                setTimeout(() => {
+                    if (!initSyncManager()) {
+                        // محاولة بعد 2 ثانية
+                        setTimeout(() => {
+                            if (!initSyncManager()) {
+                                // محاولة بعد 3 ثواني
+                                setTimeout(() => {
+                                    if (!initSyncManager()) {
+                                        console.warn('[Dashboard] فشل تحميل syncManager بعد عدة محاولات');
+                                        // تحديث مؤشر التحميل يدوياً
+                                        const syncIndicator = document.getElementById('syncIndicator');
+                                        if (syncIndicator) {
+                                            syncIndicator.innerHTML = '<i class="bi bi-wifi-off"></i> غير متصل';
+                                            syncIndicator.style.color = '#FFA500';
+                                        }
+                                    }
+                                }, 3000);
+                            }
+                        }, 2000);
+                    }
+                }, 1000);
+            }
         });
 
         // إدارة إغلاق التبويب
@@ -846,8 +891,45 @@
                     loadExpensesSection();
                 } else if (section === 'reports' && typeof loadReportsSection === 'function') {
                     loadReportsSection();
-                } else if (section === 'settings' && typeof loadSettingsSection === 'function') {
-                    loadSettingsSection();
+                } else if (section === 'settings') {
+                    // تحميل settings.js إذا لم يكن محملاً
+                    if (typeof loadSettingsSection !== 'function') {
+                        loadScriptOnDemand('settings-script').then(() => {
+                            if (typeof loadSettingsSection === 'function') {
+                                loadSettingsSection();
+                            } else {
+                                console.error('loadSettingsSection غير متوفرة بعد تحميل settings.js');
+                                const settingsSection = document.getElementById('settings-section');
+                                if (settingsSection) {
+                                    settingsSection.innerHTML = `
+                                        <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                            <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                            <p>خطأ في تحميل قسم الإعدادات</p>
+                                            <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                                إعادة تحميل الصفحة
+                                            </button>
+                                        </div>
+                                    `;
+                                }
+                            }
+                        }).catch(err => {
+                            console.error('خطأ في تحميل settings.js:', err);
+                            const settingsSection = document.getElementById('settings-section');
+                            if (settingsSection) {
+                                settingsSection.innerHTML = `
+                                    <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                        <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                        <p>خطأ في تحميل ملف الإعدادات</p>
+                                        <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                            إعادة تحميل الصفحة
+                                        </button>
+                                    </div>
+                                `;
+                            }
+                        });
+                    } else {
+                        loadSettingsSection();
+                    }
                 } else if (section === 'profile') {
                     // تحميل profile.js إذا لم يكن محملاً
                     if (typeof loadProfileSection !== 'function') {
@@ -1020,11 +1102,49 @@
                         }
                         break;
                     case 'settings':
+                        // تحميل settings.js إذا لم يكن محملاً
+                        if (typeof loadSettingsSection !== 'function') {
+                            console.log('📦 تحميل settings.js...');
+                            await loadScriptOnDemand('settings-script').catch(err => {
+                                console.error('خطأ في تحميل settings.js:', err);
+                            });
+                        }
+                        
                         if (typeof loadSettingsSection === 'function') {
                             // إعادة تحميل كاملة للقسم
                             if (forceReload) {
                                 console.log('🔄 إعادة تحميل قسم الإعدادات...');
-                                loadSettingsSection();
+                                try {
+                                    await loadSettingsSection();
+                                } catch (settingsError) {
+                                    console.error('خطأ في تحميل قسم الإعدادات:', settingsError);
+                                    const settingsSection = document.getElementById('settings-section');
+                                    if (settingsSection) {
+                                        settingsSection.innerHTML = `
+                                            <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                                <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                                <p>حدث خطأ في تحميل الإعدادات</p>
+                                                <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                                    إعادة تحميل الصفحة
+                                                </button>
+                                            </div>
+                                        `;
+                                    }
+                                }
+                            }
+                        } else {
+                            console.error('loadSettingsSection غير متوفرة');
+                            const settingsSection = document.getElementById('settings-section');
+                            if (settingsSection) {
+                                settingsSection.innerHTML = `
+                                    <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                        <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                        <p>خطأ في تحميل ملف الإعدادات</p>
+                                        <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                            إعادة تحميل الصفحة
+                                        </button>
+                                    </div>
+                                `;
                             }
                         }
                         break;

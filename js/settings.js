@@ -9,7 +9,13 @@ function loadSettingsSection() {
         return;
     }
     
-    section.innerHTML = `
+    // عرض حالة التحميل
+    section.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="bi bi-hourglass-split"></i> جاري تحميل الإعدادات...</div>';
+    
+    // تحميل المحتوى بعد تأخير قصير لضمان عرض رسالة التحميل
+    setTimeout(() => {
+        try {
+            section.innerHTML = `
         <div class="section-header">
             <h2><i class="bi bi-gear"></i> الإعدادات</h2>
         </div>
@@ -153,20 +159,52 @@ function loadSettingsSection() {
         </div>
     `;
 
-    // التحقق من أن النموذج تم إنشاؤه بنجاح
-    setTimeout(() => {
-        const userModal = document.getElementById('userModal');
-        if (!userModal) {
-            console.error('userModal was not created successfully');
-        } else {
-            console.log('userModal created successfully');
+            // التحقق من أن النموذج تم إنشاؤه بنجاح
+            setTimeout(() => {
+                const userModal = document.getElementById('userModal');
+                if (!userModal) {
+                    console.error('userModal was not created successfully');
+                } else {
+                    console.log('userModal created successfully');
+                }
+            }, 100);
+
+            // تحميل البيانات بشكل آمن مع معالجة الأخطاء
+            Promise.allSettled([
+                loadSettings().catch(err => {
+                    console.error('خطأ في تحميل الإعدادات:', err);
+                    if (typeof showMessage === 'function') {
+                        showMessage('خطأ في تحميل بعض الإعدادات', 'error');
+                    }
+                }),
+                loadUsers().catch(err => {
+                    console.error('خطأ في تحميل المستخدمين:', err);
+                    if (typeof showMessage === 'function') {
+                        showMessage('خطأ في تحميل قائمة المستخدمين', 'error');
+                    }
+                }),
+                loadSyncFrequency().catch(err => {
+                    console.error('خطأ في تحميل تردد المزامنة:', err);
+                }),
+                loadBackupInfo().catch(err => {
+                    console.error('خطأ في تحميل معلومات النسخ الاحتياطية:', err);
+                })
+            ]).then(() => {
+                console.log('تم تحميل قسم الإعدادات بنجاح');
+            });
+        } catch (error) {
+            console.error('خطأ في تحميل قسم الإعدادات:', error);
+            section.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                    <p>حدث خطأ في تحميل الإعدادات</p>
+                    <button onclick="if(typeof loadSettingsSection === 'function') loadSettingsSection(); else location.reload();" class="btn btn-primary" style="margin-top: 20px;">
+                        <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                    </button>
+                </div>
+            `;
         }
     }, 100);
-
-    loadSettings();
-    loadUsers();
-    loadSyncFrequency();
-    loadBackupInfo();
 }
 
 // تحميل معلومات النسخ الاحتياطية للعرض فقط
