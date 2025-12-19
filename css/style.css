@@ -310,10 +310,12 @@ body {
 }
 
 .content.chat-page-content {
-    padding: 20px;
-    height: calc(100vh - 80px);
-    overflow: visible;
-    min-height: 500px;
+    padding: 20px !important;
+    height: calc(100vh - 80px) !important;
+    overflow: visible !important;
+    min-height: 500px !important;
+    display: block !important;
+    box-sizing: border-box !important;
 }
 
 /* الأقسام */

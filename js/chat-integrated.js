@@ -75,7 +75,6 @@
   // دالة التهيئة من النظام الخارجي
   window.initChat = function(user) {
     if (!user) {
-      console.error('لم يتم توفير بيانات المستخدم');
       return;
     }
 
@@ -92,53 +91,104 @@
       app.dataset.currentUserRole = currentUser.role;
     }
 
-    init();
+    // تهيئة فورية
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(init, 50);
+      });
+    } else {
+      setTimeout(init, 50);
+    }
   };
 
   function init() {
     const app = document.querySelector(selectors.app);
     if (!app) {
+      setTimeout(init, 100);
       return;
     }
 
-    elements.app = app;
-    elements.messageList = app.querySelector(selectors.messageList);
-    elements.userList = app.querySelector(selectors.userList);
-    elements.sendButton = app.querySelector(selectors.sendButton);
-    elements.input = app.querySelector(selectors.input);
-    elements.toast = app.querySelector(selectors.toast);
-    elements.replyBar = app.querySelector(selectors.replyBar);
-    elements.replyDismiss = app.querySelector(selectors.replyDismiss);
-    elements.replyText = app.querySelector(selectors.replyText);
-    elements.replyName = app.querySelector(selectors.replyName);
-    elements.headerCount = app.querySelector(selectors.headerCount);
-    elements.search = app.querySelector(selectors.search);
-    elements.emptyState = app.querySelector(selectors.emptyState);
-    elements.sidebarToggle = document.querySelector(selectors.sidebarToggle);
-    elements.sidebar = app.querySelector(selectors.sidebar);
-    elements.sidebarOverlay = document.querySelector(selectors.sidebarOverlay);
-    elements.themeToggle = app.querySelector(selectors.themeToggle);
+    try {
+      elements.app = app;
+      elements.messageList = app.querySelector(selectors.messageList);
+      elements.userList = app.querySelector(selectors.userList);
+      elements.sendButton = app.querySelector(selectors.sendButton);
+      elements.input = app.querySelector(selectors.input);
+      elements.toast = app.querySelector(selectors.toast);
+      elements.replyBar = app.querySelector(selectors.replyBar);
+      elements.replyDismiss = app.querySelector(selectors.replyDismiss);
+      elements.replyText = app.querySelector(selectors.replyText);
+      elements.replyName = app.querySelector(selectors.replyName);
+      elements.headerCount = app.querySelector(selectors.headerCount);
+      elements.search = app.querySelector(selectors.search);
+      elements.emptyState = app.querySelector(selectors.emptyState);
+      elements.sidebarToggle = document.querySelector(selectors.sidebarToggle);
+      elements.sidebar = app.querySelector(selectors.sidebar);
+      elements.sidebarOverlay = document.querySelector(selectors.sidebarOverlay);
+      elements.themeToggle = app.querySelector(selectors.themeToggle);
+      elements.composer = app.querySelector(selectors.composer);
+      elements.chatMain = app.querySelector('.chat-main');
 
-    // استخدام بيانات المستخدم من النظام
-    if (!currentUser.id && app.dataset.currentUserId) {
-      currentUser.id = app.dataset.currentUserId || '0';
-      currentUser.name = app.dataset.currentUserName || '';
-      currentUser.role = app.dataset.currentUserRole || '';
+      // استخدام بيانات المستخدم من النظام
+      if (!currentUser.id && app.dataset.currentUserId) {
+        currentUser.id = app.dataset.currentUserId || '0';
+        currentUser.name = app.dataset.currentUserName || '';
+        currentUser.role = app.dataset.currentUserRole || '';
+      }
+
+      // التأكد من أن العناصر موجودة
+      if (!elements.messageList || !elements.input || !elements.sendButton) {
+        setTimeout(init, 100);
+        return;
+      }
+
+      // التأكد من أن التصميم ظاهر
+      if (elements.app) {
+        elements.app.style.display = 'flex';
+        elements.app.style.visibility = 'visible';
+        elements.app.style.opacity = '1';
+      }
+      
+      if (elements.chatMain) {
+        elements.chatMain.style.display = 'flex';
+        elements.chatMain.style.visibility = 'visible';
+        elements.chatMain.style.opacity = '1';
+      }
+      
+      if (elements.messageList) {
+        elements.messageList.style.display = 'flex';
+        elements.messageList.style.visibility = 'visible';
+        elements.messageList.style.opacity = '1';
+      }
+      
+      if (elements.composer) {
+        elements.composer.style.display = 'flex';
+        elements.composer.style.visibility = 'visible';
+        elements.composer.style.opacity = '1';
+      }
+      
+      if (elements.sidebar) {
+        elements.sidebar.style.display = 'flex';
+        elements.sidebar.style.visibility = 'visible';
+        elements.sidebar.style.opacity = '1';
+      }
+
+      initTheme();
+      bindEvents();
+      
+      // تأخير قصير قبل جلب الرسائل لضمان اكتمال الجلسة
+      setTimeout(() => {
+        fetchMessages(true);
+        startPresenceUpdates();
+        startPolling();
+      }, 300);
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      state.initialized = true;
+    } catch (error) {
+      // Error handling
     }
-
-    initTheme();
-    bindEvents();
-    
-    // تأخير قصير قبل جلب الرسائل لضمان اكتمال الجلسة
-    setTimeout(() => {
-      fetchMessages(true);
-      startPresenceUpdates();
-      startPolling();
-    }, 200);
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    state.initialized = true;
   }
 
   function bindEvents() {
@@ -219,7 +269,7 @@
   }
 
   function toggleSidebar() {
-    if (!elements.sidebar || !elements.sidebarOverlay) {
+    if (!elements.sidebar) {
       return;
     }
     
@@ -232,23 +282,35 @@
   }
 
   function openSidebar() {
-    if (elements.sidebar) {
-      elements.sidebar.classList.add('active');
+    try {
+      if (elements.sidebar) {
+        elements.sidebar.classList.add('active');
+      }
+      if (elements.sidebarOverlay) {
+        elements.sidebarOverlay.classList.add('active');
+      }
+      if (document.body) {
+        document.body.style.overflow = 'hidden';
+      }
+    } catch (error) {
+      // Error handling
     }
-    if (elements.sidebarOverlay) {
-      elements.sidebarOverlay.classList.add('active');
-    }
-    document.body.style.overflow = 'hidden';
   }
 
   function closeSidebar() {
-    if (elements.sidebar) {
-      elements.sidebar.classList.remove('active');
+    try {
+      if (elements.sidebar) {
+        elements.sidebar.classList.remove('active');
+      }
+      if (elements.sidebarOverlay) {
+        elements.sidebarOverlay.classList.remove('active');
+      }
+      if (document.body) {
+        document.body.style.overflow = '';
+      }
+    } catch (error) {
+      // Error handling
     }
-    if (elements.sidebarOverlay) {
-      elements.sidebarOverlay.classList.remove('active');
-    }
-    document.body.style.overflow = '';
   }
 
   function initTheme() {
@@ -744,7 +806,19 @@
     if (!elements.emptyState) {
       return;
     }
-    elements.emptyState.style.display = show ? 'flex' : 'none';
+    try {
+      if (show && state.messages.length === 0) {
+        elements.emptyState.style.display = 'flex';
+        elements.emptyState.style.visibility = 'visible';
+        elements.emptyState.style.opacity = '1';
+      } else {
+        elements.emptyState.style.display = 'none';
+        elements.emptyState.style.visibility = 'hidden';
+        elements.emptyState.style.opacity = '0';
+      }
+    } catch (error) {
+      // Error handling
+    }
   }
 
   function appendMessages(newMessages, initial = false) {
@@ -805,7 +879,12 @@
 
       // تحديث DOM مرة واحدة فقط
       elements.messageList.innerHTML = '';
-      elements.messageList.appendChild(fragment);
+      if (fragment.childNodes.length > 0) {
+        elements.messageList.appendChild(fragment);
+        renderEmptyState(false);
+      } else {
+        renderEmptyState(true);
+      }
     } catch (error) {
       // Error handling - لا نكسر النظام
     }
@@ -1206,5 +1285,38 @@
 
   function escapeAttribute(value) {
     return String(value || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // تهيئة تلقائية عند تحميل الصفحة
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      const app = document.querySelector(selectors.app);
+      if (app && app.dataset.currentUserId) {
+        const user = {
+          id: app.dataset.currentUserId,
+          name: app.dataset.currentUserName || '',
+          role: app.dataset.currentUserRole || ''
+        };
+        if (user.id && user.id !== '0') {
+          setTimeout(() => {
+            window.initChat(user);
+          }, 100);
+        }
+      }
+    });
+  } else {
+    const app = document.querySelector(selectors.app);
+    if (app && app.dataset.currentUserId) {
+      const user = {
+        id: app.dataset.currentUserId,
+        name: app.dataset.currentUserName || '',
+        role: app.dataset.currentUserRole || ''
+      };
+      if (user.id && user.id !== '0') {
+        setTimeout(() => {
+          window.initChat(user);
+        }, 100);
+      }
+    }
   }
 })();

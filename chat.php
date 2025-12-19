@@ -172,21 +172,38 @@ function getRoleName($role) {
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
-    <!-- Preload للملفات المهمة -->
-    <link rel="preload" href="css/chat-integrated.css" as="style">
-    <link rel="stylesheet" href="css/chat-integrated.css">
+    <!-- CSS Files - تحميل مباشر -->
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/chat-integrated.css">
     
-    <!-- Script لضمان تحميل CSS -->
-    <script>
-        (function() {
-            var link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = 'css/chat-integrated.css';
-            link.media = 'all';
-            document.head.appendChild(link);
-        })();
-    </script>
+    <!-- Fallback CSS للتأكد من ظهور التصميم -->
+    <style>
+        .chat-app {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        .chat-main {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        .chat-messages {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        .chat-composer {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        .chat-sidebar {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
     
     <!-- تحميل ملف الإصدارات -->
     <script src="js/version.js" defer></script>
@@ -318,71 +335,93 @@ function getRoleName($role) {
         </div>
     </main>
 
-    <script src="js/api.js" defer></script>
-    <script src="js/utils.js" defer></script>
-    <script src="js/auth.js" defer></script>
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
     <script>
         // تطبيق التصميم الأساسي فوراً
         (function() {
-            const chatApp = document.querySelector('.chat-app');
-            if (chatApp) {
-                chatApp.style.opacity = '1';
-                chatApp.style.visibility = 'visible';
-            }
-            
             // تطبيق الوضع الليلي إذا كان محفوظاً
             if (localStorage.getItem('darkMode') === 'true') {
                 document.body.classList.add('dark-mode');
             }
+            
+            // التأكد من ظهور الشات
+            document.addEventListener('DOMContentLoaded', function() {
+                const chatApp = document.querySelector('.chat-app');
+                if (chatApp) {
+                    chatApp.style.display = 'flex';
+                    chatApp.style.visibility = 'visible';
+                    chatApp.style.opacity = '1';
+                }
+            });
         })();
         
         // التحقق من تسجيل الدخول
-        window.addEventListener('DOMContentLoaded', async () => {
-            const result = await API.checkAuth();
-            if (!result.success) {
-                window.location.href = 'index.html';
-                return;
-            }
-            
-            const user = result.data;
-            
-            // إخفاء عناصر القائمة حسب الصلاحيات
-            document.querySelectorAll('[data-permission]').forEach(el => {
-                const requiredRole = el.dataset.permission;
-                if (requiredRole === 'manager' && user.role !== 'manager') {
-                    el.style.display = 'none';
+        window.addEventListener('DOMContentLoaded', async function() {
+            try {
+                if (typeof API === 'undefined' || !API.checkAuth) {
+                    console.error('API غير متاح');
+                    setTimeout(arguments.callee, 100);
+                    return;
                 }
-            });
-            
-            // تهيئة الشات بعد تأكيد المصادقة
-            function initializeChat() {
-                if (window.initChat) {
-                    window.CHAT_API_BASE = '<?php echo htmlspecialchars($apiBase, ENT_QUOTES, 'UTF-8'); ?>';
-                    setTimeout(() => {
-                        window.initChat(user);
-                    }, 100);
-                } else {
-                    setTimeout(initializeChat, 200);
+                
+                const result = await API.checkAuth();
+                if (!result || !result.success) {
+                    window.location.href = 'index.html';
+                    return;
                 }
-            }
-            
-            if (document.readyState === 'complete') {
+                
+                const user = result.data;
+                if (!user) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // إخفاء عناصر القائمة حسب الصلاحيات
+                document.querySelectorAll('[data-permission]').forEach(el => {
+                    const requiredRole = el.dataset.permission;
+                    if (requiredRole === 'manager' && user.role !== 'manager') {
+                        el.style.display = 'none';
+                    }
+                });
+                
+                // تهيئة الشات بعد تأكيد المصادقة
+                function initializeChat() {
+                    if (typeof window.initChat === 'function') {
+                        window.CHAT_API_BASE = '<?php echo htmlspecialchars($apiBase, ENT_QUOTES, 'UTF-8'); ?>';
+                        setTimeout(() => {
+                            window.initChat(user);
+                        }, 100);
+                    } else {
+                        setTimeout(initializeChat, 200);
+                    }
+                }
+                
                 initializeChat();
-            } else {
-                window.addEventListener('load', initializeChat);
+            } catch (error) {
+                console.error('خطأ في تهيئة الشات:', error);
             }
         });
         
         async function logout() {
             if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                await API.logout();
-                window.location.href = 'index.html';
+                try {
+                    if (typeof API !== 'undefined' && API.logout) {
+                        await API.logout();
+                    }
+                    window.location.href = 'index.html';
+                } catch (error) {
+                    window.location.href = 'index.html';
+                }
             }
         }
         
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
+            if (sidebar) {
+                sidebar.classList.toggle('collapsed');
+            }
         }
         
         function toggleDarkMode() {
@@ -396,6 +435,6 @@ function getRoleName($role) {
             document.body.classList.add('dark-mode');
         }
     </script>
-    <script src="js/chat-integrated.js" defer></script>
+    <script src="js/chat-integrated.js"></script>
 </body>
 </html>
