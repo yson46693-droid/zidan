@@ -598,8 +598,14 @@ function openPaymentModal() {
     const customerNameInput = document.getElementById('customerNameInput');
     const customerPhoneInput = document.getElementById('customerPhoneInput');
     
-    if (customerNameInput) customerNameInput.value = '';
-    if (customerPhoneInput) customerPhoneInput.value = '';
+    if (customerNameInput) {
+        customerNameInput.value = '';
+        customerNameInput.classList.remove('error');
+    }
+    if (customerPhoneInput) {
+        customerPhoneInput.value = '';
+        customerPhoneInput.classList.remove('error');
+    }
     
     // Update modal summary
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -645,6 +651,48 @@ async function processPayment() {
         const customerNameInput = document.getElementById('customerNameInput');
         const customerPhoneInput = document.getElementById('customerPhoneInput');
         
+        // التحقق من بيانات العميل (مطلوبة)
+        const customerName = customerNameInput ? customerNameInput.value.trim() : '';
+        const customerPhone = customerPhoneInput ? customerPhoneInput.value.trim() : '';
+        
+        if (!customerName) {
+            showMessage('اسم العميل مطلوب', 'error');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
+            }
+            if (customerNameInput) {
+                customerNameInput.focus();
+            }
+            return;
+        }
+        
+        if (!customerPhone) {
+            showMessage('رقم هاتف العميل مطلوب', 'error');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
+            }
+            if (customerPhoneInput) {
+                customerPhoneInput.focus();
+            }
+            return;
+        }
+        
+        // التحقق من صحة رقم الهاتف (يجب أن يكون على الأقل 8 أرقام)
+        const phoneDigits = customerPhone.replace(/\D/g, ''); // إزالة كل ما عدا الأرقام
+        if (phoneDigits.length < 8) {
+            showMessage('رقم الهاتف غير صحيح (يجب أن يكون 8 أرقام على الأقل)', 'error');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
+            }
+            if (customerPhoneInput) {
+                customerPhoneInput.focus();
+            }
+            return;
+        }
+        
         const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
         const tax = taxInput ? parseFloat(taxInput.value) || 0 : 0;
         const finalAmount = subtotal - discount + tax;
@@ -662,8 +710,8 @@ async function processPayment() {
             discount: discount,
             tax: tax,
             final_amount: Math.max(0, finalAmount),
-            customer_name: customerNameInput ? customerNameInput.value.trim() : '',
-            customer_phone: customerPhoneInput ? customerPhoneInput.value.trim() : ''
+            customer_name: customerName,
+            customer_phone: customerPhone
         };
         
         const response = await API.request('sales.php', 'POST', saleData);

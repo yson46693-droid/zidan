@@ -146,6 +146,20 @@ if ($method === 'POST') {
         response(false, 'المبلغ الإجمالي يجب أن يكون أكبر من الصفر', null, 400);
     }
     
+    // التحقق من بيانات العميل (مطلوبة)
+    if (empty($customerName)) {
+        response(false, 'اسم العميل مطلوب', null, 400);
+    }
+    
+    if (empty($customerPhone)) {
+        response(false, 'رقم هاتف العميل مطلوب', null, 400);
+    }
+    
+    // التحقق من صحة رقم الهاتف (يجب أن يكون على الأقل 8 أرقام)
+    if (strlen($customerPhone) < 8) {
+        response(false, 'رقم الهاتف غير صحيح (يجب أن يكون 8 أرقام على الأقل)', null, 400);
+    }
+    
     $session = checkAuth();
     $saleId = generateId();
     
@@ -237,9 +251,18 @@ if ($method === 'POST') {
                     throw new Exception("الإكسسوار غير موجود: $originalItemId");
                 }
             } elseif ($itemType === 'phone') {
-                // للهواتف، يمكن حذفها من المخزون أو وضع علامة عليها
-                // نتركها كما هي لأن الهواتف عادة ما تكون عناصر فريدة
-                // يمكن إضافة منطق خاص هنا إذا لزم الأمر
+                // للهواتف، يجب حذفها من المخزون لأنها عناصر فريدة
+                // التحقق من وجود الهاتف أولاً
+                $phoneExists = dbSelectOne("SELECT id FROM phones WHERE id = ?", [$originalItemId]);
+                if ($phoneExists) {
+                    // حذف الهاتف من المخزون
+                    $deleteResult = dbExecute("DELETE FROM phones WHERE id = ?", [$originalItemId]);
+                    if ($deleteResult === false) {
+                        throw new Exception("فشل حذف الهاتف من المخزون: $originalItemId");
+                    }
+                } else {
+                    throw new Exception("الهاتف غير موجود في المخزون: $originalItemId");
+                }
             } elseif ($itemType === 'inventory') {
                 // تحديث كمية المخزون القديم - التحقق من الكمية أولاً
                 $currentItem = dbSelectOne("SELECT quantity FROM inventory WHERE id = ?", [$originalItemId]);
