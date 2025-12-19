@@ -28,23 +28,33 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 try {
     $dbFile = __DIR__ . '/api/database.php';
     if (!file_exists($dbFile)) {
-        throw new Exception("ملف قاعدة البيانات غير موجود: $dbFile");
+        $error = "ملف قاعدة البيانات غير موجود: $dbFile (المسار الحالي: " . __DIR__ . ")";
+        error_log($error);
+        http_response_code(500);
+        die('خطأ: ' . htmlspecialchars($error));
     }
     require_once $dbFile;
     
     $authHelperFile = __DIR__ . '/api/chat/auth_helper.php';
     if (!file_exists($authHelperFile)) {
-        throw new Exception("ملف auth_helper غير موجود: $authHelperFile");
+        $error = "ملف auth_helper غير موجود: $authHelperFile (المسار الحالي: " . __DIR__ . ")";
+        error_log($error);
+        http_response_code(500);
+        die('خطأ: ' . htmlspecialchars($error));
     }
     require_once $authHelperFile;
     
     $chatFile = __DIR__ . '/includes/chat.php';
     if (!file_exists($chatFile)) {
-        throw new Exception("ملف chat غير موجود: $chatFile");
+        $error = "ملف chat غير موجود: $chatFile (المسار الحالي: " . __DIR__ . ")";
+        error_log($error);
+        http_response_code(500);
+        die('خطأ: ' . htmlspecialchars($error));
     }
     require_once $chatFile;
 } catch (Throwable $e) {
-    error_log('خطأ في تحميل الملفات: ' . $e->getMessage());
+    $error = 'خطأ في تحميل الملفات: ' . $e->getMessage() . ' في ' . $e->getFile() . ' السطر ' . $e->getLine();
+    error_log($error);
     http_response_code(500);
     die('خطأ في تحميل الملفات المطلوبة: ' . htmlspecialchars($e->getMessage()));
 }

@@ -1,9 +1,17 @@
-# تفعيل معالجة ملفات PHP
+# تفعيل معالجة ملفات PHP - يجب أن يكون في البداية
+AddType application/x-httpd-php .php
+
+# إعدادات PHP
 <IfModule mod_php.c>
     php_flag display_errors Off
     php_flag log_errors On
     php_value error_log logs/php_errors.log
 </IfModule>
+
+# التأكد من معالجة ملفات PHP (لجميع أنواع الخوادم)
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
 
 # إعادة كتابة URL لملفات PHP
 <IfModule mod_rewrite.c>
@@ -14,11 +22,6 @@
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteCond %{REQUEST_FILENAME} \.php$
     RewriteRule ^(.*)$ $1 [L]
-    
-    # التأكد من معالجة ملفات PHP
-    <FilesMatch "\.php$">
-        SetHandler application/x-httpd-php
-    </FilesMatch>
     
     # منع الوصول المباشر للملفات الحساسة
     <FilesMatch "\.(htaccess|htpasswd|ini|log|sql|bak)$">

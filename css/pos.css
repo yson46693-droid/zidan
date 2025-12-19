@@ -1515,3 +1515,130 @@
         size: A4;
     }
 }
+
+/* Spare Part Items Modal Styles */
+.spare-part-items-product-info {
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.1em;
+    color: var(--primary-color);
+}
+
+.spare-part-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.spare-part-item-option {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--light-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.spare-part-item-option:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+}
+
+.spare-part-item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.spare-part-item-name {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 1em;
+}
+
+.spare-part-item-details {
+    display: flex;
+    gap: 15px;
+    font-size: 0.9em;
+    color: var(--text-light);
+}
+
+.spare-part-item-price {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.spare-part-item-stock {
+    color: var(--success-color);
+}
+
+.spare-part-item-quantity-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.spare-part-item-qty-input {
+    width: 60px;
+    padding: 8px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+.spare-part-item-qty-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.btn-add-spare-part-item {
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.btn-add-spare-part-item:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.btn-add-spare-part-item:active {
+    transform: translateY(0);
+}
+
+/* Responsive for Spare Part Items Modal */
+@media (max-width: 768px) {
+    .spare-part-item-option {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .spare-part-item-quantity-control {
+        justify-content: center;
+    }
+    
+    .btn-add-spare-part-item {
+        width: 100%;
+        justify-content: center;
+    }
+}

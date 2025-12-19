@@ -211,21 +211,49 @@ if ($method === 'POST') {
             
             // تحديث الكمية في المخزون
             if ($itemType === 'spare_part') {
-                // لقطع الغيار، نتحقق من الكمية في spare_part_items أولاً
-                // إذا كانت هناك items فرعية، نخصم من الكمية الأصغر
-                $sparePartItems = dbSelect(
-                    "SELECT id, quantity FROM spare_part_items WHERE spare_part_id = ? AND quantity > 0 ORDER BY quantity ASC LIMIT 1",
-                    [$originalItemId]
-                );
+                // لقطع الغيار، إذا كان هناك spare_part_item_id محدد، نخصم من القطعة الفرعية المحددة
+                $sparePartItemId = trim($item['spare_part_item_id'] ?? '');
                 
-                if ($sparePartItems && count($sparePartItems) > 0) {
-                    // خصم من spare_part_items
-                    $itemToUpdate = $sparePartItems[0];
-                    $newQuantity = max(0, intval($itemToUpdate['quantity']) - $quantity);
-                    dbExecute(
-                        "UPDATE spare_part_items SET quantity = ? WHERE id = ?",
-                        [$newQuantity, $itemToUpdate['id']]
+                if (!empty($sparePartItemId)) {
+                    // خصم من القطعة الفرعية المحددة
+                    $sparePartItem = dbSelectOne(
+                        "SELECT id, quantity FROM spare_part_items WHERE id = ? AND spare_part_id = ?",
+                        [$sparePartItemId, $originalItemId]
                     );
+                    
+                    if ($sparePartItem) {
+                        $currentQuantity = intval($sparePartItem['quantity'] ?? 0);
+                        if ($currentQuantity >= $quantity) {
+                            $newQuantity = $currentQuantity - $quantity;
+                            $updateResult = dbExecute(
+                                "UPDATE spare_part_items SET quantity = ? WHERE id = ?",
+                                [$newQuantity, $sparePartItemId]
+                            );
+                            if ($updateResult === false) {
+                                throw new Exception("فشل تحديث كمية القطعة الفرعية: $sparePartItemId");
+                            }
+                        } else {
+                            throw new Exception("الكمية المتاحة غير كافية للقطعة الفرعية: $sparePartItemId (المتاح: $currentQuantity، المطلوب: $quantity)");
+                        }
+                    } else {
+                        throw new Exception("القطعة الفرعية غير موجودة: $sparePartItemId");
+                    }
+                } else {
+                    // إذا لم يكن هناك spare_part_item_id، نستخدم الطريقة القديمة (نخصم من أول قطعة متوفرة)
+                    $sparePartItems = dbSelect(
+                        "SELECT id, quantity FROM spare_part_items WHERE spare_part_id = ? AND quantity > 0 ORDER BY quantity ASC LIMIT 1",
+                        [$originalItemId]
+                    );
+                    
+                    if ($sparePartItems && count($sparePartItems) > 0) {
+                        // خصم من spare_part_items
+                        $itemToUpdate = $sparePartItems[0];
+                        $newQuantity = max(0, intval($itemToUpdate['quantity']) - $quantity);
+                        dbExecute(
+                            "UPDATE spare_part_items SET quantity = ? WHERE id = ?",
+                            [$newQuantity, $itemToUpdate['id']]
+                        );
+                    }
                 }
                 // ملاحظة: قطع الغيار الرئيسية لا تحتوي على quantity field
             } elseif ($itemType === 'accessory') {

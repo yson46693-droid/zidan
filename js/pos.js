@@ -94,15 +94,19 @@ async function loadAllProducts() {
         // Process spare parts
         if (sparePartsRes && sparePartsRes.success && sparePartsRes.data) {
             sparePartsRes.data.forEach(part => {
+                // حساب إجمالي الكمية من القطع الفرعية
+                const totalQuantity = (part.items || []).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+                
                 allProducts.push({
                     id: part.id,
                     name: `${part.brand} ${part.model}`,
                     type: 'spare_part',
                     price: parseFloat(part.selling_price || 0),
                     image: part.image || '',
-                    quantity: 1, // For spare parts, we don't track quantity in the main table
+                    quantity: totalQuantity, // إجمالي الكمية من القطع الفرعية
                     brand: part.brand,
-                    model: part.model
+                    model: part.model,
+                    items: part.items || [] // حفظ القطع الفرعية
                 });
             });
         }
@@ -439,7 +443,12 @@ function createProductCard(product) {
         addBtn.title = 'إضافة للسلة';
         addBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            addToCart(product);
+            // إذا كانت قطعة غيار ولديها قطع فرعية، اعرض popup اختيار
+            if (product.type === 'spare_part' && product.items && product.items.length > 0) {
+                openSparePartItemsModal(product);
+            } else {
+                addToCart(product);
+            }
         });
         card.appendChild(addBtn);
     }
@@ -453,7 +462,12 @@ function createProductCard(product) {
         card.addEventListener('click', (e) => {
             // Don't trigger if clicking the add button
             if (!e.target.closest('.pos-product-add-btn')) {
-                addToCart(product);
+                // إذا كانت قطعة غيار ولديها قطع فرعية، اعرض popup اختيار
+                if (product.type === 'spare_part' && product.items && product.items.length > 0) {
+                    openSparePartItemsModal(product);
+                } else {
+                    addToCart(product);
+                }
             }
         });
     }
@@ -461,9 +475,251 @@ function createProductCard(product) {
     return card;
 }
 
+// Open Spare Part Items Modal
+function openSparePartItemsModal(product) {
+    const modal = document.getElementById('sparePartItemsModal');
+    if (!modal) {
+        // إنشاء النموذج المنبثق إذا لم يكن موجوداً
+        createSparePartItemsModal();
+    }
+    
+    const modalInstance = document.getElementById('sparePartItemsModal');
+    if (!modalInstance) return;
+    
+    // تعبئة بيانات المنتج
+    document.getElementById('sparePartItemsProductName').textContent = product.name;
+    document.getElementById('sparePartItemsProductId').value = product.id;
+    
+    // عرض القطع الفرعية المتوفرة (الكمية > 0)
+    const availableItems = (product.items || []).filter(item => (parseInt(item.quantity) || 0) > 0);
+    const itemsContainer = document.getElementById('sparePartItemsList');
+    
+    if (!availableItems || availableItems.length === 0) {
+        itemsContainer.innerHTML = '<div class="pos-loading" style="text-align: center; padding: 20px;">لا توجد قطع فرعية متوفرة</div>';
+        modalInstance.classList.add('active');
+        return;
+    }
+    
+    // قائمة أنواع قطع الغيار
+    const sparePartTypes = {
+        'screen': 'شاشة',
+        'battery': 'بطارية',
+        'rear_camera': 'كاميرا خلفية',
+        'front_camera': 'كاميرا أمامية',
+        'charging_port': 'فلاتة شحن',
+        'flex_connector': 'فلاتة ربط',
+        'power_flex': 'فلاتة باور',
+        'motherboard': 'بوردة',
+        'frame': 'فريم',
+        'housing': 'هاوسنج',
+        'back_cover': 'ظهر',
+        'lens': 'عدسات',
+        'ic': 'IC',
+        'external_buttons': 'أزرار خارجية',
+        'earpiece': 'سماعة مكالمات',
+        'speaker': 'علبة جرس',
+        'network_wire': 'واير شبكة',
+        'network_flex': 'فلاتة شبكة',
+        'other': 'ملحقات أخرى'
+    };
+    
+    itemsContainer.innerHTML = availableItems.map((item, index) => {
+        const itemTypeName = sparePartTypes[item.item_type] || item.item_type || 'غير محدد';
+        const itemQuantity = parseInt(item.quantity) || 0;
+        const itemPrice = parseFloat(item.selling_price || item.price || 0);
+        
+        return `
+            <div class="spare-part-item-option" data-item-id="${item.id}" data-item-type="${item.item_type}" data-item-price="${itemPrice}" data-item-quantity="${itemQuantity}">
+                <div class="spare-part-item-info">
+                    <div class="spare-part-item-name">${itemTypeName}</div>
+                    <div class="spare-part-item-details">
+                        <span class="spare-part-item-price">${formatPrice(itemPrice)} ج.م</span>
+                        <span class="spare-part-item-stock">المتاح: ${itemQuantity}</span>
+                    </div>
+                </div>
+                <div class="spare-part-item-quantity-control">
+                    <button type="button" class="btn-quantity" onclick="decreaseSparePartItemQuantity(${index})">-</button>
+                    <input type="number" id="sparePartItemQty_${index}" class="spare-part-item-qty-input" value="1" min="1" max="${itemQuantity}" onchange="updateSparePartItemQuantity(${index}, ${itemQuantity})">
+                    <button type="button" class="btn-quantity" onclick="increaseSparePartItemQuantity(${index}, ${itemQuantity})">+</button>
+                </div>
+                <button type="button" class="btn-add-spare-part-item" onclick="addSparePartItemToCart(${index})">
+                    <i class="bi bi-cart-plus"></i> إضافة
+                </button>
+            </div>
+        `;
+    }).join('');
+    
+    modalInstance.classList.add('active');
+}
+
+// Create Spare Part Items Modal
+function createSparePartItemsModal() {
+    const modal = document.createElement('div');
+    modal.id = 'sparePartItemsModal';
+    modal.className = 'pos-modal';
+    modal.innerHTML = `
+        <div class="pos-modal-content">
+            <div class="pos-modal-header">
+                <h3>اختر قطعة من قطع الغيار</h3>
+                <button class="btn-close-modal" onclick="closeSparePartItemsModal()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="spare-part-items-product-info">
+                    <strong id="sparePartItemsProductName"></strong>
+                </div>
+                <input type="hidden" id="sparePartItemsProductId">
+                <div id="sparePartItemsList" class="spare-part-items-list">
+                    <!-- القطع الفرعية ستُعرض هنا -->
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // إغلاق عند الضغط خارج النموذج
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeSparePartItemsModal();
+        }
+    });
+}
+
+// Close Spare Part Items Modal
+function closeSparePartItemsModal() {
+    const modal = document.getElementById('sparePartItemsModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// Spare Part Item Quantity Controls
+function decreaseSparePartItemQuantity(index) {
+    const input = document.getElementById(`sparePartItemQty_${index}`);
+    if (input) {
+        const currentValue = parseInt(input.value) || 1;
+        if (currentValue > 1) {
+            input.value = currentValue - 1;
+        }
+    }
+}
+
+function increaseSparePartItemQuantity(index, maxQuantity) {
+    const input = document.getElementById(`sparePartItemQty_${index}`);
+    if (input) {
+        const currentValue = parseInt(input.value) || 1;
+        if (currentValue < maxQuantity) {
+            input.value = currentValue + 1;
+        } else {
+            showMessage('الكمية المتاحة محدودة', 'error');
+        }
+    }
+}
+
+function updateSparePartItemQuantity(index, maxQuantity) {
+    const input = document.getElementById(`sparePartItemQty_${index}`);
+    if (input) {
+        const value = parseInt(input.value) || 1;
+        if (value < 1) {
+            input.value = 1;
+        } else if (value > maxQuantity) {
+            input.value = maxQuantity;
+            showMessage('الكمية المتاحة محدودة', 'error');
+        }
+    }
+}
+
+// Add Spare Part Item to Cart
+function addSparePartItemToCart(index) {
+    const modal = document.getElementById('sparePartItemsModal');
+    if (!modal) return;
+    
+    const productId = document.getElementById('sparePartItemsProductId').value;
+    const product = allProducts.find(p => p.id === productId && p.type === 'spare_part');
+    
+    if (!product) {
+        showMessage('المنتج غير موجود', 'error');
+        return;
+    }
+    
+    const itemOption = document.querySelectorAll('.spare-part-item-option')[index];
+    if (!itemOption) {
+        showMessage('القطعة غير موجودة', 'error');
+        return;
+    }
+    
+    const itemId = itemOption.dataset.itemId;
+    const itemType = itemOption.dataset.itemType;
+    const itemPrice = parseFloat(itemOption.dataset.itemPrice || 0);
+    const maxQuantity = parseInt(itemOption.dataset.itemQuantity || 0);
+    const quantityInput = document.getElementById(`sparePartItemQty_${index}`);
+    const quantity = parseInt(quantityInput.value) || 1;
+    
+    if (quantity < 1) {
+        showMessage('الكمية يجب أن تكون على الأقل 1', 'error');
+        return;
+    }
+    
+    if (quantity > maxQuantity) {
+        showMessage(`الكمية المتاحة: ${maxQuantity}`, 'error');
+        return;
+    }
+    
+    // البحث عن القطعة الفرعية في product.items
+    const sparePartItem = (product.items || []).find(item => item.id === itemId);
+    if (!sparePartItem) {
+        showMessage('القطعة الفرعية غير موجودة', 'error');
+        return;
+    }
+    
+    // قائمة أنواع قطع الغيار
+    const sparePartTypes = {
+        'screen': 'شاشة',
+        'battery': 'بطارية',
+        'rear_camera': 'كاميرا خلفية',
+        'front_camera': 'كاميرا أمامية',
+        'charging_port': 'فلاتة شحن',
+        'flex_connector': 'فلاتة ربط',
+        'power_flex': 'فلاتة باور',
+        'motherboard': 'بوردة',
+        'frame': 'فريم',
+        'housing': 'هاوسنج',
+        'back_cover': 'ظهر',
+        'lens': 'عدسات',
+        'ic': 'IC',
+        'external_buttons': 'أزرار خارجية',
+        'earpiece': 'سماعة مكالمات',
+        'speaker': 'علبة جرس',
+        'network_wire': 'واير شبكة',
+        'network_flex': 'فلاتة شبكة',
+        'other': 'ملحقات أخرى'
+    };
+    
+    const itemTypeName = sparePartTypes[itemType] || itemType || 'غير محدد';
+    const itemName = `${product.name} - ${itemTypeName}`;
+    
+    // إضافة للسلة مع معلومات القطعة الفرعية
+    cart.push({
+        id: product.id,
+        name: itemName,
+        type: product.type,
+        unitPrice: itemPrice,
+        quantity: quantity,
+        totalPrice: itemPrice * quantity,
+        image: product.image,
+        spare_part_item_id: itemId, // ID القطعة الفرعية
+        spare_part_item_type: itemType
+    });
+    
+    updateCartDisplay();
+    closeSparePartItemsModal();
+    showMessage('تم إضافة المنتج للسلة', 'success');
+}
+
 // Add to Cart
 function addToCart(product) {
-    const existingItem = cart.find(item => item.id === product.id && item.type === product.type);
+    const existingItem = cart.find(item => item.id === product.id && item.type === product.type && !item.spare_part_item_id);
     
     if (existingItem) {
         // Check quantity limit
@@ -856,7 +1112,8 @@ async function processPayment() {
                 item_name: item.name,
                 quantity: item.quantity,
                 unit_price: item.unitPrice,
-                total_price: item.totalPrice
+                total_price: item.totalPrice,
+                spare_part_item_id: item.spare_part_item_id || null // إرسال ID القطعة الفرعية إذا كانت موجودة
             })),
             total_amount: subtotal,
             discount: discount,
@@ -1107,3 +1364,8 @@ function formatDateTime12Hour(dateString) {
 // Expose functions to global scope for onclick handlers
 window.updateCartQuantity = updateCartQuantity;
 window.removeFromCart = removeFromCart;
+window.decreaseSparePartItemQuantity = decreaseSparePartItemQuantity;
+window.increaseSparePartItemQuantity = increaseSparePartItemQuantity;
+window.updateSparePartItemQuantity = updateSparePartItemQuantity;
+window.addSparePartItemToCart = addSparePartItemToCart;
+window.closeSparePartItemsModal = closeSparePartItemsModal;
