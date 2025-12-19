@@ -768,9 +768,13 @@ function showInvoice(saleData) {
     // Format date and time in 12-hour format with AM/PM
     const formattedDateTime = formatDateTime12Hour(saleData.created_at || new Date().toISOString());
     
-    const logoHtml = shopLogo 
-        ? `<img src="${shopLogo}" alt="Logo" class="invoice-logo" onerror="this.style.display='none'">`
-        : '';
+    // Get logo - try multiple sources
+    let logoHtml = '';
+    if (shopLogo && shopLogo.trim() !== '') {
+        // Use shop logo from settings
+        logoHtml = `<img src="${shopLogo}" alt="Logo" class="invoice-logo" onerror="this.style.display='none'">`;
+    }
+    // If no logo in settings, leave empty - user can add it later via settings
     
     const invoiceHtml = `
         <div class="invoice-wrapper">
@@ -889,7 +893,16 @@ function closeInvoiceModalFunc() {
 
 // Print Invoice
 function printInvoice() {
-    window.print();
+    // Ensure modal is visible for printing
+    const invoiceModal = document.getElementById('invoiceModal');
+    if (invoiceModal) {
+        invoiceModal.classList.add('active');
+    }
+    
+    // Wait a bit for rendering, then print
+    setTimeout(() => {
+        window.print();
+    }, 100);
 }
 
 // Format Price (returns only number, currency should be added separately)

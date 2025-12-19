@@ -26,7 +26,34 @@ if ($method === 'GET') {
         
         // جلب تفاصيل القطع لكل قطعة غيار
         foreach ($spareParts as &$part) {
-            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, COALESCE(purchase_price, price, 0) as purchase_price, COALESCE(selling_price, price, 0) as selling_price, notes, custom_value, created_at, updated_at FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+            // التحقق من وجود الأعمدة أولاً
+            $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
+            $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
+            $hasPrice = dbColumnExists('spare_part_items', 'price');
+            
+            if ($hasPurchasePrice && $hasSellingPrice) {
+                // الجدول يحتوي على purchase_price و selling_price
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    COALESCE(purchase_price, 0) as purchase_price, 
+                    COALESCE(selling_price, 0) as selling_price, 
+                    notes, custom_value, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+            } elseif ($hasPrice) {
+                // الجدول يحتوي على price فقط
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    COALESCE(price, 0) as purchase_price, 
+                    COALESCE(price, 0) as selling_price, 
+                    notes, custom_value, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+            } else {
+                // لا توجد أعمدة أسعار
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    0 as purchase_price, 
+                    0 as selling_price, 
+                    notes, custom_value, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+            }
+            
             $part['items'] = $items ? $items : [];
         }
         
@@ -168,7 +195,35 @@ if ($method === 'POST') {
         }
         
         $newPart = dbSelectOne("SELECT * FROM spare_parts WHERE id = ?", [$partId]);
-        $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, COALESCE(purchase_price, price, 0) as purchase_price, COALESCE(selling_price, price, 0) as selling_price, notes, custom_value, created_at, updated_at FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+        
+        // التحقق من وجود الأعمدة أولاً
+        $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
+        $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
+        $hasPrice = dbColumnExists('spare_part_items', 'price');
+        
+        if ($hasPurchasePrice && $hasSellingPrice) {
+            // الجدول يحتوي على purchase_price و selling_price
+            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                COALESCE(purchase_price, 0) as purchase_price, 
+                COALESCE(selling_price, 0) as selling_price, 
+                notes, custom_value, created_at, updated_at 
+                FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+        } elseif ($hasPrice) {
+            // الجدول يحتوي على price فقط
+            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                COALESCE(price, 0) as purchase_price, 
+                COALESCE(price, 0) as selling_price, 
+                notes, custom_value, created_at, updated_at 
+                FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+        } else {
+            // لا توجد أعمدة أسعار
+            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                0 as purchase_price, 
+                0 as selling_price, 
+                notes, custom_value, created_at, updated_at 
+                FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+        }
+        
         $newPart['items'] = $items ? $items : [];
         
         response(true, 'تم إضافة قطعة الغيار بنجاح', $newPart);

@@ -853,20 +853,26 @@
 .invoice-wrapper {
     direction: rtl;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--white);
+    color: var(--text-dark);
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 /* Logo Section with white space */
 .invoice-logo-section {
     text-align: center;
     margin-bottom: 30px;
-    padding-top: 20px;
+    padding-top: 30px;
+    min-height: 50px;
 }
 
 .invoice-logo {
     max-width: 180px;
     max-height: 180px;
-    margin: 0 auto;
+    margin: 0 auto 20px auto;
     display: block;
+    object-fit: contain;
 }
 
 .invoice-header {
@@ -881,6 +887,7 @@
     font-weight: bold;
     color: var(--primary-color);
     margin-bottom: 10px;
+    letter-spacing: 0.5px;
 }
 
 .invoice-shop-info {
@@ -889,14 +896,19 @@
     font-size: 0.95em;
 }
 
+.invoice-shop-info div {
+    margin: 3px 0;
+}
+
 .invoice-details {
     display: flex;
     justify-content: space-between;
     margin-bottom: 20px;
     padding: 15px;
-    background: var(--light-bg);
+    background: #f5f5f5;
     border-radius: 8px;
     gap: 20px;
+    border: 1px solid var(--border-color);
 }
 
 .invoice-details-left,
@@ -944,10 +956,11 @@
 }
 
 .invoice-items-table th {
-    background: var(--light-bg);
+    background: #f5f5f5;
     font-weight: bold;
     color: var(--text-dark);
     font-size: 0.95em;
+    border-bottom: 2px solid var(--border-color);
 }
 
 .invoice-items-table td {
@@ -962,8 +975,9 @@
 .invoice-summary {
     margin-top: 20px;
     padding: 20px;
-    background: var(--light-bg);
+    background: #f5f5f5;
     border-radius: 8px;
+    border: 1px solid var(--border-color);
 }
 
 .invoice-summary .summary-row {
@@ -988,6 +1002,25 @@
     margin: 15px 0;
     border: none;
     border-top: 1px solid var(--border-color);
+}
+
+/* Match reference design colors - clean and simple */
+.invoice-wrapper {
+    background: var(--white);
+    color: var(--text-dark);
+}
+
+.invoice-details {
+    background: #f5f5f5;
+}
+
+.invoice-items-table th {
+    background: #f5f5f5;
+    color: var(--text-dark);
+}
+
+.invoice-summary {
+    background: #f5f5f5;
 }
 
 .invoice-barcode {
@@ -1143,39 +1176,63 @@
 
 /* Print Styles */
 @media print {
-    .pos-header,
-    .pos-cart-section,
-    .pos-modal-header,
-    .pos-modal-footer,
-    .btn-print,
-    .btn-close-modal,
-    .invoice-actions {
-        display: none !important;
+    /* Hide everything except invoice */
+    body * {
+        visibility: hidden;
     }
     
-    .pos-container {
-        background: white;
-    }
-    
-    .pos-invoice-body {
-        padding: 20px;
+    .pos-modal,
+    .pos-modal *,
+    .invoice-wrapper,
+    .invoice-wrapper * {
+        visibility: visible;
     }
     
     .pos-modal {
-        position: static;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
         background: white;
         display: block !important;
         padding: 0;
+        margin: 0;
+        overflow: visible;
     }
     
     .pos-modal-content {
         box-shadow: none;
         max-width: 100%;
         margin: 0;
+        border: none;
+        border-radius: 0;
+        height: auto;
+        max-height: none;
+    }
+    
+    .pos-modal-header,
+    .pos-modal-footer,
+    .btn-print,
+    .btn-close-modal,
+    .invoice-actions,
+    .pos-header,
+    .pos-cart-section,
+    .pos-products-section,
+    .pos-main {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    .pos-invoice-body {
+        padding: 20px;
+        margin: 0;
     }
     
     .invoice-wrapper {
         max-width: 100%;
+        margin: 0;
+        padding: 0;
     }
     
     .invoice-logo-section {
@@ -1185,10 +1242,24 @@
     
     .invoice-items-table {
         font-size: 0.9em;
+        page-break-inside: avoid;
     }
     
     .invoice-items-table th,
     .invoice-items-table td {
         padding: 8px;
+    }
+    
+    .invoice-summary {
+        page-break-inside: avoid;
+    }
+    
+    .invoice-barcode {
+        page-break-inside: avoid;
+    }
+    
+    @page {
+        margin: 1cm;
+        size: A4;
     }
 }

@@ -251,5 +251,36 @@ function createDatabaseIfNotExists() {
     }
 }
 
+/**
+ * التحقق من وجود عمود في جدول
+ * @param string $tableName
+ * @param string $columnName
+ * @return bool
+ */
+function dbColumnExists($tableName, $columnName) {
+    $conn = getDBConnection();
+    if (!$conn) {
+        return false;
+    }
+    
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS 
+                           WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+    if (!$stmt) {
+        return false;
+    }
+    
+    $stmt->bind_param('sss', DB_NAME, $tableName, $columnName);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return false;
+    }
+    
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+    
+    return $row && $row['count'] > 0;
+}
+
 ?>
 
