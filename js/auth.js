@@ -46,13 +46,44 @@ async function checkLogin() {
         if (!result || !result.success) {
             cachedAuthResult = null;
             cacheTime = 0;
+            
+            // 🔧 الحل 1: التحقق من تسجيل دخول حديث قبل مسح localStorage
+            const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+            const currentPage = window.location.pathname;
+            const isIndexPage = currentPage.includes('index.html') || currentPage === '/';
+            
+            // إذا كان تسجيل دخول حديث (أقل من 10 ثوان) وليس في صفحة index
+            if (justLoggedInTime && (now - parseInt(justLoggedInTime)) < 10000 && !isIndexPage) {
+                console.log('⏳ تسجيل دخول حديث - إعطاء فرصة للجلسة...');
+                // إعطاء فرصة للجلسة - إعادة المحاولة بعد ثانية واحدة
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                // محاولة مرة أخرى
+                try {
+                    const retryResult = await API.checkAuth();
+                    if (retryResult && retryResult.success) {
+                        const user = retryResult.data;
+                        if (user) {
+                            localStorage.setItem('currentUser', JSON.stringify(user));
+                            cachedAuthResult = user;
+                            cacheTime = Date.now();
+                            // مسح العلامة بعد النجاح
+                            sessionStorage.removeItem('just_logged_in_time');
+                        }
+                        return user;
+                    }
+                } catch (retryError) {
+                    console.log('فشلت إعادة المحاولة:', retryError);
+                }
+                // إذا فشلت إعادة المحاولة، مسح العلامة والمتابعة
+                sessionStorage.removeItem('just_logged_in_time');
+            }
+            
             // مسح جميع البيانات المحلية
             localStorage.clear();
             sessionStorage.clear();
             
             // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول (فقط إذا لم نكن في صفحة تسجيل الدخول)
-            const currentPage = window.location.pathname;
-            if (!currentPage.includes('index.html') && currentPage !== '/') {
+            if (!isIndexPage) {
                 if (typeof showLoginRequiredMessage === 'function') {
                     showLoginRequiredMessage();
                 }
@@ -67,6 +98,8 @@ async function checkLogin() {
             // حفظ في التخزين المؤقت
             cachedAuthResult = user;
             cacheTime = Date.now();
+            // مسح علامة تسجيل الدخول الحديث بعد نجاح التحقق
+            sessionStorage.removeItem('just_logged_in_time');
         }
         
         return user;
@@ -104,6 +137,9 @@ async function login(username, password) {
             
             // حفظ بيانات المستخدم الجديدة
             localStorage.setItem('currentUser', JSON.stringify(result.data));
+            
+            // 🔧 الحل 2: إضافة علامة تسجيل دخول حديث مع timestamp
+            sessionStorage.setItem('just_logged_in_time', Date.now().toString());
             
             // إعادة تهيئة نظام المزامنة
             if (typeof syncManager !== 'undefined') {
@@ -245,8 +281,19 @@ function displayUserInfo() {
     }
 }
 
+// متغير لمنع استدعاء showLoginRequiredMessage المتعدد
+let isShowingLoginRequiredMessage = false;
+
 // عرض رسالة تسجيل الدخول المطلوب
 function showLoginRequiredMessage() {
+    // 🔧 الحل 3: منع الاستدعاء المتعدد
+    if (isShowingLoginRequiredMessage) {
+        console.log('⏸️ رسالة تسجيل الدخول المطلوب معروضة بالفعل');
+        return;
+    }
+    
+    isShowingLoginRequiredMessage = true;
+    
     // إنشاء overlay مع تأثير blur
     const overlay = document.createElement('div');
     overlay.id = 'login-required-overlay';
@@ -332,6 +379,8 @@ function showLoginRequiredMessage() {
     
     // تأخير 3 ثواني ثم التوجيه لصفحة تسجيل الدخول
     setTimeout(() => {
+        isShowingLoginRequiredMessage = false; // إعادة تعيين المتغير
+        
         // إزالة تأثير blur
         mainContent.style.filter = 'none';
         

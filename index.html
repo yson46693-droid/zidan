@@ -561,6 +561,17 @@
                 }
                 
                 try {
+                    // 🔧 الحل 4: التحقق من تسجيل دخول حديث قبل checkAuth
+                    const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+                    if (justLoggedInTime) {
+                        const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
+                        // إذا كان تسجيل الدخول حديث (أقل من 5 ثوان)، منع التحقق
+                        if (timeSinceLogin < 5000) {
+                            console.log('⏸️ تسجيل دخول حديث - تم إلغاء التحقق لمنع loop');
+                            return;
+                        }
+                    }
+                    
                     // التحقق من وجود token في localStorage أولاً لتجنب طلبات غير ضرورية
                     const currentUser = localStorage.getItem('currentUser');
                     if (!currentUser) {
@@ -578,12 +589,18 @@
                         
                         isRedirecting = true;
                         console.log('✅ المستخدم مسجل دخول - التوجيه إلى dashboard.html');
+                        // مسح علامة تسجيل الدخول الحديث قبل التوجيه
+                        sessionStorage.removeItem('just_logged_in_time');
                         // استخدام replace بدلاً من href لمنع loop
                         window.location.replace('dashboard.html');
+                    } else {
+                        // إذا فشل checkAuth، مسح العلامة
+                        sessionStorage.removeItem('just_logged_in_time');
                     }
                 } catch (error) {
                     // تجاهل الأخطاء في التحقق من الجلسة
                     console.log('⏸️ خطأ في التحقق من الجلسة - تم تجاهله');
+                    sessionStorage.removeItem('just_logged_in_time');
                 }
             }, 1500); // زيادة التأخير إلى 1.5 ثانية لتجنب التداخل مع تسجيل الدخول
         }
