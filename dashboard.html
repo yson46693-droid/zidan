@@ -171,7 +171,7 @@
     <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="vertopal.com_photo_5922357566287580087_y.png" alt="ALAA ZIDAN Logo" class="sidebar-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="" alt="ALAA ZIDAN Logo" class="sidebar-logo" style="display: block;">
             <h2 style="display: none;"><i class="bi bi-phone"></i> محل الصيانة</h2>
         </div>
         
@@ -546,11 +546,26 @@
 
         // التحقق من تسجيل الدخول عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', async () => {
-            // تحميل الشعار من الكاش المحلي
-            if (typeof setCachedLogo !== 'undefined') {
-                setCachedLogo('.sidebar-logo').catch(err => {
+            // تحميل الشعار من الكاش المحلي أولاً
+            const logoImg = document.querySelector('.sidebar-logo');
+            if (logoImg && typeof getCachedDefaultLogo === 'function') {
+                try {
+                    const logoUrl = await getCachedDefaultLogo();
+                    logoImg.src = logoUrl;
+                    logoImg.style.display = 'block';
+                    logoImg.onerror = function() {
+                        console.warn('فشل تحميل الشعار من الكاش، استخدام المسار الافتراضي');
+                        logoImg.src = 'vertopal.com_photo_5922357566287580087_y.png';
+                    };
+                } catch (err) {
                     console.warn('فشل تحميل الشعار من الكاش:', err);
-                });
+                    logoImg.src = 'vertopal.com_photo_5922357566287580087_y.png';
+                    logoImg.style.display = 'block';
+                }
+            } else if (logoImg) {
+                // Fallback: استخدام المسار المباشر
+                logoImg.src = 'vertopal.com_photo_5922357566287580087_y.png';
+                logoImg.style.display = 'block';
             }
             
             const user = await performAuthCheck();

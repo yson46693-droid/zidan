@@ -357,7 +357,7 @@ async function getCachedDefaultLogo() {
 function loadImageAsDataUrl(imagePath) {
     return new Promise((resolve, reject) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous'; // للسماح بتحويل الصور إلى base64
+        // لا حاجة لـ crossOrigin للصور المحلية
         
         img.onload = function() {
             try {
@@ -373,13 +373,13 @@ function loadImageAsDataUrl(imagePath) {
                 resolve(dataUrl);
             } catch (error) {
                 console.error('خطأ في تحويل الصورة إلى base64:', error);
-                // في حالة الفشل، نرجع المسار الأصلي
+                // في حالة الفشل (مثل مشكلة CORS)، نرجع المسار الأصلي
                 resolve(imagePath);
             }
         };
         
         img.onerror = function() {
-            console.error('فشل تحميل الصورة:', imagePath);
+            console.warn('فشل تحميل الصورة:', imagePath);
             // في حالة الفشل، نرجع المسار الأصلي
             resolve(imagePath);
         };
