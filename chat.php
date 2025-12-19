@@ -3,24 +3,66 @@
  * صفحة الشات - صفحة واحدة فقط
  */
 
+// تفعيل عرض الأخطاء للتطوير (يمكن إزالتها في الإنتاج)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
 // بدء الجلسة أولاً
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// تحميل الملفات المطلوبة
-require_once __DIR__ . '/api/database.php';
-require_once __DIR__ . '/api/chat/auth_helper.php';
-require_once __DIR__ . '/includes/chat.php';
+// معالجة الأخطاء
+set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+    error_log("PHP Error [$errno]: $errstr in $errfile on line $errline");
+    return false;
+});
+
+// تحميل الملفات المطلوبة مع معالجة الأخطاء
+try {
+    $dbFile = __DIR__ . '/api/database.php';
+    if (!file_exists($dbFile)) {
+        throw new Exception("ملف قاعدة البيانات غير موجود: $dbFile");
+    }
+    require_once $dbFile;
+    
+    $authHelperFile = __DIR__ . '/api/chat/auth_helper.php';
+    if (!file_exists($authHelperFile)) {
+        throw new Exception("ملف auth_helper غير موجود: $authHelperFile");
+    }
+    require_once $authHelperFile;
+    
+    $chatFile = __DIR__ . '/includes/chat.php';
+    if (!file_exists($chatFile)) {
+        throw new Exception("ملف chat غير موجود: $chatFile");
+    }
+    require_once $chatFile;
+} catch (Throwable $e) {
+    error_log('خطأ في تحميل الملفات: ' . $e->getMessage());
+    http_response_code(500);
+    die('خطأ في تحميل الملفات المطلوبة: ' . htmlspecialchars($e->getMessage()));
+}
 
 // التحقق من تسجيل الدخول
-if (!isLoggedIn()) {
+if (!function_exists('isLoggedIn') || !isLoggedIn()) {
     header('Location: index.html');
     exit;
 }
 
+// التحقق من وجود الدوال المطلوبة
+if (!function_exists('getCurrentUser')) {
+    error_log('دالة getCurrentUser غير موجودة');
+    die('خطأ: دالة getCurrentUser غير موجودة');
+}
+
 // دالة للتحقق من الصلاحيات
 function requireRole($allowedRoles) {
+    if (!function_exists('getCurrentUser')) {
+        header('Location: index.html');
+        exit;
+    }
+    
     $currentUser = getCurrentUser();
     if (!$currentUser) {
         header('Location: index.html');
@@ -38,6 +80,11 @@ function requireRole($allowedRoles) {
 requireRole(['manager', 'production', 'sales', 'accountant']);
 
 $currentUser = getCurrentUser();
+if (!$currentUser) {
+    header('Location: index.html');
+    exit;
+}
+
 $currentUserId = (int) ($currentUser['id'] ?? 0);
 $currentUserName = $currentUser['full_name'] ?? ($currentUser['username'] ?? 'عضو');
 $currentUserRole = $currentUser['role'] ?? 'member';
@@ -48,14 +95,25 @@ $userRole = $currentUser['role'] ?? 'member';
 $apiBase = 'api/chat';
 $roomName = 'الشات';
 
-$onlineUsers = getActiveUsers();
+// جلب المستخدمين النشطين
+$onlineUsers = [];
 $onlineCount = 0;
-foreach ($onlineUsers as $onlineUser) {
-    if (!empty($onlineUser['is_online'])) {
-        $onlineCount++;
+$membersCount = 0;
+
+if (function_exists('getActiveUsers')) {
+    try {
+        $onlineUsers = getActiveUsers();
+        foreach ($onlineUsers as $onlineUser) {
+            if (!empty($onlineUser['is_online'])) {
+                $onlineCount++;
+            }
+        }
+        $membersCount = count($onlineUsers);
+    } catch (Exception $e) {
+        error_log('خطأ في جلب المستخدمين النشطين: ' . $e->getMessage());
+        $onlineUsers = [];
     }
 }
-$membersCount = count($onlineUsers);
 
 function getRoleName($role) {
     $roles = [
