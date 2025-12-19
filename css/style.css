@@ -3505,3 +3505,55 @@ body {
     }
 }
 
+/* أنماط أزرار أنواع الصيانة */
+.repair-type-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.repair-type-tab {
+    flex: 1;
+    padding: 12px 20px;
+    background: var(--light-bg);
+    color: var(--text-dark);
+    border: none;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.repair-type-tab:hover {
+    background: var(--secondary-color);
+    color: var(--white);
+    transform: translateY(-2px);
+}
+
+.repair-type-tab.active {
+    background: var(--primary-color);
+    color: var(--white);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* تصميم متجاوب لأزرار أنواع الصيانة */
+@media (max-width: 768px) {
+    .repair-type-tabs {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .repair-type-tab {
+        border-radius: 8px;
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+}
+

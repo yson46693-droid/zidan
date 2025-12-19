@@ -37,6 +37,11 @@ if ($method === 'POST') {
     $serial_number = trim($data['serial_number'] ?? '');
     $accessories = trim($data['accessories'] ?? '');
     $problem = trim($data['problem'] ?? '');
+    $repair_type = trim($data['repair_type'] ?? 'soft');
+    // التحقق من صحة نوع الصيانة
+    if (!in_array($repair_type, ['soft', 'hard', 'fast'])) {
+        $repair_type = 'soft';
+    }
     $customer_price = floatval($data['customer_price'] ?? 0);
     $repair_cost = floatval($data['repair_cost'] ?? 0);
     $parts_store = trim($data['parts_store'] ?? '');
@@ -66,13 +71,13 @@ if ($method === 'POST') {
     $result = dbExecute(
         "INSERT INTO repairs (
             id, repair_number, customer_id, customer_name, customer_phone, 
-            device_type, device_model, serial_number, accessories, problem,
+            device_type, device_model, serial_number, accessories, problem, repair_type,
             customer_price, repair_cost, parts_store, paid_amount, remaining_amount,
             delivery_date, device_image, status, notes, created_at, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
         [
             $repairId, $repairNumber, $customer_id, $customer_name, $customer_phone,
-            $device_type, $device_model, $serial_number, $accessories, $problem,
+            $device_type, $device_model, $serial_number, $accessories, $problem, $repair_type,
             $customer_price, $repair_cost, $parts_store, $paid_amount, $remaining_amount,
             $delivery_date, $device_image, $status, $notes, $createdBy
         ]
@@ -113,10 +118,15 @@ if ($method === 'PUT') {
     
     $fields = [
         'customer_id', 'customer_name', 'customer_phone', 'device_type', 'device_model',
-        'serial_number', 'accessories', 'problem', 'customer_price', 'repair_cost',
+        'serial_number', 'accessories', 'problem', 'repair_type', 'customer_price', 'repair_cost',
         'parts_store', 'paid_amount', 'remaining_amount', 'delivery_date',
         'device_image', 'status', 'notes'
     ];
+    
+    // التحقق من صحة نوع الصيانة إذا كان موجوداً
+    if (isset($data['repair_type']) && !in_array($data['repair_type'], ['soft', 'hard', 'fast'])) {
+        $data['repair_type'] = 'soft';
+    }
     
     foreach ($fields as $field) {
         if (isset($data[$field])) {

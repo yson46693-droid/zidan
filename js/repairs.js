@@ -5,6 +5,7 @@ let allUsers = []; // إضافة متغير لحفظ المستخدمين
 let currentRepairPage = 1;
 const repairsPerPage = 10;
 let isScannerOpen = false; // متغير لتتبع حالة الماسح
+let currentRepairType = 'soft'; // القسم النشط: soft, hard, fast
 
 function loadRepairsSection() {
     // تحميل حالة إذن الكاميرا
@@ -25,6 +26,18 @@ function loadRepairsSection() {
                     <i class="bi bi-plus-circle"></i> إضافة عملية جديدة
                 </button>
             </div>
+        </div>
+
+        <div class="repair-type-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">
+            <button onclick="switchRepairType('soft')" id="tab-soft" class="repair-type-tab active" style="flex: 1; padding: 12px 20px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+                <i class="bi bi-code-slash"></i> سوفت
+            </button>
+            <button onclick="switchRepairType('hard')" id="tab-hard" class="repair-type-tab" style="flex: 1; padding: 12px 20px; background: var(--light-bg); color: var(--text-dark); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+                <i class="bi bi-cpu"></i> هارد
+            </button>
+            <button onclick="switchRepairType('fast')" id="tab-fast" class="repair-type-tab" style="flex: 1; padding: 12px 20px; background: var(--light-bg); color: var(--text-dark); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+                <i class="bi bi-lightning-charge"></i> فاست
+            </button>
         </div>
 
         <div class="filters-bar">
@@ -110,6 +123,17 @@ function loadRepairsSection() {
                     <div class="form-group">
                         <label for="problem">المشكلة *</label>
                         <textarea id="problem" rows="3" required></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="repairType">نوع الصيانة *</label>
+                            <select id="repairType" required>
+                                <option value="soft">سوفت</option>
+                                <option value="hard">هارد</option>
+                                <option value="fast">فاست</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -206,6 +230,9 @@ function loadRepairsSection() {
     
     // تحديث اسم الفني المستلم في النموذج
     updateTechnicianName();
+    
+    // تهيئة القسم النشط
+    switchRepairType(currentRepairType);
 }
 
 // تحديث اسم الفني المستلم في النموذج
@@ -284,12 +311,44 @@ function getTechnicianName(userId) {
     return user ? user.name : 'غير محدد';
 }
 
+// التبديل بين أنواع الصيانة
+function switchRepairType(type) {
+    currentRepairType = type;
+    
+    // تحديث الأزرار النشطة
+    document.querySelectorAll('.repair-type-tab').forEach(tab => {
+        tab.classList.remove('active');
+        tab.style.background = 'var(--light-bg)';
+        tab.style.color = 'var(--text-dark)';
+    });
+    
+    const activeTab = document.getElementById(`tab-${type}`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.style.background = 'var(--primary-color)';
+        activeTab.style.color = 'var(--white)';
+    }
+    
+    // إعادة تطبيق الفلاتر
+    filterRepairs();
+}
+
 function filterRepairs() {
     const statusFilter = document.getElementById('statusFilter').value;
     let filtered = allRepairs;
 
+    // فلترة حسب نوع الصيانة أولاً
+    filtered = filtered.filter(r => {
+        // تجاهل العمليات الخاسرة من فلترة النوع
+        if (r.is_loss_operation || r.status === 'lost') {
+            return true; // عرض العمليات الخاسرة في جميع الأقسام
+        }
+        return (r.repair_type || 'soft') === currentRepairType;
+    });
+
+    // فلترة حسب الحالة
     if (statusFilter) {
-        filtered = allRepairs.filter(r => r.status === statusFilter);
+        filtered = filtered.filter(r => r.status === statusFilter);
     }
 
     displayRepairs(filtered);
@@ -607,6 +666,7 @@ async function saveRepair(event) {
         serial_number: document.getElementById('serialNumber').value.trim(),
         accessories: document.getElementById('accessories').value.trim(),
         problem: problem,
+        repair_type: document.getElementById('repairType').value,
         customer_price: parseFloat(customerPrice),
         repair_cost: parseFloat(document.getElementById('repairCost').value) || 0,
         parts_store: document.getElementById('partsStore').value.trim(),
@@ -686,6 +746,7 @@ async function editRepair(id) {
     document.getElementById('serialNumber').value = repair.serial_number || '';
     document.getElementById('accessories').value = repair.accessories || '';
     document.getElementById('problem').value = repair.problem;
+    document.getElementById('repairType').value = repair.repair_type || 'soft';
     document.getElementById('customerPrice').value = repair.customer_price || repair.cost || 0;
     document.getElementById('repairCost').value = repair.repair_cost || 0;
     document.getElementById('partsStore').value = repair.parts_store || '';

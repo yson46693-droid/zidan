@@ -92,9 +92,281 @@ SELECT * FROM users WHERE email = 'test@example.com';
 <script src="js/heavy.js"></script>
 ```
 
+### Color System Rules (REQUIRED - NO EXCEPTIONS)
+**ALWAYS use CSS Variables from the theme - NEVER use random colors**
+
+```css
+/* ✅ DO: Use CSS Variables from :root */
+:root {
+    --primary-color: #2196F3;
+    --secondary-color: #64B5F6;
+    --success-color: #4CAF50;
+    --warning-color: #FFA500;
+    --danger-color: #f44336;
+    --text-dark: #333;
+    --text-light: #666;
+    --border-color: #ddd;
+    --light-bg: #f5f5f5;
+    --white: #ffffff;
+    --shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* ✅ DO: Use variables */
+.button {
+    background: var(--primary-color);
+    color: var(--white);
+    border: 1px solid var(--border-color);
+}
+
+.card {
+    background: var(--white);
+    color: var(--text-dark);
+    box-shadow: var(--shadow);
+}
+
+/* ❌ DON'T: Use random/hardcoded colors */
+.button {
+    background: #ff5733; /* ❌ WRONG - Random color */
+    color: #00ff00; /* ❌ WRONG - Random color */
+    border: 1px solid #abc123; /* ❌ WRONG - Random color */
+}
+
+/* ❌ DON'T: Use colors not in the theme */
+.header {
+    background: #purple; /* ❌ WRONG - Not in theme */
+    color: #yellow; /* ❌ WRONG - Not in theme */
+}
+```
+
+**Color Usage Guidelines:**
+- ✅ **Primary Actions**: Use `var(--primary-color)` (#2196F3 - Blue)
+- ✅ **Success/Positive**: Use `var(--success-color)` (#4CAF50 - Green)
+- ✅ **Warning/Caution**: Use `var(--warning-color)` (#FFA500 - Orange)
+- ✅ **Danger/Error**: Use `var(--danger-color)` (#f44336 - Red)
+- ✅ **Secondary Elements**: Use `var(--secondary-color)` (#64B5F6 - Light Blue)
+- ✅ **Text**: Use `var(--text-dark)` for primary, `var(--text-light)` for secondary
+- ✅ **Backgrounds**: Use `var(--white)`, `var(--light-bg)`, or `var(--dark-bg)` in dark mode
+- ✅ **Borders**: Use `var(--border-color)`
+
+### Responsive Design Rules (REQUIRED - ALL SCREENS)
+**ALL designs MUST be responsive and work on ALL screen sizes**
+
+```css
+/* ✅ DO: Mobile-First Approach */
+.container {
+    width: 100%;
+    padding: 15px;
+}
+
+/* ✅ DO: Use Flexbox/Grid for responsive layouts */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.flex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+/* ✅ DO: Always add media queries for different screen sizes */
+/* Mobile (< 576px) */
+.component {
+    padding: 10px;
+    font-size: 14px;
+}
+
+/* Tablet (576px - 768px) */
+@media (min-width: 576px) {
+    .component {
+        padding: 20px;
+        font-size: 16px;
+    }
+}
+
+/* Desktop (768px - 992px) */
+@media (min-width: 768px) {
+    .component {
+        padding: 30px;
+        font-size: 18px;
+    }
+}
+
+/* Large Desktop (> 992px) */
+@media (min-width: 992px) {
+    .component {
+        padding: 40px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+}
+
+/* ❌ DON'T: Fixed widths without media queries */
+.component {
+    width: 1200px; /* ❌ WRONG - Breaks on mobile */
+    padding: 40px; /* ❌ WRONG - Too much on mobile */
+}
+
+/* ❌ DON'T: Forget to test on mobile */
+.component {
+    display: flex;
+    /* ❌ Missing: @media (max-width: 768px) { flex-direction: column; } */
+}
+```
+
+**Responsive Breakpoints (MUST USE):**
+- 📱 **Mobile**: `max-width: 575.98px` (0px - 575px)
+- 📱 **Tablet Portrait**: `min-width: 576px and max-width: 767.98px`
+- 💻 **Tablet Landscape/Desktop**: `min-width: 768px and max-width: 991.98px`
+- 🖥️ **Large Desktop**: `min-width: 992px`
+
+**Responsive Checklist:**
+- [ ] Tested on mobile (< 576px)
+- [ ] Tested on tablet (576px - 768px)
+- [ ] Tested on desktop (768px+)
+- [ ] All text is readable on small screens
+- [ ] All buttons are tappable (min 44x44px)
+- [ ] Images scale properly
+- [ ] Forms work on mobile
+- [ ] Navigation is accessible on mobile
+- [ ] No horizontal scrolling
+- [ ] Touch targets are adequate
+
+### Error Handling & System Stability Rules (REQUIRED)
+**ALL code MUST NOT break the system - Add proper error handling**
+
+```javascript
+// ✅ DO: Try-Catch for async operations
+async function fetchData() {
+    try {
+        const response = await fetch('/api/data');
+        if (!response.ok) throw new Error('Network error');
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        showMessage('حدث خطأ أثناء جلب البيانات', 'error');
+        return null; // Return safe default
+    }
+}
+
+// ✅ DO: Validate before operations
+function updateUser(userId, data) {
+    if (!userId || !data) {
+        console.error('Invalid parameters');
+        return false;
+    }
+    
+    try {
+        // operation
+        return true;
+    } catch (error) {
+        console.error('Update failed:', error);
+        return false;
+    }
+}
+
+// ✅ DO: Defensive programming
+function processItem(item) {
+    if (!item || typeof item !== 'object') {
+        return null; // Safe return
+    }
+    
+    return {
+        id: item.id || 0,
+        name: item.name || '',
+        // Always provide defaults
+    };
+}
+
+// ✅ DO: Check if element exists before manipulation
+function updateElement() {
+    const element = document.getElementById('myElement');
+    if (!element) {
+        console.warn('Element not found');
+        return; // Exit safely
+    }
+    element.textContent = 'Updated';
+}
+
+// ❌ DON'T: Unhandled errors
+async function fetchData() {
+    const response = await fetch('/api/data'); /* ❌ No try-catch */
+    const data = await response.json(); /* ❌ Could throw error */
+    return data; /* ❌ System could break */
+}
+
+// ❌ DON'T: No validation
+function updateUser(userId, data) {
+    // Direct operation without checks - ❌ Could break system
+    database.update(userId, data);
+}
+
+// ❌ DON'T: Assume elements exist
+function updateElement() {
+    document.getElementById('myElement').textContent = 'Updated'; 
+    /* ❌ Could throw error if element doesn't exist */
+}
+```
+
+**PHP/API Error Handling:**
+```php
+// ✅ DO: Always handle errors
+function getData($id) {
+    try {
+        $conn = getDBConnection();
+        if (!$conn) {
+            throw new Exception('Database connection failed');
+        }
+        
+        $stmt = $conn->prepare("SELECT * FROM table WHERE id = ?");
+        if (!$stmt) {
+            throw new Exception('Query preparation failed');
+        }
+        
+        $stmt->bind_param("i", $id);
+        if (!$stmt->execute()) {
+            throw new Exception('Query execution failed');
+        }
+        
+        $result = $stmt->get_result();
+        return $result->fetch_assoc();
+        
+    } catch (Exception $e) {
+        error_log('Error: ' . $e->getMessage());
+        http_response_code(500);
+        return ['success' => false, 'message' => 'Internal error'];
+    }
+}
+
+// ❌ DON'T: Unhandled errors
+function getData($id) {
+    $conn = getDBConnection(); /* ❌ Could be null */
+    $stmt = $conn->prepare("SELECT * FROM table WHERE id = ?"); /* ❌ Could fail */
+    $stmt->bind_param("i", $id);
+    $stmt->execute(); /* ❌ No error handling */
+    return $result->fetch_assoc(); /* ❌ Could break */
+}
+```
+
+**Error Handling Checklist:**
+- [ ] All async operations have try-catch
+- [ ] All API calls have error handling
+- [ ] All database operations have error handling
+- [ ] All DOM manipulations check if element exists
+- [ ] All functions validate input parameters
+- [ ] All operations return safe defaults on error
+- [ ] Error messages are user-friendly
+- [ ] Errors are logged for debugging
+- [ ] System continues to work even if one feature fails
+
 ## 📋 PRE-COMMIT CHECKLIST
 
 Before every commit, verify:
+
+### Performance:
 - [ ] No console.log in production code
 - [ ] Debounce/throttle applied to frequent events
 - [ ] Event listeners removed on cleanup
@@ -105,6 +377,34 @@ Before every commit, verify:
 - [ ] API responses cached when appropriate
 - [ ] Lazy loading for heavy components
 - [ ] Lighthouse score > 90
+
+### Colors & Design:
+- [ ] **ALL colors use CSS Variables** (no hardcoded colors)
+- [ ] Colors match the theme (primary, secondary, success, warning, danger)
+- [ ] Dark mode support added (if applicable)
+- [ ] No random or theme-breaking colors
+
+### Responsive Design:
+- [ ] **Tested on mobile** (< 576px) - all features work
+- [ ] **Tested on tablet** (576px - 768px) - layout adapts
+- [ ] **Tested on desktop** (768px+) - full functionality
+- [ ] All text readable on small screens
+- [ ] All buttons tappable (min 44x44px)
+- [ ] No horizontal scrolling
+- [ ] Images scale properly
+- [ ] Forms work on mobile
+- [ ] Navigation accessible on all screen sizes
+
+### Error Handling & Stability:
+- [ ] **All async operations have try-catch**
+- [ ] **All API calls have error handling**
+- [ ] **All database operations have error handling**
+- [ ] **All DOM manipulations check if element exists**
+- [ ] **All functions validate input parameters**
+- [ ] Safe defaults returned on errors
+- [ ] User-friendly error messages
+- [ ] System doesn't break if feature fails
+- [ ] Errors logged for debugging
 
 ## 🎯 Performance Targets
 
@@ -126,9 +426,39 @@ Before every commit, verify:
 - Your code will be rejected
 - You'll be asked to rewrite
 - Performance issues will affect users
+- Design inconsistencies will be rejected
+- Non-responsive designs will be rejected
+- Code that breaks the system will be rejected
 
 **ALWAYS:**
 1. Read PERFORMANCE_GUIDE.md first
 2. Check existing code patterns
-3. Test with Lighthouse before committing
-4. Verify no performance regressions
+3. **Use ONLY CSS Variables for colors** - Check `css/style.css` for available variables
+4. **Test responsive design** on mobile, tablet, and desktop
+5. **Add error handling** to all operations
+6. Test with Lighthouse before committing
+7. Verify no performance regressions
+8. Verify system stability (no breaking errors)
+
+## 🎨 Color Palette Reference
+
+**Available CSS Variables (USE THESE ONLY):**
+```css
+--primary-color: #2196F3      /* Primary actions, main brand color */
+--secondary-color: #64B5F6    /* Secondary elements, highlights */
+--success-color: #4CAF50      /* Success messages, positive actions */
+--warning-color: #FFA500      /* Warnings, caution messages */
+--danger-color: #f44336       /* Errors, delete actions */
+--text-dark: #333             /* Primary text color */
+--text-light: #666            /* Secondary text color */
+--border-color: #ddd          /* Borders, dividers */
+--light-bg: #f5f5f5          /* Light backgrounds */
+--white: #ffffff              /* White backgrounds, cards */
+--dark-bg: #1a1a2e           /* Dark mode background */
+--shadow: 0 2px 10px rgba(0,0,0,0.1) /* Standard shadow */
+```
+
+**Dark Mode Support:**
+- All colors automatically adapt in dark mode via `dark-mode.css`
+- Use CSS variables to ensure dark mode compatibility
+- Test designs in both light and dark modes
