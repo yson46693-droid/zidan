@@ -128,13 +128,49 @@
                 <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 10px; margin-bottom: 15px; color: #856404; font-size: 0.9em;">
                     <i class="bi bi-info-circle"></i> بيانات العميل مطلوبة لإتمام عملية البيع
                 </div>
+                
+                <!-- Customer Type Selection -->
                 <div class="form-group">
-                    <label>اسم العميل <span style="color: var(--danger-color);">*</span>:</label>
-                    <input type="text" id="customerNameInput" placeholder="اسم العميل" required autocomplete="name">
+                    <label>نوع العميل <span style="color: var(--danger-color);">*</span>:</label>
+                    <div class="customer-type-selector" style="display: flex; gap: 10px; margin-top: 8px;">
+                        <button type="button" class="btn-customer-type active" data-type="retail" onclick="selectCustomerType('retail')">
+                            <i class="bi bi-person"></i> عميل محل
+                        </button>
+                        <button type="button" class="btn-customer-type" data-type="commercial" onclick="selectCustomerType('commercial')">
+                            <i class="bi bi-shop"></i> عميل تجاري
+                        </button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>رقم الهاتف <span style="color: var(--danger-color);">*</span>:</label>
-                    <input type="tel" id="customerPhoneInput" placeholder="رقم الهاتف (8 أرقام على الأقل)" required autocomplete="tel" pattern="[0-9]{8,}">
+                
+                <!-- Existing Customers -->
+                <div class="form-group" id="existingCustomersGroup" style="display: none;">
+                    <label>اختر عميل موجود:</label>
+                    <select id="existingCustomerSelect" class="form-control" onchange="selectExistingCustomer(this.value)" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; margin-top: 8px;">
+                        <option value="">-- اختر عميل --</option>
+                    </select>
+                    <div style="text-align: center; margin-top: 10px;">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="showNewCustomerForm()">إضافة عميل جديد</button>
+                    </div>
+                </div>
+                
+                <!-- New Customer Form -->
+                <div id="newCustomerForm">
+                    <div class="form-group">
+                        <label>اسم العميل <span style="color: var(--danger-color);">*</span>:</label>
+                        <input type="text" id="customerNameInput" placeholder="اسم العميل" required autocomplete="name">
+                    </div>
+                    <div class="form-group" id="shopNameGroup" style="display: none;">
+                        <label>اسم المحل <span style="color: var(--danger-color);">*</span>:</label>
+                        <input type="text" id="shopNameInput" placeholder="اسم المحل">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الهاتف <span style="color: var(--danger-color);">*</span>:</label>
+                        <input type="tel" id="customerPhoneInput" placeholder="رقم الهاتف (8 أرقام على الأقل)" required autocomplete="tel" pattern="[0-9]{8,}">
+                    </div>
+                    <div class="form-group">
+                        <label>العنوان:</label>
+                        <textarea id="customerAddressInput" rows="2" placeholder="العنوان (اختياري)"></textarea>
+                    </div>
                 </div>
                 <div class="payment-summary">
                     <div class="summary-row">

@@ -205,8 +205,13 @@ const API = {
     },
 
     // العملاء
-    async getCustomers() {
-        return await this.request('customers.php', 'GET');
+    async getCustomers(type = null) {
+        const url = type ? `customers.php?type=${type}` : 'customers.php';
+        return await this.request(url, 'GET');
+    },
+    
+    async getCustomerSales(customerId) {
+        return await this.request(`customers.php?action=sales&customer_id=${customerId}`, 'GET');
     },
 
     async addCustomer(customerData) {

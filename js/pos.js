@@ -8,6 +8,9 @@ let currentCategory = 'all';
 let searchQuery = '';
 let shopSettings = {};
 let debounceTimer = null;
+let allCustomers = [];
+let currentCustomerType = 'retail';
+let selectedCustomerId = null;
 
 // Initialize POS
 document.addEventListener('DOMContentLoaded', function() {
@@ -24,6 +27,9 @@ async function initializePOS() {
         // Load all products
         await loadAllProducts();
         
+        // Load customers
+        await loadCustomers();
+        
         // Setup event listeners
         setupEventListeners();
         
@@ -35,6 +41,24 @@ async function initializePOS() {
     } catch (error) {
         console.error('خطأ في تهيئة نظام POS:', error);
         showMessage('حدث خطأ في تحميل البيانات', 'error');
+    }
+}
+
+// Load Customers
+async function loadCustomers() {
+    try {
+        const retailRes = await API.getCustomers('retail');
+        const commercialRes = await API.getCustomers('commercial');
+        
+        allCustomers = [];
+        if (retailRes && retailRes.success && retailRes.data) {
+            allCustomers = allCustomers.concat(retailRes.data.map(c => ({...c, customer_type: 'retail'})));
+        }
+        if (commercialRes && commercialRes.success && commercialRes.data) {
+            allCustomers = allCustomers.concat(commercialRes.data.map(c => ({...c, customer_type: 'commercial'})));
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل العملاء:', error);
     }
 }
 
@@ -589,23 +613,112 @@ function updateCartSummary() {
     }
 }
 
+// Select Customer Type
+function selectCustomerType(type) {
+    currentCustomerType = type;
+    selectedCustomerId = null;
+    
+    // Update buttons
+    document.querySelectorAll('.btn-customer-type').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.btn-customer-type[data-type="${type}"]`).classList.add('active');
+    
+    // Show/hide shop name field
+    const shopNameGroup = document.getElementById('shopNameGroup');
+    if (shopNameGroup) {
+        shopNameGroup.style.display = type === 'commercial' ? 'block' : 'none';
+        if (type === 'commercial') {
+            document.getElementById('shopNameInput').required = true;
+        } else {
+            document.getElementById('shopNameInput').required = false;
+        }
+    }
+    
+    // Load and display customers for this type
+    loadCustomersForType(type);
+    
+    // Reset form
+    resetCustomerForm();
+}
+
+// Load Customers for Type
+function loadCustomersForType(type) {
+    const select = document.getElementById('existingCustomerSelect');
+    if (!select) return;
+    
+    const customers = allCustomers.filter(c => c.customer_type === type);
+    
+    select.innerHTML = '<option value="">-- اختر عميل --</option>';
+    customers.forEach(customer => {
+        const displayName = customer.customer_type === 'commercial' && customer.shop_name 
+            ? `${customer.name} - ${customer.shop_name}`
+            : customer.name;
+        select.innerHTML += `<option value="${customer.id}">${displayName} - ${customer.phone}</option>`;
+    });
+    
+    // Show existing customers group
+    const existingGroup = document.getElementById('existingCustomersGroup');
+    if (existingGroup) {
+        existingGroup.style.display = customers.length > 0 ? 'block' : 'none';
+    }
+}
+
+// Select Existing Customer
+function selectExistingCustomer(customerId) {
+    if (!customerId) {
+        resetCustomerForm();
+        return;
+    }
+    
+    const customer = allCustomers.find(c => c.id === customerId);
+    if (!customer) return;
+    
+    selectedCustomerId = customerId;
+    
+    // Fill form with customer data
+    document.getElementById('customerNameInput').value = customer.name || '';
+    document.getElementById('customerPhoneInput').value = customer.phone || '';
+    document.getElementById('customerAddressInput').value = customer.address || '';
+    
+    if (customer.customer_type === 'commercial') {
+        document.getElementById('shopNameInput').value = customer.shop_name || '';
+        document.getElementById('shopNameGroup').style.display = 'block';
+    }
+    
+    // Hide new customer form
+    document.getElementById('newCustomerForm').style.display = 'none';
+}
+
+// Show New Customer Form
+function showNewCustomerForm() {
+    selectedCustomerId = null;
+    resetCustomerForm();
+    document.getElementById('existingCustomerSelect').value = '';
+    document.getElementById('newCustomerForm').style.display = 'block';
+}
+
+// Reset Customer Form
+function resetCustomerForm() {
+    document.getElementById('customerNameInput').value = '';
+    document.getElementById('customerPhoneInput').value = '';
+    document.getElementById('customerAddressInput').value = '';
+    document.getElementById('shopNameInput').value = '';
+    document.getElementById('newCustomerForm').style.display = 'block';
+}
+
 // Open Payment Modal
 function openPaymentModal() {
     const paymentModal = document.getElementById('paymentModal');
     if (!paymentModal) return;
     
-    // Reset inputs
-    const customerNameInput = document.getElementById('customerNameInput');
-    const customerPhoneInput = document.getElementById('customerPhoneInput');
+    // Reset to default
+    currentCustomerType = 'retail';
+    selectedCustomerId = null;
+    selectCustomerType('retail');
     
-    if (customerNameInput) {
-        customerNameInput.value = '';
-        customerNameInput.classList.remove('error');
-    }
-    if (customerPhoneInput) {
-        customerPhoneInput.value = '';
-        customerPhoneInput.classList.remove('error');
-    }
+    // Reset inputs
+    resetCustomerForm();
     
     // Update modal summary
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -697,6 +810,45 @@ async function processPayment() {
         const tax = taxInput ? parseFloat(taxInput.value) || 0 : 0;
         const finalAmount = subtotal - discount + tax;
         
+        // Get shop name for commercial customers
+        const shopNameInput = document.getElementById('shopNameInput');
+        const shopName = shopNameInput ? shopNameInput.value.trim() : '';
+        const addressInput = document.getElementById('customerAddressInput');
+        const address = addressInput ? addressInput.value.trim() : '';
+        
+        // Validate shop name for commercial customers
+        if (currentCustomerType === 'commercial' && !selectedCustomerId && !shopName) {
+            showMessage('اسم المحل مطلوب للعملاء التجاريين', 'error');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
+            }
+            if (shopNameInput) {
+                shopNameInput.focus();
+            }
+            return;
+        }
+        
+        // Save or update customer if new
+        let customerId = selectedCustomerId;
+        if (!customerId) {
+            // Create new customer
+            const customerData = {
+                name: customerName,
+                phone: customerPhone,
+                address: address,
+                customer_type: currentCustomerType,
+                shop_name: currentCustomerType === 'commercial' ? shopName : null
+            };
+            
+            const customerRes = await API.addCustomer(customerData);
+            if (customerRes && customerRes.success) {
+                customerId = customerRes.data.id;
+                // Add to local list
+                allCustomers.push(customerRes.data);
+            }
+        }
+        
         const saleData = {
             items: cart.map(item => ({
                 item_type: item.type === 'spare_part' ? 'spare_part' : item.type === 'accessory' ? 'accessory' : 'phone',
@@ -710,6 +862,7 @@ async function processPayment() {
             discount: discount,
             tax: tax,
             final_amount: Math.max(0, finalAmount),
+            customer_id: customerId,
             customer_name: customerName,
             customer_phone: customerPhone
         };
