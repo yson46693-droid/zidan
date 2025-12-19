@@ -255,8 +255,8 @@ function displaySpareParts(parts) {
             <div class="inventory-card">
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
-                        <h3>${part.brand}</h3>
-                        <p>${part.model}</p>
+                        <h2>${part.brand}</h2>
+                        <h1> الموديل : ${part.model}</h1>
                     </div>
                     <div class="inventory-card-icon">
                         <i class="bi bi-phone"></i>
@@ -304,7 +304,7 @@ function displaySpareParts(parts) {
                 </div>
                 
                 <div class="inventory-card-actions">
-                    <button onclick="printSparePartBarcode('${part.id}', '${barcode}', '${barcodeImage}')" class="btn btn-info btn-sm" title="طباعة الباركود">
+                    <button onclick="printSparePartBarcode('${part.id}', '${barcodeImage}')" class="btn btn-info btn-sm" title="طباعة الباركود">
                         <i class="bi bi-printer"></i> طباعة
                     </button>
                     <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
@@ -445,8 +445,8 @@ function loadSparePartItems(items) {
                     ${isOther && !type ? `<option value="other" selected>${item.item_type || 'أخرى'}</option>` : ''}
                 </select>
                 <input type="number" class="spare-part-item-quantity" value="${item.quantity || 1}" min="1" placeholder="الكمية">
-                <input type="number" class="spare-part-item-purchase-price" step="0.01" min="0" value="${item.purchase_price || 0}" placeholder="سعر التكلفة">
-                <input type="number" class="spare-part-item-selling-price" step="0.01" min="0" value="${item.selling_price || item.price || 0}" placeholder="سعر البيع">
+                <input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}" placeholder="سعر التكلفة">
+                <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}" placeholder="سعر البيع">
                 <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'}; grid-column: 1 / -1;">
                 <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
             </div>
@@ -669,7 +669,7 @@ function displayAccessories(accessories) {
             <div class="inventory-card">
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
-                        <h3>${accessory.name}</h3>
+                        <h2>${accessory.name}</h2>
                         <p>${type ? type.name : accessory.type}</p>
                     </div>
                     <div class="inventory-card-icon">
@@ -895,8 +895,8 @@ function displayPhones(phones) {
             <div class="inventory-card" onclick="viewPhoneDetails('${phone.id}')" style="cursor: pointer;">
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
-                        <h3>${phone.brand}</h3>
-                        <p>${phone.model}</p>
+                        <h2>${phone.brand}</h2>
+                        <h1>${phone.model}</h1>
                     </div>
                     <div class="inventory-card-icon">
                         <i class="bi ${brand.icon}"></i>
