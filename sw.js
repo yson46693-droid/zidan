@@ -49,6 +49,7 @@ const urlsToCache = [
     '/js/reports.js',
     '/js/settings.js',
     '/js/pwa-install.js',
+    '/vertopal.com_photo_5922357566287580087_y.png',
     '/icons/icon-72x72.png',
     '/icons/icon-96x96.png',
     '/icons/icon-128x128.png',
@@ -79,8 +80,7 @@ self.addEventListener('install', event => {
                     '/',
                     '/index.html',
                     '/manifest.json',
-                    '/icons/icon-192x192.png',
-                    '/icons/icon-512x512.png'
+                    '/vertopal.com_photo_5922357566287580087_y.png'
                 ];
                 return cache.addAll(essentialFiles);
             });
@@ -301,7 +301,7 @@ self.addEventListener('push', event => {
     const title = data.title || 'إشعار جديد';
     const options = {
         body: data.body || 'لديك إشعار جديد',
-        icon: '/icons/icon-192x192.png',
+        icon: '/vertopal.com_photo_5922357566287580087_y.png',
         badge: '/icons/icon-72x72.png',
         vibrate: [200, 100, 200],
         dir: 'rtl',

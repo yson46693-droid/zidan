@@ -8,8 +8,18 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
-// بدء الجلسة أولاً
+// بدء الجلسة أولاً مع إعدادات صحيحة
 if (session_status() === PHP_SESSION_NONE) {
+    // إعدادات الجلسة لضمان عملها بشكل صحيح
+    $cookieParams = session_get_cookie_params();
+    session_set_cookie_params([
+        'lifetime' => $cookieParams['lifetime'],
+        'path' => '/',
+        'domain' => $cookieParams['domain'],
+        'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
     session_start();
 }
 
@@ -60,7 +70,18 @@ try {
 }
 
 // التحقق من تسجيل الدخول
-if (!function_exists('isLoggedIn') || !isLoggedIn()) {
+if (!function_exists('isLoggedIn')) {
+    error_log('دالة isLoggedIn غير موجودة');
+    http_response_code(500);
+    die('خطأ: دالة isLoggedIn غير موجودة');
+}
+
+// تسجيل معلومات الجلسة للمساعدة في التصحيح
+error_log('Session ID: ' . session_id());
+error_log('Session data: ' . json_encode($_SESSION ?? []));
+
+if (!isLoggedIn()) {
+    error_log('المستخدم غير مسجل دخول - إعادة التوجيه إلى index.html');
     header('Location: index.html');
     exit;
 }
@@ -68,37 +89,47 @@ if (!function_exists('isLoggedIn') || !isLoggedIn()) {
 // التحقق من وجود الدوال المطلوبة
 if (!function_exists('getCurrentUser')) {
     error_log('دالة getCurrentUser غير موجودة');
+    http_response_code(500);
     die('خطأ: دالة getCurrentUser غير موجودة');
 }
 
 // دالة للتحقق من الصلاحيات
 function requireRole($allowedRoles) {
     if (!function_exists('getCurrentUser')) {
+        error_log('دالة getCurrentUser غير موجودة في requireRole');
         header('Location: index.html');
         exit;
     }
     
     $currentUser = getCurrentUser();
     if (!$currentUser) {
+        error_log('getCurrentUser عادت null - إعادة التوجيه إلى index.html');
         header('Location: index.html');
         exit;
     }
     
-    $userRole = $currentUser['role'] ?? 'member';
+    $userRole = $currentUser['role'] ?? 'employee';
+    error_log('دور المستخدم: ' . $userRole . ', الأدوار المسموحة: ' . implode(', ', $allowedRoles));
+    
     if (!in_array($userRole, $allowedRoles)) {
-        header('Location: dashboard.html');
+        error_log('المستخدم لا يملك الصلاحيات المطلوبة. الدور: ' . $userRole . ', المطلوب: ' . implode(', ', $allowedRoles) . ' - إعادة التوجيه إلى dashboard.html');
+        // بدلاً من إعادة التوجيه الصامتة، أضف رسالة خطأ في URL
+        header('Location: dashboard.html?error=insufficient_permissions&role=' . urlencode($userRole));
         exit;
     }
 }
 
-// التحقق من الصلاحيات
-requireRole(['manager', 'production', 'sales', 'accountant']);
+// التحقق من الصلاحيات - السماح لجميع الأدوار (admin, manager, employee)
+requireRole(['admin', 'manager', 'employee']);
 
 $currentUser = getCurrentUser();
 if (!$currentUser) {
+    error_log('getCurrentUser عادت null بعد requireRole - إعادة التوجيه إلى index.html');
     header('Location: index.html');
     exit;
 }
+
+error_log('تم التحقق من المستخدم بنجاح: ' . json_encode($currentUser));
 
 $currentUserId = (int) ($currentUser['id'] ?? 0);
 $currentUserName = $currentUser['full_name'] ?? ($currentUser['username'] ?? 'عضو');
