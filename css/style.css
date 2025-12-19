@@ -293,6 +293,13 @@ body {
     padding: 30px;
 }
 
+.content.chat-page-content {
+    padding: 20px;
+    height: calc(100vh - 80px);
+    overflow: visible;
+    min-height: 500px;
+}
+
 /* الأقسام */
 .section {
     display: none;

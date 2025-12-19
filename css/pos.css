@@ -850,21 +850,34 @@
     padding: 30px;
 }
 
-.invoice-header {
+.invoice-wrapper {
+    direction: rtl;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Logo Section with white space */
+.invoice-logo-section {
     text-align: center;
     margin-bottom: 30px;
+    padding-top: 20px;
+}
+
+.invoice-logo {
+    max-width: 180px;
+    max-height: 180px;
+    margin: 0 auto;
+    display: block;
+}
+
+.invoice-header {
+    text-align: center;
+    margin-bottom: 25px;
     padding-bottom: 20px;
     border-bottom: 2px solid var(--border-color);
 }
 
-.invoice-logo {
-    max-width: 150px;
-    max-height: 150px;
-    margin-bottom: 15px;
-}
-
 .invoice-shop-name {
-    font-size: 1.8em;
+    font-size: 2em;
     font-weight: bold;
     color: var(--primary-color);
     margin-bottom: 10px;
@@ -873,28 +886,54 @@
 .invoice-shop-info {
     color: var(--text-light);
     line-height: 1.8;
+    font-size: 0.95em;
 }
 
 .invoice-details {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     padding: 15px;
     background: var(--light-bg);
-    border-radius: 5px;
+    border-radius: 8px;
+    gap: 20px;
 }
 
 .invoice-details-left,
 .invoice-details-right {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
+    flex: 1;
+}
+
+.invoice-details-left > div,
+.invoice-details-right > div {
+    color: var(--text-dark);
+    font-size: 0.95em;
+}
+
+.invoice-extra-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 25px;
+    padding: 12px 15px;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.9em;
+    color: var(--text-dark);
+}
+
+.invoice-extra-info > div {
+    flex: 1;
 }
 
 .invoice-items-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    background: var(--white);
 }
 
 .invoice-items-table th,
@@ -908,33 +947,69 @@
     background: var(--light-bg);
     font-weight: bold;
     color: var(--text-dark);
+    font-size: 0.95em;
+}
+
+.invoice-items-table td {
+    color: var(--text-dark);
+    font-size: 0.9em;
 }
 
 .invoice-items-table tr:last-child td {
     border-bottom: none;
 }
 
-.invoice-totals {
+.invoice-summary {
     margin-top: 20px;
-    padding: 15px;
+    padding: 20px;
     background: var(--light-bg);
-    border-radius: 5px;
+    border-radius: 8px;
 }
 
-.invoice-total-row {
+.invoice-summary .summary-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
-    font-size: 1.1em;
+    margin-bottom: 12px;
+    font-size: 1em;
+    color: var(--text-dark);
 }
 
-.invoice-total-row.final {
-    font-size: 1.4em;
+.invoice-summary .summary-row.total {
+    font-size: 1.5em;
     font-weight: bold;
     color: var(--primary-color);
-    padding-top: 10px;
+    padding-top: 12px;
     border-top: 2px solid var(--border-color);
-    margin-top: 10px;
+    margin-top: 12px;
+    margin-bottom: 0;
+}
+
+.invoice-summary hr {
+    margin: 15px 0;
+    border: none;
+    border-top: 1px solid var(--border-color);
+}
+
+.invoice-barcode {
+    text-align: center;
+    margin: 25px 0;
+    padding: 15px;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.invoice-barcode img {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 8px;
+}
+
+.barcode-text {
+    font-size: 0.85em;
+    color: var(--text-light);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
 }
 
 .invoice-footer {
@@ -943,7 +1018,7 @@
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
     color: var(--text-light);
-    font-size: 0.9em;
+    font-size: 0.95em;
 }
 
 /* Responsive Design */
@@ -1070,9 +1145,11 @@
 @media print {
     .pos-header,
     .pos-cart-section,
+    .pos-modal-header,
     .pos-modal-footer,
     .btn-print,
-    .btn-close-modal {
+    .btn-close-modal,
+    .invoice-actions {
         display: none !important;
     }
     
@@ -1081,17 +1158,37 @@
     }
     
     .pos-invoice-body {
-        padding: 0;
+        padding: 20px;
     }
     
     .pos-modal {
         position: static;
         background: white;
         display: block !important;
+        padding: 0;
     }
     
     .pos-modal-content {
         box-shadow: none;
         max-width: 100%;
+        margin: 0;
+    }
+    
+    .invoice-wrapper {
+        max-width: 100%;
+    }
+    
+    .invoice-logo-section {
+        padding-top: 0;
+        margin-bottom: 20px;
+    }
+    
+    .invoice-items-table {
+        font-size: 0.9em;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        padding: 8px;
     }
 }

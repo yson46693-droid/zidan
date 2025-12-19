@@ -21,7 +21,7 @@ $currentUserName = $currentUser['full_name'] ?? ($currentUser['username'] ?? 'ع
 $currentUserRole = $currentUser['role'] ?? 'member';
 
 $apiBase = getRelativeUrl('api/chat');
-$roomName = 'شات فريق الشركة';
+$roomName = 'شات النظام';
 
 $chatCssRelative = 'assets/css/chat.css';
 $chatJsRelative = 'assets/js/chat.js';
@@ -60,13 +60,13 @@ $membersCount = count($onlineUsers);
      data-current-user-id="<?php echo $currentUserId; ?>"
      data-current-user-name="<?php echo htmlspecialchars($currentUserName, ENT_QUOTES, 'UTF-8'); ?>"
      data-current-user-role="<?php echo htmlspecialchars($currentUserRole, ENT_QUOTES, 'UTF-8'); ?>">
-    <button class="chat-sidebar-toggle" type="button" data-chat-sidebar-toggle aria-label="تبديل قائمة الأعضاء">
+    <button class="chat-sidebar-toggle" type="button" data-chat-sidebar-toggle aria-label="تبديل قائمة المستخدمين">
         <span class="chat-sidebar-toggle-icon">☰</span>
     </button>
     <div class="chat-sidebar-overlay" data-chat-sidebar-overlay></div>
     <aside class="chat-sidebar" data-chat-sidebar>
         <div class="chat-sidebar-header">
-            <h2>الأعضاء</h2>
+            <h2>المستخدمين</h2>
             <span class="chat-loading">تحديث</span>
         </div>
         <div class="chat-sidebar-search">
@@ -91,9 +91,7 @@ $membersCount = count($onlineUsers);
         </header>
         <section class="chat-messages" data-chat-messages>
             <div class="chat-empty-state" data-chat-empty>
-                <h3>ابدأ المحادثة الآن</h3>
-                <p>شارك فريقك آخر المستجدات، إرسال الرسائل يتم تحديثه فورياً مع ظهور إشعارات عند وصول أي رسالة جديدة.</p>
-            </div>
+                <h3>ابدأ المحادثة الآن</h3>            </div>
         </section>
         <footer class="chat-composer" data-chat-composer>
             <div class="chat-reply-bar" data-chat-reply>
@@ -108,7 +106,7 @@ $membersCount = count($onlineUsers);
                     class="chat-input"
                     data-chat-input
                     rows="1"
-                    placeholder="اكتب رسالة ودية..."
+                    placeholder="اكتب رسالة ..."
                     autocomplete="off"></textarea>
                 <div class="chat-composer-actions">
                     <button class="chat-icon-button chat-send-button" type="button" title="إرسال" data-chat-send aria-label="إرسال الرسالة">

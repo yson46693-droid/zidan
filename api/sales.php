@@ -163,14 +163,11 @@ if ($method === 'POST') {
     $session = checkAuth();
     $saleId = generateId();
     
-    // إنشاء رقم فاتورة فريد
-    $saleNumber = 'SALE-' . date('Ymd') . '-' . substr(uniqid(), -6);
-    
-    // التحقق من عدم تكرار رقم الفاتورة
-    $existing = dbSelectOne("SELECT id FROM sales WHERE sale_number = ?", [$saleNumber]);
-    if ($existing) {
-        $saleNumber = 'SALE-' . date('Ymd') . '-' . substr(uniqid(), -8);
-    }
+    // إنشاء رقم فاتورة عشوائي من 6 أرقام
+    do {
+        $saleNumber = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+        $existing = dbSelectOne("SELECT id FROM sales WHERE sale_number = ?", [$saleNumber]);
+    } while ($existing);
     
     dbBeginTransaction();
     

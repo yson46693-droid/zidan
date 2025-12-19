@@ -55,7 +55,8 @@
 .chat-page-content {
   padding: 20px;
   height: calc(100vh - 80px);
-  overflow: hidden;
+  overflow: visible;
+  min-height: 500px;
 }
 
 .chat-app {
@@ -73,7 +74,7 @@
 
 /* Sidebar Toggle Button */
 .chat-sidebar-toggle {
-  display: none;
+  display: flex;
   position: fixed;
   bottom: 100px;
   right: 20px;

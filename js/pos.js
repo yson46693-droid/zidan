@@ -755,86 +755,128 @@ function showInvoice(saleData) {
     const shopAddress = shopSettings.shop_address || '';
     const shopLogo = shopSettings.shop_logo || '';
     const currency = shopSettings.currency || 'ج.م';
+    const branchName = 'الهانوفيل';
+    const salesPersonName = saleData.created_by_name || 'غير محدد';
+    
+    // Generate unique barcode for this invoice
+    const barcodeData = saleData.sale_number || saleData.id || Date.now().toString();
+    let barcodeImage = '';
+    if (typeof window.barcodeGenerator !== 'undefined') {
+        barcodeImage = window.barcodeGenerator.generateBarcode(barcodeData, 250, 80);
+    }
+    
+    // Format date and time in 12-hour format with AM/PM
+    const formattedDateTime = formatDateTime12Hour(saleData.created_at || new Date().toISOString());
     
     const logoHtml = shopLogo 
         ? `<img src="${shopLogo}" alt="Logo" class="invoice-logo" onerror="this.style.display='none'">`
         : '';
     
     const invoiceHtml = `
-        <div class="invoice-header">
-            ${logoHtml}
-            <div class="invoice-shop-name">${shopName}</div>
-            <div class="invoice-shop-info">
-                ${shopAddress ? `<div>${shopAddress}</div>` : ''}
-                ${shopPhone ? `<div>${shopPhone}</div>` : ''}
+        <div class="invoice-wrapper">
+            <!-- Logo Section with white space -->
+            <div class="invoice-logo-section">
+                ${logoHtml}
             </div>
-        </div>
-        
-        <div class="invoice-details">
-            <div class="invoice-details-left">
-                <div><strong>رقم الفاتورة:</strong> ${saleData.sale_number || ''}</div>
-                <div><strong>التاريخ:</strong> ${formatDateTime(saleData.created_at || new Date().toISOString())}</div>
+            
+            <!-- Shop Info -->
+            <div class="invoice-header">
+                <div class="invoice-shop-name">${shopName}</div>
+                <div class="invoice-shop-info">
+                    ${shopAddress ? `<div>${shopAddress}</div>` : ''}
+                    ${shopPhone ? `<div>${shopPhone}</div>` : ''}
+                </div>
             </div>
-            <div class="invoice-details-right">
-                ${saleData.customer_name ? `<div><strong>العميل:</strong> ${saleData.customer_name}</div>` : ''}
-                ${saleData.customer_phone ? `<div><strong>الهاتف:</strong> ${saleData.customer_phone}</div>` : ''}
+            
+            <!-- Invoice Details -->
+            <div class="invoice-details">
+                <div class="invoice-details-left">
+                    <div><strong>العميل:</strong> ${saleData.customer_name || ''}</div>
+                    <div><strong>الهاتف:</strong> ${saleData.customer_phone || ''}</div>
+                </div>
+                <div class="invoice-details-right">
+                    <div><strong>رقم الفاتورة:</strong> ${saleData.sale_number || ''}</div>
+                    <div><strong>التاريخ:</strong> ${formattedDateTime}</div>
+                </div>
             </div>
-        </div>
-        
-        <table class="invoice-items-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>المنتج</th>
-                    <th>الكمية</th>
-                    <th>سعر الوحدة</th>
-                    <th>الإجمالي</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${(saleData.items || []).map((item, index) => `
+            
+            <!-- Branch and Sales Person -->
+            <div class="invoice-extra-info">
+                <div><strong>الفرع:</strong> ${branchName}</div>
+                <div><strong>المسؤول عن البيع:</strong> ${salesPersonName}</div>
+            </div>
+            
+            <!-- Items Table -->
+            <table class="invoice-items-table">
+                <thead>
                     <tr>
-                        <td>${index + 1}</td>
-                        <td>${item.item_name}</td>
-                        <td>${item.quantity}</td>
-                        <td>${formatPrice(item.unit_price)} ${currency}</td>
-                        <td>${formatPrice(item.total_price)} ${currency}</td>
+                        <th>#</th>
+                        <th>المنتج</th>
+                        <th>الكمية</th>
+                        <th>سعر الوحدة</th>
+                        <th>الإجمالي</th>
                     </tr>
-                `).join('')}
-            </tbody>
-        </table>
-        
-        <div class="invoice-totals">
-            <div class="invoice-total-row">
-                <span>المجموع الفرعي:</span>
-                <span>${formatPrice(saleData.total_amount)} ${currency}</span>
+                </thead>
+                <tbody>
+                    ${(saleData.items || []).map((item, index) => `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.item_name}</td>
+                            <td>${item.quantity}</td>
+                            <td>${formatPrice(item.unit_price)} ${currency}</td>
+                            <td>${formatPrice(item.total_price)} ${currency}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            
+            <!-- Summary -->
+            <div class="invoice-summary">
+                <div class="summary-row">
+                    <span>المجموع الفرعي:</span>
+                    <span>${formatPrice(saleData.total_amount)} ${currency}</span>
+                </div>
+                ${saleData.discount > 0 ? `
+                    <div class="summary-row">
+                        <span>الخصم:</span>
+                        <span>- ${formatPrice(saleData.discount)} ${currency}</span>
+                    </div>
+                ` : ''}
+                ${saleData.tax > 0 ? `
+                    <div class="summary-row">
+                        <span>الضريبة:</span>
+                        <span>${formatPrice(saleData.tax)} ${currency}</span>
+                    </div>
+                ` : ''}
+                <hr>
+                <div class="summary-row total">
+                    <span>الإجمالي:</span>
+                    <span>${formatPrice(saleData.final_amount)} ${currency}</span>
+                </div>
             </div>
-            ${saleData.discount > 0 ? `
-                <div class="invoice-total-row">
-                    <span>الخصم:</span>
-                    <span>- ${formatPrice(saleData.discount)} ${currency}</span>
+            
+            <!-- Barcode -->
+            ${barcodeImage ? `
+                <div class="invoice-barcode">
+                    <img src="${barcodeImage}" alt="Barcode ${barcodeData}">
+                    <div class="barcode-text">${barcodeData}</div>
                 </div>
             ` : ''}
-            ${saleData.tax > 0 ? `
-                <div class="invoice-total-row">
-                    <span>الضريبة:</span>
-                    <span>${formatPrice(saleData.tax)} ${currency}</span>
-                </div>
-            ` : ''}
-            <div class="invoice-total-row final">
-                <span>الإجمالي:</span>
-                <span>${formatPrice(saleData.final_amount)} ${currency}</span>
+            
+            <!-- Footer -->
+            <div class="invoice-footer">
+                <div>شكراً لزيارتك</div>
             </div>
-        </div>
-        
-        <div class="invoice-footer">
-            <div>شكراً لزيارتك</div>
-            <div>${new Date().toLocaleDateString('ar-SA')}</div>
         </div>
     `;
     
     invoiceBody.innerHTML = invoiceHtml;
     invoiceModal.classList.add('active');
+    
+    // Auto-print after showing invoice
+    setTimeout(() => {
+        printInvoice();
+    }, 500);
 }
 
 // Close Invoice Modal
@@ -850,10 +892,9 @@ function printInvoice() {
     window.print();
 }
 
-// Format Price
+// Format Price (returns only number, currency should be added separately)
 function formatPrice(price) {
-    const currency = shopSettings.currency || 'ج.م';
-    return parseFloat(price || 0).toFixed(2) + ' ' + currency;
+    return parseFloat(price || 0).toFixed(2);
 }
 
 // Format DateTime
@@ -868,6 +909,28 @@ function formatDateTime(dateString) {
             hour: '2-digit',
             minute: '2-digit'
         });
+    } catch (error) {
+        return dateString;
+    }
+}
+
+// Format DateTime in 12-hour format with AM/PM
+function formatDateTime12Hour(dateString) {
+    if (!dateString) return '-';
+    try {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // 0 should be 12
+        const hoursStr = String(hours).padStart(2, '0');
+        
+        return `${year}/${month}/${day} ${hoursStr}:${minutes} ${ampm}`;
     } catch (error) {
         return dateString;
     }
