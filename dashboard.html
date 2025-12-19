@@ -613,26 +613,48 @@
             setTimeout(initInstallButton, 500);
             setTimeout(initInstallButton, 1500);
             
-            // تسجيل Service Worker
-            if ('serviceWorker' in navigator) {
-                try {
-                    const registration = await navigator.serviceWorker.register('/sw.js', {
-                        scope: '/'
-                    });
-                    console.log('✅ Service Worker registered:', registration);
-                    
-                    // التحقق من التحديثات
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('🔄 New Service Worker available. Reload to update.');
+            // تسجيل Service Worker بشكل غير متزامن - لا يعيق تحميل الصفحة
+            const registerServiceWorker = async () => {
+                if ('serviceWorker' in navigator) {
+                    try {
+                        const appVersion = window.APP_VERSION || 'v' + Date.now();
+                        const registration = await navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                            scope: '/',
+                            updateViaCache: 'none'
+                        });
+                        console.log('✅ Service Worker registered:', registration);
+                        
+                        // التحقق من التحديثات
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        console.log('🔄 New Service Worker available. Reload to update.');
+                                    }
+                                });
                             }
                         });
-                    });
-                } catch (error) {
-                    console.error('❌ Service Worker registration failed:', error);
+                        
+                        // التحقق من التحديثات بشكل دوري (كل 10 دقائق)
+                        setInterval(async () => {
+                            try {
+                                await registration.update();
+                            } catch (error) {
+                                // تجاهل الأخطاء
+                            }
+                        }, 600000); // كل 10 دقائق
+                    } catch (error) {
+                        console.warn('Service Worker registration failed:', error);
+                    }
                 }
+            };
+            
+            // تسجيل Service Worker بعد تحميل الصفحة بالكامل
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
+            } else {
+                setTimeout(registerServiceWorker, 2000);
             }
             
             // استعادة الصفحة الحالية من localStorage

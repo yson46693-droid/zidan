@@ -540,35 +540,43 @@
             initPage();
         }
         
-        // تحميل Service Worker بشكل غير متزامن (lazy loading) بعد تحميل الصفحة
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                if ('serviceWorker' in navigator) {
-                    try {
-                        const appVersion = window.APP_VERSION || 'v' + Date.now();
-                        navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
-                            scope: '/',
-                            updateViaCache: 'none'
-                        }).then(registration => {
-                            console.log('✅ Service Worker registered');
-                            
-                            // التحقق من التحديثات بشكل دوري (كل 5 دقائق بدلاً من كل دقيقة)
-                            setInterval(async () => {
-                                try {
-                                    await registration.update();
-                                } catch (error) {
-                                    // تجاهل الأخطاء
-                                }
-                            }, 300000); // كل 5 دقائق
-                        }).catch(error => {
-                            // تجاهل الأخطاء في تسجيل Service Worker
-                        });
-                    } catch (error) {
-                        // تجاهل الأخطاء
-                    }
+        // تحميل Service Worker بشكل غير متزامن تماماً - لا يعيق تحميل الصفحة
+        // استخدام requestIdleCallback إذا كان متاحاً، وإلا setTimeout
+        const registerServiceWorker = () => {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const appVersion = window.APP_VERSION || 'v' + Date.now();
+                    navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                        scope: '/',
+                        updateViaCache: 'none'
+                    }).then(registration => {
+                        console.log('✅ Service Worker registered');
+                        
+                        // التحقق من التحديثات بشكل دوري (كل 10 دقائق)
+                        setInterval(async () => {
+                            try {
+                                await registration.update();
+                            } catch (error) {
+                                // تجاهل الأخطاء
+                            }
+                        }, 600000); // كل 10 دقائق
+                    }).catch(error => {
+                        console.warn('Service Worker registration failed:', error);
+                    });
+                } catch (error) {
+                    console.warn('Service Worker registration error:', error);
                 }
-            }, 1000); // تأخير ثانية واحدة بعد تحميل الصفحة
-        });
+            }
+        };
+        
+        // تسجيل Service Worker بعد تحميل الصفحة بالكامل، مع أولوية منخفضة
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
+        } else {
+            window.addEventListener('load', () => {
+                setTimeout(registerServiceWorker, 2000); // تأخير 2 ثانية بعد تحميل الصفحة
+            });
+        }
     </script>
 </body>
 </html>

@@ -16,11 +16,11 @@ if (typeof self !== 'undefined' && !self.caches) {
     // Fallback بسيط للمتصفحات التي لا تدعم Cache API
     console.warn('[SW] Cache API not supported, using fallback');
 }
-const urlsToCache = [
+// قائمة الملفات الأساسية فقط - الملفات المهمة التي يجب أن تكون موجودة
+const essentialFiles = [
     '/',
     '/index.html',
     '/dashboard.html',
-    // '/chat.php', // ملفات PHP ديناميكية - لا يجب تخزينها في الـ cache
     '/install.html',
     '/manifest.json',
     '/css/style.css',
@@ -28,10 +28,17 @@ const urlsToCache = [
     '/css/print.css',
     '/css/security.css',
     '/css/chat-integrated.css',
-    '/js/version.js', // ملف الإصدارات - مهم جداً
+    '/js/version.js',
     '/js/api.js',
     '/js/auth.js',
     '/js/utils.js',
+    '/vertopal.com_photo_5922357566287580087_y.png',
+    '/icons/icon-192x192.png',
+    '/icons/icon-512x512.png'
+];
+
+// قائمة الملفات الاختيارية - يمكن أن تفشل بدون مشكلة
+const optionalFiles = [
     '/js/chat-integrated.js',
     '/js/data-protection.js',
     '/js/security.js',
@@ -49,47 +56,96 @@ const urlsToCache = [
     '/js/reports.js',
     '/js/settings.js',
     '/js/pwa-install.js',
-    '/vertopal.com_photo_5922357566287580087_y.png',
     '/icons/icon-72x72.png',
     '/icons/icon-96x96.png',
     '/icons/icon-128x128.png',
     '/icons/icon-144x144.png',
     '/icons/icon-152x152.png',
-    '/icons/icon-192x192.png',
-    '/icons/icon-384x384.png',
-    '/icons/icon-512x512.png',
-    '/favicon.ico'
+    '/icons/icon-384x384.png'
 ];
 
 // متغير لتتبع العمليات المعلقة
 let pendingOperations = new Set();
 
+// دالة لإضافة ملفات بشكل آمن مع معالجة الأخطاء و timeout
+async function cacheFilesSafely(cache, files, isEssential = false) {
+    const CACHE_TIMEOUT = 5000; // 5 ثواني timeout لكل ملف
+    
+    // دالة مساعدة لإضافة timeout للطلبات
+    const fetchWithTimeout = (url, timeout = CACHE_TIMEOUT) => {
+        return Promise.race([
+            fetch(url),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout')), timeout)
+            )
+        ]);
+    };
+    
+    const results = await Promise.allSettled(
+        files.map(async url => {
+            try {
+                const response = await fetchWithTimeout(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // نسخ الاستجابة قبل وضعها في الـ cache
+                const responseClone = response.clone();
+                await cache.put(url, responseClone);
+                return { url, success: true };
+            } catch (error) {
+                console.warn(`[SW] Failed to cache ${url}:`, error.message);
+                if (isEssential) {
+                    throw error; // إعادة رمي الخطأ للملفات الأساسية
+                }
+                return { url, success: false, error: error.message };
+            }
+        })
+    );
+    
+    const succeeded = results.filter(r => 
+        r.status === 'fulfilled' && r.value && r.value.success
+    ).length;
+    const failed = results.length - succeeded;
+    
+    console.log(`[SW] Cached ${succeeded}/${files.length} files${failed > 0 ? ` (${failed} failed)` : ''}`);
+    
+    return { succeeded, failed, results };
+}
+
 // التثبيت - حفظ الملفات في الـ cache
 self.addEventListener('install', event => {
     console.log('[Service Worker] Installing...');
     
-    // دعم المتصفحات القديمة
     const installPromise = caches.open(CACHE_NAME)
-        .then(cache => {
-            console.log('[Service Worker] Caching app shell');
-            // محاولة إضافة جميع الملفات
-            return cache.addAll(urlsToCache).catch(error => {
-                console.warn('[Service Worker] Some files failed to cache:', error);
-                // في حالة الفشل، نحاول إضافة الملفات الأساسية فقط
-                const essentialFiles = [
-                    '/',
-                    '/index.html',
-                    '/manifest.json',
-                    '/vertopal.com_photo_5922357566287580087_y.png'
-                ];
-                return cache.addAll(essentialFiles);
-            });
+        .then(async cache => {
+            console.log('[Service Worker] Caching essential files...');
+            
+            // إضافة الملفات الأساسية أولاً (يجب أن تنجح)
+            try {
+                await cacheFilesSafely(cache, essentialFiles, true);
+                console.log('[Service Worker] Essential files cached successfully');
+            } catch (error) {
+                console.error('[Service Worker] Critical error caching essential files:', error);
+                // حتى لو فشلت الملفات الأساسية، نكمل العملية
+            }
+            
+            // إضافة الملفات الاختيارية (يمكن أن تفشل بدون مشكلة)
+            console.log('[Service Worker] Caching optional files...');
+            await cacheFilesSafely(cache, optionalFiles, false);
+            
+            console.log('[Service Worker] Installation complete');
         })
         .then(() => {
-            // تفعيل Service Worker فوراً (للمتصفحات القديمة)
+            // تفعيل Service Worker فوراً
             if (self.skipWaiting) {
                 return self.skipWaiting();
             }
+        })
+        .catch(error => {
+            console.error('[Service Worker] Installation error:', error);
+            // حتى لو فشل التثبيت، نكمل العملية
         });
     
     event.waitUntil(installPromise);
