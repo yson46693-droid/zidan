@@ -1,0 +1,134 @@
+# Cursor Rules - Performance & Code Quality Guidelines
+
+## 🚨 MANDATORY RULES - MUST FOLLOW
+
+### Performance Rules (REQUIRED)
+1. **ALWAYS** use `defer` or `async` for script tags
+2. **ALWAYS** use debounce/throttle for frequent events (input, scroll, resize)
+3. **ALWAYS** use event delegation instead of multiple event listeners
+4. **ALWAYS** batch DOM updates using DocumentFragment or string concatenation
+5. **ALWAYS** cache API responses and database results when appropriate
+6. **NEVER** use `innerHTML` in loops - build string first, then set once
+7. **NEVER** create memory leaks - remove event listeners on cleanup
+8. **NEVER** load heavy components immediately - use lazy loading
+
+### Code Quality Rules (REQUIRED)
+1. **ALWAYS** read `PERFORMANCE_GUIDE.md` before writing code
+2. **ALWAYS** use prepared statements for database queries (PHP)
+3. **ALWAYS** add indexes for columns used in WHERE/JOIN clauses
+4. **ALWAYS** use `SELECT specific_columns` instead of `SELECT *`
+5. **ALWAYS** add `LIMIT` to large result sets
+6. **ALWAYS** handle errors gracefully without breaking performance
+7. **ALWAYS** remove `console.log` from production code
+
+### JavaScript Best Practices (REQUIRED)
+```javascript
+// ✅ DO: Use debounce for search
+const debouncedSearch = debounce(handleSearch, 300);
+
+// ✅ DO: Use event delegation
+document.addEventListener('click', (e) => {
+    if (e.target.matches('.button')) handleClick(e);
+});
+
+// ✅ DO: Batch DOM updates
+const fragment = document.createDocumentFragment();
+items.forEach(item => fragment.appendChild(createElement(item)));
+container.appendChild(fragment);
+
+// ❌ DON'T: Multiple innerHTML updates
+items.forEach(item => container.innerHTML += `<div>${item}</div>`);
+
+// ❌ DON'T: Multiple event listeners
+items.forEach(item => item.addEventListener('click', handler));
+```
+
+### PHP/API Best Practices (REQUIRED)
+```php
+// ✅ DO: Use prepared statements
+$stmt = $conn->prepare("SELECT * FROM table WHERE id = ?");
+$stmt->bind_param("i", $id);
+
+// ✅ DO: Batch queries
+$ids = implode(',', array_map('intval', $ids));
+$results = dbSelect("SELECT * FROM table WHERE id IN ($ids)");
+
+// ❌ DON'T: Multiple queries in loop
+foreach ($ids as $id) {
+    $result = dbSelect("SELECT * FROM table WHERE id = ?", [$id]);
+}
+```
+
+### Database Best Practices (REQUIRED)
+```sql
+-- ✅ DO: Add indexes
+CREATE INDEX idx_email ON users(email);
+
+-- ✅ DO: Select specific columns
+SELECT id, name, email FROM users;
+
+-- ✅ DO: Use LIMIT
+SELECT * FROM repairs ORDER BY created_at DESC LIMIT 50;
+
+-- ❌ DON'T: SELECT * without need
+SELECT * FROM users;
+
+-- ❌ DON'T: No indexes on WHERE columns
+SELECT * FROM users WHERE email = 'test@example.com';
+```
+
+### HTML/CSS Best Practices (REQUIRED)
+```html
+<!-- ✅ DO: Lazy load images -->
+<img src="image.jpg" loading="lazy" alt="Description">
+
+<!-- ✅ DO: Use defer for scripts -->
+<script src="js/file.js" defer></script>
+
+<!-- ✅ DO: Preload critical resources -->
+<link rel="preload" href="fonts/font.woff2" as="font">
+
+<!-- ❌ DON'T: Blocking scripts in head -->
+<script src="js/heavy.js"></script>
+```
+
+## 📋 PRE-COMMIT CHECKLIST
+
+Before every commit, verify:
+- [ ] No console.log in production code
+- [ ] Debounce/throttle applied to frequent events
+- [ ] Event listeners removed on cleanup
+- [ ] No memory leaks
+- [ ] Caching used for repeated operations
+- [ ] DOM updates batched
+- [ ] Database queries optimized (indexes, LIMIT, specific columns)
+- [ ] API responses cached when appropriate
+- [ ] Lazy loading for heavy components
+- [ ] Lighthouse score > 90
+
+## 🎯 Performance Targets
+
+- First Contentful Paint (FCP): < 1.5s
+- Largest Contentful Paint (LCP): < 2.5s
+- Time to Interactive (TTI): < 3.5s
+- Cumulative Layout Shift (CLS): < 0.1
+- Total Blocking Time (TBT): < 300ms
+
+## 📚 References
+
+- Read `PERFORMANCE_GUIDE.md` for detailed guidelines
+- Check existing code patterns in `js/api.js`, `js/auth.js`
+- Follow database patterns in `api/database.php`
+
+## ⚠️ WARNINGS
+
+**IF YOU DON'T FOLLOW THESE RULES:**
+- Your code will be rejected
+- You'll be asked to rewrite
+- Performance issues will affect users
+
+**ALWAYS:**
+1. Read PERFORMANCE_GUIDE.md first
+2. Check existing code patterns
+3. Test with Lighthouse before committing
+4. Verify no performance regressions

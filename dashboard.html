@@ -287,27 +287,84 @@
         </div>
     </main>
 
+    <!-- Critical Scripts - تحميل فوري (مطلوبة للتشغيل الأساسي) -->
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
-    <script src="js/data-protection.js"></script>
-    <script src="js/security.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/sync.js"></script>
-    <script src="js/encryption.js"></script>
-    <script src="js/encryption-settings.js"></script>
-    <script src="js/barcode.js"></script>
-    <script src="js/small-label.js"></script>
-    <script src="js/image-management.js"></script>
-    <script src="js/backup-management.js"></script>
-    <script src="js/repairs.js"></script>
-    <script src="js/customers.js"></script>
-    <script src="js/inventory.js"></script>
-    <script src="js/expenses.js"></script>
-    <script src="js/reports.js"></script>
-    <script src="js/settings.js"></script>
-    <script src="js/pwa-install.js"></script>
-    <script src="webauthn/webauthn.js"></script>
-    <script src="js/profile.js"></script>
+    <script src="js/auth.js" defer></script>
+    
+    <!-- Security Scripts - تحميل بأولوية عالية -->
+    <script src="js/data-protection.js" defer></script>
+    <script src="js/security.js" defer></script>
+    
+    <!-- Core Features - تحميل متزامن (defer) -->
+    <script src="js/sync.js" defer></script>
+    <script src="js/encryption.js" defer></script>
+    <script src="js/encryption-settings.js" defer></script>
+    
+    <!-- Module Scripts - تحميل ديناميكي عند الحاجة (Lazy Loading) -->
+    <script>
+        // تحميل ديناميكي للمكونات الكبيرة - تحسين الأداء
+        (function() {
+            const scripts = {
+                critical: [
+                    { src: 'js/repairs.js', defer: true },
+                    { src: 'js/customers.js', defer: true },
+                    { src: 'js/inventory.js', defer: true }
+                ],
+                onDemand: [
+                    { src: 'js/barcode.js', id: 'barcode-script' },
+                    { src: 'js/small-label.js', id: 'label-script' },
+                    { src: 'js/image-management.js', id: 'image-script' },
+                    { src: 'js/backup-management.js', id: 'backup-script' },
+                    { src: 'js/expenses.js', id: 'expenses-script' },
+                    { src: 'js/reports.js', id: 'reports-script' },
+                    { src: 'js/settings.js', id: 'settings-script' },
+                    { src: 'js/profile.js', id: 'profile-script' },
+                    { src: 'js/pwa-install.js', id: 'pwa-script' },
+                    { src: 'webauthn/webauthn.js', id: 'webauthn-script' }
+                ]
+            };
+            
+            // تحميل Critical Scripts بعد DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', () => {
+                scripts.critical.forEach(script => {
+                    const el = document.createElement('script');
+                    el.src = script.src;
+                    if (script.defer) el.defer = true;
+                    document.body.appendChild(el);
+                });
+                
+                // تحميل On-Demand Scripts عند الحاجة (Lazy Loading)
+                window.loadScriptOnDemand = function(scriptId) {
+                    const scriptInfo = scripts.onDemand.find(s => s.id === scriptId);
+                    if (!scriptInfo) return Promise.resolve();
+                    
+                    // التحقق من عدم تحميله مسبقاً
+                    if (document.getElementById(scriptInfo.id)) {
+                        return Promise.resolve();
+                    }
+                    
+                    return new Promise((resolve, reject) => {
+                        const el = document.createElement('script');
+                        el.id = scriptInfo.id;
+                        el.src = scriptInfo.src;
+                        el.defer = true;
+                        el.onload = () => resolve();
+                        el.onerror = () => reject(new Error(`Failed to load ${scriptInfo.src}`));
+                        document.body.appendChild(el);
+                    });
+                };
+                
+                // Preload scripts عند التفاعل الأول (passive loading)
+                setTimeout(() => {
+                    // تحميل بعض المكونات الشائعة الاستخدام بعد ثانيتين
+                    ['barcode-script', 'label-script', 'image-script'].forEach(id => {
+                        window.loadScriptOnDemand(id).catch(() => {});
+                    });
+                }, 2000);
+            });
+        })();
+    </script>
     
     <script>
         // معالجة تحديث Service Worker

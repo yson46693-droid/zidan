@@ -2171,7 +2171,7 @@ function printAccessoryBarcode(id) {
     }
     
     // إنشاء باركود
-    const barcode = `${accessory.type}-${accessory.id}-${Date.now()}`;
+    const barcode = `${accessory.id}-${Date.now()}`;
     let barcodeImage = '';
     try {
         if (typeof BarcodeGenerator !== 'undefined') {
@@ -2205,35 +2205,37 @@ function printAccessoryBarcode(id) {
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     padding: 20px;
                     background: #f5f5f5;
+                    font-size: 22px; /* كبر حجم الخط الأساسي */
                 }
                 .barcode-container {
                     background: white;
-                    padding: 30px;
-                    border-radius: 10px;
+                    padding: 40px;
+                    border-radius: 12px;
                     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    max-width: 400px;
+                    max-width: 480px;
                     margin: 0 auto;
                     text-align: center;
+                    font-size: 22px;
                 }
                 .barcode-header {
-                    margin-bottom: 20px;
+                    margin-bottom: 28px;
                     border-bottom: 2px solid #2196F3;
-                    padding-bottom: 15px;
+                    padding-bottom: 20px;
                 }
                 .barcode-header h2 {
                     color: #2196F3;
-                    font-size: 24px;
-                    margin-bottom: 10px;
+                    font-size: 34px;
+                    margin-bottom: 16px;
                 }
                 .barcode-header p {
                     color: #666;
-                    font-size: 16px;
+                    font-size: 22px;
                 }
                 .barcode-image {
-                    margin: 20px 0;
-                    padding: 15px;
+                    margin: 28px 0;
+                    padding: 22px;
                     background: #f9f9f9;
-                    border-radius: 8px;
+                    border-radius: 10px;
                 }
                 .barcode-image img {
                     max-width: 100%;
@@ -2243,42 +2245,46 @@ function printAccessoryBarcode(id) {
                 }
                 .barcode-code {
                     font-family: 'Courier New', monospace;
-                    font-size: 18px;
+                    font-size: 28px;
                     font-weight: bold;
                     color: #333;
-                    letter-spacing: 3px;
-                    margin-top: 15px;
-                    padding: 10px;
+                    letter-spacing: 5px;
+                    margin-top: 20px;
+                    padding: 15px;
                     background: #f0f0f0;
                     border-radius: 5px;
                 }
                 .barcode-info {
-                    margin-top: 20px;
-                    padding-top: 20px;
+                    margin-top: 28px;
+                    padding-top: 28px;
                     border-top: 1px solid #ddd;
                 }
                 .barcode-info-item {
                     display: flex;
                     justify-content: space-between;
-                    margin: 10px 0;
-                    font-size: 14px;
+                    margin: 18px 0;
+                    font-size: 22px;
                 }
                 .barcode-info-label {
                     color: #666;
                     font-weight: 600;
+                    font-size: 22px;
                 }
                 .barcode-info-value {
                     color: #2196F3;
                     font-weight: bold;
+                    font-size: 26px;
                 }
                 @media print {
                     body {
                         background: white;
                         padding: 0;
+                        font-size: 22px;
                     }
                     .barcode-container {
                         box-shadow: none;
                         border: 1px solid #ddd;
+                        font-size: 22px;
                     }
                     @page {
                         size: A4;
@@ -2291,20 +2297,14 @@ function printAccessoryBarcode(id) {
             <div class="barcode-container">
                 <div class="barcode-header">
                     <h2>${accessory.name}</h2>
-                    <p>${type ? type.name : accessory.type}</p>
                 </div>
                 <div class="barcode-image">
-                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 20px; background: #f0f0f0; border-radius: 5px;">باركود</div>'}
-                    <div class="barcode-code">${barcode}</div>
+                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 24px; font-size: 24px; background: #f0f0f0; border-radius: 5px;">باركود</div>'}
                 </div>
                 <div class="barcode-info">
                     <div class="barcode-info-item">
                         <span class="barcode-info-label">السعر:</span>
                         <span class="barcode-info-value">${formatCurrency(accessory.selling_price || 0)}</span>
-                    </div>
-                    <div class="barcode-info-item">
-                        <span class="barcode-info-label">التاريخ:</span>
-                        <span class="barcode-info-value">${new Date().toLocaleDateString('ar-SA')}</span>
                     </div>
                 </div>
             </div>
