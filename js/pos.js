@@ -1253,36 +1253,128 @@ async function showInvoice(saleData) {
     const currency = shopSettings.currency || 'ج.م';
     const branchName = 'الهانوفيل';
     const salesPersonName = saleData.created_by_name || 'غير محدد';
+    const whatsappNumber = '01276855966';
     
-    // Generate unique QR code for this invoice
-    const qrCodeData = saleData.sale_number || saleData.id || Date.now().toString();
+    // Check if there's a phone product in the sale
+    const hasPhoneProduct = (saleData.items || []).some(item => item.item_type === 'phone');
+    let phoneData = null;
+    
+    if (hasPhoneProduct) {
+        // Get the first phone product details
+        const phoneItem = (saleData.items || []).find(item => item.item_type === 'phone');
+        if (phoneItem && phoneItem.item_id) {
+            try {
+                const phoneRes = await API.request(`inventory.php?type=phones`, 'GET');
+                if (phoneRes && phoneRes.success && phoneRes.data) {
+                    phoneData = phoneRes.data.find(p => p.id === phoneItem.item_id);
+                }
+            } catch (error) {
+                console.error('خطأ في جلب بيانات الهاتف:', error);
+            }
+        }
+    }
+    
+    // Generate QR code with full invoice data as JSON
+    const invoiceData = {
+        sale_number: saleData.sale_number || saleData.id,
+        date: saleData.created_at || new Date().toISOString(),
+        customer_name: saleData.customer_name || '',
+        customer_phone: saleData.customer_phone || '',
+        total_amount: saleData.total_amount || 0,
+        discount: saleData.discount || 0,
+        tax: saleData.tax || 0,
+        final_amount: saleData.final_amount || 0,
+        items: (saleData.items || []).map(item => ({
+            name: item.item_name,
+            type: item.item_type,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price
+        }))
+    };
+    
+    const qrCodeData = JSON.stringify(invoiceData);
     let qrCodeImage = '';
     if (typeof window.barcodeGenerator !== 'undefined') {
-        qrCodeImage = window.barcodeGenerator.generateQRCode(qrCodeData, 200);
+        qrCodeImage = window.barcodeGenerator.generateQRCode(qrCodeData, 250);
     }
     
     // Format date and time in 12-hour format with AM/PM
     const formattedDateTime = formatDateTime12Hour(saleData.created_at || new Date().toISOString());
     
-    // Get logo - try multiple sources
+    // Get logo - try multiple sources (larger size)
     let logoHtml = '';
     // مسارات اللوجو الاحتياطية (نسبية من المجلد الرئيسي)
     const defaultLogoPath = 'vertopal.com_photo_5922357566287580087_y.png';  // اللوجو PNG في المجلد الرئيسي
     const fallbackLogoPath1 = 'photo_5922357566287580087_y.jpg';             // اللوجو JPG القديم
     const fallbackLogoPath2 = 'icons/icon-192x192.png';                      // أيقونة من مجلد الأيقونات
     
-    // دالة لإنشاء HTML للوجو مع معالجة الأخطاء
+    // دالة لإنشاء HTML للوجو مع معالجة الأخطاء (حجم أكبر)
     const createLogoHtml = (src, alt = 'ALAA ZIDAN Logo') => {
-        return `<img src="${src}" alt="${alt}" class="invoice-logo" style="max-width: 400px; max-height: 400px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
+        return `<img src="${src}" alt="${alt}" class="invoice-logo" style="max-width: 500px; max-height: 500px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
     };
     
     if (shopLogo && shopLogo.trim() !== '') {
         // استخدام لوجو المتجر من الإعدادات مع مسارات احتياطية
         logoHtml = createLogoHtml(shopLogo);
     } else {
-        // استخدام اللوجو الافتراضي PNG مع مسارات احتياطية1
+        // استخدام اللوجو الافتراضي PNG مع مسارات احتياطية
         logoHtml = createLogoHtml(defaultLogoPath);
     }
+    
+    // Phone data section HTML
+    const phoneDataSection = phoneData ? `
+        <div class="invoice-phone-data">
+            <h3>بيانات الهاتف</h3>
+            <div class="phone-data-grid">
+                <div class="phone-data-item">
+                    <strong>الماركة:</strong> ${phoneData.brand || '-'}
+                </div>
+                <div class="phone-data-item">
+                    <strong>الموديل:</strong> ${phoneData.model || '-'}
+                </div>
+                <div class="phone-data-item">
+                    <strong>المساحة:</strong> ${phoneData.storage || '-'}
+                </div>
+                <div class="phone-data-item">
+                    <strong>الرام:</strong> ${phoneData.ram || '-'}
+                </div>
+                <div class="phone-data-item">
+                    <strong>نوع الشاشة:</strong> ${phoneData.screen_type || '-'}
+                </div>
+                <div class="phone-data-item">
+                    <strong>حالة الضريبة:</strong> ${phoneData.tax_status === 'due' ? 'مستحقة' : 'معفاة'}
+                </div>
+                <div class="phone-data-item">
+                    <strong>السيريال نمبر (IMEI):</strong> ${phoneData.serial_number || '-'}
+                </div>
+                <div class="phone-data-item">
+                    <strong>سجل الصيانة:</strong> ${phoneData.maintenance_history || '-'}
+                </div>
+                ${phoneData.defects ? `
+                <div class="phone-data-item full-width">
+                    <strong>العيوب:</strong> ${phoneData.defects}
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    ` : '';
+    
+    // Invoice terms based on whether there's a phone
+    const invoiceTerms = `
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
+                <li>لا يتم الإرجاع أو الاستبدال إلا بإبراز الفاتورة الأصلية.</li>
+                ${hasPhoneProduct ? `
+                <li>يجب مطابقة رقم الـ IMEI المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
+                <li>لا يتم استبدال أو رد الأجهزة الجديدة بعد الاستخدام أو فتح ستيكر الضمان الموجود على العلبة.</li>
+                ` : ''}
+                <li>الضمان يشمل عيوب الصناعة فقط ولا يشمل سوء الاستخدام أو الكسر أو السوائل.</li>
+            </ol>
+        </div>
+    `;
     
     const invoiceHtml = `
         <div class="invoice-wrapper">
@@ -1296,6 +1388,7 @@ async function showInvoice(saleData) {
                 <div class="invoice-shop-info">
                     ${shopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${shopAddress}</div>` : ''}
                     ${shopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${shopPhone}</div>` : ''}
+                    <div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${whatsappNumber}</div>
                 </div>
             </div>
             
@@ -1316,6 +1409,9 @@ async function showInvoice(saleData) {
                 <div><strong>الفرع:</strong> ${branchName}</div>
                 <div><strong>المسؤول عن البيع:</strong> ${salesPersonName}</div>
             </div>
+            
+            <!-- Phone Data Section -->
+            ${phoneDataSection}
             
             <!-- Items Table -->
             <table class="invoice-items-table">
@@ -1361,10 +1457,13 @@ async function showInvoice(saleData) {
                 </div>
             </div>
             
+            <!-- Invoice Terms -->
+            ${invoiceTerms}
+            
             <!-- QR Code -->
             ${qrCodeImage ? `
                 <div class="invoice-qrcode">
-                    <img src="${qrCodeImage}" alt="QR Code ${qrCodeData}">
+                    <img src="${qrCodeImage}" alt="QR Code">
                 </div>
             ` : ''}
             
