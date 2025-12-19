@@ -34,6 +34,7 @@ const essentialFiles = [
     '/js/utils.js',
     '/vertopal.com_photo_5922357566287580087_y.png',
     '/icons/icon-192x192.png',
+    '/icon-512x512.png',
     '/icons/icon-512x512.png'
 ];
 

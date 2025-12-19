@@ -421,7 +421,7 @@ function getRoleName($role) {
                 <i class="bi bi-box-seam"></i> المخزون
             </a>
             <a href="pos.html" class="nav-link">
-                <i class="bi bi-cash-register"></i> نقاط البيع
+                <i class="bi bi-cash-coin"></i> نقاط البيع
             </a>
             <a href="dashboard.html#expenses" class="nav-link">
                 <i class="bi bi-cash-stack"></i> المصروفات
