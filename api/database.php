@@ -269,7 +269,8 @@ function dbColumnExists($tableName, $columnName) {
         return false;
     }
     
-    $stmt->bind_param('sss', DB_NAME, $tableName, $columnName);
+    $dbName = DB_NAME;
+    $stmt->bind_param('sss', $dbName, $tableName, $columnName);
     if (!$stmt->execute()) {
         $stmt->close();
         return false;
