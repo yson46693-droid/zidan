@@ -48,6 +48,30 @@
     role: '',
   };
 
+  // دوال مساعدة للأداء
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  function throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    };
+  }
+
   // دالة التهيئة من النظام الخارجي
   window.initChat = function(user) {
     if (!user) {
@@ -59,8 +83,6 @@
     currentUser.id = user.id || user.user_id || '0';
     currentUser.name = user.name || user.username || 'مستخدم';
     currentUser.role = user.role || 'member';
-
-    console.log('Chat initialized with user:', currentUser);
 
     // تعيين بيانات المستخدم في العنصر
     const app = document.querySelector(selectors.app);
@@ -103,8 +125,6 @@
       currentUser.name = app.dataset.currentUserName || '';
       currentUser.role = app.dataset.currentUserRole || '';
     }
-    
-    console.log('Current user in init:', currentUser);
 
     initTheme();
     bindEvents();
@@ -141,7 +161,11 @@
     }
 
     if (elements.userList && elements.search) {
-      elements.search.addEventListener('input', handleSearchUsers);
+      // استخدام debounce للبحث
+      const debouncedSearch = debounce(handleSearchUsers, 300);
+      elements.search.addEventListener('input', (e) => {
+        debouncedSearch(e);
+      });
     }
 
     if (elements.sidebarToggle) {
@@ -168,15 +192,14 @@
       }
     });
 
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        if (window.innerWidth > 1100) {
-          closeSidebar();
-        }
-      }, 250);
-    });
+    // استخدام throttle لـ resize events
+    const throttledResize = throttle(() => {
+      if (window.innerWidth > 1100) {
+        closeSidebar();
+      }
+    }, 250);
+    
+    window.addEventListener('resize', throttledResize);
 
     window.addEventListener('beforeunload', () => {
       if (state.pendingFetchTimeout) {
@@ -276,17 +299,26 @@
   }
 
   function handleSearchUsers(event) {
-    const value = event.target.value.trim().toLowerCase();
-    const items = elements.userList.querySelectorAll('[data-chat-user-item]');
+    if (!elements.userList) {
+      return;
+    }
+    
+    try {
+      const value = event.target.value.trim().toLowerCase();
+      const items = elements.userList.querySelectorAll('[data-chat-user-item]');
 
-    items.forEach((item) => {
-      const name = item.dataset.name || '';
-      if (!value || name.toLowerCase().includes(value)) {
-        item.style.display = '';
-      } else {
-        item.style.display = 'none';
-      }
-    });
+      items.forEach((item) => {
+        if (!item) return;
+        const name = item.dataset.name || '';
+        if (!value || name.toLowerCase().includes(value)) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    } catch (error) {
+      // Error handling - لا نكسر النظام
+    }
   }
 
   function handleInputKeydown(event) {
@@ -433,7 +465,6 @@
 
     try {
       const url = `${API_BASE}/send_message.php`;
-      console.log('Sending message to:', url);
       
       let response;
       try {
@@ -447,7 +478,6 @@
           }),
         });
       } catch (fetchError) {
-        console.error('Network error:', fetchError);
         throw new Error('خطأ في الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
       }
 
@@ -455,9 +485,8 @@
         let errorText = '';
         try {
           errorText = await response.text();
-          console.error('Send message error:', response.status, errorText);
         } catch (e) {
-          console.error('Could not read error response');
+          // تجاهل خطأ قراءة النص
         }
         
         if (response.status === 403) {
@@ -493,7 +522,6 @@
         fetchMessages();
       }, 500);
     } catch (error) {
-      console.error(error);
       showToast(error.message || 'حدث خطأ أثناء الإرسال', true);
     } finally {
       state.isSending = false;
@@ -537,7 +565,6 @@
         fetchMessages();
       }, 500);
     } catch (error) {
-      console.error(error);
       showToast(error.message || 'حدث خطأ أثناء التعديل', true);
     } finally {
       state.isSending = false;
@@ -612,7 +639,6 @@
         fetchMessages();
       }, 500);
     } catch (error) {
-      console.error(error);
       showToast(error.message || 'حدث خطأ أثناء الحذف', true);
     }
   }
@@ -674,7 +700,6 @@
       try {
         payload = await response.json();
       } catch (jsonError) {
-        console.error('JSON parse error:', jsonError);
         throw new Error('خطأ في قراءة البيانات من الخادم.');
       }
 
@@ -711,7 +736,6 @@
         }, 600);
       }
     } catch (error) {
-      console.error(error);
       showToast(error.message || 'تعذر تحديث الرسائل', true);
     }
   }
@@ -757,21 +781,34 @@
       return;
     }
 
-    const totalUsers = Math.max(1, state.users.length);
-    const fragment = document.createDocumentFragment();
-    let currentDate = '';
+    try {
+      const totalUsers = Math.max(1, state.users.length);
+      const fragment = document.createDocumentFragment();
+      let currentDate = '';
 
-    state.messages.forEach((message) => {
-      const messageDate = formatDate(message.created_at);
-      if (messageDate !== currentDate) {
-        currentDate = messageDate;
-        fragment.appendChild(createDayDivider(messageDate));
-      }
-      fragment.appendChild(createMessageElement(message, totalUsers));
-    });
+      // استخدام DocumentFragment لـ batch DOM updates
+      state.messages.forEach((message) => {
+        if (!message) return;
+        const messageDate = formatDate(message.created_at);
+        if (messageDate !== currentDate) {
+          currentDate = messageDate;
+          const divider = createDayDivider(messageDate);
+          if (divider) {
+            fragment.appendChild(divider);
+          }
+        }
+        const messageEl = createMessageElement(message, totalUsers);
+        if (messageEl) {
+          fragment.appendChild(messageEl);
+        }
+      });
 
-    elements.messageList.innerHTML = '';
-    elements.messageList.appendChild(fragment);
+      // تحديث DOM مرة واحدة فقط
+      elements.messageList.innerHTML = '';
+      elements.messageList.appendChild(fragment);
+    } catch (error) {
+      // Error handling - لا نكسر النظام
+    }
   }
 
   function createDayDivider(label) {
@@ -928,50 +965,57 @@
       return;
     }
 
-    if (elements.headerCount) {
-      const online = state.users.filter((user) => Number(user.is_online) === 1).length;
-      elements.headerCount.textContent = `${online} متصل / ${state.users.length} أعضاء`;
+    try {
+      if (elements.headerCount) {
+        const online = state.users.filter((user) => Number(user.is_online) === 1).length;
+        elements.headerCount.textContent = `${online} متصل / ${state.users.length} أعضاء`;
+      }
+
+      // استخدام DocumentFragment لـ batch DOM updates
+      const fragment = document.createDocumentFragment();
+
+      state.users.forEach((user) => {
+        if (!user) return;
+        
+        const item = document.createElement('div');
+        item.className = 'chat-user-item';
+        item.dataset.chatUserItem = 'true';
+        item.dataset.name = user.name || user.username || '';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'chat-user-avatar';
+
+        const initials = getInitials(user.name || user.username);
+        avatar.textContent = initials;
+
+        const status = document.createElement('div');
+        status.className = `chat-user-status ${Number(user.is_online) === 1 ? 'online' : ''}`;
+        avatar.appendChild(status);
+
+        const meta = document.createElement('div');
+        meta.className = 'chat-user-meta';
+        const nameElement = document.createElement('h3');
+        nameElement.textContent = user.name || user.username;
+        meta.appendChild(nameElement);
+
+        const statusText = document.createElement('span');
+        statusText.textContent =
+          Number(user.is_online) === 1
+            ? 'متصل الآن'
+            : `آخر ظهور: ${formatRelativeTime(user.last_seen)}`;
+        meta.appendChild(statusText);
+
+        item.appendChild(avatar);
+        item.appendChild(meta);
+        fragment.appendChild(item);
+      });
+
+      // تحديث DOM مرة واحدة فقط
+      elements.userList.innerHTML = '';
+      elements.userList.appendChild(fragment);
+    } catch (error) {
+      // Error handling - لا نكسر النظام
     }
-
-    elements.userList.innerHTML = '';
-
-    const fragment = document.createDocumentFragment();
-
-    state.users.forEach((user) => {
-      const item = document.createElement('div');
-      item.className = 'chat-user-item';
-      item.dataset.chatUserItem = 'true';
-      item.dataset.name = user.name || user.username || '';
-
-      const avatar = document.createElement('div');
-      avatar.className = 'chat-user-avatar';
-
-      const initials = getInitials(user.name || user.username);
-      avatar.textContent = initials;
-
-      const status = document.createElement('div');
-      status.className = `chat-user-status ${Number(user.is_online) === 1 ? 'online' : ''}`;
-      avatar.appendChild(status);
-
-      const meta = document.createElement('div');
-      meta.className = 'chat-user-meta';
-      const nameElement = document.createElement('h3');
-      nameElement.textContent = user.name || user.username;
-      meta.appendChild(nameElement);
-
-      const statusText = document.createElement('span');
-      statusText.textContent =
-        Number(user.is_online) === 1
-          ? 'متصل الآن'
-          : `آخر ظهور: ${formatRelativeTime(user.last_seen)}`;
-      meta.appendChild(statusText);
-
-      item.appendChild(avatar);
-      item.appendChild(meta);
-      fragment.appendChild(item);
-    });
-
-    elements.userList.appendChild(fragment);
   }
 
   function startPresenceUpdates() {
@@ -1021,7 +1065,7 @@
         body: JSON.stringify({ is_online: Boolean(isOnline) }),
       });
     } catch (error) {
-      console.error('presence update failed', error);
+      // تجاهل أخطاء presence - لا نكسر النظام
     }
   }
 
@@ -1029,36 +1073,53 @@
     if (!elements.messageList) {
       return;
     }
-    if (!force) {
-      const threshold = 120;
-      const distanceFromBottom =
-        elements.messageList.scrollHeight -
-        elements.messageList.scrollTop -
-        elements.messageList.clientHeight;
+    
+    try {
+      if (!force) {
+        const threshold = 120;
+        const distanceFromBottom =
+          elements.messageList.scrollHeight -
+          elements.messageList.scrollTop -
+          elements.messageList.clientHeight;
 
-      if (distanceFromBottom > threshold) {
-        return;
+        if (distanceFromBottom > threshold) {
+          return;
+        }
       }
-    }
 
-    requestAnimationFrame(() => {
-      elements.messageList.scrollTop = elements.messageList.scrollHeight;
-    });
+      requestAnimationFrame(() => {
+        if (elements.messageList) {
+          elements.messageList.scrollTop = elements.messageList.scrollHeight;
+        }
+      });
+    } catch (error) {
+      // Error handling
+    }
   }
 
   function scrollToMessage(messageId) {
-    const target = elements.messageList.querySelector(
-      `[data-chat-message-id="${messageId}"]`
-    );
-    if (!target) {
+    if (!elements.messageList || !messageId) {
       return;
     }
+    
+    try {
+      const target = elements.messageList.querySelector(
+        `[data-chat-message-id="${messageId}"]`
+      );
+      if (!target) {
+        return;
+      }
 
-    target.classList.add('highlight');
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => {
-      target.classList.remove('highlight');
-    }, 1600);
+      target.classList.add('highlight');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        if (target) {
+          target.classList.remove('highlight');
+        }
+      }, 1600);
+    } catch (error) {
+      // Error handling
+    }
   }
 
   function formatDate(dateString) {

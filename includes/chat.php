@@ -22,12 +22,16 @@ function setupChatTables() {
         `edited` tinyint(1) DEFAULT 0,
         `created_at` datetime NOT NULL,
         `updated_at` datetime DEFAULT NULL,
+        `read_by_count` int(11) NOT NULL DEFAULT 0,
         PRIMARY KEY (`id`),
         KEY `idx_user_id` (`user_id`),
         KEY `idx_created_at` (`created_at`),
         KEY `idx_reply_to` (`reply_to`),
         KEY `idx_deleted` (`deleted`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    
+    // إضافة عمود read_by_count إذا لم يكن موجوداً
+    $addReadByCount = "ALTER TABLE `messages` ADD COLUMN IF NOT EXISTS `read_by_count` int(11) NOT NULL DEFAULT 0";
 
     // جدول قراءة الرسائل
     $readTable = "CREATE TABLE IF NOT EXISTS `message_reads` (
@@ -41,7 +45,17 @@ function setupChatTables() {
         KEY `idx_user_id` (`user_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
-    // جدول حالة المستخدمين
+    // جدول حالة المستخدمين (user_status كما في الدليل)
+    $statusTable = "CREATE TABLE IF NOT EXISTS `user_status` (
+        `user_id` varchar(50) NOT NULL,
+        `last_seen` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `is_online` tinyint(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (`user_id`),
+        KEY `idx_is_online` (`is_online`),
+        KEY `idx_last_seen` (`last_seen`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    
+    // إنشاء جدول user_presence القديم إذا لم يكن موجوداً (للتوافق)
     $presenceTable = "CREATE TABLE IF NOT EXISTS `user_presence` (
         `id` int(11) NOT NULL AUTO_INCREMENT,
         `user_id` varchar(50) NOT NULL,
@@ -57,12 +71,29 @@ function setupChatTables() {
     try {
         $conn->query($messagesTable);
         $conn->query($readTable);
-        $conn->query($presenceTable);
+        $conn->query($statusTable);
+        $conn->query($presenceTable); // للتوافق مع الكود القديم
+        
+        // محاولة إضافة read_by_count إذا لم يكن موجوداً
+        try {
+            $conn->query("ALTER TABLE `messages` ADD COLUMN `read_by_count` int(11) NOT NULL DEFAULT 0");
+        } catch (Exception $e) {
+            // العمود موجود بالفعل، تجاهل الخطأ
+        }
+        
         return true;
     } catch (Exception $e) {
         error_log('خطأ في إنشاء جداول الشات: ' . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * تهيئة مخطط الدردشة (كما في الدليل)
+ * يمكن استدعاؤها في بداية كل ملف API
+ */
+function ensureChatSchema() {
+    return setupChatTables();
 }
 
 // تهيئة الجداول عند أول استخدام
@@ -124,7 +155,7 @@ function getChatMessageById($messageId) {
                r.message_text as reply_text,
                r.user_id as reply_user_id,
                ru.name as reply_user_name,
-               (SELECT COUNT(*) FROM message_reads WHERE message_id = m.id) as read_by_count
+               COALESCE(m.read_by_count, (SELECT COUNT(*) FROM message_reads WHERE message_id = m.id)) as read_by_count
         FROM messages m
         LEFT JOIN users u ON m.user_id = u.id
         LEFT JOIN messages r ON m.reply_to = r.id
@@ -172,7 +203,7 @@ function getChatMessages($since = null, $limit = 50, $userId = null) {
                r.message_text as reply_text,
                r.user_id as reply_user_id,
                ru.name as reply_user_name,
-               (SELECT COUNT(*) FROM message_reads WHERE message_id = m.id) as read_by_count
+               COALESCE(m.read_by_count, (SELECT COUNT(*) FROM message_reads WHERE message_id = m.id)) as read_by_count
         FROM messages m
         LEFT JOIN users u ON m.user_id = u.id
         LEFT JOIN messages r ON m.reply_to = r.id
@@ -299,6 +330,7 @@ function softDeleteChatMessage($messageId, $userId) {
 
 /**
  * تحديث حالة المستخدم
+ * يستخدم user_status (الجديد) مع دعم user_presence (القديم) للتوافق
  */
 function updateUserPresence($userId, $isOnline) {
     $conn = getDBConnection();
@@ -306,29 +338,45 @@ function updateUserPresence($userId, $isOnline) {
         return false;
     }
 
+    $online = $isOnline ? 1 : 0;
+    
+    // تحديث user_status (الجديد)
     $stmt = $conn->prepare("
+        INSERT INTO user_status (user_id, is_online, last_seen)
+        VALUES (?, ?, NOW())
+        ON DUPLICATE KEY UPDATE 
+            is_online = VALUES(is_online),
+            last_seen = NOW()
+    ");
+
+    if ($stmt) {
+        $stmt->bind_param('si', $userId, $online);
+        $stmt->execute();
+        $stmt->close();
+    }
+    
+    // تحديث user_presence (القديم) للتوافق
+    $stmtOld = $conn->prepare("
         INSERT INTO user_presence (user_id, is_online, last_seen, updated_at)
         VALUES (?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE 
             is_online = VALUES(is_online),
             last_seen = NOW(),
             updated_at = NOW()
-    ");
+    );
 
-    if (!$stmt) {
-        return false;
+    if ($stmtOld) {
+        $stmtOld->bind_param('si', $userId, $online);
+        $stmtOld->execute();
+        $stmtOld->close();
     }
 
-    $online = $isOnline ? 1 : 0;
-    $stmt->bind_param('si', $userId, $online);
-    $result = $stmt->execute();
-    $stmt->close();
-
-    return $result;
+    return true;
 }
 
 /**
  * جلب المستخدمين النشطين
+ * يستخدم user_status (الجديد) مع دعم user_presence (القديم) للتوافق
  */
 function getActiveUsers() {
     $conn = getDBConnection();
@@ -336,13 +384,16 @@ function getActiveUsers() {
         return [];
     }
 
+    // محاولة استخدام user_status أولاً
     $query = "
         SELECT u.id, u.username, u.name,
-               COALESCE(p.is_online, 0) as is_online,
-               COALESCE(p.last_seen, u.created_at) as last_seen
+               COALESCE(s.is_online, p.is_online, 0) as is_online,
+               COALESCE(s.last_seen, p.last_seen, u.created_at) as last_seen
         FROM users u
+        LEFT JOIN user_status s ON u.id = s.user_id
         LEFT JOIN user_presence p ON u.id = p.user_id
-        ORDER BY p.is_online DESC, p.last_seen DESC
+        ORDER BY COALESCE(s.is_online, p.is_online, 0) DESC, 
+                 COALESCE(s.last_seen, p.last_seen, u.created_at) DESC
     ";
 
     $result = $conn->query($query);
@@ -360,6 +411,7 @@ function getActiveUsers() {
 
 /**
  * تحديد رسالة كمقروءة
+ * يحدث read_by_count في جدول messages تلقائياً
  */
 function markMessageAsRead($messageId, $userId) {
     $conn = getDBConnection();
@@ -367,6 +419,7 @@ function markMessageAsRead($messageId, $userId) {
         return false;
     }
 
+    // إدراج/تحديث في message_reads
     $stmt = $conn->prepare("
         INSERT INTO message_reads (message_id, user_id, read_at)
         VALUES (?, ?, NOW())
@@ -380,6 +433,27 @@ function markMessageAsRead($messageId, $userId) {
     $stmt->bind_param('is', $messageId, $userId);
     $result = $stmt->execute();
     $stmt->close();
+    
+    if (!$result) {
+        return false;
+    }
+    
+    // تحديث read_by_count في جدول messages
+    $updateStmt = $conn->prepare("
+        UPDATE messages 
+        SET read_by_count = (
+            SELECT COUNT(*) 
+            FROM message_reads 
+            WHERE message_id = ?
+        )
+        WHERE id = ?
+    ");
+    
+    if ($updateStmt) {
+        $updateStmt->bind_param('ii', $messageId, $messageId);
+        $updateStmt->execute();
+        $updateStmt->close();
+    }
 
     return $result;
 }
