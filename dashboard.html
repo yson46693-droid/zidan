@@ -653,23 +653,67 @@
                 sec.classList.remove('active');
             });
             
-            // تحميل البيانات الأولية
-            await loadDashboardData();
+            // عرض القسم المحفوظ أو dashboard افتراضياً
+            const sectionToShow = savedSection || 'dashboard';
+            const sectionElement = document.getElementById(sectionToShow + '-section');
+            if (sectionElement) {
+                sectionElement.classList.add('active');
+            } else if (sectionToShow === 'dashboard') {
+                // التأكد من عرض dashboard-section إذا كان القسم المطلوب
+                const dashboardSection = document.getElementById('dashboard-section');
+                if (dashboardSection) {
+                    dashboardSection.classList.add('active');
+                }
+            }
+            
+            // تحميل البيانات الأولية للقسم المطلوب
+            if (sectionToShow === 'dashboard') {
+                await loadDashboardData();
+            } else {
+                // تحميل بيانات القسم المطلوب
+                await updateSectionData(sectionToShow, true);
+            }
             
             // تهيئة النسخ الاحتياطي التلقائي
             await initializeAutoBackup();
             
-            // تحميل محتوى الأقسام
-            loadRepairsSection();
-            loadCustomersSection();
-            loadInventorySection();
-            loadExpensesSection();
-            loadReportsSection();
-            loadSettingsSection();
+            // تحميل محتوى الأقسام بشكل آمن
+            try {
+                if (typeof loadRepairsSection === 'function') loadRepairsSection();
+            } catch (e) { console.error('Error loading repairs section:', e); }
+            
+            try {
+                if (typeof loadCustomersSection === 'function') loadCustomersSection();
+            } catch (e) { console.error('Error loading customers section:', e); }
+            
+            try {
+                if (typeof loadInventorySection === 'function') loadInventorySection();
+            } catch (e) { console.error('Error loading inventory section:', e); }
+            
+            try {
+                if (typeof loadExpensesSection === 'function') loadExpensesSection();
+            } catch (e) { console.error('Error loading expenses section:', e); }
+            
+            try {
+                if (typeof loadReportsSection === 'function') loadReportsSection();
+            } catch (e) { console.error('Error loading reports section:', e); }
+            
+            try {
+                if (typeof loadSettingsSection === 'function') loadSettingsSection();
+            } catch (e) { console.error('Error loading settings section:', e); }
             
             // عرض الصفحة المحفوظة بعد تحميل الأقسام
             setTimeout(() => {
-                showSection(savedSection, true); // true = بدون حفظ (لأننا استعدناها)
+                try {
+                    showSection(sectionToShow, true); // true = بدون حفظ (لأننا استعدناها)
+                } catch (e) {
+                    console.error('Error showing section:', e);
+                    // إذا فشل عرض القسم، عرض dashboard كبديل
+                    const dashboardSection = document.getElementById('dashboard-section');
+                    if (dashboardSection) {
+                        dashboardSection.classList.add('active');
+                    }
+                }
             }, 100);
             
             // تهيئة نظام المزامنة مع تأخير لضمان تحميل كل شيء
@@ -959,45 +1003,159 @@
 
         // تحميل بيانات لوحة التحكم
         async function loadDashboardData() {
-            const today = getTodayDate();
-            const result = await API.getReport('daily', today);
-            
-            if (result.success) {
-                const data = result.data;
-                document.getElementById('todayRepairs').textContent = data.repairs_count;
-                document.getElementById('todayRevenue').textContent = formatCurrency(data.revenue);
-                document.getElementById('todayExpenses').textContent = formatCurrency(data.expenses);
-                document.getElementById('todayProfit').textContent = formatCurrency(data.profit);
-            }
-            
-            // تحميل العمليات الحالية
-            const repairsResult = await API.getRepairs();
-            if (repairsResult.success) {
-                const currentRepairs = repairsResult.data.filter(r => 
-                    r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready'
-                );
-                displayCurrentRepairs(currentRepairs);
+            try {
+                // استخدام getTodayDate إذا كان متاحاً أو fallback
+                const getTodayDateFunc = typeof getTodayDate === 'function' ? getTodayDate : () => {
+                    const today = new Date();
+                    return today.toISOString().split('T')[0];
+                };
+                const today = getTodayDateFunc();
+                
+                // تحديث مؤشر التحميل
+                const syncIndicator = document.getElementById('syncIndicator');
+                if (syncIndicator) {
+                    syncIndicator.innerHTML = '<i class="bi bi-arrow-repeat"></i> جاري التحميل...';
+                }
+                
+                // تحميل تقرير اليوم
+                const result = await API.getReport('daily', today);
+                
+                // استخدام formatCurrency إذا كان متاحاً أو fallback (تعريف واحد فقط)
+                const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
+                    return parseFloat(amount || 0).toFixed(2) + ' ج.م';
+                };
+                
+                if (result && result.success) {
+                    const data = result.data || {};
+                    
+                    // تحديث الإحصائيات
+                    const todayRepairsEl = document.getElementById('todayRepairs');
+                    const todayRevenueEl = document.getElementById('todayRevenue');
+                    const todayExpensesEl = document.getElementById('todayExpenses');
+                    const todayProfitEl = document.getElementById('todayProfit');
+                    
+                    if (todayRepairsEl) todayRepairsEl.textContent = data.repairs_count || 0;
+                    if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(data.revenue || 0);
+                    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(data.expenses || 0);
+                    if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(data.profit || 0);
+                } else {
+                    // في حالة الفشل، عرض القيم الافتراضية
+                    const todayRepairsEl = document.getElementById('todayRepairs');
+                    const todayRevenueEl = document.getElementById('todayRevenue');
+                    const todayExpensesEl = document.getElementById('todayExpenses');
+                    const todayProfitEl = document.getElementById('todayProfit');
+                    
+                    if (todayRepairsEl) todayRepairsEl.textContent = '0';
+                    if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(0);
+                    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
+                    if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
+                    
+                    console.warn('فشل تحميل تقرير اليوم:', result?.message || 'Unknown error');
+                }
+                
+                // تحميل العمليات الحالية
+                try {
+                    const repairsResult = await API.getRepairs();
+                    if (repairsResult && repairsResult.success && repairsResult.data) {
+                        const currentRepairs = repairsResult.data.filter(r => 
+                            r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
+                        );
+                        displayCurrentRepairs(currentRepairs);
+                    } else {
+                        // عرض رسالة "لا توجد عمليات حالية" في حالة الفشل
+                        displayCurrentRepairs([]);
+                        console.warn('فشل تحميل العمليات:', repairsResult?.message || 'Unknown error');
+                    }
+                } catch (repairsError) {
+                    console.error('خطأ في تحميل العمليات:', repairsError);
+                    displayCurrentRepairs([]);
+                }
+                
+                // تحديث مؤشر التحميل عند النجاح
+                if (syncIndicator) {
+                    syncIndicator.innerHTML = '<i class="bi bi-check-circle"></i> محدث';
+                    syncIndicator.style.color = 'var(--success-color)';
+                    setTimeout(() => {
+                        if (syncIndicator) {
+                            const now = new Date();
+                            const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+                            syncIndicator.innerHTML = `<i class="bi bi-check-circle"></i> آخر تحديث: ${timeStr}`;
+                        }
+                    }, 1000);
+                }
+                
+            } catch (error) {
+                console.error('خطأ في تحميل بيانات لوحة التحكم:', error);
+                
+                // عرض رسالة خطأ للمستخدم
+                showMessage('خطأ في تحميل البيانات: ' + (error.message || 'خطأ غير معروف'), 'error');
+                
+                // تعيين القيم الافتراضية في حالة الخطأ
+                const todayRepairsEl = document.getElementById('todayRepairs');
+                const todayRevenueEl = document.getElementById('todayRevenue');
+                const todayExpensesEl = document.getElementById('todayExpenses');
+                const todayProfitEl = document.getElementById('todayProfit');
+                
+                // استخدام formatCurrency إذا كان متاحاً أو fallback
+                const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
+                    return parseFloat(amount || 0).toFixed(2) + ' ج.م';
+                };
+                
+                if (todayRepairsEl) todayRepairsEl.textContent = '0';
+                if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(0);
+                if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
+                if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
+                
+                // عرض رسالة في الجدول
+                displayCurrentRepairs([]);
+                
+                // تحديث مؤشر التحميل ليعرض الخطأ
+                const syncIndicator = document.getElementById('syncIndicator');
+                if (syncIndicator) {
+                    syncIndicator.innerHTML = '<i class="bi bi-exclamation-triangle"></i> خطأ في التحميل';
+                    syncIndicator.style.color = 'var(--danger-color)';
+                }
             }
         }
 
         // عرض العمليات الحالية
         function displayCurrentRepairs(repairs) {
             const tbody = document.getElementById('currentRepairsBody');
-            
-            if (repairs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد عمليات حالية</td></tr>';
+            if (!tbody) {
+                console.warn('currentRepairsBody element not found');
                 return;
             }
             
-            tbody.innerHTML = repairs.slice(0, 10).map(repair => `
-                <tr>
-                    <td>${repair.repair_number}</td>
-                    <td>${repair.customer_name}</td>
-                    <td>${repair.device_type} ${repair.device_model || ''}</td>
-                    <td><span class="status-badge" style="background: ${getStatusColor(repair.status)}">${getStatusText(repair.status)}</span></td>
-                    <td>${formatDate(repair.created_at)}</td>
-                </tr>
-            `).join('');
+            if (!repairs || repairs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">لا توجد عمليات حالية</td></tr>';
+                return;
+            }
+            
+            try {
+                // استخدام الدوال المتاحة أو fallback
+                const formatDateFunc = typeof formatDate === 'function' ? formatDate : (date) => {
+                    if (!date) return '-';
+                    return new Date(date).toLocaleDateString('ar-SA');
+                };
+                const getStatusColorFunc = typeof getStatusColor === 'function' ? getStatusColor : (status) => '#999';
+                const getStatusTextFunc = typeof getStatusText === 'function' ? getStatusText : (status) => status;
+                
+                tbody.innerHTML = repairs.slice(0, 10).map(repair => {
+                    if (!repair) return '';
+                    return `
+                        <tr>
+                            <td>${repair.repair_number || '-'}</td>
+                            <td>${repair.customer_name || '-'}</td>
+                            <td>${repair.device_type || ''} ${repair.device_model || ''}</td>
+                            <td><span class="status-badge" style="background: ${getStatusColorFunc(repair.status || '')}">${getStatusTextFunc(repair.status || '')}</span></td>
+                            <td>${formatDateFunc(repair.created_at)}</td>
+                        </tr>
+                    `;
+                }).filter(row => row).join('');
+            } catch (error) {
+                console.error('خطأ في عرض العمليات:', error);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--danger-color);">خطأ في عرض البيانات</td></tr>';
+            }
         }
 
         // إدارة القائمة المتنقلة
