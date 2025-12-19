@@ -195,13 +195,35 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         response(false, 'خطأ في قراءة المبيعات', null, 500);
     }
     
+    // التأكد من أن $sales هو array
+    if (!is_array($sales)) {
+        $sales = [];
+    }
+    
     // جلب عناصر كل عملية بيع
     foreach ($sales as &$sale) {
+        // التأكد من وجود sale id
+        if (empty($sale['id'])) {
+            continue;
+        }
+        
         $items = dbSelect(
             "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
             [$sale['id']]
         );
-        $sale['items'] = $items ? $items : [];
+        $sale['items'] = (is_array($items) && count($items) > 0) ? $items : [];
+        
+        // التأكد من وجود sale_number
+        if (empty($sale['sale_number'])) {
+            // إذا لم يكن هناك sale_number، استخدام id كبديل
+            $sale['sale_number'] = $sale['id'];
+        }
+        
+        // التأكد من وجود القيم الرقمية
+        $sale['total_amount'] = floatval($sale['total_amount'] ?? 0);
+        $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
+        $sale['discount'] = floatval($sale['discount'] ?? 0);
+        $sale['tax'] = floatval($sale['tax'] ?? 0);
     }
     
     response(true, '', $sales);

@@ -303,6 +303,9 @@ async function viewCustomerProfile(customerId) {
     const salesResult = await API.getCustomerSales(customerId);
     const sales = salesResult.success ? salesResult.data : [];
     
+    // Debug: Log sales data
+    console.log('Customer Sales Data:', sales);
+    
     // Create profile modal
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -340,20 +343,28 @@ async function viewCustomerProfile(customerId) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${sales.map(sale => `
+                                    ${sales.map(sale => {
+                                        // التأكد من وجود البيانات
+                                        const saleNumber = sale.sale_number || sale.id || 'غير محدد';
+                                        const itemsCount = (sale.items && Array.isArray(sale.items)) ? sale.items.length : 0;
+                                        const totalAmount = parseFloat(sale.total_amount || 0);
+                                        const finalAmount = parseFloat(sale.final_amount || 0);
+                                        
+                                        return `
                                         <tr>
-                                            <td><strong>${sale.sale_number}</strong></td>
+                                            <td><strong>${saleNumber}</strong></td>
                                             <td>${formatDate(sale.created_at)}</td>
-                                            <td>${sale.items ? sale.items.length : 0}</td>
-                                            <td>${parseFloat(sale.total_amount || 0).toFixed(2)} ج.م</td>
-                                            <td><strong style="color: var(--primary-color);">${parseFloat(sale.final_amount || 0).toFixed(2)} ج.م</strong></td>
+                                            <td>${itemsCount}</td>
+                                            <td>${totalAmount.toFixed(2)} ج.م</td>
+                                            <td><strong style="color: var(--primary-color);">${finalAmount.toFixed(2)} ج.م</strong></td>
                                             <td>
                                                 <button onclick="viewSaleInvoice('${sale.id}')" class="btn btn-sm btn-primary">
                                                     <i class="bi bi-eye"></i> عرض الفاتورة
                                                 </button>
                                             </td>
                                         </tr>
-                                    `).join('')}
+                                        `;
+                                    }).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -371,18 +382,31 @@ async function viewCustomerProfile(customerId) {
 
 async function viewSaleInvoice(saleId) {
     try {
+        if (!saleId) {
+            showMessage('معرف الفاتورة غير صحيح', 'error');
+            return;
+        }
+        
         // جلب الفاتورة مباشرة من API
         const response = await API.request(`sales.php?sale_id=${saleId}`, 'GET');
         
         if (response && response.success && response.data) {
+            // التأكد من وجود البيانات الأساسية
+            if (!response.data.id) {
+                showMessage('بيانات الفاتورة غير مكتملة', 'error');
+                return;
+            }
+            
             // عرض الفاتورة في modal
             showInvoiceModal(response.data);
         } else {
-            showMessage(response?.message || 'فشل في جلب بيانات الفاتورة', 'error');
+            const errorMsg = response?.message || 'فشل في جلب بيانات الفاتورة';
+            console.error('خطأ في جلب الفاتورة:', errorMsg, response);
+            showMessage(errorMsg, 'error');
         }
     } catch (error) {
         console.error('خطأ في عرض الفاتورة:', error);
-        showMessage('حدث خطأ في عرض الفاتورة', 'error');
+        showMessage('حدث خطأ في عرض الفاتورة: ' + error.message, 'error');
     }
 }
 

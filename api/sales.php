@@ -98,7 +98,18 @@ if ($method === 'GET') {
             "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
             [$saleId]
         );
-        $sale['items'] = $items ? $items : [];
+        $sale['items'] = (is_array($items) && count($items) > 0) ? $items : [];
+        
+        // التأكد من وجود sale_number
+        if (empty($sale['sale_number'])) {
+            $sale['sale_number'] = $sale['id'];
+        }
+        
+        // التأكد من وجود القيم الرقمية
+        $sale['total_amount'] = floatval($sale['total_amount'] ?? 0);
+        $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
+        $sale['discount'] = floatval($sale['discount'] ?? 0);
+        $sale['tax'] = floatval($sale['tax'] ?? 0);
         
         response(true, '', $sale);
         return;
@@ -415,7 +426,18 @@ if ($method === 'POST') {
                 "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
                 [$saleId]
             );
-            $sale['items'] = $saleItems ? $saleItems : [];
+            $sale['items'] = (is_array($saleItems) && count($saleItems) > 0) ? $saleItems : [];
+            
+            // التأكد من وجود sale_number
+            if (empty($sale['sale_number'])) {
+                $sale['sale_number'] = $sale['id'];
+            }
+            
+            // التأكد من وجود القيم الرقمية
+            $sale['total_amount'] = floatval($sale['total_amount'] ?? 0);
+            $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
+            $sale['discount'] = floatval($sale['discount'] ?? 0);
+            $sale['tax'] = floatval($sale['tax'] ?? 0);
         }
         
         response(true, 'تم إنشاء عملية البيع بنجاح', $sale);
