@@ -52,10 +52,6 @@
     <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png">
     <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png">
     
-    <!-- Bootstrap Icons - تحميل غير متزامن لتحسين الأداء -->
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
-    
     <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
@@ -97,10 +93,84 @@
     
     <!-- Critical CSS - تحميل فوري -->
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/security.css">
     
-    <!-- Non-Critical CSS - تحميل غير متزامن -->
-    <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="css/security.css"></noscript>
+    <!-- Bootstrap Icons - تحميل فوري لضمان عرض الأيقونات بشكل صحيح -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- أنماط فورية لضمان عرض العناصر بشكل صحيح -->
+    <style>
+        /* منع FOUC (Flash of Unstyled Content) */
+        .login-page {
+            visibility: hidden;
+        }
+        .login-page.loaded {
+            visibility: visible;
+        }
+        
+        /* ضمان عرض العناصر الأساسية حتى قبل تحميل CSS */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .login-box {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        /* إخفاء الصفحة حتى يتم تحميل CSS بالكامل */
+        body:not(.css-loaded) .login-page {
+            opacity: 0;
+        }
+        body.css-loaded .login-page {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+    </style>
 </head>
 <body class="login-page">
     <div class="login-container">
@@ -113,15 +183,17 @@
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="username">اسم المستخدم</label>
-                    <input type="text" id="username" name="username" required autofocus>
+                    <input type="text" id="username" name="username" required autofocus placeholder="أدخل اسم المستخدم">
                 </div>
                 
                 <div class="form-group">
                     <label for="password">كلمة المرور</label>
-                    <input type="password" id="password" name="password" required>
+                    <input type="password" id="password" name="password" required placeholder="أدخل كلمة المرور">
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-block">تسجيل الدخول</button>
+                <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn">
+                    <i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول
+                </button>
                 
                 <div style="margin-top: 20px; text-align: center;">
                     <div style="margin: 15px 0; color: #666; font-size: 14px;">أو</div>
@@ -152,14 +224,96 @@
     <!-- تحميل الملفات بشكل غير متزامن لتحسين الأداء -->
     <script src="js/auth.js" defer></script>
     <script>
-        // تحميل الملفات الثقيلة بشكل غير متزامن بعد تحميل الصفحة مع تأخير
+        // التحقق من تحميل جميع العناصر بشكل صحيح
         window.addEventListener('DOMContentLoaded', () => {
-            // تأخير تحميل الملفات غير الحرجة لتقليل التحميل الفوري
+            // إظهار الصفحة بعد تحميل CSS
+            const checkCSSLoaded = () => {
+                const styleSheet = document.querySelector('link[href*="style.css"]');
+                if (styleSheet && styleSheet.sheet) {
+                    document.body.classList.add('css-loaded');
+                    document.body.classList.add('loaded');
+                    return true;
+                }
+                return false;
+            };
+            
+            // محاولة متعددة للتحقق من تحميل CSS
+            let attempts = 0;
+            const maxAttempts = 10;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (checkCSSLoaded() || attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    if (attempts >= maxAttempts) {
+                        // إظهار الصفحة حتى لو لم يتم تحميل CSS بشكل كامل
+                        document.body.classList.add('css-loaded');
+                        document.body.classList.add('loaded');
+                        console.warn('⚠️ CSS قد لا يكون محملاً بالكامل، لكن الصفحة ستظهر');
+                    }
+                }
+            }, 100);
+            
+            // التحقق من تحميل Bootstrap Icons
+            const checkIconsLoaded = () => {
+                // التحقق من وجود ملف الأيقونات
+                const iconLink = document.querySelector('link[href*="bootstrap-icons"]');
+                if (iconLink && iconLink.sheet) {
+                    console.log('✅ Bootstrap Icons تم تحميله بنجاح');
+                    return true;
+                } else {
+                    console.warn('⚠️ Bootstrap Icons قد لا يكون محملاً بعد');
+                    // إعادة محاولة بعد ثانية
+                    setTimeout(() => {
+                        if (iconLink && !iconLink.sheet) {
+                            const newIconLink = document.createElement('link');
+                            newIconLink.rel = 'stylesheet';
+                            newIconLink.href = iconLink.href;
+                            document.head.appendChild(newIconLink);
+                        }
+                    }, 1000);
+                    return false;
+                }
+            };
+            
+            // التحقق من العناصر بعد تحميل الصفحة
+            setTimeout(() => {
+                checkIconsLoaded();
+                
+                // التحقق من وجود جميع العناصر المطلوبة
+                const requiredElements = {
+                    'username': document.getElementById('username'),
+                    'password': document.getElementById('password'),
+                    'loginForm': document.getElementById('loginForm'),
+                    'loginSubmitBtn': document.getElementById('loginSubmitBtn'),
+                    'biometricLoginBtn': document.getElementById('biometricLoginBtn')
+                };
+                
+                let allElementsLoaded = true;
+                for (const [name, element] of Object.entries(requiredElements)) {
+                    if (!element) {
+                        console.error(`❌ العنصر ${name} غير موجود`);
+                        allElementsLoaded = false;
+                    } else {
+                        console.log(`✅ العنصر ${name} موجود`);
+                    }
+                }
+                
+                if (allElementsLoaded) {
+                    console.log('✅ جميع العناصر تم تحميلها بشكل صحيح');
+                } else {
+                    console.error('❌ بعض العناصر مفقودة');
+                }
+            }, 200);
+            
+            // تحميل الملفات غير الحرجة بشكل متأخر
             setTimeout(() => {
                 // تحميل data-protection.js بشكل غير متزامن
                 const dataProtectionScript = document.createElement('script');
                 dataProtectionScript.src = 'js/data-protection.js';
                 dataProtectionScript.async = true;
+                dataProtectionScript.onerror = () => {
+                    console.warn('⚠️ فشل تحميل data-protection.js');
+                };
                 document.body.appendChild(dataProtectionScript);
                 
                 // تحميل security.js بشكل غير متزامن بعد 200ms
@@ -167,11 +321,11 @@
                     const securityScript = document.createElement('script');
                     securityScript.src = 'js/security.js';
                     securityScript.async = true;
+                    securityScript.onerror = () => {
+                        console.warn('⚠️ فشل تحميل security.js');
+                    };
                     document.body.appendChild(securityScript);
                 }, 200);
-                
-                // تحميل webauthn.js فقط عند الحاجة (عند النقر على زر البصمة)
-                // لا نحملها تلقائياً لتوفير الوقت
             }, 300);
             
             // تحميل webauthn.js عند الحاجة فقط
@@ -251,11 +405,11 @@
                 }
                 
                 // تعطيل زر الإرسال لمنع النقرات المتعددة
-                const submitBtn = event.target.querySelector('button[type="submit"]');
-                const originalBtnText = submitBtn ? submitBtn.textContent : '';
+                const submitBtn = document.getElementById('loginSubmitBtn') || event.target.querySelector('button[type="submit"]');
+                const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.textContent = 'جاري تسجيل الدخول...';
+                    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري تسجيل الدخول...';
                 }
                 
                 console.log('📡 إرسال طلب تسجيل الدخول...');
@@ -270,7 +424,7 @@
                     isLoggingIn = false;
                     if (submitBtn) {
                         submitBtn.disabled = false;
-                        submitBtn.textContent = originalBtnText;
+                        submitBtn.innerHTML = originalBtnHTML;
                     }
                     return;
                 }
@@ -281,7 +435,7 @@
                     isLoggingIn = false;
                     if (submitBtn) {
                         submitBtn.disabled = false;
-                        submitBtn.textContent = originalBtnText;
+                        submitBtn.innerHTML = originalBtnHTML;
                     }
                     return;
                 }
@@ -297,10 +451,10 @@
                 isLoggingIn = false;
                 
                 // إعادة تفعيل الزر
-                const submitBtn = event.target.querySelector('button[type="submit"]');
+                const submitBtn = document.getElementById('loginSubmitBtn') || event.target.querySelector('button[type="submit"]');
                 if (submitBtn) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'تسجيل الدخول';
+                    submitBtn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول';
                 }
             }
         }

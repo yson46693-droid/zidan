@@ -221,7 +221,6 @@
             <div class="header-actions">
                 <span id="syncIndicator" class="sync-indicator" onclick="syncManager.manualSync()" title="اضغط للمزامنة يدوياً"><i class="bi bi-arrow-repeat"></i> جاري التحميل...</span>
                 <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
-                <button onclick="showSection('profile')" class="btn btn-icon profile-btn" id="profileBtn" title="الملف الشخصي"><i class="bi bi-person-circle"></i></button>
             </div>
             <!-- معلومات المستخدم وزر تسجيل الخروج للهواتف -->
             <div class="mobile-top-user-info">
@@ -638,16 +637,6 @@
                 }
             });
             
-            // تحديث حالة زر الملف الشخصي في header-actions
-            const profileBtn = document.getElementById('profileBtn');
-            if (profileBtn) {
-                if (savedSection === 'profile') {
-                    profileBtn.classList.add('active');
-                } else {
-                    profileBtn.classList.remove('active');
-                }
-            }
-            
             // إخفاء جميع الأقسام أولاً
             document.querySelectorAll('.section').forEach(sec => {
                 sec.classList.remove('active');
@@ -1014,16 +1003,6 @@
             
             // تحديث الـ navbar العائم
             updateMobileNavbar(section);
-            
-            // تحديث حالة زر الملف الشخصي في header-actions
-            const profileBtn = document.getElementById('profileBtn');
-            if (profileBtn) {
-                if (section === 'profile') {
-                    profileBtn.classList.add('active');
-                } else {
-                    profileBtn.classList.remove('active');
-                }
-            }
             
             // إغلاق الـ sidebar في واجهة الهاتف بعد اختيار تبويب
             if (window.innerWidth <= 575.98) {

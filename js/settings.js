@@ -74,22 +74,34 @@ function loadSettingsSection() {
                 </div>
             </div>
         </div>
-                <div class="table-container" style="margin-top: 15px;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>اسم المستخدم</th>
-                                <th>الاسم</th>
-                                <th>الدور</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
 
-            <div class="settings-section">
+        <div class="settings-section">
+            <h3><i class="bi bi-people"></i> إدارة المستخدمين</h3>
+            <button onclick="showAddUserModal()" class="btn btn-primary" style="margin-bottom: 15px;">
+                <i class="bi bi-person-plus"></i> إضافة مستخدم
+            </button>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>اسم المستخدم</th>
+                            <th>الاسم</th>
+                            <th>الدور</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 20px;">
+                                <i class="bi bi-hourglass-split"></i> جاري تحميل المستخدمين...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="settings-section">
                 <h3><i class="bi bi-arrow-repeat"></i> إعدادات المزامنة</h3>
                 <div class="form-group">
                     <label for="syncFrequency">تردد المزامنة التلقائية</label>
@@ -173,14 +185,42 @@ function loadSettingsSection() {
             Promise.allSettled([
                 loadSettings().catch(err => {
                     console.error('خطأ في تحميل الإعدادات:', err);
+                    const errorMsg = err?.message || 'خطأ غير معروف';
                     if (typeof showMessage === 'function') {
-                        showMessage('خطأ في تحميل بعض الإعدادات', 'error');
+                        showMessage('خطأ في تحميل الإعدادات: ' + errorMsg, 'error');
+                    }
+                    // عرض رسالة خطأ في الواجهة إذا فشل التحميل
+                    const shopNameField = document.getElementById('shopName');
+                    if (shopNameField && shopNameField.parentElement) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error-message';
+                        errorDiv.style.color = 'var(--danger-color)';
+                        errorDiv.style.marginTop = '10px';
+                        errorDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> فشل تحميل الإعدادات. يرجى المحاولة مرة أخرى.';
+                        shopNameField.parentElement.appendChild(errorDiv);
                     }
                 }),
                 loadUsers().catch(err => {
                     console.error('خطأ في تحميل المستخدمين:', err);
+                    const errorMsg = err?.message || 'خطأ غير معروف';
                     if (typeof showMessage === 'function') {
-                        showMessage('خطأ في تحميل قائمة المستخدمين', 'error');
+                        showMessage('خطأ في تحميل قائمة المستخدمين: ' + errorMsg, 'error');
+                    }
+                    // عرض رسالة خطأ في الجدول إذا فشل التحميل
+                    const usersTableBody = document.getElementById('usersTableBody');
+                    if (usersTableBody) {
+                        usersTableBody.innerHTML = `
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--danger-color); padding: 20px;">
+                                    <i class="bi bi-exclamation-triangle"></i> 
+                                    <p>فشل تحميل قائمة المستخدمين</p>
+                                    <p style="font-size: 0.9em; margin-top: 10px;">${errorMsg}</p>
+                                    <button onclick="loadUsers()" class="btn btn-sm btn-primary" style="margin-top: 10px;">
+                                        <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
                     }
                 }),
                 loadSyncFrequency().catch(err => {
@@ -189,8 +229,13 @@ function loadSettingsSection() {
                 loadBackupInfo().catch(err => {
                     console.error('خطأ في تحميل معلومات النسخ الاحتياطية:', err);
                 })
-            ]).then(() => {
+            ]).then((results) => {
                 console.log('تم تحميل قسم الإعدادات بنجاح');
+                // التحقق من وجود أخطاء
+                const errors = results.filter(r => r.status === 'rejected');
+                if (errors.length > 0) {
+                    console.warn('تم تحميل القسم مع بعض الأخطاء:', errors);
+                }
             });
         } catch (error) {
             console.error('خطأ في تحميل قسم الإعدادات:', error);
@@ -280,18 +325,35 @@ function formatDate(dateString) {
 }
 
 async function loadSettings() {
-    const result = await API.getSettings();
-    if (result.success) {
-        currentSettings = result.data;
-        displaySettings(currentSettings);
+    try {
+        const result = await API.getSettings();
+        if (result.success) {
+            currentSettings = result.data;
+            displaySettings(currentSettings);
+        } else {
+            // تحديد نوع الخطأ
+            let errorMessage = result.message || 'فشل تحميل الإعدادات';
+            if (result.status === 401) {
+                errorMessage = 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.';
+            }
+            throw new Error(errorMessage);
+        }
+    } catch (error) {
+        console.error('خطأ في loadSettings:', error);
+        throw error;
     }
 }
 
 function displaySettings(settings) {
-    document.getElementById('shopName').value = settings.shop_name || '';
-    document.getElementById('shopPhone').value = settings.shop_phone || '';
-    document.getElementById('shopAddress').value = settings.shop_address || '';
-    document.getElementById('currency').value = settings.currency || 'ريال';
+    const shopName = document.getElementById('shopName');
+    const shopPhone = document.getElementById('shopPhone');
+    const shopAddress = document.getElementById('shopAddress');
+    const currency = document.getElementById('currency');
+    
+    if (shopName) shopName.value = settings.shop_name || '';
+    if (shopPhone) shopPhone.value = settings.shop_phone || '';
+    if (shopAddress) shopAddress.value = settings.shop_address || '';
+    if (currency) currency.value = settings.currency || 'ريال';
 }
 
 async function saveShopSettings(event) {
@@ -314,9 +376,23 @@ async function saveShopSettings(event) {
 }
 
 async function loadUsers() {
-    const result = await API.getUsers();
-    if (result.success) {
-        displayUsers(result.data);
+    try {
+        const result = await API.getUsers();
+        if (result.success) {
+            displayUsers(result.data);
+        } else {
+            // تحديد نوع الخطأ
+            let errorMessage = result.message || 'فشل تحميل قائمة المستخدمين';
+            if (result.status === 403) {
+                errorMessage = 'ليس لديك صلاحية لعرض قائمة المستخدمين. يجب أن تكون مالك (admin) للوصول إلى هذه الصفحة.';
+            } else if (result.status === 401) {
+                errorMessage = 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى.';
+            }
+            throw new Error(errorMessage);
+        }
+    } catch (error) {
+        console.error('خطأ في loadUsers:', error);
+        throw error;
     }
 }
 

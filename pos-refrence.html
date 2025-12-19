@@ -1,241 +1,155 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <title>Coffee Shop UI</title>
+<meta charset="UTF-8">
+<title>فاتورة بيع</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+    }
+
+    .receipt {
+        width: 300px;
+        background: #fff;
+        margin: auto;
+        padding: 10px;
+        color: #000;
+        font-size: 12px;
+    }
+
+    .center {
+        text-align: center;
+    }
+
+    .logo {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .divider {
+        border-top: 1px dashed #000;
+        margin: 8px 0;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    table th, table td {
+        padding: 4px 0;
+        font-size: 12px;
+    }
+
+    table th {
+        text-align: left;
+        border-bottom: 1px dashed #000;
+    }
+
+    table td:last-child,
+    table th:last-child {
+        text-align: right;
+    }
+
+    .total {
+        font-weight: bold;
+        font-size: 13px;
+    }
+
+    .barcode {
+        margin-top: 10px;
+        font-size: 12px;
+    }
+
+    @media print {
+        body {
+            background: none;
+        }
+        .receipt {
+            box-shadow: none;
+            margin: 0;
+        }
+    }
+</style>
 </head>
+
 <body>
 
-<div class="app">
+<div class="receipt">
 
-  <!-- LEFT SIDE -->
-  <div class="main">
-    <!-- Search -->
-    <div class="top-bar">
-      <input type="text" placeholder="Search all product here..." />
-      <button>Search</button>
+    <div class="center">
+        <div class="logo">CIDER CELLAR</div>
+        <div>SALES RECEIPT</div>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="active">All</button>
-      <button>Brew Equipment</button>
-      <button>Coffee</button>
-      <button>Espresso</button>
-      <button>Instant + RTD</button>
-      <button>Ceramics</button>
-      <button>Apparel</button>
+    <div class="divider"></div>
+
+    <div>
+        <strong>Date:</strong> 10/12/2025<br>
+        <strong>Time:</strong> 14:35<br>
+        <strong>Cashier:</strong> Ahmed
     </div>
 
-    <!-- Products -->
-    <div class="products">
-      <!-- Card -->
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Prismo French Black</h4>
-        <p>$30.00</p>
-      </div>
+    <div class="divider"></div>
 
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Stagg Kettle Black</h4>
-        <p>$165.00</p>
-      </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Apple Cider</td>
+                <td>£3.50</td>
+            </tr>
+            <tr>
+                <td>Orange Juice</td>
+                <td>£2.00</td>
+            </tr>
+            <tr>
+                <td>Water</td>
+                <td>£1.50</td>
+            </tr>
+        </tbody>
+    </table>
 
-      <div class="card">
-        <div class="img"></div>
-        <h4>Encore Grinder Black</h4>
-        <p>$170.00</p>
-      </div>
+    <div class="divider"></div>
 
-      <div class="card">
-        <div class="img"></div>
-        <h4>Jennings CJ4000 Scale</h4>
-        <p>$40.00</p>
-      </div>
+    <table>
+        <tr>
+            <td>Subtotal</td>
+            <td>£7.00</td>
+        </tr>
+        <tr>
+            <td>Tax</td>
+            <td>£0.50</td>
+        </tr>
+        <tr class="total">
+            <td>Total</td>
+            <td>£7.50</td>
+        </tr>
+    </table>
 
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Clara French Press</h4>
-        <p>$99.00</p>
-      </div>
+    <div class="divider"></div>
 
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Ode Brew Grinder</h4>
-        <p>$299.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Bonavita Brewer</h4>
-        <p>$150.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Stagg Kettle</h4>
-        <p>$85.00</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- RIGHT SIDE -->
-  <div class="order">
-    <h3>Order Details</h3>
-
-    <div class="order-item">
-      <span>Fellow Clara French Press</span>
-      <strong>$198.00</strong>
+    <div>
+        <strong>Payment:</strong> Cash<br>
+        <strong>Change:</strong> £0.00
     </div>
 
-    <div class="order-item">
-      <span>Fellow Ode Brew Grinder</span>
-      <strong>$299.00</strong>
+    <div class="divider"></div>
+
+    <div class="center">
+        THANK YOU!
+        <div class="barcode">
+            || ||| || ||| ||| || |||
+        </div>
     </div>
-
-    <div class="order-item">
-      <span>Fellow Stagg EKG Kettle</span>
-      <strong>$165.00</strong>
-    </div>
-
-    <div class="order-item">
-      <span>Jennings CJ4000 Scale</span>
-      <strong>$80.00</strong>
-    </div>
-
-    <div class="summary">
-      <div><span>Subtotal</span><span>$742.00</span></div>
-      <div><span>Discount</span><span>- $4.00</span></div>
-      <div><span>Tax</span><span>$2.00</span></div>
-      <hr />
-      <div class="total"><span>Total</span><span>$740.00</span></div>
-    </div>
-
-    <button class="pay">Pay Now</button>
-  </div>
-
-</div>
-
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Coffee Shop UI</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-
-<div class="app">
-
-  <!-- LEFT SIDE -->
-  <div class="main">
-    <!-- Search -->
-    <div class="top-bar">
-      <input type="text" placeholder="Search all product here..." />
-      <button>Search</button>
-    </div>
-
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="active">All</button>
-      <button>Brew Equipment</button>
-      <button>Coffee</button>
-      <button>Espresso</button>
-      <button>Instant + RTD</button>
-      <button>Ceramics</button>
-      <button>Apparel</button>
-    </div>
-
-    <!-- Products -->
-    <div class="products">
-      <!-- Card -->
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Prismo French Black</h4>
-        <p>$30.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Stagg Kettle Black</h4>
-        <p>$165.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Encore Grinder Black</h4>
-        <p>$170.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Jennings CJ4000 Scale</h4>
-        <p>$40.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Clara French Press</h4>
-        <p>$99.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Ode Brew Grinder</h4>
-        <p>$299.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Bonavita Brewer</h4>
-        <p>$150.00</p>
-      </div>
-
-      <div class="card">
-        <div class="img"></div>
-        <h4>Fellow Stagg Kettle</h4>
-        <p>$85.00</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- RIGHT SIDE -->
-  <div class="order">
-    <h3>Order Details</h3>
-
-    <div class="order-item">
-      <span>Fellow Clara French Press</span>
-      <strong>$198.00</strong>
-    </div>
-
-    <div class="order-item">
-      <span>Fellow Ode Brew Grinder</span>
-      <strong>$299.00</strong>
-    </div>
-
-    <div class="order-item">
-      <span>Fellow Stagg EKG Kettle</span>
-      <strong>$165.00</strong>
-    </div>
-
-    <div class="order-item">
-      <span>Jennings CJ4000 Scale</span>
-      <strong>$80.00</strong>
-    </div>
-
-    <div class="summary">
-      <div><span>Subtotal</span><span>$742.00</span></div>
-      <div><span>Discount</span><span>- $4.00</span></div>
-      <div><span>Tax</span><span>$2.00</span></div>
-      <hr />
-      <div class="total"><span>Total</span><span>$740.00</span></div>
-    </div>
-
-    <button class="pay">Pay Now</button>
-  </div>
 
 </div>
 
