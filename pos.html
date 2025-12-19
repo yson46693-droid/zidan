@@ -21,7 +21,7 @@
         <header class="pos-header">
             <div class="pos-header-content">
                 <h1><i class="bi bi-cash-register"></i> نقاط البيع</h1>
-                <button class="btn-back" onclick="window.location.href='dashboard.html'">
+                <button class="btn-back" onclick="returnToDashboard()">
                     <i class="bi bi-arrow-right"></i> العودة للوحة التحكم
                 </button>
             </div>
@@ -226,5 +226,15 @@
     <script src="js/utils.js" defer></script>
     <script src="js/barcode.js" defer></script>
     <script src="js/pos.js" defer></script>
+    
+    <script>
+        // دالة للعودة إلى لوحة التحكم مع تحديد علامة
+        function returnToDashboard() {
+            // تحديد علامة في sessionStorage للإشارة إلى أننا نعود من pos.html
+            sessionStorage.setItem('returning_from_pos', 'true');
+            // الانتقال إلى dashboard.html
+            window.location.href = 'dashboard.html';
+        }
+    </script>
 </body>
 </html>

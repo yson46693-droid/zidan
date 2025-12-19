@@ -2133,6 +2133,12 @@ function loadInventorySection() {
     
     // تحميل البيانات بعد تأخير قصير لضمان أن DOM جاهز
     setTimeout(() => {
+        // التأكد من أن القسم مرئي قبل تحميل البيانات
+        const inventorySection = document.getElementById('inventory-section');
+        if (inventorySection) {
+            inventorySection.classList.add('active');
+        }
+        
         // تحميل البيانات حسب التبويب المحفوظ
         if (savedTab === 'spare_parts') {
             loadSpareParts();
@@ -2147,11 +2153,16 @@ function loadInventorySection() {
             loadPhones();
         }
         
-        // إنشاء أزرار الفلترة
-        createAccessoryFilters();
-        createPhoneBrands();
-        
-        hideByPermission();
+        // إنشاء أزرار الفلترة بعد تأخير إضافي لضمان أن DOM جاهز
+        setTimeout(() => {
+            try {
+                createAccessoryFilters();
+                createPhoneBrands();
+                hideByPermission();
+            } catch (error) {
+                console.error('خطأ في إنشاء أزرار الفلترة:', error);
+            }
+        }, 150);
         
         console.log('✅ تم تحميل قسم المخزون بنجاح');
         isLoadingInventorySection = false;
