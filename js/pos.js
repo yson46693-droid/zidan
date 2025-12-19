@@ -425,7 +425,8 @@ function createProductCard(product) {
     if (product.type !== 'spare_part') {
         const price = document.createElement('div');
         price.className = 'pos-product-price';
-        price.textContent = formatPrice(product.price);
+        const currency = (shopSettings && shopSettings.currency) ? shopSettings.currency : 'ج.م';
+        price.textContent = `${formatPrice(product.price)} ${currency}`;
         info.appendChild(price);
     }
     
@@ -717,6 +718,30 @@ function addSparePartItemToCart(index) {
     
     const itemTypeName = sparePartTypes[itemType] || itemType || 'غير محدد';
     const itemName = `${product.name} - ${itemTypeName}`;
+    
+    // التحقق من عدم وجود نفس القطعة الفرعية في السلة
+    const existingItem = cart.find(item => 
+        item.type === product.type && 
+        item.spare_part_item_id === itemId
+    );
+    
+    if (existingItem) {
+        // إذا كانت القطعة موجودة، تحديث الكمية بدلاً من إضافة جديدة
+        const newQuantity = existingItem.quantity + quantity;
+        const availableQuantity = maxQuantity;
+        
+        if (newQuantity > availableQuantity) {
+            showMessage(`الكمية المتاحة: ${availableQuantity}، الموجود في السلة: ${existingItem.quantity}`, 'error');
+            return;
+        }
+        
+        existingItem.quantity = newQuantity;
+        existingItem.totalPrice = existingItem.unitPrice * newQuantity;
+        updateCartDisplay();
+        closeSparePartItemsModal();
+        showMessage('تم تحديث الكمية في السلة', 'success');
+        return;
+    }
     
     // إضافة للسلة مع معلومات القطعة الفرعية
     cart.push({
@@ -1107,21 +1132,46 @@ async function processPayment() {
         // Save or update customer if new
         let customerId = selectedCustomerId;
         if (!customerId) {
-            // Create new customer
-            const customerData = {
-                name: customerName,
-                phone: customerPhone,
-                address: address,
-                customer_type: currentCustomerType,
-                shop_name: currentCustomerType === 'commercial' ? shopName : null
-            };
+            // البحث عن عميل موجود بنفس رقم الهاتف أولاً
+            const existingCustomer = allCustomers.find(c => c.phone === customerPhone);
             
-            const customerRes = await API.addCustomer(customerData);
-            if (customerRes && customerRes.success) {
-                customerId = customerRes.data.id;
-                // Add to local list
-                allCustomers.push(customerRes.data);
+            if (existingCustomer) {
+                // استخدام العميل الموجود
+                customerId = existingCustomer.id;
+            } else {
+                // Create new customer
+                const customerData = {
+                    name: customerName,
+                    phone: customerPhone,
+                    address: address,
+                    customer_type: currentCustomerType,
+                    shop_name: currentCustomerType === 'commercial' ? shopName : null
+                };
+                
+                const customerRes = await API.addCustomer(customerData);
+                if (customerRes && customerRes.success && customerRes.data && customerRes.data.id) {
+                    customerId = customerRes.data.id;
+                    // Add to local list
+                    allCustomers.push(customerRes.data);
+                } else {
+                    showMessage('فشل في إنشاء العميل. يرجى المحاولة مرة أخرى', 'error');
+                    if (confirmBtn) {
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
+                    }
+                    return;
+                }
             }
+        }
+        
+        // التأكد من وجود customerId قبل المتابعة
+        if (!customerId) {
+            showMessage('خطأ في ربط العميل بالفاتورة. يرجى المحاولة مرة أخرى', 'error');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
+            }
+            return;
         }
         
         const saleData = {
@@ -1204,22 +1254,17 @@ async function showInvoice(saleData) {
     const fallbackLogoPath1 = 'photo_5922357566287580087_y.jpg';             // اللوجو JPG القديم
     const fallbackLogoPath2 = 'icons/icon-192x192.png';                      // أيقونة من مجلد الأيقونات
     
+    // دالة لإنشاء HTML للوجو مع معالجة الأخطاء
+    const createLogoHtml = (src, alt = 'ALAA ZIDAN Logo') => {
+        return `<img src="${src}" alt="${alt}" class="invoice-logo" style="max-width: 200px; max-height: 200px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
+    };
+    
     if (shopLogo && shopLogo.trim() !== '') {
         // استخدام لوجو المتجر من الإعدادات مع مسارات احتياطية
-        logoHtml = `<img src="${shopLogo}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
+        logoHtml = createLogoHtml(shopLogo);
     } else {
-        // محاولة الحصول على الشعار من الكاش المحلي (إذا كانت الدالة متاحة)
-        let defaultLogoUrl = defaultLogoPath;
-        if (typeof getCachedDefaultLogo === 'function') {
-            try {
-                defaultLogoUrl = await getCachedDefaultLogo();
-            } catch (e) {
-                logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};">`;
-            }
-        } else {
-            // استخدام اللوجو الافتراضي PNG مع مسارات احتياطية (إذا لم تكن الدالة متاحة)
-            logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};">`;
-        }
+        // استخدام اللوجو الافتراضي PNG مع مسارات احتياطية
+        logoHtml = createLogoHtml(defaultLogoPath);
     }
     
     const invoiceHtml = `
@@ -1340,10 +1385,21 @@ function printInvoice() {
         invoiceModal.classList.add('active');
     }
     
-    // Wait a bit for rendering, then print
+    // Wait a bit for rendering and image loading, then print
     setTimeout(() => {
-        window.print();
-    }, 100);
+        // التأكد من تحميل الصور قبل الطباعة
+        const logoImg = document.querySelector('.invoice-logo');
+        if (logoImg && !logoImg.complete) {
+            logoImg.onload = () => {
+                setTimeout(() => window.print(), 100);
+            };
+            logoImg.onerror = () => {
+                setTimeout(() => window.print(), 100);
+            };
+        } else {
+            window.print();
+        }
+    }, 500);
 }
 
 // Format Price (returns only number, currency should be added separately)

@@ -370,9 +370,142 @@ async function viewCustomerProfile(customerId) {
 }
 
 async function viewSaleInvoice(saleId) {
-    // This would open the invoice in a modal or new window
-    // For now, we'll just show a message
-    showMessage('سيتم عرض الفاتورة قريباً', 'info');
+    try {
+        // جلب الفاتورة مباشرة من API
+        const response = await API.request(`sales.php?sale_id=${saleId}`, 'GET');
+        
+        if (response && response.success && response.data) {
+            // عرض الفاتورة في modal
+            showInvoiceModal(response.data);
+        } else {
+            showMessage(response?.message || 'فشل في جلب بيانات الفاتورة', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في عرض الفاتورة:', error);
+        showMessage('حدث خطأ في عرض الفاتورة', 'error');
+    }
+}
+
+// دالة لعرض الفاتورة في modal
+function showInvoiceModal(saleData) {
+    // استخدام نفس دالة عرض الفاتورة من pos.js إذا كانت متاحة
+    if (typeof showInvoice === 'function') {
+        showInvoice(saleData);
+    } else {
+        // إنشاء modal للفاتورة
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        
+        const shopSettings = window.shopSettings || {};
+        const shopName = shopSettings.shop_name || 'المتجر';
+        const shopPhone = shopSettings.shop_phone || '';
+        const shopAddress = shopSettings.shop_address || '';
+        const currency = shopSettings.currency || 'ج.م';
+        
+        // تنسيق التاريخ
+        const formatDate = (dateString) => {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('ar-EG', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                return dateString;
+            }
+        };
+        
+        const formatPrice = (price) => {
+            return parseFloat(price || 0).toFixed(2);
+        };
+        
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h3><i class="bi bi-receipt"></i> فاتورة البيع</h3>
+                    <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2>${shopName}</h2>
+                        ${shopAddress ? `<p>${shopAddress}</p>` : ''}
+                        ${shopPhone ? `<p>${shopPhone}</p>` : ''}
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px; padding: 15px; background: var(--light-bg); border-radius: 5px;">
+                        <div>
+                            <div><strong>العميل:</strong> ${saleData.customer_name || ''}</div>
+                            <div><strong>الهاتف:</strong> ${saleData.customer_phone || ''}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div><strong>رقم الفاتورة:</strong> ${saleData.sale_number || ''}</div>
+                            <div><strong>التاريخ:</strong> ${formatDate(saleData.created_at)}</div>
+                        </div>
+                    </div>
+                    
+                    <table class="data-table" style="width: 100%; margin-bottom: 20px;">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>المنتج</th>
+                                <th>الكمية</th>
+                                <th>سعر الوحدة</th>
+                                <th>الإجمالي</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(saleData.items || []).map((item, index) => `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${item.item_name || ''}</td>
+                                    <td>${item.quantity || 0}</td>
+                                    <td>${formatPrice(item.unit_price)} ${currency}</td>
+                                    <td>${formatPrice(item.total_price)} ${currency}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <div style="border-top: 2px solid var(--border-color); padding-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span>المجموع الفرعي:</span>
+                            <span>${formatPrice(saleData.total_amount)} ${currency}</span>
+                        </div>
+                        ${parseFloat(saleData.discount || 0) > 0 ? `
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span>الخصم:</span>
+                                <span>- ${formatPrice(saleData.discount)} ${currency}</span>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; color: var(--primary-color); margin-top: 15px; padding-top: 15px; border-top: 2px solid var(--border-color);">
+                            <span>الإجمالي:</span>
+                            <span>${formatPrice(saleData.final_amount)} ${currency}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="window.print()" class="btn btn-primary">
+                        <i class="bi bi-printer"></i> طباعة
+                    </button>
+                    <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">إغلاق</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // إغلاق عند الضغط خارج الـ modal
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
 }
 
 async function deleteCustomer(id) {

@@ -1391,81 +1391,103 @@
 /* Print Styles */
 @media print {
     /* Hide everything except invoice */
-    body * {
-        visibility: hidden;
+    body > *:not(#invoiceModal) {
+        display: none !important;
     }
     
-    .pos-modal,
-    .pos-modal *,
-    .invoice-wrapper,
-    .invoice-wrapper * {
-        visibility: visible;
+    body {
+        margin: 0;
+        padding: 0;
+        background: white !important;
+    }
+    
+    #invoiceModal {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
+        z-index: 9999 !important;
+        overflow: visible !important;
     }
     
     .pos-modal {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background: white;
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
         display: block !important;
-        padding: 0;
-        margin: 0;
-        overflow: visible;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        z-index: 9999 !important;
     }
     
     .pos-modal-content {
-        box-shadow: none;
-        max-width: 100%;
-        margin: 0;
-        border: none;
-        border-radius: 0;
-        height: auto;
-        max-height: none;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        padding: 0 !important;
     }
     
     .pos-modal-header,
     .pos-modal-footer,
     .btn-print,
     .btn-close-modal,
-    .invoice-actions,
-    .pos-header,
-    .pos-cart-section,
-    .pos-products-section,
-    .pos-main {
+    .invoice-actions {
         display: none !important;
         visibility: hidden !important;
     }
     
     .pos-invoice-body {
-        padding: 20px;
-        margin: 0;
+        padding: 20px !important;
+        margin: 0 !important;
+        width: 100% !important;
     }
     
     .invoice-wrapper {
-        max-width: 100%;
-        margin: 0;
-        padding: 15px;
-        box-shadow: none;
-        border: none;
-        border-radius: 0;
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 auto !important;
+        padding: 20px !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: white !important;
     }
     
     .invoice-logo-section {
-        padding-top: 0;
-        margin-bottom: 20px;
+        padding-top: 0 !important;
+        margin-bottom: 20px !important;
         background: white !important;
         box-shadow: none !important;
+        text-align: center !important;
     }
     
     .invoice-logo {
-        max-width: 180px;
-        max-height: 180px;
+        max-width: 200px !important;
+        max-height: 200px !important;
+        width: auto !important;
+        height: auto !important;
+        display: block !important;
+        margin: 0 auto !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
     
     .invoice-header {
-        border-bottom: 2px solid var(--primary-color);
+        border-bottom: 2px solid #2196F3 !important;
+        padding: 15px 0 !important;
+        margin-bottom: 15px !important;
     }
     
     .invoice-details,
@@ -1473,41 +1495,55 @@
     .invoice-summary,
     .invoice-barcode {
         box-shadow: none !important;
-        border: 1px solid #ddd;
+        border: 1px solid #ddd !important;
         background: white !important;
+        padding: 15px !important;
+        margin-bottom: 15px !important;
     }
     
     .invoice-items-table {
-        font-size: 0.9em;
-        page-break-inside: avoid;
+        font-size: 0.9em !important;
+        page-break-inside: avoid !important;
         box-shadow: none !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
     }
     
     .invoice-items-table th {
-        background: var(--primary-color) !important;
+        background: #2196F3 !important;
         color: white !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        padding: 10px 8px !important;
     }
     
-    .invoice-items-table th,
     .invoice-items-table td {
-        padding: 10px 8px;
+        padding: 10px 8px !important;
+        border-bottom: 1px solid #ddd !important;
     }
     
     .invoice-summary {
-        page-break-inside: avoid;
+        page-break-inside: avoid !important;
     }
     
     .invoice-summary .summary-row.total {
         background: rgba(33, 150, 243, 0.05) !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-weight: bold !important;
     }
     
     .invoice-barcode {
-        page-break-inside: avoid;
+        page-break-inside: avoid !important;
         background: white !important;
+        text-align: center !important;
+    }
+    
+    .invoice-barcode img {
+        max-width: 250px !important;
+        height: auto !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
     
     @page {

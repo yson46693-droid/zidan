@@ -78,6 +78,32 @@ $method = $data['_method'] ?? getRequestMethod();
 if ($method === 'GET') {
     checkAuth();
     
+    // إذا كان هناك sale_id محدد، جلب فاتورة واحدة فقط
+    $saleId = $_GET['sale_id'] ?? null;
+    if ($saleId) {
+        $sale = dbSelectOne(
+            "SELECT s.*, u.name as created_by_name 
+             FROM sales s 
+             LEFT JOIN users u ON s.created_by = u.id 
+             WHERE s.id = ?",
+            [$saleId]
+        );
+        
+        if (!$sale) {
+            response(false, 'الفاتورة غير موجودة', null, 404);
+        }
+        
+        // جلب عناصر الفاتورة
+        $items = dbSelect(
+            "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
+            [$saleId]
+        );
+        $sale['items'] = $items ? $items : [];
+        
+        response(true, '', $sale);
+        return;
+    }
+    
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
     
@@ -161,7 +187,55 @@ if ($method === 'POST') {
         response(false, 'رقم الهاتف غير صحيح (يجب أن يكون 8 أرقام على الأقل)', null, 400);
     }
     
+    // إذا لم يكن هناك customer_id، البحث عن عميل موجود بنفس رقم الهاتف
+    if (empty($customerId)) {
+        $existingCustomer = dbSelectOne(
+            "SELECT id FROM customers WHERE phone = ? LIMIT 1",
+            [$customerPhone]
+        );
+        
+        if ($existingCustomer) {
+            $customerId = $existingCustomer['id'];
+        }
+    } else {
+        // التحقق من وجود العميل في قاعدة البيانات
+        $customerExists = dbSelectOne(
+            "SELECT id FROM customers WHERE id = ?",
+            [$customerId]
+        );
+        
+        if (!$customerExists) {
+            // إذا لم يوجد العميل، البحث عن عميل آخر بنفس رقم الهاتف
+            $existingCustomer = dbSelectOne(
+                "SELECT id FROM customers WHERE phone = ? LIMIT 1",
+                [$customerPhone]
+            );
+            
+            if ($existingCustomer) {
+                $customerId = $existingCustomer['id'];
+            } else {
+                // إذا لم يوجد عميل، إنشاء عميل جديد
+                // سيتم الحصول على $session لاحقاً في السطر 206
+                $newCustomerId = generateId();
+                // سنحتاج إلى $session لاحقاً، لذا سننشئ العميل بعد الحصول على $session
+            }
+        }
+    }
+    
     $session = checkAuth();
+    
+    // إذا لم يكن هناك customer_id بعد، إنشاء عميل جديد
+    if (empty($customerId)) {
+        $newCustomerId = generateId();
+        $result = dbExecute(
+            "INSERT INTO customers (id, name, phone, address, customer_type, shop_name, created_at, created_by) VALUES (?, ?, ?, ?, 'retail', NULL, NOW(), ?)",
+            [$newCustomerId, $customerName, $customerPhone, '', $session['user_id']]
+        );
+        
+        if ($result !== false) {
+            $customerId = $newCustomerId;
+        }
+    }
     $saleId = generateId();
     
     // إنشاء رقم فاتورة عشوائي من 6 أرقام
@@ -173,11 +247,11 @@ if ($method === 'POST') {
     dbBeginTransaction();
     
     try {
-        // إنشاء عملية البيع
+        // إنشاء عملية البيع - التأكد من حفظ customer_id بشكل صحيح
         $result = dbExecute(
             "INSERT INTO sales (id, sale_number, total_amount, discount, tax, final_amount, customer_id, customer_name, customer_phone, created_at, created_by) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
-            [$saleId, $saleNumber, $totalAmount, $discount, $tax, $finalAmount, $customerId ?: null, $customerName, $customerPhone, $session['user_id']]
+            [$saleId, $saleNumber, $totalAmount, $discount, $tax, $finalAmount, !empty($customerId) ? $customerId : null, $customerName, $customerPhone, $session['user_id']]
         );
         
         if ($result === false) {

@@ -285,7 +285,6 @@ function getRoleName($role) {
                     <section class="chat-messages" data-chat-messages>
                         <div class="chat-empty-state" data-chat-empty>
                             <h3>ابدأ المحادثة الآن</h3>
-                            <p>شارك فريقك آخر المستجدات، إرسال الرسائل يتم تحديثه فورياً مع ظهور إشعارات عند وصول أي رسالة جديدة.</p>
                         </div>
                     </section>
                     <footer class="chat-composer" data-chat-composer>
@@ -301,7 +300,7 @@ function getRoleName($role) {
                                 class="chat-input"
                                 data-chat-input
                                 rows="1"
-                                placeholder="اكتب رسالة ودية..."
+                                placeholder="اكتب رسالة ..."
                                 autocomplete="off"></textarea>
                             <div class="chat-composer-actions">
                                 <button class="chat-icon-button chat-send-button" type="button" title="إرسال" data-chat-send aria-label="إرسال الرسالة">
