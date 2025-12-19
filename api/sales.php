@@ -247,6 +247,19 @@ if ($method === 'POST') {
     dbBeginTransaction();
     
     try {
+        // التأكد من أن customer_id غير فارغ قبل الحفظ
+        // إذا كان فارغاً، البحث مرة أخرى عن عميل موجود بنفس رقم الهاتف
+        if (empty($customerId)) {
+            $existingCustomer = dbSelectOne(
+                "SELECT id FROM customers WHERE phone = ? LIMIT 1",
+                [$customerPhone]
+            );
+            
+            if ($existingCustomer) {
+                $customerId = $existingCustomer['id'];
+            }
+        }
+        
         // إنشاء عملية البيع - التأكد من حفظ customer_id بشكل صحيح
         $result = dbExecute(
             "INSERT INTO sales (id, sale_number, total_amount, discount, tax, final_amount, customer_id, customer_name, customer_phone, created_at, created_by) 

@@ -1130,7 +1130,17 @@ async function processPayment() {
         }
         
         // Save or update customer if new
+        // التحقق من القائمة المنسدلة أولاً للحصول على customer_id المحدد
+        const existingCustomerSelect = document.getElementById('existingCustomerSelect');
         let customerId = selectedCustomerId;
+        
+        // إذا لم يكن هناك selectedCustomerId، التحقق من القائمة المنسدلة
+        if (!customerId && existingCustomerSelect && existingCustomerSelect.value) {
+            customerId = existingCustomerSelect.value;
+            // تحديث selectedCustomerId أيضاً
+            selectedCustomerId = customerId;
+        }
+        
         if (!customerId) {
             // البحث عن عميل موجود بنفس رقم الهاتف أولاً
             const existingCustomer = allCustomers.find(c => c.phone === customerPhone);
@@ -1138,6 +1148,11 @@ async function processPayment() {
             if (existingCustomer) {
                 // استخدام العميل الموجود
                 customerId = existingCustomer.id;
+                // تحديث selectedCustomerId والقائمة المنسدلة
+                selectedCustomerId = customerId;
+                if (existingCustomerSelect) {
+                    existingCustomerSelect.value = customerId;
+                }
             } else {
                 // Create new customer
                 const customerData = {
@@ -1153,6 +1168,8 @@ async function processPayment() {
                     customerId = customerRes.data.id;
                     // Add to local list
                     allCustomers.push(customerRes.data);
+                    // تحديث selectedCustomerId
+                    selectedCustomerId = customerId;
                 } else {
                     showMessage('فشل في إنشاء العميل. يرجى المحاولة مرة أخرى', 'error');
                     if (confirmBtn) {
@@ -1237,11 +1254,11 @@ async function showInvoice(saleData) {
     const branchName = 'الهانوفيل';
     const salesPersonName = saleData.created_by_name || 'غير محدد';
     
-    // Generate unique barcode for this invoice
-    const barcodeData = saleData.sale_number || saleData.id || Date.now().toString();
-    let barcodeImage = '';
+    // Generate unique QR code for this invoice
+    const qrCodeData = saleData.sale_number || saleData.id || Date.now().toString();
+    let qrCodeImage = '';
     if (typeof window.barcodeGenerator !== 'undefined') {
-        barcodeImage = window.barcodeGenerator.generateBarcode(barcodeData, 250, 80);
+        qrCodeImage = window.barcodeGenerator.generateQRCode(qrCodeData, 200);
     }
     
     // Format date and time in 12-hour format with AM/PM
@@ -1256,7 +1273,7 @@ async function showInvoice(saleData) {
     
     // دالة لإنشاء HTML للوجو مع معالجة الأخطاء
     const createLogoHtml = (src, alt = 'ALAA ZIDAN Logo') => {
-        return `<img src="${src}" alt="${alt}" class="invoice-logo" style="max-width: 200px; max-height: 200px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
+        return `<img src="${src}" alt="${alt}" class="invoice-logo" style="max-width: 400px; max-height: 400px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
     };
     
     if (shopLogo && shopLogo.trim() !== '') {
@@ -1276,7 +1293,6 @@ async function showInvoice(saleData) {
             
             <!-- Shop Info -->
             <div class="invoice-header">
-                <div class="invoice-shop-name">${shopName}</div>
                 <div class="invoice-shop-info">
                     ${shopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${shopAddress}</div>` : ''}
                     ${shopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${shopPhone}</div>` : ''}
@@ -1345,11 +1361,10 @@ async function showInvoice(saleData) {
                 </div>
             </div>
             
-            <!-- Barcode -->
-            ${barcodeImage ? `
-                <div class="invoice-barcode">
-                    <img src="${barcodeImage}" alt="Barcode ${barcodeData}">
-                    <div class="barcode-text">${barcodeData}</div>
+            <!-- QR Code -->
+            ${qrCodeImage ? `
+                <div class="invoice-qrcode">
+                    <img src="${qrCodeImage}" alt="QR Code ${qrCodeData}">
                 </div>
             ` : ''}
             
