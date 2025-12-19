@@ -10,10 +10,15 @@
     RewriteEngine On
     RewriteBase /
     
-    # السماح بالوصول المباشر لملفات PHP
+    # السماح بالوصول المباشر لملفات PHP الموجودة
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteCond %{REQUEST_FILENAME} \.php$
     RewriteRule ^(.*)$ $1 [L]
+    
+    # التأكد من معالجة ملفات PHP
+    <FilesMatch "\.php$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
     
     # منع الوصول المباشر للملفات الحساسة
     <FilesMatch "\.(htaccess|htpasswd|ini|log|sql|bak)$">
