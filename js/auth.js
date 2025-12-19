@@ -52,8 +52,8 @@ async function checkLogin() {
             const currentPage = window.location.pathname;
             const isIndexPage = currentPage.includes('index.html') || currentPage === '/';
             
-            // إذا كان تسجيل دخول حديث (أقل من 10 ثوان) وليس في صفحة index
-            if (justLoggedInTime && (now - parseInt(justLoggedInTime)) < 10000 && !isIndexPage) {
+            // إذا كان تسجيل دخول حديث (أقل من 15 ثوان) وليس في صفحة index
+            if (justLoggedInTime && (now - parseInt(justLoggedInTime)) < 15000 && !isIndexPage) {
                 console.log('⏳ تسجيل دخول حديث - إعطاء فرصة للجلسة...');
                 // إعطاء فرصة للجلسة - إعادة المحاولة بعد ثانية واحدة
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -74,13 +74,20 @@ async function checkLogin() {
                 } catch (retryError) {
                     console.log('فشلت إعادة المحاولة:', retryError);
                 }
-                // إذا فشلت إعادة المحاولة، مسح العلامة والمتابعة
-                sessionStorage.removeItem('just_logged_in_time');
+                // إذا فشلت إعادة المحاولة، لا نمسح العلامة بعد - نتركها لتجنب loop
+                // فقط نرجع null بدون استدعاء showLoginRequiredMessage
+                console.log('⏸️ فشلت إعادة المحاولة - إرجاع null بدون توجيه لتجنب loop');
+                return null;
             }
             
-            // مسح جميع البيانات المحلية
+            // مسح جميع البيانات المحلية (فقط إذا لم يكن تسجيل دخول حديث)
             localStorage.clear();
+            // لا نمسح sessionStorage بالكامل - نحتفظ بعلامة just_logged_in_time إذا كانت موجودة
+            const keepJustLoggedIn = sessionStorage.getItem('just_logged_in_time');
             sessionStorage.clear();
+            if (keepJustLoggedIn) {
+                sessionStorage.setItem('just_logged_in_time', keepJustLoggedIn);
+            }
             
             // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول (فقط إذا لم نكن في صفحة تسجيل الدخول)
             if (!isIndexPage) {

@@ -572,6 +572,18 @@
         let cachedUser = null;
         
         async function performAuthCheck() {
+            // 🔧 الحل 5: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
+            const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+            if (justLoggedInTime) {
+                const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
+                // إذا كان تسجيل الدخول حديث (أقل من 15 ثانية)، انتظر قليلاً قبل التحقق
+                if (timeSinceLogin < 15000) {
+                    console.log('⏳ تسجيل دخول حديث في dashboard - انتظار قليل...');
+                    // انتظار إضافي للجلسة
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+            
             // منع الطلبات المتكررة - إذا كان هناك طلب قيد التنفيذ، انتظر
             if (authCheckInProgress) {
                 // انتظار حتى ينتهي الطلب الحالي (بحد أقصى 5 ثوان)
@@ -596,6 +608,26 @@
                 
                 if (!user) {
                     cachedUser = null;
+                    
+                    // 🔧 الحل 6: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
+                    const justLoggedInTimeCheck = sessionStorage.getItem('just_logged_in_time');
+                    if (justLoggedInTimeCheck) {
+                        const timeSinceLogin = Date.now() - parseInt(justLoggedInTimeCheck);
+                        // إذا كان تسجيل الدخول حديث (أقل من 15 ثانية)، لا نستدعي showLoginRequiredMessage
+                        if (timeSinceLogin < 15000) {
+                            console.log('⏸️ تسجيل دخول حديث - تم إلغاء showLoginRequiredMessage لمنع loop');
+                            // إعادة المحاولة بعد ثانية إضافية
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            const retryUser = await checkLogin();
+                            if (retryUser) {
+                                cachedUser = retryUser;
+                                return retryUser;
+                            }
+                            // إذا فشلت إعادة المحاولة أيضاً، نرجع null بدون توجيه
+                            return null;
+                        }
+                    }
+                    
                     localStorage.clear();
                     sessionStorage.clear();
                     showLoginRequiredMessage();
@@ -609,6 +641,17 @@
                 authChecked = false;
                 cachedUser = null;
                 console.error('خطأ في التحقق من تسجيل الدخول:', error);
+                
+                // 🔧 الحل 7: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage في catch
+                const justLoggedInTimeError = sessionStorage.getItem('just_logged_in_time');
+                if (justLoggedInTimeError) {
+                    const timeSinceLogin = Date.now() - parseInt(justLoggedInTimeError);
+                    if (timeSinceLogin < 15000) {
+                        console.log('⏸️ تسجيل دخول حديث في catch - تم إلغاء showLoginRequiredMessage');
+                        return null;
+                    }
+                }
+                
                 localStorage.clear();
                 sessionStorage.clear();
                 showLoginRequiredMessage();

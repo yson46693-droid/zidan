@@ -565,8 +565,8 @@
                     const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
                     if (justLoggedInTime) {
                         const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
-                        // إذا كان تسجيل الدخول حديث (أقل من 5 ثوان)، منع التحقق
-                        if (timeSinceLogin < 5000) {
+                        // إذا كان تسجيل الدخول حديث (أقل من 10 ثوان)، منع التحقق
+                        if (timeSinceLogin < 10000) {
                             console.log('⏸️ تسجيل دخول حديث - تم إلغاء التحقق لمنع loop');
                             return;
                         }
