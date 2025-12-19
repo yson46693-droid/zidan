@@ -333,6 +333,7 @@
     min-height: 38px;
     max-height: 38px;
     display: -webkit-box;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -1650,7 +1651,10 @@
     .invoice-barcode,
     .invoice-qrcode,
     .invoice-phone-data,
-    .invoice-terms {
+    .invoice-terms,
+    .invoice-footer {
+        display: block !important;
+        visibility: visible !important;
         box-shadow: none !important;
         border: 1px solid #ddd !important;
         background: white !important;
@@ -1661,7 +1665,16 @@
     .invoice-qrcode {
         background: transparent !important;
         border: none !important;
-        padding: 0 !important;
+        padding: 10px 0 !important;
+        margin: 20px 0 !important;
+    }
+    
+    .invoice-terms {
+        margin: 20px 0 !important;
+    }
+    
+    .invoice-footer {
+        margin: 20px 0 0 0 !important;
     }
     
     .invoice-qrcode img {
@@ -1712,6 +1725,7 @@
     
     .invoice-summary {
         page-break-inside: avoid !important;
+        page-break-after: auto !important;
     }
     
     .invoice-summary .summary-row.total {
@@ -1735,26 +1749,82 @@
     }
     
     .invoice-qrcode {
+        display: block !important;
+        visibility: visible !important;
         page-break-inside: avoid !important;
+        page-break-after: avoid !important;
         background: transparent !important;
         text-align: center !important;
         border: none !important;
+        margin: 20px 0 !important;
+        padding: 10px 0 !important;
     }
     
     .invoice-qrcode img {
+        display: block !important;
+        visibility: visible !important;
         max-width: 200px !important;
         width: 200px !important;
         height: 200px !important;
+        margin: 0 auto !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
     
     .invoice-phone-data {
+        display: block !important;
+        visibility: visible !important;
         page-break-inside: avoid !important;
     }
     
     .invoice-terms {
+        display: block !important;
+        visibility: visible !important;
         page-break-inside: avoid !important;
+        page-break-after: auto !important;
+        margin: 20px 0 !important;
+        padding: 20px !important;
+    }
+    
+    .invoice-terms h4,
+    .invoice-terms ol,
+    .invoice-terms li {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    .invoice-footer {
+        display: block !important;
+        visibility: visible !important;
+        page-break-inside: avoid !important;
+        margin-top: 20px !important;
+    }
+    
+    /* Ensure all invoice content is visible */
+    .invoice-wrapper > * {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure QR code and terms are always visible */
+    .invoice-qrcode,
+    .invoice-terms,
+    .invoice-footer {
+        opacity: 1 !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+    }
+    
+    /* Prevent page breaks that might hide content */
+    .invoice-summary {
+        page-break-after: auto !important;
+    }
+    
+    /* Force print all content */
+    .invoice-wrapper {
+        overflow: visible !important;
+        height: auto !important;
     }
     
     @page {
