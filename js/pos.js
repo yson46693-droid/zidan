@@ -923,15 +923,20 @@ function showInvoice(saleData) {
     
     // Get logo - try multiple sources
     let logoHtml = '';
+    const defaultLogoPath = 'assets/c__Users_7mo_Ashraf_AppData_Roaming_Cursor_User_workspaceStorage_eb8d9b9ee4440ab0b7965fcea8e91bf6_images__1373DF86-1DB7-4A33-A05B-F20143E3ED2C_-29b74810-1906-4fd8-81a1-0d65fbd0ee60.png';
+    const fallbackLogoPath = 'assets/c__Users_7mo_Ashraf_Desktop_zidan_photo_5922357566287580087_y.jpg';
+    
     if (shopLogo && shopLogo.trim() !== '') {
-        // Use shop logo from settings
-        logoHtml = `<img src="${shopLogo}" alt="Logo" class="invoice-logo" onerror="this.style.display='none'">`;
+        // Use shop logo from settings with fallback
+        logoHtml = `<img src="${shopLogo}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.src='${fallbackLogoPath}'; this.onerror=function(){this.style.display='none';};};">`;
+    } else {
+        // Use default logo with fallback
+        logoHtml = `<img src="${defaultLogoPath}" alt="ALAA ZIDAN Logo" class="invoice-logo" onerror="this.onerror=null; this.src='${fallbackLogoPath}'; this.onerror=function(){this.style.display='none';};">`;
     }
-    // If no logo in settings, leave empty - user can add it later via settings
     
     const invoiceHtml = `
         <div class="invoice-wrapper">
-            <!-- Logo Section with white space -->
+            <!-- Logo Section - في البداية -->
             <div class="invoice-logo-section">
                 ${logoHtml}
             </div>
@@ -940,8 +945,8 @@ function showInvoice(saleData) {
             <div class="invoice-header">
                 <div class="invoice-shop-name">${shopName}</div>
                 <div class="invoice-shop-info">
-                    ${shopAddress ? `<div>${shopAddress}</div>` : ''}
-                    ${shopPhone ? `<div>${shopPhone}</div>` : ''}
+                    ${shopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${shopAddress}</div>` : ''}
+                    ${shopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${shopPhone}</div>` : ''}
                 </div>
             </div>
             
