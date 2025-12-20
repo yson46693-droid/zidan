@@ -685,16 +685,39 @@ function getRoleName($role) {
             if ('serviceWorker' in navigator) {
                 try {
                     const appVersion = window.APP_VERSION || 'v' + Date.now();
-                    navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
-                        scope: '/',
-                        updateViaCache: 'none'
-                    }).then(registration => {
-                        console.log('✅ Service Worker registered in Chat');
-                    }).catch(error => {
-                        console.warn('Service Worker registration failed:', error);
-                    });
+                    const swUrl = '/sw.js?v=' + appVersion;
+                    
+                    // التحقق من أن الملف موجود أولاً
+                    fetch(swUrl, { method: 'HEAD', cache: 'no-store' })
+                        .then(response => {
+                            // التحقق من Content-Type
+                            const contentType = response.headers.get('content-type');
+                            if (contentType && contentType.includes('application/javascript')) {
+                                // الملف موجود وبـ Content-Type صحيح
+                                return navigator.serviceWorker.register(swUrl, {
+                                    scope: '/',
+                                    updateViaCache: 'none'
+                                });
+                            } else {
+                                // Content-Type خاطئ - تجاهل التسجيل
+                                console.warn('Service Worker: Invalid Content-Type, skipping registration');
+                                return Promise.reject(new Error('Invalid Content-Type'));
+                            }
+                        })
+                        .then(registration => {
+                            console.log('✅ Service Worker registered in Chat');
+                        })
+                        .catch(error => {
+                            // تجاهل الأخطاء بشكل صامت في production
+                            if (error.message && !error.message.includes('Invalid Content-Type')) {
+                                console.warn('Service Worker registration failed:', error.message);
+                            }
+                        });
                 } catch (error) {
-                    console.warn('Service Worker registration error:', error);
+                    // تجاهل الأخطاء
+                    if (error.message && !error.message.includes('InfinityFree')) {
+                        console.warn('Service Worker registration error:', error.message);
+                    }
                 }
             }
         };

@@ -14,10 +14,21 @@ class PWAInstallManager {
         
         // الاستماع لحدث beforeinstallprompt
         window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('✅ PWA install prompt available');
+            console.log('✅ PWA install prompt available (beforeinstallprompt event fired)');
             e.preventDefault();
             this.deferredPrompt = e;
             this.showInstallButton();
+            
+            // إظهار زر التثبيت فوراً
+            const installButton = document.getElementById('installButton');
+            const installLink = document.getElementById('installLink');
+            if (installButton) {
+                installButton.classList.remove('hidden');
+                installButton.style.display = 'inline-flex';
+            }
+            if (installLink) {
+                installLink.style.display = 'inline-block';
+            }
         });
         
         // الاستماع لحدث appinstalled
@@ -60,16 +71,20 @@ class PWAInstallManager {
             this.handleWindowsInstall();
             // إظهار زر التثبيت بعد فترة قصيرة حتى لو لم يظهر beforeinstallprompt
             setTimeout(() => {
-                if (!this.isStandaloneMode() && !this.deferredPrompt) {
+                if (!this.isStandaloneMode()) {
                     // التحقق من أن Service Worker مسجل و Manifest موجود
                     this.checkPWARequirements().then(canInstall => {
                         if (canInstall) {
-                            console.log('✅ PWA requirements met - showing install button');
+                            console.log('✅ PWA requirements met - showing install button for Chrome');
                             this.showInstallButtonForChrome();
+                        } else {
+                            console.warn('⚠️ PWA requirements not met - cannot show install button');
                         }
+                    }).catch(error => {
+                        console.error('❌ Error checking PWA requirements:', error);
                     });
                 }
-            }, 1000);
+            }, 2000); // زيادة الوقت للانتظار إلى ثانيتين
         }
         
         // التحقق من المتصفحات القديمة
@@ -152,7 +167,16 @@ class PWAInstallManager {
     }
     
     async install() {
+        // في Chrome Desktop، إذا لم يكن deferredPrompt متاحاً، نتحقق من المتطلبات
+        const browser = this.getBrowser();
+        const isChromeDesktop = browser === 'chrome' && !this.isAndroid() && !this.isIOS();
+        
         if (!this.deferredPrompt) {
+            if (isChromeDesktop) {
+                // في Chrome Desktop، نعرض تعليمات التثبيت اليدوي
+                this.showChromeInstallInstructions();
+                return false;
+            }
             this.showInfoMessage('يرجى استخدام التعليمات المخصصة لجهازك لتثبيت التطبيق');
             return false;
         }
@@ -176,8 +200,48 @@ class PWAInstallManager {
             }
         } catch (error) {
             console.error('Error during install:', error);
-            this.showErrorMessage('حدث خطأ أثناء التثبيت. يرجى المحاولة مرة أخرى.');
+            // في حالة الخطأ، إذا كان Chrome Desktop، نعرض التعليمات
+            if (isChromeDesktop) {
+                this.showChromeInstallInstructions();
+            } else {
+                this.showErrorMessage('حدث خطأ أثناء التثبيت. يرجى المحاولة مرة أخرى.');
+            }
             return false;
+        }
+    }
+    
+    showChromeInstallInstructions() {
+        const message = `
+            <div style="text-align: right; padding: 15px; direction: rtl;">
+                <strong style="font-size: 1.1em; display: block; margin-bottom: 10px;">📥 لتثبيت التطبيق في Chrome:</strong>
+                <ol style="margin: 10px 0; padding-right: 20px; line-height: 1.8;">
+                    <li>ابحث عن أيقونة التثبيت (📥 أو ➕) في شريط العنوان بجانب شريط البحث</li>
+                    <li>أو افتح قائمة Chrome (☰) → "تثبيت التطبيق..."</li>
+                    <li>أو استخدم الاختصار: <kbd>Ctrl+Shift+A</kbd> (Windows) أو <kbd>Cmd+Shift+A</kbd> (Mac)</li>
+                </ol>
+                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                    💡 <strong>ملاحظة:</strong> إذا لم تظهر أيقونة التثبيت، تأكد من أنك تتصفح عبر HTTPS وأن Service Worker نشط.
+                </p>
+            </div>
+        `;
+        
+        // محاولة إظهار الرسالة في عنصر statusMessage إذا كان موجوداً
+        const statusMessage = document.getElementById('statusMessage');
+        if (statusMessage) {
+            statusMessage.innerHTML = message;
+            statusMessage.className = 'status-message info';
+            statusMessage.style.display = 'block';
+            
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 15000);
+        } else {
+            // إذا لم يكن موجوداً، نستخدم alert مع رسالة مبسطة
+            const simpleMessage = 'لتثبيت التطبيق في Chrome:\n\n' +
+                '1. ابحث عن أيقونة التثبيت (📥) في شريط العنوان\n' +
+                '2. أو افتح قائمة Chrome (☰) → "تثبيت التطبيق..."\n' +
+                '3. أو استخدم الاختصار: Ctrl+Shift+A';
+            alert(simpleMessage);
         }
     }
     
@@ -287,20 +351,35 @@ class PWAInstallManager {
             // إزالة أي event listeners سابقة
             const newButton = installButton.cloneNode(true);
             installButton.parentNode.replaceChild(newButton, installButton);
-            newButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (this.deferredPrompt) {
-                    this.install();
-                } else {
-                    // إذا لم يكن deferredPrompt متاحاً، نوجه المستخدم لصفحة التثبيت
-                    window.location.href = 'install.html';
-                }
-            });
+            const buttonElement = document.getElementById('installButton');
+            if (buttonElement) {
+                buttonElement.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔘 Install button clicked, deferredPrompt:', !!this.deferredPrompt);
+                    if (this.deferredPrompt) {
+                        this.install();
+                    } else {
+                        // محاولة التثبيت مع إظهار التعليمات
+                        this.install();
+                    }
+                });
+            }
         }
         
         if (installLink) {
             console.log('🪟 Chrome Desktop: Showing install link');
             installLink.style.display = 'inline-block';
+            // إضافة event listener للرابط أيضاً
+            installLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.deferredPrompt) {
+                    this.install();
+                } else {
+                    this.install();
+                }
+            });
         }
     }
     
@@ -517,17 +596,19 @@ if (typeof window !== 'undefined') {
                 setTimeout(async () => {
                     const canInstall = await pwaInstallManager.checkPWARequirements();
                     if (canInstall) {
+                        console.log('✅ Chrome Desktop: PWA requirements met, showing install button');
                         installButton.classList.remove('hidden');
-                        installButton.addEventListener('click', () => {
-                            if (pwaInstallManager.deferredPrompt) {
-                                pwaInstallManager.install();
-                            } else {
-                                // إذا لم يكن deferredPrompt متاحاً، نعرض رسالة
-                                pwaInstallManager.showInfoMessage('يرجى استخدام زر التثبيت في شريط العنوان أو قائمة Chrome');
-                            }
+                        installButton.style.display = 'inline-flex';
+                        installButton.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('🔘 Chrome install button clicked');
+                            pwaInstallManager.install();
                         });
+                    } else {
+                        console.warn('⚠️ Chrome Desktop: PWA requirements not met');
                     }
-                }, 1000);
+                }, 2000);
             }
             // للمتصفحات الأخرى، نعرض الزر فقط إذا كان deferredPrompt متاحاً
             else if (pwaInstallManager.deferredPrompt) {

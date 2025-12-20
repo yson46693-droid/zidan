@@ -12,6 +12,11 @@ AddType text/css .css
 AddType text/javascript .js
 AddType application/javascript .js
 
+# Service Worker - يجب أن يكون Content-Type صحيح
+<FilesMatch "^sw\.js$">
+    ForceType application/javascript
+</FilesMatch>
+
 # إعدادات PHP
 <IfModule mod_php.c>
     php_flag display_errors Off
@@ -23,6 +28,12 @@ AddType application/javascript .js
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
+# Service Worker - التأكد من عدم معالجته كـ PHP
+<Files "sw.js">
+    SetHandler default-handler
+    ForceType application/javascript
+</Files>
 
 
 # قاعدة خاصة لملف chat.php
@@ -56,12 +67,14 @@ AddType application/javascript .js
     Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"
     
     # PWA Headers - دعم Service Worker و Manifest
-    # Service Worker يجب أن يُخدم من نفس الأصل بدون CORS
-    <FilesMatch "sw\.js$">
-        Header set Service-Worker-Allowed "/"
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
+    # Service Worker يجب أن يُخدم من نفس الأصل بدون CORS وبـ Content-Type صحيح
+    <FilesMatch "^sw\.js$">
+        Header always set Content-Type "application/javascript; charset=utf-8"
+        Header always set Service-Worker-Allowed "/"
+        Header always set Cache-Control "no-cache, no-store, must-revalidate"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+        Header always set X-Content-Type-Options "nosniff"
     </FilesMatch>
     
     # Manifest يجب أن يُخدم كـ application/manifest+json
