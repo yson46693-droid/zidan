@@ -691,6 +691,8 @@
       // تحديث الرسائل والمستخدمين بعد إرسال الرسالة
       setTimeout(() => {
         fetchMessages();
+        // تحديث قائمة المستخدمين أيضاً
+        fetchUsersSeparately();
       }, 500);
     } catch (error) {
       console.error('Chat: خطأ في إرسال الرسالة:', error);
@@ -1488,7 +1490,7 @@
             const responseText = await response.text();
             const payload = JSON.parse(responseText);
             if (payload.success) {
-              // payload.data قد يكون مصفوفة مباشرة
+              // payload.data قد يكون مصفوفة مباشرة (قائمة المستخدمين)
               let users = [];
               if (Array.isArray(payload.data)) {
                 users = payload.data;
@@ -1497,12 +1499,21 @@
               }
               
               if (users.length > 0) {
+                console.log('Chat: تم تحديث قائمة المستخدمين من updatePresence - ' + users.length + ' مستخدم');
                 state.users = users;
                 updateUserList();
+              } else {
+                // إذا لم تكن هناك مستخدمين في الاستجابة، نجلبهم بشكل منفصل
+                setTimeout(() => {
+                  fetchUsersSeparately();
+                }, 200);
               }
             }
           } catch (e) {
-            // تجاهل خطأ JSON
+            // إذا فشل تحليل JSON، نجلب المستخدمين بشكل منفصل
+            setTimeout(() => {
+              fetchUsersSeparately();
+            }, 200);
           }
         }
       } catch (fetchError) {

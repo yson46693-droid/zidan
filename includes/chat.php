@@ -117,16 +117,21 @@ function sendChatMessage($userId, $messageText, $replyTo = null) {
         throw new InvalidArgumentException('الرسالة طويلة جداً (الحد الأقصى 5000 حرف)');
     }
 
+    // تحويل userId إلى string للتأكد من التوافق
+    $userId = (string) $userId;
+    
     // إعداد الاستعلام مع معالجة NULL بشكل صحيح
     if ($replyTo && $replyTo > 0) {
         $stmt = $conn->prepare("INSERT INTO messages (user_id, message_text, reply_to, created_at) VALUES (?, ?, ?, NOW())");
         if (!$stmt) {
+            error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
             throw new RuntimeException('فشل في إعداد الاستعلام: ' . $conn->error);
         }
         $stmt->bind_param('ssi', $userId, $messageText, $replyTo);
     } else {
         $stmt = $conn->prepare("INSERT INTO messages (user_id, message_text, reply_to, created_at) VALUES (?, ?, NULL, NOW())");
         if (!$stmt) {
+            error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
             throw new RuntimeException('فشل في إعداد الاستعلام: ' . $conn->error);
         }
         $stmt->bind_param('ss', $userId, $messageText);
@@ -156,11 +161,11 @@ function getChatMessageById($messageId) {
 
     $stmt = $conn->prepare("
         SELECT m.*, 
-               u.name as user_name, 
+               COALESCE(u.name, u.username, 'مستخدم') as user_name, 
                u.username,
                r.message_text as reply_text,
                r.user_id as reply_user_id,
-               ru.name as reply_user_name,
+               COALESCE(ru.name, ru.username, 'مستخدم') as reply_user_name,
                COALESCE(m.read_by_count, (SELECT COUNT(*) FROM message_reads WHERE message_id = m.id)) as read_by_count
         FROM messages m
         LEFT JOIN users u ON m.user_id = u.id
@@ -170,14 +175,25 @@ function getChatMessageById($messageId) {
     ");
 
     if (!$stmt) {
+        error_log('getChatMessageById: فشل في إعداد الاستعلام: ' . $conn->error);
         return null;
     }
 
     $stmt->bind_param('i', $messageId);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        error_log('getChatMessageById: خطأ في تنفيذ الاستعلام: ' . $stmt->error);
+        $stmt->close();
+        return null;
+    }
+    
     $result = $stmt->get_result();
     $message = $result->fetch_assoc();
     $stmt->close();
+    
+    // التأكد من وجود user_name
+    if ($message && empty($message['user_name'])) {
+        $message['user_name'] = $message['username'] ?? 'مستخدم';
+    }
 
     return $message;
 }
@@ -204,11 +220,11 @@ function getChatMessages($since = null, $limit = 50, $userId = null) {
 
     $query = "
         SELECT m.*, 
-               u.name as user_name, 
+               COALESCE(u.name, u.username, 'مستخدم') as user_name, 
                u.username,
                r.message_text as reply_text,
                r.user_id as reply_user_id,
-               ru.name as reply_user_name,
+               COALESCE(ru.name, ru.username, 'مستخدم') as reply_user_name,
                COALESCE(m.read_by_count, (SELECT COUNT(*) FROM message_reads WHERE message_id = m.id)) as read_by_count
         FROM messages m
         LEFT JOIN users u ON m.user_id = u.id
@@ -224,6 +240,7 @@ function getChatMessages($since = null, $limit = 50, $userId = null) {
 
     $stmt = $conn->prepare($query);
     if (!$stmt) {
+        error_log('getChatMessages: فشل في إعداد الاستعلام: ' . $conn->error);
         return [];
     }
 
@@ -231,11 +248,20 @@ function getChatMessages($since = null, $limit = 50, $userId = null) {
         $stmt->bind_param($types, ...$params);
     }
 
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        error_log('getChatMessages: خطأ في تنفيذ الاستعلام: ' . $stmt->error);
+        $stmt->close();
+        return [];
+    }
+    
     $result = $stmt->get_result();
     $messages = [];
 
     while ($row = $result->fetch_assoc()) {
+        // التأكد من وجود user_name
+        if (empty($row['user_name'])) {
+            $row['user_name'] = $row['username'] ?? 'مستخدم';
+        }
         $messages[] = $row;
     }
 
@@ -341,9 +367,12 @@ function softDeleteChatMessage($messageId, $userId) {
 function updateUserPresence($userId, $isOnline) {
     $conn = getDBConnection();
     if (!$conn) {
+        error_log('updateUserPresence: فشل الاتصال بقاعدة البيانات');
         return false;
     }
 
+    // تحويل userId إلى string للتأكد من التوافق
+    $userId = (string) $userId;
     $online = $isOnline ? 1 : 0;
     
     // تحديث user_status (الجديد)
@@ -357,8 +386,12 @@ function updateUserPresence($userId, $isOnline) {
 
     if ($stmt) {
         $stmt->bind_param('si', $userId, $online);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            error_log('updateUserPresence: خطأ في تحديث user_status: ' . $stmt->error);
+        }
         $stmt->close();
+    } else {
+        error_log('updateUserPresence: فشل في إعداد استعلام user_status: ' . $conn->error);
     }
     
     // تحديث user_presence (القديم) للتوافق
@@ -373,8 +406,12 @@ function updateUserPresence($userId, $isOnline) {
 
     if ($stmtOld) {
         $stmtOld->bind_param('si', $userId, $online);
-        $stmtOld->execute();
+        if (!$stmtOld->execute()) {
+            error_log('updateUserPresence: خطأ في تحديث user_presence: ' . $stmtOld->error);
+        }
         $stmtOld->close();
+    } else {
+        error_log('updateUserPresence: فشل في إعداد استعلام user_presence: ' . $conn->error);
     }
 
     return true;
@@ -419,6 +456,14 @@ function getActiveUsers() {
                 // التأكد من وجود name أو username
                 if (empty($row['name']) && !empty($row['username'])) {
                     $row['name'] = $row['username'];
+                }
+                // التأكد من وجود name
+                if (empty($row['name'])) {
+                    $row['name'] = $row['username'] ?? 'مستخدم';
+                }
+                // التأكد من أن last_seen موجود
+                if (empty($row['last_seen'])) {
+                    $row['last_seen'] = $row['created_at'] ?? date('Y-m-d H:i:s');
                 }
                 $users[] = $row;
             }

@@ -67,13 +67,22 @@ try {
 
         updateUserPresence($userId, $online);
 
+        // جلب المستخدمين المحدثين بعد تحديث الحالة
+        $users = [];
+        try {
+            $users = getActiveUsers();
+            if (!is_array($users)) {
+                error_log('user_status: getActiveUsers لم تعد مصفوفة');
+                $users = [];
+            }
+        } catch (Throwable $userError) {
+            error_log('user_status: خطأ في جلب المستخدمين بعد التحديث: ' . $userError->getMessage());
+            $users = [];
+        }
+
         echo json_encode([
             'success' => true,
-            'data' => [
-                'user_id' => $userId,
-                'is_online' => $online,
-                'updated_at' => date('Y-m-d H:i:s'),
-            ],
+            'data' => $users, // إرجاع قائمة المستخدمين المحدثة
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }

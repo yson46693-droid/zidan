@@ -79,12 +79,22 @@ try {
     error_log('send_message: محاولة إرسال رسالة من المستخدم ' . $userId . ' - الطول: ' . strlen($messageText));
 
     if ($replyTo !== null) {
-        require_once __DIR__ . '/../database.php';
-        $original = dbSelectOne(
-            "SELECT id FROM messages WHERE id = ?",
-            [$replyTo]
-        );
-        if (!$original) {
+        $conn = getDBConnection();
+        if ($conn) {
+            $stmt = $conn->prepare("SELECT id FROM messages WHERE id = ? AND deleted = 0");
+            if ($stmt) {
+                $stmt->bind_param('i', $replyTo);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $original = $result->fetch_assoc();
+                $stmt->close();
+                if (!$original) {
+                    $replyTo = null;
+                }
+            } else {
+                $replyTo = null;
+            }
+        } else {
             $replyTo = null;
         }
     }
