@@ -1,14 +1,81 @@
 /* أنماط الطباعة */
 
 @media print {
+    /* دعم أنواع مختلفة من أحجام الصفحات */
     @page {
-        margin: 1cm;
+        margin: 0.8cm;
         size: A4;
+    }
+    
+    /* دعم Statement (أصغر من A4) */
+    @page statement {
+        margin: 0.6cm;
+        size: 8.5in 5.5in; /* Statement size */
+    }
+    
+    /* دعم Letter */
+    @page letter {
+        margin: 0.8cm;
+        size: letter;
+    }
+    
+    /* دعم A4 Portrait */
+    @page a4-portrait {
+        margin: 0.8cm;
+        size: A4 portrait;
+    }
+    
+    /* دعم A4 Landscape */
+    @page a4-landscape {
+        margin: 0.8cm;
+        size: A4 landscape;
     }
 
     body {
         background: white;
         color: black;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* منع تقسيم الأقسام المهمة */
+    .invoice-wrapper {
+        page-break-inside: avoid;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    
+    .invoice-logo-section,
+    .invoice-header,
+    .invoice-details,
+    .invoice-extra-info,
+    .invoice-phone-data,
+    .invoice-items-table,
+    .invoice-summary,
+    .invoice-qrcode,
+    .invoice-terms,
+    .invoice-footer {
+        page-break-inside: avoid;
+    }
+    
+    /* السماح بتقسيم الجدول إذا كان طويلاً جداً */
+    .invoice-items-table {
+        page-break-inside: auto;
+    }
+    
+    .invoice-items-table thead {
+        display: table-header-group;
+    }
+    
+    .invoice-items-table tbody tr {
+        page-break-inside: avoid;
+    }
+    
+    /* التأكد من ظهور جميع الأقسام */
+    .invoice-wrapper > * {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
 }
 
@@ -230,6 +297,45 @@
 
     .no-print {
         display: none !important;
+    }
+    
+    /* تحسينات للطباعة - منع تقسيم الأقسام المهمة */
+    .receipt,
+    .report-print {
+        page-break-inside: avoid;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    
+    .receipt-header,
+    .receipt-info,
+    .receipt-section,
+    .receipt-footer,
+    .report-header,
+    .report-summary-print,
+    .report-footer {
+        page-break-inside: avoid;
+    }
+    
+    /* السماح بتقسيم الجداول الطويلة */
+    .report-print table {
+        page-break-inside: auto;
+    }
+    
+    .report-print table thead {
+        display: table-header-group;
+    }
+    
+    .report-print table tbody tr {
+        page-break-inside: avoid;
+    }
+    
+    /* التأكد من ظهور جميع الأقسام */
+    .receipt > *,
+    .report-print > * {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
 }
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="تثبيت تطبيق ALAA ZIDAN على جهازك">
+    <meta name="description" content="صفحة التحميل وتثبيت التطبيق">
     <meta name="theme-color" content="#2196F3">
     
     <!-- PWA Meta Tags -->
@@ -59,17 +59,23 @@
         }
         
         .install-icon {
-            width: 120px;
-            height: 120px;
+            width: 180px;
+            height: 180px;
             margin: 0 auto 30px;
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-            border-radius: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 60px;
-            color: white;
-            box-shadow: 0 10px 30px rgba(33, 150, 243, 0.3);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            background: white;
+            padding: 10px;
+        }
+        
+        .install-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
         
         .install-box h1 {
@@ -111,7 +117,12 @@
         }
         
         .install-button.hidden {
-            display: none;
+            display: none !important;
+        }
+        
+        .install-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         
         .instructions {
@@ -237,8 +248,20 @@
                 font-size: 24px;
             }
             
+            .install-icon {
+                width: 150px;
+                height: 150px;
+            }
+            
             .device-buttons {
                 flex-direction: column;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .install-icon {
+                width: 120px;
+                height: 120px;
             }
         }
     </style>
@@ -247,10 +270,10 @@
     <div class="install-container">
         <div class="install-box">
             <div class="install-icon">
-                <i class="bi bi-phone-fill"></i>
+                <img src="vertopal.com_photo_5922357566287580087_y.png" alt="ALAA ZIDAN Logo">
             </div>
             
-            <h1>تثبيت تطبيق محل الصيانة</h1>
+            <h1>تثبيت التطبيق | ALAA ZIDAN - APP</h1>
             <p>قم بتثبيت التطبيق على جهازك للوصول السريع والاستخدام بدون إنترنت</p>
             
             <div id="statusMessage" class="status-message"></div>
@@ -301,51 +324,182 @@
     <script src="js/pwa-install.js"></script>
     <script>
         // دالة معالجة النقر على زر التثبيت
-        function handleInstallClick() {
-            if (window.pwaInstallManager) {
-                const browser = window.pwaInstallManager.getBrowser();
-                if (browser === 'firefox') {
-                    window.pwaInstallManager.installForFirefox();
+        async function handleInstallClick() {
+            const installButton = document.getElementById('installButton');
+            if (installButton) {
+                installButton.disabled = true;
+                installButton.innerHTML = '<i class="bi bi-hourglass-split"></i> <span>جاري التحضير...</span>';
+            }
+            
+            try {
+                // انتظار تحميل pwaInstallManager إذا لم يكن متاحاً
+                if (!window.pwaInstallManager) {
+                    await new Promise((resolve) => {
+                        let attempts = 0;
+                        const checkManager = () => {
+                            if (window.pwaInstallManager || typeof pwaInstallManager !== 'undefined') {
+                                resolve();
+                            } else if (attempts < 50) {
+                                attempts++;
+                                setTimeout(checkManager, 100);
+                            } else {
+                                resolve();
+                            }
+                        };
+                        checkManager();
+                    });
+                }
+                
+                if (window.pwaInstallManager) {
+                    const browser = window.pwaInstallManager.getBrowser();
+                    const isChromeDesktop = browser === 'chrome' && !window.pwaInstallManager.isAndroid() && !window.pwaInstallManager.isIOS();
+                    
+                    if (browser === 'firefox') {
+                        await window.pwaInstallManager.installForFirefox();
+                    } else if (isChromeDesktop && !window.pwaInstallManager.deferredPrompt) {
+                        // Chrome Desktop بدون deferredPrompt - عرض تعليمات
+                        showInstructions('desktop');
+                        if (installButton) {
+                            installButton.disabled = false;
+                            installButton.innerHTML = '<i class="bi bi-download"></i> <span>تثبيت التطبيق</span>';
+                        }
+                    } else {
+                        const result = await window.pwaInstallManager.install();
+                        if (!result && installButton) {
+                            installButton.disabled = false;
+                            installButton.innerHTML = '<i class="bi bi-download"></i> <span>تثبيت التطبيق</span>';
+                        }
+                    }
                 } else {
-                    window.pwaInstallManager.install();
+                    // إذا لم يكن manager متاحاً، نعرض التعليمات حسب الجهاز
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    const isAndroid = /Android/.test(navigator.userAgent);
+                    
+                    if (isIOS) {
+                        showInstructions('ios');
+                    } else if (isAndroid) {
+                        showInstructions('android');
+                    } else {
+                        showInstructions('desktop');
+                    }
+                    
+                    if (installButton) {
+                        installButton.disabled = false;
+                        installButton.innerHTML = '<i class="bi bi-download"></i> <span>تثبيت التطبيق</span>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error in handleInstallClick:', error);
+                if (installButton) {
+                    installButton.disabled = false;
+                    installButton.innerHTML = '<i class="bi bi-download"></i> <span>تثبيت التطبيق</span>';
                 }
             }
         }
         
-        // كشف المتصفح والجهاز تلقائياً
-        window.addEventListener('DOMContentLoaded', () => {
-            if (typeof pwaInstallManager !== 'undefined') {
-                const info = pwaInstallManager.getInstallInfo();
-                console.log('Device Info:', info);
+        // كشف المتصفح والجهاز تلقائياً وإظهار زر التثبيت
+        const initInstallUI = async () => {
+            // انتظار تحميل pwaInstallManager
+            let attempts = 0;
+            const maxAttempts = 50;
+            
+            const waitForManager = () => {
+                return new Promise((resolve) => {
+                    const checkManager = () => {
+                        if (window.pwaInstallManager || typeof pwaInstallManager !== 'undefined') {
+                            resolve(window.pwaInstallManager || pwaInstallManager);
+                        } else if (attempts < maxAttempts) {
+                            attempts++;
+                            setTimeout(checkManager, 100);
+                        } else {
+                            resolve(null);
+                        }
+                    };
+                    checkManager();
+                });
+            };
+            
+            const manager = await waitForManager();
+            const installButton = document.getElementById('installButton');
+            
+            if (!installButton) {
+                console.warn('⚠️ Install button not found');
+                return;
+            }
+            
+            if (manager) {
+                const info = manager.getInstallInfo();
+                const browser = manager.getBrowser();
+                console.log('📱 Device Info:', info);
+                console.log('🌐 Browser:', browser);
                 
-                // إظهار زر التثبيت إذا كان متاحاً
-                if (info.canAutoInstall && document.getElementById('installButton')) {
-                    document.getElementById('installButton').classList.remove('hidden');
+                // التحقق من وضع standalone (مثبت بالفعل)
+                const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+                if (isStandalone) {
+                    console.log('✅ App already installed - hiding install button');
+                    installButton.classList.add('hidden');
+                    return;
                 }
                 
-                // إظهار زر التثبيت في Firefox حتى بدون deferredPrompt
-                if (info.browser === 'firefox' && !info.isInstalled) {
-                    const firefoxButton = document.getElementById('installButton');
-                    if (firefoxButton) {
-                        firefoxButton.classList.remove('hidden');
-                        console.log('🦊 Firefox: Install button shown');
-                    }
-                }
-                
-                // إظهار تعليمات تلقائية حسب الجهاز
+                // إظهار زر التثبيت في جميع الحالات ما عدا إذا كان مثبتاً بالفعل
                 if (!info.isInstalled) {
-                    if (info.isIOS) {
-                        setTimeout(() => showInstructions('ios'), 1000);
-                    } else if (info.isAndroid && !info.canAutoInstall) {
-                        setTimeout(() => showInstructions('android'), 1000);
-                    } else if (info.browser === 'firefox') {
-                        // لا نعرض التعليمات تلقائياً في Firefox، فقط عند الضغط على الزر
-                    } else if (!info.isSupported) {
-                        setTimeout(() => showInstructions('legacy'), 1000);
+                    // التحقق من متطلبات PWA
+                    const canInstall = await manager.checkPWARequirements().catch(() => false);
+                    
+                    if (canInstall) {
+                        console.log('✅ PWA requirements met - showing install button');
+                        installButton.classList.remove('hidden');
+                        installButton.style.display = 'inline-flex';
+                    } else {
+                        // إظهار الزر حتى لو لم تكن المتطلبات متوفرة (لإظهار التعليمات)
+                        console.log('⚠️ PWA requirements not fully met, but showing button for instructions');
+                        installButton.classList.remove('hidden');
+                        installButton.style.display = 'inline-flex';
                     }
+                    
+                    // إظهار تعليمات تلقائية حسب الجهاز
+                    if (info.isIOS) {
+                        setTimeout(() => showInstructions('ios'), 1500);
+                    } else if (info.isAndroid && !info.canAutoInstall) {
+                        setTimeout(() => showInstructions('android'), 1500);
+                    } else if (info.browser === 'firefox') {
+                        // لا نعرض التعليمات تلقائياً في Firefox
+                    } else if (browser === 'chrome' && !info.isAndroid && !info.isIOS) {
+                        // Chrome Desktop - لا نعرض التعليمات تلقائياً
+                        setTimeout(() => showInstructions('desktop'), 2000);
+                    } else if (!info.isSupported) {
+                        setTimeout(() => showInstructions('legacy'), 1500);
+                    }
+                }
+            } else {
+                // إذا لم يكن manager متاحاً، نعرض الزر لإظهار التعليمات
+                console.warn('⚠️ PWA Install Manager not available, showing button anyway');
+                installButton.classList.remove('hidden');
+                installButton.style.display = 'inline-flex';
+                
+                // كشف بسيط للجهاز
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                const isAndroid = /Android/.test(navigator.userAgent);
+                const isMobile = isIOS || isAndroid;
+                
+                if (isIOS) {
+                    setTimeout(() => showInstructions('ios'), 1500);
+                } else if (isAndroid) {
+                    setTimeout(() => showInstructions('android'), 1500);
+                } else {
+                    setTimeout(() => showInstructions('desktop'), 1500);
                 }
             }
-        });
+        };
+        
+        // تهيئة عند تحميل الصفحة
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(initInstallUI, 500);
+            });
+        } else {
+            setTimeout(initInstallUI, 500);
+        }
         
         // إظهار التعليمات حسب نوع الجهاز
         function showInstructions(device) {
@@ -409,23 +563,28 @@
                     steps: [
                         {
                             icon: 'bi-chrome',
-                            title: 'Chrome / Edge',
-                            text: 'في شريط العنوان، اضغط على أيقونة التثبيت (➕) أو اذهب إلى القائمة → تثبيت التطبيق'
+                            title: 'Chrome / Edge (Windows/Mac/Linux)',
+                            text: 'في شريط العنوان، ابحث عن أيقونة التثبيت (➕ أو 📥) بجانب شريط البحث واضغط عليها. أو استخدم القائمة (☰) → "تثبيت التطبيق..." أو "Install app"'
+                        },
+                        {
+                            icon: 'bi-keyboard',
+                            title: 'الطريقة السريعة (Chrome/Edge)',
+                            text: 'يمكنك أيضاً استخدام الاختصار: Ctrl+Shift+A (Windows/Linux) أو Cmd+Shift+A (Mac) لفتح قائمة التثبيت'
                         },
                         {
                             icon: 'bi-firefox',
                             title: 'Firefox',
-                            text: 'افتح القائمة → المزيد من الأدوات → تثبيت كتطبيق'
+                            text: 'افتح القائمة (☰) → "المزيد من الأدوات" (More Tools) → "تثبيت كتطبيق" (Install Site as App)'
                         },
                         {
                             icon: 'bi-safari',
-                            title: 'Safari (Mac)',
-                            text: 'افتح القائمة → File → Add to Dock'
+                            title: 'Safari (Mac فقط)',
+                            text: 'افتح القائمة → File → "Add to Dock" لإضافة التطبيق إلى Dock'
                         },
                         {
                             icon: 'bi-check-circle',
                             title: 'تأكيد التثبيت',
-                            text: 'اتبع التعليمات على الشاشة لإكمال التثبيت'
+                            text: 'في النافذة المنبثقة، اضغط "تثبيت" أو "Install" لإكمال التثبيت. سيظهر التطبيق في قائمة التطبيقات'
                         }
                     ]
                 },

@@ -1704,10 +1704,23 @@
     
     .invoice-items-table {
         font-size: 0.9em !important;
-        page-break-inside: avoid !important;
+        page-break-inside: auto !important; /* السماح بتقسيم الجدول إذا كان طويلاً */
         box-shadow: none !important;
         width: 100% !important;
         border-collapse: collapse !important;
+    }
+    
+    .invoice-items-table thead {
+        display: table-header-group !important; /* إعادة عرض الرأس في كل صفحة */
+    }
+    
+    .invoice-items-table tbody {
+        display: table-row-group !important;
+    }
+    
+    .invoice-items-table tbody tr {
+        page-break-inside: avoid !important; /* منع تقسيم الصف الواحد */
+        display: table-row !important;
     }
     
     .invoice-items-table th {
@@ -1825,11 +1838,243 @@
     .invoice-wrapper {
         overflow: visible !important;
         height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        page-break-inside: avoid !important;
     }
     
+    /* منع تقسيم الأقسام المهمة */
+    .invoice-logo-section {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-header {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-details {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-extra-info {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-phone-data {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-summary {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-qrcode {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-terms {
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-footer {
+        page-break-inside: avoid !important;
+        page-break-before: avoid !important;
+    }
+    
+    /* السماح بتقسيم الجدول إذا كان طويلاً جداً */
+    .invoice-items-table {
+        page-break-inside: auto !important;
+    }
+    
+    .invoice-items-table thead {
+        display: table-header-group !important;
+    }
+    
+    .invoice-items-table tbody tr {
+        page-break-inside: avoid !important;
+    }
+    
+    /* التأكد من ظهور جميع الأقسام */
+    .invoice-wrapper > * {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+    }
+    
+    /* دعم أنواع مختلفة من أحجام الصفحات */
     @page {
-        margin: 1cm;
+        margin: 0.8cm;
         size: A4;
+    }
+    
+    /* دعم Statement (أصغر من A4) */
+    @page statement {
+        margin: 0.6cm;
+        size: 8.5in 5.5in; /* Statement size */
+    }
+    
+    /* دعم Letter */
+    @page letter {
+        margin: 0.8cm;
+        size: letter;
+    }
+    
+    /* دعم A4 Portrait */
+    @page a4-portrait {
+        margin: 0.8cm;
+        size: A4 portrait;
+    }
+    
+    /* دعم A4 Landscape */
+    @page a4-landscape {
+        margin: 0.8cm;
+        size: A4 landscape;
+    }
+    
+    /* تحسين التخطيط للطباعة */
+    .invoice-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 15px !important;
+        margin: 0 !important;
+    }
+    
+    /* تحسين حجم الخط للطباعة */
+    .invoice-wrapper {
+        font-size: 14px !important;
+        line-height: 1.6 !important;
+    }
+    
+    .invoice-logo {
+        max-width: 250px !important;
+        max-height: 250px !important;
+    }
+    
+    .invoice-header {
+        font-size: 1.1em !important;
+        padding: 10px 0 !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .invoice-details,
+    .invoice-extra-info {
+        font-size: 0.95em !important;
+        padding: 12px !important;
+        margin-bottom: 12px !important;
+    }
+    
+    .invoice-items-table {
+        font-size: 0.85em !important;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        padding: 8px 6px !important;
+    }
+    
+    .invoice-summary {
+        font-size: 0.95em !important;
+        padding: 15px !important;
+    }
+    
+    .invoice-summary .summary-row.total {
+        font-size: 1.5em !important;
+        padding: 15px 0 !important;
+    }
+    
+    .invoice-qrcode img {
+        max-width: 180px !important;
+        width: 180px !important;
+        height: 180px !important;
+    }
+    
+    .invoice-terms {
+        font-size: 0.9em !important;
+        padding: 15px !important;
+        margin: 15px 0 !important;
+    }
+    
+    .invoice-footer {
+        font-size: 1em !important;
+        padding: 15px 0 !important;
+        margin-top: 15px !important;
+    }
+    
+    /* تحسينات إضافية لضمان عرض جميع الأقسام */
+    .invoice-logo-section,
+    .invoice-header,
+    .invoice-details,
+    .invoice-extra-info,
+    .invoice-phone-data,
+    .invoice-items-table,
+    .invoice-summary,
+    .invoice-qrcode,
+    .invoice-terms,
+    .invoice-footer {
+        break-inside: avoid !important;
+        -webkit-region-break-inside: avoid !important;
+    }
+    
+    /* التأكد من أن الفاتورة لا تقطع في منتصف الأقسام المهمة */
+    .invoice-summary,
+    .invoice-qrcode,
+    .invoice-terms,
+    .invoice-footer {
+        orphans: 3 !important;
+        widows: 3 !important;
+    }
+    
+    /* تحسين المسافات بين الأقسام للطباعة */
+    .invoice-logo-section {
+        margin-bottom: 15px !important;
+    }
+    
+    .invoice-header {
+        margin-bottom: 15px !important;
+    }
+    
+    .invoice-details {
+        margin-bottom: 12px !important;
+    }
+    
+    .invoice-extra-info {
+        margin-bottom: 12px !important;
+    }
+    
+    .invoice-phone-data {
+        margin: 15px 0 !important;
+    }
+    
+    .invoice-items-table {
+        margin-bottom: 15px !important;
+    }
+    
+    .invoice-summary {
+        margin: 15px 0 !important;
+    }
+    
+    .invoice-qrcode {
+        margin: 15px 0 !important;
+    }
+    
+    .invoice-terms {
+        margin: 15px 0 !important;
+    }
+    
+    .invoice-footer {
+        margin-top: 15px !important;
+        margin-bottom: 0 !important;
     }
     
     /* Ensure fonts are loaded for print */
