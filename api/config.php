@@ -208,8 +208,23 @@ function getRequestMethod() {
 }
 
 function getRequestData() {
-    $data = json_decode(file_get_contents('php://input'), true);
-    return $data ?: [];
+    // محاولة قراءة JSON أولاً
+    $rawInput = file_get_contents('php://input');
+    
+    if (!empty($rawInput)) {
+        $jsonData = json_decode($rawInput, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($jsonData)) {
+            return $jsonData;
+        }
+    }
+    
+    // إذا لم يكن JSON، استخدام $_POST
+    if (!empty($_POST)) {
+        return $_POST;
+    }
+    
+    // إذا لم يكن هناك بيانات، إرجاع array فارغ
+    return [];
 }
 
 // التحقق من الجلسة

@@ -1,9 +1,8 @@
 <?php
 // تنظيف output buffer قبل أي شيء
-if (ob_get_level()) {
+while (ob_get_level() > 0) {
     ob_end_clean();
 }
-ob_start();
 
 // بدء معالجة الأخطاء قبل أي شيء
 error_reporting(E_ALL);
