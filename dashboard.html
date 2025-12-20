@@ -842,10 +842,41 @@
             setTimeout(initInstallButton, 1500);
             
             // تسجيل Service Worker بشكل غير متزامن - لا يعيق تحميل الصفحة
+            // 🔧 دالة لإلغاء تسجيل Service Worker
+            const unregisterServiceWorker = async () => {
+                if ('serviceWorker' in navigator) {
+                    try {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (let registration of registrations) {
+                            const unregistered = await registration.unregister();
+                            console.log('🗑️ Service Worker unregistered:', unregistered);
+                        }
+                        // مسح جميع الـ caches
+                        const cacheNames = await caches.keys();
+                        await Promise.all(
+                            cacheNames.map(cacheName => {
+                                console.log('🗑️ Deleting cache:', cacheName);
+                                return caches.delete(cacheName);
+                            })
+                        );
+                        console.log('✅ تم إلغاء تسجيل Service Worker ومسح جميع الـ caches');
+                        return true;
+                    } catch (error) {
+                        console.error('❌ خطأ في إلغاء تسجيل Service Worker:', error);
+                        return false;
+                    }
+                }
+                return false;
+            };
+            
+            // جعل الدالة متاحة عالمياً للاستخدام من الكونسول
+            window.unregisterServiceWorker = unregisterServiceWorker;
+            
             const registerServiceWorker = async () => {
                 if ('serviceWorker' in navigator) {
                     try {
-                        const appVersion = window.APP_VERSION || 'v' + Date.now();
+                        // 🔧 الحل: استخدام رقم إصدار ثابت بدلاً من Date.now()
+                        const appVersion = '2.0.1'; // نفس الرقم الموجود في sw.js
                         const registration = await navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
                             scope: '/',
                             updateViaCache: 'none'
