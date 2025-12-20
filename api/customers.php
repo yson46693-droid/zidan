@@ -264,10 +264,39 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
             $sale['final_amount'] = $calculatedTotal - $sale['discount'] + $sale['tax'];
         }
         
-        // إضافة مسار ملف الفاتورة إذا كان موجوداً
+        // إضافة مسار ملف الفاتورة - إنشاء الملف إذا لم يكن موجوداً
         $saleNumber = $sale['sale_number'] ?? $sale['id'] ?? '';
         if (!empty($saleNumber)) {
+            // أولاً، التحقق من وجود الملف
             $invoiceFilePath = getInvoiceFilePath($saleNumber);
+            
+            // إذا لم يكن الملف موجوداً، قم بإنشائه من بيانات الفاتورة الحالية
+            if (!$invoiceFilePath && !empty($sale['items']) && is_array($sale['items']) && count($sale['items']) > 0) {
+                try {
+                    // استخدام بيانات الفاتورة الموجودة بالفعل (لا حاجة لجلبها مرة أخرى)
+                    // التأكد من وجود sale_number
+                    if (empty($sale['sale_number'])) {
+                        $sale['sale_number'] = $sale['id'];
+                    }
+                    
+                    // التأكد من وجود القيم الرقمية
+                    $sale['total_amount'] = floatval($sale['total_amount'] ?? 0);
+                    $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
+                    $sale['discount'] = floatval($sale['discount'] ?? 0);
+                    $sale['tax'] = floatval($sale['tax'] ?? 0);
+                    
+                    // إنشاء ملف الفاتورة
+                    $createdFilePath = saveInvoiceAsFile($sale);
+                    if ($createdFilePath) {
+                        $invoiceFilePath = $createdFilePath;
+                    }
+                } catch (Exception $e) {
+                    // في حالة حدوث خطأ، لا نوقف العملية - فقط نسجل الخطأ
+                    error_log('خطأ في إنشاء ملف الفاتورة للفاتورة ' . $saleNumber . ': ' . $e->getMessage());
+                }
+            }
+            
+            // إضافة مسار الملف إذا كان موجوداً
             if ($invoiceFilePath) {
                 $sale['invoice_file_path'] = $invoiceFilePath;
             }

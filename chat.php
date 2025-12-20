@@ -299,10 +299,12 @@ function getRoleName($role) {
     $chatIntegratedCSSPath = __DIR__ . DIRECTORY_SEPARATOR . $chatIntegratedCSS;
     if (file_exists($chatIntegratedCSSPath)) {
         $cssVersion = filemtime($chatIntegratedCSSPath);
+        // استخدام مسار نسبي بسيط مع cache busting
         echo '<link rel="stylesheet" href="' . htmlspecialchars($chatIntegratedCSS . '?v=' . $cssVersion, ENT_QUOTES, 'UTF-8') . '">' . "\n";
     } else {
-        error_log('Warning: chat-integrated.css not found at: ' . $chatIntegratedCSSPath);
-        echo '<!-- Warning: chat-integrated.css not found -->' . "\n";
+        error_log('ERROR: chat-integrated.css not found at: ' . $chatIntegratedCSSPath);
+        // استخدام مسار نسبي مباشر كبديل
+        echo '<link rel="stylesheet" href="css/chat-integrated.css">' . "\n";
     }
     ?>
     <link rel="stylesheet" href="<?php echo htmlspecialchars(loadCSS('chat/chat.css'), ENT_QUOTES, 'UTF-8'); ?>">
@@ -835,16 +837,29 @@ function getRoleName($role) {
         }
     </script>
     <?php
-    // تحميل chat-integrated.js مع التحقق من وجوده
+    // تحميل chat-integrated.js - هذا الملف ضروري لعمل زر الإرسال
     $chatIntegratedJS = 'js/chat-integrated.js';
     $chatIntegratedJSPath = __DIR__ . DIRECTORY_SEPARATOR . $chatIntegratedJS;
     if (file_exists($chatIntegratedJSPath)) {
         $jsVersion = filemtime($chatIntegratedJSPath);
-        echo '<script src="' . htmlspecialchars($chatIntegratedJS . '?v=' . $jsVersion, ENT_QUOTES, 'UTF-8') . '"></script>' . "\n";
+        // استخدام مسار نسبي بسيط مع cache busting
+        echo '<script src="' . htmlspecialchars($chatIntegratedJS . '?v=' . $jsVersion, ENT_QUOTES, 'UTF-8') . '" onerror="console.error(\'Failed to load chat-integrated.js - Send button will not work!\');"></script>' . "\n";
     } else {
-        error_log('ERROR: chat-integrated.js not found at: ' . $chatIntegratedJSPath);
-        echo '<!-- ERROR: chat-integrated.js not found - Send button will not work! -->' . "\n";
+        error_log('CRITICAL ERROR: chat-integrated.js not found at: ' . $chatIntegratedJSPath);
+        // استخدام مسار نسبي مباشر - ضروري لعمل زر الإرسال
+        echo '<script src="js/chat-integrated.js" onerror="console.error(\'CRITICAL: Failed to load chat-integrated.js - Send button will not work!\');"></script>' . "\n";
     }
     ?>
+    <script>
+        // التحقق من تحميل chat-integrated.js بعد ثانية
+        setTimeout(function() {
+            if (typeof window.initChat === 'undefined') {
+                console.error('❌ chat-integrated.js failed to load! Send button will not work!');
+                console.error('Please check that js/chat-integrated.js exists on the server.');
+            } else {
+                console.log('✅ chat-integrated.js loaded successfully');
+            }
+        }, 1000);
+    </script>
 </body>
 </html>
