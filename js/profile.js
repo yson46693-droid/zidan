@@ -215,21 +215,21 @@ async function handleRegisterBiometric() {
     if (!btn) return;
 
     // التحقق من دعم WebAuthn
-    if (typeof simpleWebAuthn === 'undefined' || !simpleWebAuthn.isSupported()) {
-        showMessage('WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث.', 'error');
+    if (typeof simpleWebAuthn === 'undefined') {
+        console.error('❌ simpleWebAuthn غير محمّل. تأكد من تحميل webauthn.js');
+        showMessage('خطأ: نظام البصمة غير محمّل. يرجى إعادة تحميل الصفحة.', 'error');
         return;
     }
-
-    // التحقق من HTTPS (مطلوب لـ WebAuthn إلا في localhost)
-    const hostname = window.location.hostname.toLowerCase();
-    const isLocalhost = hostname === 'localhost' || 
-                       hostname === '127.0.0.1' || 
-                       hostname === '[::1]' ||
-                       hostname.startsWith('192.168.') ||
-                       hostname.startsWith('10.');
     
-    if (window.location.protocol !== 'https:' && !isLocalhost) {
-        showMessage('WebAuthn يتطلب HTTPS. يرجى الوصول للموقع عبر HTTPS.', 'error');
+    if (!simpleWebAuthn.isSupported()) {
+        // الحصول على معلومات مفصلة عن سبب عدم الدعم
+        const supportInfo = simpleWebAuthn.getSupportInfo();
+        console.error('❌ WebAuthn غير مدعوم:', supportInfo);
+        
+        let errorMsg = '⚠️ WebAuthn غير مدعوم في هذا المتصفح\n\n';
+        errorMsg += supportInfo;
+        
+        showMessage(errorMsg, 'error');
         return;
     }
 

@@ -493,7 +493,13 @@
             const biometricBtn = document.getElementById('biometricLoginBtn');
             if (biometricBtn) {
                 const setupBiometricButton = () => {
-                    if (typeof simpleWebAuthn !== 'undefined' && simpleWebAuthn.isSupported()) {
+                    if (typeof simpleWebAuthn === 'undefined') {
+                        console.warn('⚠️ simpleWebAuthn غير محمّل بعد');
+                        biometricBtn.style.display = 'none';
+                        return;
+                    }
+                    
+                    if (simpleWebAuthn.isSupported()) {
                         biometricBtn.style.display = 'flex';
                         biometricBtn.addEventListener('click', async () => {
                             try {
@@ -518,6 +524,8 @@
                             }
                         });
                     } else {
+                        // إخفاء الزر وإظهار رسالة توضيحية
+                        console.warn('⚠️ WebAuthn غير مدعوم في هذا المتصفح');
                         biometricBtn.style.display = 'none';
                     }
                 };

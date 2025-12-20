@@ -32,92 +32,132 @@ class SimpleWebAuthn {
      * التحقق من دعم WebAuthn
      */
     isSupported() {
-        // التحقق من دعم WebAuthn API
-        const hasPublicKeyCredential = !!(window.PublicKeyCredential);
-        const hasCredentials = !!(navigator.credentials && navigator.credentials.create && navigator.credentials.get);
-        
-        // التحقق من دعم HTTPS (مطلوب لـ WebAuthn إلا في localhost أو 127.0.0.1)
-        const hostname = window.location.hostname.toLowerCase();
-        const isLocalhost = hostname === 'localhost' || 
-                           hostname === '127.0.0.1' || 
-                           hostname === '[::1]' ||
-                           hostname.startsWith('192.168.') ||
-                           hostname.startsWith('10.') ||
-                           hostname.startsWith('172.16.') ||
-                           hostname.startsWith('172.17.') ||
-                           hostname.startsWith('172.18.') ||
-                           hostname.startsWith('172.19.') ||
-                           hostname.startsWith('172.20.') ||
-                           hostname.startsWith('172.21.') ||
-                           hostname.startsWith('172.22.') ||
-                           hostname.startsWith('172.23.') ||
-                           hostname.startsWith('172.24.') ||
-                           hostname.startsWith('172.25.') ||
-                           hostname.startsWith('172.26.') ||
-                           hostname.startsWith('172.27.') ||
-                           hostname.startsWith('172.28.') ||
-                           hostname.startsWith('172.29.') ||
-                           hostname.startsWith('172.30.') ||
-                           hostname.startsWith('172.31.');
-        
-        const isSecure = window.location.protocol === 'https:' || isLocalhost;
-        
-        const supported = hasPublicKeyCredential && hasCredentials && isSecure;
-        
-        if (!supported) {
-            console.warn('WebAuthn Support Check:', {
+        try {
+            // التحقق من دعم WebAuthn API
+            const hasPublicKeyCredential = typeof window.PublicKeyCredential !== 'undefined' && window.PublicKeyCredential !== null;
+            const hasCredentials = typeof navigator !== 'undefined' && 
+                                  navigator.credentials && 
+                                  typeof navigator.credentials.create === 'function' && 
+                                  typeof navigator.credentials.get === 'function';
+            
+            // التحقق من دعم HTTPS (مطلوب لـ WebAuthn إلا في localhost أو IP محلي)
+            const hostname = window.location.hostname ? window.location.hostname.toLowerCase() : '';
+            const protocol = window.location.protocol ? window.location.protocol.toLowerCase() : '';
+            
+            const isLocalhost = hostname === 'localhost' || 
+                               hostname === '127.0.0.1' || 
+                               hostname === '[::1]' ||
+                               hostname.startsWith('192.168.') ||
+                               hostname.startsWith('10.') ||
+                               hostname.startsWith('172.16.') ||
+                               hostname.startsWith('172.17.') ||
+                               hostname.startsWith('172.18.') ||
+                               hostname.startsWith('172.19.') ||
+                               hostname.startsWith('172.20.') ||
+                               hostname.startsWith('172.21.') ||
+                               hostname.startsWith('172.22.') ||
+                               hostname.startsWith('172.23.') ||
+                               hostname.startsWith('172.24.') ||
+                               hostname.startsWith('172.25.') ||
+                               hostname.startsWith('172.26.') ||
+                               hostname.startsWith('172.27.') ||
+                               hostname.startsWith('172.28.') ||
+                               hostname.startsWith('172.29.') ||
+                               hostname.startsWith('172.30.') ||
+                               hostname.startsWith('172.31.') ||
+                               hostname === '0.0.0.0';
+            
+            const isSecure = protocol === 'https:' || isLocalhost || protocol === 'file:';
+            
+            const supported = hasPublicKeyCredential && hasCredentials && isSecure;
+            
+            // تسجيل معلومات التشخيص
+            const supportInfo = {
                 hasPublicKeyCredential,
                 hasCredentials,
                 isSecure,
                 isLocalhost,
-                protocol: window.location.protocol,
-                hostname: window.location.hostname,
-                userAgent: navigator.userAgent
-            });
+                protocol: protocol,
+                hostname: hostname,
+                userAgent: navigator.userAgent || 'unknown'
+            };
             
-            // رسالة توضيحية للمستخدم
-            if (!hasPublicKeyCredential || !hasCredentials) {
-                console.error('WebAuthn API غير متوفر في هذا المتصفح. المتصفحات المدعومة: Chrome 67+, Firefox 60+, Safari 14+, Edge 18+');
-            } else if (!isSecure) {
-                console.error('WebAuthn يتطلب HTTPS. الموقع الحالي يستخدم: ' + window.location.protocol);
+            if (!supported) {
+                console.warn('🔍 WebAuthn Support Check:', supportInfo);
+                
+                // رسالة توضيحية للمستخدم
+                if (!hasPublicKeyCredential || !hasCredentials) {
+                    console.error('❌ WebAuthn API غير متوفر في هذا المتصفح');
+                    console.error('المتصفحات المدعومة: Chrome 67+, Firefox 60+, Safari 14+, Edge 18+');
+                    console.error('المتصفح الحالي:', navigator.userAgent);
+                } else if (!isSecure) {
+                    console.error('❌ WebAuthn يتطلب HTTPS أو localhost');
+                    console.error('البروتوكول الحالي:', protocol);
+                    console.error('Hostname:', hostname);
+                }
+            } else {
+                console.log('✅ WebAuthn مدعوم في هذا المتصفح', supportInfo);
             }
+            
+            return supported;
+        } catch (error) {
+            console.error('❌ خطأ في التحقق من دعم WebAuthn:', error);
+            return false;
         }
-        
-        return supported;
     }
 
     /**
      * الحصول على معلومات الدعم
      */
     getSupportInfo() {
-        const hasPublicKeyCredential = !!(window.PublicKeyCredential);
-        const hasCredentials = !!(navigator.credentials && navigator.credentials.create && navigator.credentials.get);
-        const hostname = window.location.hostname.toLowerCase();
-        const isLocalhost = hostname === 'localhost' || 
-                           hostname === '127.0.0.1' || 
-                           hostname === '[::1]' ||
-                           hostname.startsWith('192.168.') ||
-                           hostname.startsWith('10.');
-        const isSecure = window.location.protocol === 'https:' || isLocalhost;
-        
-        let info = 'معلومات الدعم:\n';
-        info += `- PublicKeyCredential: ${hasPublicKeyCredential ? '✅' : '❌'}\n`;
-        info += `- navigator.credentials: ${hasCredentials ? '✅' : '❌'}\n`;
-        info += `- HTTPS/Localhost: ${isSecure ? '✅' : '❌'} (${window.location.protocol})\n\n`;
-        
-        if (!hasPublicKeyCredential || !hasCredentials) {
-            info += 'المتصفحات المدعومة:\n';
-            info += '- Chrome 67+\n';
-            info += '- Firefox 60+\n';
-            info += '- Safari 14+ (iOS 14+)\n';
-            info += '- Edge 18+\n';
+        try {
+            const hasPublicKeyCredential = typeof window.PublicKeyCredential !== 'undefined' && window.PublicKeyCredential !== null;
+            const hasCredentials = typeof navigator !== 'undefined' && 
+                                  navigator.credentials && 
+                                  typeof navigator.credentials.create === 'function' && 
+                                  typeof navigator.credentials.get === 'function';
+            
+            const hostname = window.location.hostname ? window.location.hostname.toLowerCase() : 'unknown';
+            const protocol = window.location.protocol ? window.location.protocol : 'unknown';
+            
+            const isLocalhost = hostname === 'localhost' || 
+                               hostname === '127.0.0.1' || 
+                               hostname === '[::1]' ||
+                               hostname.startsWith('192.168.') ||
+                               hostname.startsWith('10.') ||
+                               hostname.startsWith('172.16.') ||
+                               hostname === '0.0.0.0';
+            
+            const isSecure = protocol === 'https:' || isLocalhost || protocol === 'file:';
+            
+            let info = 'معلومات دعم WebAuthn:\n\n';
+            info += `✅/❌ PublicKeyCredential: ${hasPublicKeyCredential ? '✅ مدعوم' : '❌ غير مدعوم'}\n`;
+            info += `✅/❌ navigator.credentials: ${hasCredentials ? '✅ مدعوم' : '❌ غير مدعوم'}\n`;
+            info += `✅/❌ HTTPS/Localhost: ${isSecure ? '✅ آمن' : '❌ غير آمن'} (${protocol})\n`;
+            info += `📍 Hostname: ${hostname}\n\n`;
+            
+            if (!hasPublicKeyCredential || !hasCredentials) {
+                info += '📱 المتصفحات المدعومة:\n';
+                info += '   - Chrome 67+\n';
+                info += '   - Firefox 60+\n';
+                info += '   - Safari 14+ (iOS 14+)\n';
+                info += '   - Edge 18+\n';
+                info += '   - Opera 54+\n\n';
+            }
+            
+            if (!isSecure) {
+                info += '⚠️ ملاحظة مهمة:\n';
+                info += '   WebAuthn يتطلب HTTPS أو localhost\n';
+                info += '   الحل: استخدم https:// بدلاً من http://\n\n';
+            }
+            
+            info += `🔍 معلومات إضافية:\n`;
+            info += `   User Agent: ${navigator.userAgent ? navigator.userAgent.substring(0, 50) + '...' : 'غير متوفر'}\n`;
+            
+            return info;
+        } catch (error) {
+            return 'خطأ في الحصول على معلومات الدعم: ' + error.message;
         }
-        
-        if (!isSecure) {
-            info += '\nملاحظة: WebAuthn يتطلب HTTPS أو localhost';
-        }
-        
-        return info;
     }
 
     /**
