@@ -1403,9 +1403,40 @@ async function showInvoice(saleData) {
     };
     
     const qrCodeData = JSON.stringify(invoiceData);
+    
+    // إنشاء QR Code حقيقي قابل للقراءة
     let qrCodeImage = '';
-    if (typeof window.barcodeGenerator !== 'undefined') {
-        qrCodeImage = window.barcodeGenerator.generateQRCode(qrCodeData, 250);
+    if (typeof QRCode !== 'undefined') {
+        // استخدام مكتبة QRCode.js الحقيقية
+        try {
+            // استخدام Promise wrapper مع await
+            qrCodeImage = await new Promise((resolve, reject) => {
+                QRCode.toDataURL(qrCodeData, {
+                    width: 250,
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    },
+                    errorCorrectionLevel: 'M'
+                }, function (error, url) {
+                    if (error) {
+                        console.error('خطأ في إنشاء QR Code:', error);
+                        // استخدام API خارجي كبديل
+                        resolve('https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=' + encodeURIComponent(qrCodeData) + '&choe=UTF-8');
+                    } else {
+                        resolve(url);
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('خطأ في إنشاء QR Code:', error);
+            // استخدام API خارجي كبديل
+            qrCodeImage = 'https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=' + encodeURIComponent(qrCodeData) + '&choe=UTF-8';
+        }
+    } else {
+        // استخدام API خارجي كبديل إذا لم تكن المكتبة متوفرة
+        qrCodeImage = 'https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=' + encodeURIComponent(qrCodeData) + '&choe=UTF-8';
     }
     
     // Format date and time in 12-hour format with AM/PM

@@ -20,6 +20,7 @@ if (typeof self !== 'undefined' && !self.caches) {
 }
 // قائمة الملفات الأساسية فقط - الملفات المهمة التي يجب أن تكون موجودة
 // تم تقليل الملفات لتسريع التحميل الأولي
+// ملاحظة: الأيقونات لا يتم حفظها في cache لأنها قد تتغير - سيتم جلبها من الشبكة دائماً
 const essentialFiles = [
     '/',
     '/index.html',
@@ -28,25 +29,20 @@ const essentialFiles = [
     '/css/style.css',
     '/js/version.js',
     '/js/api.js',
-    '/js/utils.js',
-    '/icons/icon-192x192.png',
-    '/icons/icon-512x512.png'
+    '/js/utils.js'
+    // تم إزالة الأيقونات من essentialFiles - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
 ];
 
 // قائمة الملفات الاختيارية - يمكن أن تفشل بدون مشكلة
 // تم تقليل الملفات - سيتم تحميلها عند الحاجة (lazy loading)
 // تم إزالة الملفات التي تسبب أخطاء 404 - سيتم تحميلها عند الحاجة من الصفحة
+// ملاحظة: تم إزالة الأيقونات من optionalFiles - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
 const optionalFiles = [
     '/install.html',
     '/css/dark-mode.css',
     '/css/security.css',
     // تم إزالة chat-integrated.css و chat-integrated.js - سيتم تحميلهما عند الحاجة
-    '/icons/icon-72x72.png',
-    '/icons/icon-96x96.png',
-    '/icons/icon-128x128.png',
-    '/icons/icon-144x144.png',
-    '/icons/icon-152x152.png',
-    '/icons/icon-384x384.png',
+    // تم إزالة جميع الأيقونات - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
     '/vertopal.com_photo_5922357566287580087_y.png'
     // باقي ملفات JS سيتم تحميلها عند الحاجة (lazy loading)
 ];
@@ -160,6 +156,23 @@ self.addEventListener('activate', event => {
             );
         })
         .then(() => {
+            // حذف جميع الأيقونات القديمة من cache الحالي لضمان الحصول على أحدث نسخة
+            return caches.open(CACHE_NAME).then(cache => {
+                return cache.keys().then(keys => {
+                    const iconKeys = keys.filter(request => {
+                        const url = request.url || '';
+                        return url.includes('/icons/') || url.includes('icon-');
+                    });
+                    
+                    if (iconKeys.length > 0) {
+                        console.log(`[Service Worker] Deleting ${iconKeys.length} old icon(s) from cache`);
+                        return Promise.all(iconKeys.map(key => cache.delete(key)));
+                    }
+                    return Promise.resolve();
+                });
+            });
+        })
+        .then(() => {
             // تفعيل Service Worker فوراً لجميع العملاء
             if (self.skipWaiting) {
                 return self.skipWaiting();
@@ -256,10 +269,12 @@ self.addEventListener('fetch', event => {
 
     // استراتيجية Network First للملفات الديناميكية (CSS/JS مع query parameters)
     // هذا يضمن أن الملفات المحدثة تُجلب من الشبكة أولاً
+    // أيضاً للأيقونات (icons) لضمان الحصول على أحدث نسخة
     const isDynamicFile = request.url.includes('?v=') || 
                          request.url.includes('?version=') ||
                          request.url.endsWith('.css') ||
-                         request.url.endsWith('.js');
+                         request.url.endsWith('.js') ||
+                         request.url.includes('/icons/');
     
     if (isDynamicFile) {
         // Network First للملفات الديناميكية
@@ -403,8 +418,8 @@ self.addEventListener('push', event => {
     const title = data.title || 'إشعار جديد';
     const options = {
         body: data.body || 'لديك إشعار جديد',
-        icon: '/vertopal.com_photo_5922357566287580087_y.png',
-        badge: '/icons/icon-72x72.png',
+        icon: '/vertopal.com_photo_5922357566287580087_y.png?v=2.0.1',
+        badge: '/icons/icon-72x72.png?v=2.0.1',
         vibrate: [200, 100, 200],
         dir: 'rtl',
         lang: 'ar',

@@ -91,70 +91,31 @@ function getShopSettings() {
 }
 
 /**
- * إنشاء QR Code بسيط كـ SVG
+ * إنشاء QR Code حقيقي قابل للقراءة باستخدام API خارجي
  * @param string $data - البيانات
  * @param int $size - الحجم
- * @return string - SVG كـ base64 data URI
+ * @return string - URL لصورة QR Code
  */
 function generateSimpleQRCode($data, $size = 250) {
-    // إنشاء نمط بسيط بناءً على hash البيانات
-    $hash = md5($data);
-    $gridSize = 25;
-    $cellSize = $size / $gridSize;
+    // استخدام Google Charts API لإنشاء QR Code حقيقي قابل للقراءة
+    // هذا API مجاني وموثوق ولا يحتاج إلى مكتبات إضافية
+    $encodedData = urlencode($data);
+    $qrCodeUrl = "https://chart.googleapis.com/chart?chs={$size}x{$size}&cht=qr&chl={$encodedData}&choe=UTF-8";
     
-    $svg = '<svg width="' . $size . '" height="' . $size . '" xmlns="http://www.w3.org/2000/svg">';
-    $svg .= '<rect width="' . $size . '" height="' . $size . '" fill="#ffffff"/>';
-    
-    // رسم النمط
-    for ($i = 0; $i < $gridSize; $i++) {
-        for ($j = 0; $j < $gridSize; $j++) {
-            $charIndex = ($i * $gridSize + $j) % strlen($hash);
-            $charValue = ord($hash[$charIndex]);
-            if ($charValue % 3 === 0) {
-                $x = $i * $cellSize;
-                $y = $j * $cellSize;
-                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cellSize . '" height="' . $cellSize . '" fill="#000000"/>';
-            }
+    // محاولة تحميل الصورة وتحويلها إلى base64 للاستخدام المحلي
+    // إذا فشل التحميل، نعيد URL مباشرة
+    try {
+        $imageData = @file_get_contents($qrCodeUrl);
+        if ($imageData !== false) {
+            $base64 = base64_encode($imageData);
+            return 'data:image/png;base64,' . $base64;
         }
+    } catch (Exception $e) {
+        error_log('خطأ في تحميل QR Code من Google Charts API: ' . $e->getMessage());
     }
     
-    // إضافة مربعات الزاوية
-    $cornerSize = 7;
-    $cornerCellSize = $cellSize;
-    // الزاوية العلوية اليسرى
-    for ($i = 0; $i < $cornerSize; $i++) {
-        for ($j = 0; $j < $cornerSize; $j++) {
-            if (($i < 2 || $i >= $cornerSize - 2) || ($j < 2 || $j >= $cornerSize - 2)) {
-                $x = $i * $cornerCellSize;
-                $y = $j * $cornerCellSize;
-                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cornerCellSize . '" height="' . $cornerCellSize . '" fill="#000000"/>';
-            }
-        }
-    }
-    // الزاوية العلوية اليمنى
-    for ($i = 0; $i < $cornerSize; $i++) {
-        for ($j = 0; $j < $cornerSize; $j++) {
-            if (($i < 2 || $i >= $cornerSize - 2) || ($j < 2 || $j >= $cornerSize - 2)) {
-                $x = ($gridSize - $cornerSize + $i) * $cornerCellSize;
-                $y = $j * $cornerCellSize;
-                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cornerCellSize . '" height="' . $cornerCellSize . '" fill="#000000"/>';
-            }
-        }
-    }
-    // الزاوية السفلية اليسرى
-    for ($i = 0; $i < $cornerSize; $i++) {
-        for ($j = 0; $j < $cornerSize; $j++) {
-            if (($i < 2 || $i >= $cornerSize - 2) || ($j < 2 || $j >= $cornerSize - 2)) {
-                $x = $i * $cornerCellSize;
-                $y = ($gridSize - $cornerSize + $j) * $cornerCellSize;
-                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cornerCellSize . '" height="' . $cornerCellSize . '" fill="#000000"/>';
-            }
-        }
-    }
-    
-    $svg .= '</svg>';
-    
-    return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    // إذا فشل التحميل، نستخدم URL مباشرة (سيعمل في المتصفح)
+    return $qrCodeUrl;
 }
 
 /**
