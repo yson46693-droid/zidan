@@ -130,10 +130,19 @@
       elements.chatMain = app.querySelector('.chat-main');
 
       // استخدام بيانات المستخدم من النظام
-      if (!currentUser.id && app.dataset.currentUserId) {
-        currentUser.id = app.dataset.currentUserId || '0';
-        currentUser.name = app.dataset.currentUserName || '';
-        currentUser.role = app.dataset.currentUserRole || '';
+      if (!currentUser.id || currentUser.id === '0') {
+        if (app.dataset.currentUserId) {
+          currentUser.id = app.dataset.currentUserId;
+          currentUser.name = app.dataset.currentUserName || 'مستخدم';
+          currentUser.role = app.dataset.currentUserRole || 'member';
+        }
+      }
+      
+      // التأكد من وجود بيانات المستخدم
+      if (!currentUser.id || currentUser.id === '0' || currentUser.id === 0) {
+        console.warn('Chat: No user data found, initialization may fail');
+        setTimeout(init, 200);
+        return;
       }
 
       // التأكد من أن العناصر موجودة
@@ -1288,35 +1297,51 @@
   }
 
   // تهيئة تلقائية عند تحميل الصفحة
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      const app = document.querySelector(selectors.app);
-      if (app && app.dataset.currentUserId) {
-        const user = {
-          id: app.dataset.currentUserId,
-          name: app.dataset.currentUserName || '',
-          role: app.dataset.currentUserRole || ''
-        };
-        if (user.id && user.id !== '0') {
+  function autoInit() {
+    const app = document.querySelector(selectors.app);
+    if (app && app.dataset.currentUserId && app.dataset.currentUserId !== '0') {
+      const user = {
+        id: app.dataset.currentUserId,
+        name: app.dataset.currentUserName || 'مستخدم',
+        role: app.dataset.currentUserRole || 'member'
+      };
+      
+      if (user.id && user.id !== '0') {
+        // استخدام initChat إذا كان متاحاً، وإلا تهيئة مباشرة
+        if (typeof window.initChat === 'function') {
           setTimeout(() => {
             window.initChat(user);
           }, 100);
+        } else {
+          // تهيئة مباشرة
+          currentUser.id = user.id;
+          currentUser.name = user.name;
+          currentUser.role = user.role;
+          
+          // تعيين بيانات المستخدم في العنصر
+          app.dataset.currentUserId = currentUser.id;
+          app.dataset.currentUserName = currentUser.name;
+          app.dataset.currentUserRole = currentUser.role;
+          
+          // تهيئة فورية
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+              setTimeout(init, 50);
+            });
+          } else {
+            setTimeout(init, 50);
+          }
         }
       }
-    });
-  } else {
-    const app = document.querySelector(selectors.app);
-    if (app && app.dataset.currentUserId) {
-      const user = {
-        id: app.dataset.currentUserId,
-        name: app.dataset.currentUserName || '',
-        role: app.dataset.currentUserRole || ''
-      };
-      if (user.id && user.id !== '0') {
-        setTimeout(() => {
-          window.initChat(user);
-        }, 100);
-      }
+    } else {
+      // إعادة المحاولة بعد فترة قصيرة
+      setTimeout(autoInit, 200);
     }
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoInit);
+  } else {
+    setTimeout(autoInit, 100);
   }
 })();
