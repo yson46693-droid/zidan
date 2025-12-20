@@ -7,6 +7,11 @@ AddType application/manifest+json .json
 AddType application/json manifest.json
 AddType application/xml browserconfig.xml
 
+# MIME Types لملفات CSS و JS (مهم لمنع CORB)
+AddType text/css .css
+AddType text/javascript .js
+AddType application/javascript .js
+
 # إعدادات PHP
 <IfModule mod_php.c>
     php_flag display_errors Off
@@ -18,6 +23,7 @@ AddType application/xml browserconfig.xml
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
 
 # قاعدة خاصة لملف chat.php
 <Files "chat.php">
@@ -67,6 +73,20 @@ AddType application/xml browserconfig.xml
     # Browserconfig.xml لـ Windows
     <FilesMatch "browserconfig\.xml$">
         Header set Content-Type "application/xml; charset=utf-8"
+    </FilesMatch>
+    
+    # CSS Files - التأكد من Content-Type الصحيح لمنع CORB
+    <FilesMatch "\.css$">
+        Header set Content-Type "text/css; charset=utf-8"
+        Header set X-Content-Type-Options "nosniff"
+        Header append Vary "Accept"
+    </FilesMatch>
+    
+    # JavaScript Files - التأكد من Content-Type الصحيح
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=utf-8"
+        Header set X-Content-Type-Options "nosniff"
+        Header append Vary "Accept"
     </FilesMatch>
 </IfModule>
 

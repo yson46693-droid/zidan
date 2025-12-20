@@ -1,0 +1,30 @@
+# ضمان تقديم ملفات CSS بشكل صحيح
+<IfModule mod_mime.c>
+    AddType text/css .css
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.css$">
+        Header set Content-Type "text/css; charset=utf-8"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>
+
+# ضمان تقديم ملفات JS بشكل صحيح
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType text/javascript .js
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=utf-8"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>
+
+# السماح بالوصول لملفات CSS و JS
+<FilesMatch "\.(css|js)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
