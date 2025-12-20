@@ -219,9 +219,9 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
          FROM sales s 
          LEFT JOIN users u ON s.created_by = u.id 
          WHERE (
-             (s.customer_id = ? AND s.customer_id IS NOT NULL AND s.customer_id != '')
+             s.customer_id = ?
              OR 
-             (s.customer_id IS NULL OR s.customer_id = '') AND s.customer_phone = ?
+             (COALESCE(s.customer_id, '') = '' AND s.customer_phone = ?)
          )
          ORDER BY s.created_at DESC",
         [$customerId, $customer['phone']]
@@ -244,27 +244,31 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
             continue;
         }
         
-        // إذا كانت الفاتورة لا تحتوي على customer_id، تحديثها تلقائياً
+        // التحقق من ربط الفاتورة بالعميل
+        $isCustomerMatch = (
+            (!empty($sale['customer_id']) && $sale['customer_id'] === $customerId) ||
+            (!empty($sale['customer_phone']) && $sale['customer_phone'] === $customer['phone'])
+        );
+        
+        if (!$isCustomerMatch) {
+            // إذا لم تكن الفاتورة مرتبطة بالعميل، تخطيها
+            continue;
+        }
+        
+        // إذا كانت الفاتورة لا تحتوي على customer_id ولكن رقم الهاتف يطابق، تحديثها تلقائياً
         if (empty($sale['customer_id']) || $sale['customer_id'] !== $customerId) {
-            // التحقق من أن رقم الهاتف يطابق العميل
             if (!empty($sale['customer_phone']) && $sale['customer_phone'] === $customer['phone']) {
                 // تحديث الفاتورة بربطها بالعميل
                 if (dbColumnExists('sales', 'customer_id')) {
-                    dbExecute(
+                    $updateResult = dbExecute(
                         "UPDATE sales SET customer_id = ? WHERE id = ?",
                         [$customerId, $sale['id']]
                     );
-                    $sale['customer_id'] = $customerId;
+                    if ($updateResult !== false) {
+                        $sale['customer_id'] = $customerId;
+                    }
                 }
-            } else {
-                // إذا كان رقم الهاتف لا يطابق، تخطي هذه الفاتورة
-                continue;
             }
-        }
-        
-        // التأكد من تطابق customer_id بعد التحديث
-        if (empty($sale['customer_id']) || $sale['customer_id'] !== $customerId) {
-            continue;
         }
         
         // جلب عناصر الفاتورة

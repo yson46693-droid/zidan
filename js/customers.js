@@ -322,16 +322,30 @@ async function viewCustomerProfile(customerId) {
         let sales = salesResult && salesResult.success && Array.isArray(salesResult.data) ? salesResult.data : [];
         
         // فلترة إضافية للتأكد من أن الفواتير تخص هذا العميل فقط
+        // نتحقق من customer_id أو customer_phone للتأكد من ربط الفاتورة بالعميل
         sales = sales.filter(sale => {
-            // Error handling: التأكد من وجود customer_id وأنه يطابق العميل المطلوب
-            if (!sale || !sale.customer_id || sale.customer_id !== customerId) {
+            // Error handling: التأكد من وجود sale
+            if (!sale || !sale.id) {
                 return false;
             }
-            // Error handling: التأكد من وجود بيانات صحيحة (items و total_amount)
-            if (!sale.items || !Array.isArray(sale.items) || sale.items.length === 0) {
-                // إذا كانت الفاتورة بدون عناصر، نتخطاها لأنها قد تكون بيانات خاطئة
+            
+            // التحقق من ربط الفاتورة بالعميل (customer_id أو customer_phone)
+            const isCustomerMatch = (
+                (sale.customer_id && sale.customer_id === customerId) ||
+                (sale.customer_phone && sale.customer_phone === customer.phone)
+            );
+            
+            if (!isCustomerMatch) {
                 return false;
             }
+            
+            // Error handling: التأكد من وجود بيانات صحيحة (items)
+            // نتحقق من وجود items حتى لو كانت فارغة (قد تكون فاتورة بدون عناصر)
+            if (!sale.items || !Array.isArray(sale.items)) {
+                // إذا لم تكن items موجودة أو ليست array، نتخطاها
+                return false;
+            }
+            
             return true;
         });
         
