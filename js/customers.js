@@ -322,75 +322,168 @@ async function viewCustomerProfile(customerId) {
         return sum + parseFloat(sale.final_amount || sale.total_amount || 0);
     }, 0);
     
-    // Create profile modal مع تصميم محسّن
+    // Create profile modal مع تصميم محسّن بشكل خرافي
     const modal = document.createElement('div');
     modal.className = 'modal customer-profile-modal';
-    modal.style.display = 'flex';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.3s ease;';
     modal.innerHTML = `
-        <div class="modal-content customer-profile-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-            <div class="modal-header" style="border-bottom: 2px solid var(--border-color); padding: 20px 30px; background: linear-gradient(135deg, #2196F3, #21CBF3); border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 1.5em;">
-                    <i class="bi bi-person-circle" style="font-size: 1.3em;"></i> بروفايل العميل
-                </h3>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button onclick="window.print()" class="btn btn-sm" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 8px; transition: all 0.3s; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+        <style>
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideUp {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .customer-profile-content {
+                animation: slideUp 0.4s ease;
+            }
+            .customer-profile-header {
+                position: relative;
+                overflow: hidden;
+            }
+            .customer-profile-header::before {
+                content: '';
+                position: absolute;
+                top: -50%;
+                right: -50%;
+                width: 200%;
+                height: 200%;
+                background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+                animation: rotate 20s linear infinite;
+            }
+            @keyframes rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            .stat-card {
+                position: relative;
+                overflow: hidden;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+            .stat-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.2) !important;
+            }
+            .stat-card::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+                animation: shimmer 2s infinite;
+            }
+            @keyframes shimmer {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(100%); }
+            }
+            .invoice-row {
+                transition: all 0.3s ease;
+            }
+            .invoice-row:hover {
+                transform: translateX(-5px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+        </style>
+        <div class="modal-content customer-profile-content" style="max-width: 1200px; width: 100%; max-height: 95vh; overflow-y: auto; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); background: white; position: relative;">
+            <div class="modal-header customer-profile-header" style="border-bottom: none; padding: 30px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); border-radius: 20px 20px 0 0; display: flex; justify-content: space-between; align-items: center; position: relative;">
+                <div style="display: flex; align-items: center; gap: 15px; position: relative; z-index: 1;">
+                    <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                        <i class="bi bi-person-circle" style="font-size: 2em; color: white;"></i>
+                    </div>
+                    <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 1.8em; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                        بروفايل العميل
+                    </h3>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center; position: relative; z-index: 1;">
+                    <button onclick="editCustomer('${customer.id}'); this.closest('.modal').remove();" class="btn btn-sm" style="background: rgba(255,255,255,0.25); color: white; border: 2px solid rgba(255,255,255,0.4); padding: 10px 20px; border-radius: 10px; transition: all 0.3s; display: flex; align-items: center; gap: 8px; font-weight: 600; backdrop-filter: blur(10px);" onmouseover="this.style.background='rgba(255,255,255,0.35)'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='scale(1)'">
+                        <i class="bi bi-pencil-square"></i> تعديل
+                    </button>
+                    <button onclick="window.print()" class="btn btn-sm" style="background: rgba(255,255,255,0.25); color: white; border: 2px solid rgba(255,255,255,0.4); padding: 10px 20px; border-radius: 10px; transition: all 0.3s; display: flex; align-items: center; gap: 8px; font-weight: 600; backdrop-filter: blur(10px);" onmouseover="this.style.background='rgba(255,255,255,0.35)'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='scale(1)'">
                         <i class="bi bi-printer"></i> طباعة
                     </button>
-                    <button onclick="this.closest('.modal').remove()" class="btn-close" style="color: white; font-size: 28px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">&times;</button>
+                    <button onclick="this.closest('.modal').remove()" class="btn-close" style="color: white; font-size: 32px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.3s; border: 2px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); font-weight: bold; line-height: 1;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='rotate(90deg) scale(1.1)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='rotate(0deg) scale(1)'">&times;</button>
                 </div>
             </div>
             <div class="modal-body" style="padding: 30px;">
-                <!-- Customer Info Card - تصميم محسّن -->
-                <div class="customer-profile-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%); color: white; padding: 35px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(33, 150, 243, 0.3);">
-                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-                        <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5em;">
+            <div class="modal-body" style="padding: 40px;">
+                <!-- Customer Info Card - تصميم محسّن بشكل خرافي -->
+                <div class="customer-profile-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 20px; margin-bottom: 35px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); position: relative; overflow: hidden;">
+                    <div style="display: flex; align-items: center; gap: 25px; margin-bottom: 25px; position: relative; z-index: 1;">
+                        <div style="width: 100px; height: 100px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3em; border: 4px solid rgba(255,255,255,0.3); backdrop-filter: blur(10px); box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
                             <i class="bi bi-person-fill"></i>
                         </div>
                         <div style="flex: 1;">
-                            <h2 style="margin: 0 0 8px 0; font-size: 1.8em; font-weight: bold;">${customer.name}</h2>
+                            <h2 style="margin: 0 0 10px 0; font-size: 2.2em; font-weight: 800; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">${customer.name}</h2>
                             ${customer.customer_type === 'commercial' && customer.shop_name ? `
-                                <p style="margin: 0; font-size: 1.1em; opacity: 0.95; display: flex; align-items: center; gap: 8px;">
-                                    <i class="bi bi-shop"></i> ${customer.shop_name}
+                                <p style="margin: 0; font-size: 1.2em; opacity: 0.95; display: flex; align-items: center; gap: 10px; font-weight: 500;">
+                                    <i class="bi bi-shop" style="font-size: 1.3em;"></i> ${customer.shop_name}
                                 </p>
                             ` : ''}
+                            <p style="margin: 8px 0 0 0; font-size: 0.95em; opacity: 0.9;">
+                                ${customer.customer_type === 'commercial' ? '<i class="bi bi-briefcase"></i> عميل تجاري' : '<i class="bi bi-person"></i> عميل محل'}
+                            </p>
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 25px; padding-top: 25px; border-top: 1px solid rgba(255,255,255,0.2);">
-                        <div style="display: flex; align-items: center; gap: 10px; font-size: 1.05em;">
-                            <i class="bi bi-telephone-fill" style="font-size: 1.2em;"></i>
-                            <span>${customer.phone}</span>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 30px; padding-top: 30px; border-top: 2px solid rgba(255,255,255,0.3); position: relative; z-index: 1;">
+                        <div style="display: flex; align-items: center; gap: 12px; font-size: 1.1em; background: rgba(255,255,255,0.15); padding: 15px; border-radius: 12px; backdrop-filter: blur(10px);">
+                            <i class="bi bi-telephone-fill" style="font-size: 1.4em;"></i>
+                            <div>
+                                <div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 4px;">رقم الهاتف</div>
+                                <div style="font-weight: 600; font-size: 1.1em;">${customer.phone}</div>
+                            </div>
                         </div>
                         ${customer.address ? `
-                            <div style="display: flex; align-items: center; gap: 10px; font-size: 1.05em;">
-                                <i class="bi bi-geo-alt-fill" style="font-size: 1.2em;"></i>
-                                <span>${customer.address}</span>
+                            <div style="display: flex; align-items: center; gap: 12px; font-size: 1.1em; background: rgba(255,255,255,0.15); padding: 15px; border-radius: 12px; backdrop-filter: blur(10px);">
+                                <i class="bi bi-geo-alt-fill" style="font-size: 1.4em;"></i>
+                                <div>
+                                    <div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 4px;">العنوان</div>
+                                    <div style="font-weight: 600; font-size: 1.1em;">${customer.address}</div>
+                                </div>
                             </div>
                         ` : ''}
-                        <div style="display: flex; align-items: center; gap: 10px; font-size: 1.05em;">
-                            <i class="bi bi-calendar-check-fill" style="font-size: 1.2em;"></i>
-                            <span>${formatDate(customer.created_at)}</span>
+                        <div style="display: flex; align-items: center; gap: 12px; font-size: 1.1em; background: rgba(255,255,255,0.15); padding: 15px; border-radius: 12px; backdrop-filter: blur(10px);">
+                            <i class="bi bi-calendar-check-fill" style="font-size: 1.4em;"></i>
+                            <div>
+                                <div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 4px;">تاريخ التسجيل</div>
+                                <div style="font-weight: 600; font-size: 1.1em;">${formatDate(customer.created_at)}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Statistics Cards -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
-                    <div style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
-                        <div style="font-size: 2.5em; font-weight: bold; margin-bottom: 8px;">${sales.length}</div>
-                        <div style="opacity: 0.95; font-size: 1.05em;"><i class="bi bi-receipt"></i> عدد الفواتير</div>
+                <!-- Statistics Cards - تحسينات خرافية -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; margin-bottom: 40px;">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; padding: 30px; border-radius: 18px; text-align: center; box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4); position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -30px; left: -30px; width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
+                        <div style="font-size: 3.5em; font-weight: 800; margin-bottom: 12px; position: relative; z-index: 1; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">${sales.length}</div>
+                        <div style="opacity: 0.95; font-size: 1.15em; font-weight: 600; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="bi bi-receipt-cutoff" style="font-size: 1.3em;"></i> عدد الفواتير
+                        </div>
                     </div>
-                    <div style="background: linear-gradient(135deg, #FF9800, #F57C00); color: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);">
-                        <div style="font-size: 2.5em; font-weight: bold; margin-bottom: 8px;">${totalPurchases.toFixed(2)}</div>
-                        <div style="opacity: 0.95; font-size: 1.05em;"><i class="bi bi-currency-exchange"></i> إجمالي المشتريات (ج.م)</div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; padding: 30px; border-radius: 18px; text-align: center; box-shadow: 0 8px 25px rgba(255, 152, 0, 0.4); position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -30px; left: -30px; width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
+                        <div style="font-size: 3.5em; font-weight: 800; margin-bottom: 12px; position: relative; z-index: 1; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">${totalPurchases.toFixed(2)}</div>
+                        <div style="opacity: 0.95; font-size: 1.15em; font-weight: 600; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="bi bi-currency-exchange" style="font-size: 1.3em;"></i> إجمالي المشتريات
+                            <span style="font-size: 0.85em; opacity: 0.9;">(ج.م)</span>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Sales History Section -->
                 <div class="customer-sales-section">
-                    <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 1.4em; color: var(--text-dark); padding-bottom: 15px; border-bottom: 2px solid var(--border-color);">
-                        <i class="bi bi-receipt-cutoff" style="color: var(--primary-color);"></i> 
+                    <h3 style="margin-bottom: 25px; display: flex; align-items: center; gap: 12px; font-size: 1.6em; color: var(--text-dark); padding-bottom: 20px; border-bottom: 3px solid var(--primary-color); font-weight: 700;">
+                        <div style="width: 45px; height: 45px; background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);">
+                            <i class="bi bi-receipt-cutoff" style="font-size: 1.3em;"></i>
+                        </div>
                         <span>سجل المشتريات</span>
-                        ${sales.length > 0 ? `<span style="background: var(--primary-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: normal;">${sales.length}</span>` : ''}
+                        ${sales.length > 0 ? `<span style="background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white; padding: 8px 16px; border-radius: 25px; font-size: 0.9em; font-weight: 600; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);">${sales.length} فاتورة</span>` : ''}
                     </h3>
                     ${sales.length === 0 ? `
                         <div style="text-align: center; padding: 60px 20px; background: var(--light-bg); border-radius: 12px; border: 2px dashed var(--border-color);">
@@ -398,16 +491,16 @@ async function viewCustomerProfile(customerId) {
                             <p style="color: var(--text-light); font-size: 1.1em; margin: 0;">لا توجد فواتير مسجلة لهذا العميل</p>
                         </div>
                     ` : `
-                        <div class="table-container" style="border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                            <table class="data-table" style="margin: 0;">
-                                <thead style="background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white;">
+                        <div class="table-container" style="border-radius: 18px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.1); border: 1px solid #e0e0e0;">
+                            <table class="data-table" style="margin: 0; border-collapse: collapse;">
+                                <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                                     <tr>
-                                        <th style="padding: 15px; font-weight: 600;">رقم الفاتورة</th>
-                                        <th style="padding: 15px; font-weight: 600;">التاريخ</th>
-                                        <th style="padding: 15px; font-weight: 600; text-align: center;">عدد العناصر</th>
-                                        <th style="padding: 15px; font-weight: 600; text-align: right;">المجموع</th>
-                                        <th style="padding: 15px; font-weight: 600; text-align: right;">الإجمالي</th>
-                                        <th style="padding: 15px; font-weight: 600; text-align: center;">الإجراءات</th>
+                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">رقم الفاتورة</th>
+                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">التاريخ</th>
+                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">عدد العناصر</th>
+                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: right; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">المجموع</th>
+                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: right; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">الإجمالي</th>
+                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">الإجراءات</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -435,22 +528,45 @@ async function viewCustomerProfile(customerId) {
                                         }
                                         
                                         return `
-                                        <tr style="transition: background 0.2s;" onmouseover="this.style.background='var(--light-bg)'" onmouseout="this.style.background='transparent'">
-                                            <td style="padding: 15px;"><strong style="color: var(--primary-color);">${saleNumber}</strong></td>
-                                            <td style="padding: 15px;">${formatDate(sale.created_at)}</td>
-                                            <td style="padding: 15px; text-align: center;">
-                                                <span style="background: var(--light-bg); padding: 5px 12px; border-radius: 20px; font-weight: 600; color: var(--text-dark);">
-                                                    ${itemsCount}
+                                        <tr class="invoice-row" style="transition: all 0.3s ease; border-bottom: 2px solid #f0f0f0;" onmouseover="this.style.background='linear-gradient(90deg, rgba(33, 150, 243, 0.05), rgba(33, 150, 243, 0.02))'; this.style.borderLeft='4px solid var(--primary-color)'" onmouseout="this.style.background='transparent'; this.style.borderLeft='none'">
+                                            <td style="padding: 18px;">
+                                                <div style="display: flex; align-items: center; gap: 10px;">
+                                                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);">
+                                                        <i class="bi bi-receipt" style="font-size: 1.1em;"></i>
+                                                    </div>
+                                                    <strong style="color: var(--primary-color); font-size: 1.1em; font-weight: 700;">${saleNumber}</strong>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 18px;">
+                                                <div style="display: flex; align-items: center; gap: 8px; color: var(--text-dark);">
+                                                    <i class="bi bi-calendar3" style="color: var(--primary-color);"></i>
+                                                    <span style="font-weight: 500;">${formatDate(sale.created_at)}</span>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 18px; text-align: center;">
+                                                <span style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); color: #1976d2; padding: 8px 16px; border-radius: 25px; font-weight: 700; font-size: 1.05em; box-shadow: 0 2px 6px rgba(25, 118, 210, 0.2); display: inline-flex; align-items: center; gap: 6px;">
+                                                    <i class="bi bi-box-seam"></i> ${itemsCount}
                                                 </span>
                                             </td>
-                                            <td style="padding: 15px; text-align: right; color: var(--text-dark);">${totalAmount.toFixed(2)} ج.م</td>
-                                            <td style="padding: 15px; text-align: right;">
-                                                <strong style="color: var(--primary-color); font-size: 1.1em;">${finalAmount.toFixed(2)} ج.م</strong>
+                                            <td style="padding: 18px; text-align: right; color: var(--text-dark); font-weight: 600; font-size: 1.05em;">
+                                                ${totalAmount.toFixed(2)} <span style="color: #666; font-size: 0.9em;">ج.م</span>
                                             </td>
-                                            <td style="padding: 15px; text-align: center;">
-                                                <button onclick="viewSaleInvoice('${sale.id}')" class="btn btn-sm btn-primary" style="padding: 8px 20px; border-radius: 8px; transition: all 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                                                    <i class="bi bi-eye"></i> عرض الفاتورة
-                                                </button>
+                                            <td style="padding: 18px; text-align: right;">
+                                                <strong style="color: var(--primary-color); font-size: 1.3em; font-weight: 800; text-shadow: 0 1px 3px rgba(33, 150, 243, 0.2);">
+                                                    ${finalAmount.toFixed(2)} <span style="color: #666; font-size: 0.75em; font-weight: 600;">ج.م</span>
+                                                </strong>
+                                            </td>
+                                            <td style="padding: 18px; text-align: center;">
+                                                <div style="display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                                                    ${sale.invoice_file_path ? `
+                                                        <a href="${sale.invoice_file_path}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); font-weight: 600; border: none; cursor: pointer;" onmouseover="this.style.transform='scale(1.08) translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(76, 175, 80, 0.4)'" onmouseout="this.style.transform='scale(1) translateY(0)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.3)'">
+                                                            <i class="bi bi-file-earmark-pdf" style="font-size: 1.1em;"></i> ملف الفاتورة
+                                                        </a>
+                                                    ` : ''}
+                                                    <button onclick="viewSaleInvoice('${sale.id}')" class="btn btn-sm btn-primary" style="padding: 10px 20px; border-radius: 10px; transition: all 0.3s; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3); font-weight: 600; border: none; display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, var(--primary-color), #1976D2);" onmouseover="this.style.transform='scale(1.08) translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(33, 150, 243, 0.4)'" onmouseout="this.style.transform='scale(1) translateY(0)'; this.style.boxShadow='0 4px 12px rgba(33, 150, 243, 0.3)'">
+                                                        <i class="bi bi-eye" style="font-size: 1.1em;"></i> التفاصيل
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                         `;

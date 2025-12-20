@@ -132,6 +132,16 @@ if ($method === 'GET') {
             }
         }
         
+        // إضافة مسار ملف الفاتورة إذا كان موجوداً
+        require_once 'invoices.php';
+        $saleNumber = $sale['sale_number'] ?? $sale['id'] ?? '';
+        if (!empty($saleNumber)) {
+            $invoiceFilePath = getInvoiceFilePath($saleNumber);
+            if ($invoiceFilePath) {
+                $sale['invoice_file_path'] = $invoiceFilePath;
+            }
+        }
+        
         response(true, '', $sale);
         return;
     }

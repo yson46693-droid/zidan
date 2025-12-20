@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once 'invoices.php';
 
 // دعم _method للاستضافات المجانية
 $data = getRequestData();
@@ -261,6 +262,15 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         }
         if ($sale['final_amount'] == 0 && $calculatedTotal > 0) {
             $sale['final_amount'] = $calculatedTotal - $sale['discount'] + $sale['tax'];
+        }
+        
+        // إضافة مسار ملف الفاتورة إذا كان موجوداً
+        $saleNumber = $sale['sale_number'] ?? $sale['id'] ?? '';
+        if (!empty($saleNumber)) {
+            $invoiceFilePath = getInvoiceFilePath($saleNumber);
+            if ($invoiceFilePath) {
+                $sale['invoice_file_path'] = $invoiceFilePath;
+            }
         }
         
         $filteredSales[] = $sale;

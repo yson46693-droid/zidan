@@ -1,0 +1,13 @@
+Options -Indexes
+# السماح بالوصول إلى ملفات HTML فقط (Apache 2.4+)
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.html$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+# السماح بالوصول إلى ملفات HTML (Apache 2.2)
+<IfModule !mod_authz_core.c>
+    <FilesMatch "\.html$">
+        Allow from all
+    </FilesMatch>
+</IfModule>
