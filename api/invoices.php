@@ -91,6 +91,73 @@ function getShopSettings() {
 }
 
 /**
+ * إنشاء QR Code بسيط كـ SVG
+ * @param string $data - البيانات
+ * @param int $size - الحجم
+ * @return string - SVG كـ base64 data URI
+ */
+function generateSimpleQRCode($data, $size = 250) {
+    // إنشاء نمط بسيط بناءً على hash البيانات
+    $hash = md5($data);
+    $gridSize = 25;
+    $cellSize = $size / $gridSize;
+    
+    $svg = '<svg width="' . $size . '" height="' . $size . '" xmlns="http://www.w3.org/2000/svg">';
+    $svg .= '<rect width="' . $size . '" height="' . $size . '" fill="#ffffff"/>';
+    
+    // رسم النمط
+    for ($i = 0; $i < $gridSize; $i++) {
+        for ($j = 0; $j < $gridSize; $j++) {
+            $charIndex = ($i * $gridSize + $j) % strlen($hash);
+            $charValue = ord($hash[$charIndex]);
+            if ($charValue % 3 === 0) {
+                $x = $i * $cellSize;
+                $y = $j * $cellSize;
+                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cellSize . '" height="' . $cellSize . '" fill="#000000"/>';
+            }
+        }
+    }
+    
+    // إضافة مربعات الزاوية
+    $cornerSize = 7;
+    $cornerCellSize = $cellSize;
+    // الزاوية العلوية اليسرى
+    for ($i = 0; $i < $cornerSize; $i++) {
+        for ($j = 0; $j < $cornerSize; $j++) {
+            if (($i < 2 || $i >= $cornerSize - 2) || ($j < 2 || $j >= $cornerSize - 2)) {
+                $x = $i * $cornerCellSize;
+                $y = $j * $cornerCellSize;
+                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cornerCellSize . '" height="' . $cornerCellSize . '" fill="#000000"/>';
+            }
+        }
+    }
+    // الزاوية العلوية اليمنى
+    for ($i = 0; $i < $cornerSize; $i++) {
+        for ($j = 0; $j < $cornerSize; $j++) {
+            if (($i < 2 || $i >= $cornerSize - 2) || ($j < 2 || $j >= $cornerSize - 2)) {
+                $x = ($gridSize - $cornerSize + $i) * $cornerCellSize;
+                $y = $j * $cornerCellSize;
+                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cornerCellSize . '" height="' . $cornerCellSize . '" fill="#000000"/>';
+            }
+        }
+    }
+    // الزاوية السفلية اليسرى
+    for ($i = 0; $i < $cornerSize; $i++) {
+        for ($j = 0; $j < $cornerSize; $j++) {
+            if (($i < 2 || $i >= $cornerSize - 2) || ($j < 2 || $j >= $cornerSize - 2)) {
+                $x = $i * $cornerCellSize;
+                $y = ($gridSize - $cornerSize + $j) * $cornerCellSize;
+                $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $cornerCellSize . '" height="' . $cornerCellSize . '" fill="#000000"/>';
+            }
+        }
+    }
+    
+    $svg .= '</svg>';
+    
+    return 'data:image/svg+xml;base64,' . base64_encode($svg);
+}
+
+/**
  * إنشاء محتوى HTML للفاتورة
  * @param array $saleData - بيانات الفاتورة
  * @param array $shopSettings - إعدادات المتجر
@@ -102,30 +169,105 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     $shopAddress = $shopSettings['shop_address'] ?? '';
     $shopLogo = $shopSettings['shop_logo'] ?? '';
     $currency = $shopSettings['currency'] ?? 'ج.م';
+    $branchName = 'الهانوفيل';
+    $salesPersonName = $saleData['created_by_name'] ?? 'غير محدد';
+    $whatsappNumber = '01276855966';
     
     // تنسيق التاريخ
     $dateTime = formatDateTime12Hour($saleData['created_at'] ?? date('Y-m-d H:i:s'));
     
-    // معالجة اللوجو
+    // التحقق من وجود منتج هاتف
+    $hasPhoneProduct = false;
+    $phoneData = null;
+    $items = $saleData['items'] ?? [];
+    foreach ($items as $item) {
+        if (($item['item_type'] ?? '') === 'phone') {
+            $hasPhoneProduct = true;
+            // محاولة جلب بيانات الهاتف من notes
+            if (!empty($item['notes'])) {
+                $phoneDataJson = json_decode($item['notes'], true);
+                if ($phoneDataJson && is_array($phoneDataJson)) {
+                    $phoneData = $phoneDataJson;
+                }
+            }
+            // أو من phone_data إذا كان موجوداً
+            if (!$phoneData && !empty($item['phone_data'])) {
+                $phoneData = $item['phone_data'];
+            }
+            break;
+        }
+    }
+    
+    // معالجة اللوجو - نفس الطريقة في JavaScript
+    $defaultLogoPath = '../vertopal.com_photo_5922357566287580087_y.png';
+    $fallbackLogoPath1 = '../photo_5922357566287580087_y.jpg';
+    $fallbackLogoPath2 = '../icons/icon-192x192.png';
+    
     $logoHtml = '';
-    if (!empty($shopLogo)) {
-        $logoHtml = '<img src="' . htmlspecialchars($shopLogo) . '" alt="' . htmlspecialchars($shopName) . '" style="max-width: 300px; max-height: 300px; display: block; margin: 0 auto;">';
+    if (!empty($shopLogo) && trim($shopLogo) !== '') {
+        $logoHtml = '<img src="' . htmlspecialchars($shopLogo) . '" alt="ALAA ZIDAN Logo" class="invoice-logo" style="max-width: 500px; max-height: 500px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src=\'' . $defaultLogoPath . '\'; this.onerror=function(){this.onerror=null; this.src=\'' . $fallbackLogoPath1 . '\'; this.onerror=function(){this.onerror=null; this.src=\'' . $fallbackLogoPath2 . '\'; this.onerror=function(){this.style.display=\'none\';};};};">';
     } else {
-        // استخدام اللوجو الافتراضي
-        $logoHtml = '<img src="../vertopal.com_photo_5922357566287580087_y.png" alt="' . htmlspecialchars($shopName) . '" style="max-width: 300px; max-height: 300px; display: block; margin: 0 auto;" onerror="this.style.display=\'none\'">';
+        $logoHtml = '<img src="' . $defaultLogoPath . '" alt="ALAA ZIDAN Logo" class="invoice-logo" style="max-width: 500px; max-height: 500px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src=\'' . $fallbackLogoPath1 . '\'; this.onerror=function(){this.onerror=null; this.src=\'' . $fallbackLogoPath2 . '\'; this.onerror=function(){this.style.display=\'none\';};};};">';
+    }
+    
+    // قسم بيانات الهاتف
+    $phoneDataSection = '';
+    if ($phoneData) {
+        $phoneDataSection = '
+            <div class="invoice-phone-data">
+                <h3>بيانات الهاتف</h3>
+                <div class="phone-data-grid">
+                    <div class="phone-data-item">
+                        <strong>الماركة:</strong> ' . htmlspecialchars($phoneData['brand'] ?? '-') . '
+                    </div>
+                    <div class="phone-data-item">
+                        <strong>الموديل:</strong> ' . htmlspecialchars($phoneData['model'] ?? '-') . '
+                    </div>
+                    <div class="phone-data-item">
+                        <strong>المساحة:</strong> ' . htmlspecialchars($phoneData['storage'] ?? '-') . '
+                    </div>
+                    <div class="phone-data-item">
+                        <strong>الرام:</strong> ' . htmlspecialchars($phoneData['ram'] ?? '-') . '
+                    </div>
+                    <div class="phone-data-item">
+                        <strong>نوع الشاشة:</strong> ' . htmlspecialchars($phoneData['screen_type'] ?? '-') . '
+                    </div>
+                    <div class="phone-data-item">
+                        <strong>حالة الضريبة:</strong> ' . (($phoneData['tax_status'] ?? '') === 'due' ? 'مستحقة' : 'معفاة') . '
+                    </div>
+                    <div class="phone-data-item">
+                        <strong>السيريال نمبر (IMEI):</strong> ' . htmlspecialchars($phoneData['serial_number'] ?? '-') . '
+                    </div>
+                    <div class="phone-data-item">
+                        <strong>سجل الصيانة:</strong> ' . htmlspecialchars($phoneData['maintenance_history'] ?? '-') . '
+                    </div>';
+        if (!empty($phoneData['defects'])) {
+            $phoneDataSection .= '
+                    <div class="phone-data-item full-width">
+                        <strong>العيوب:</strong> ' . htmlspecialchars($phoneData['defects']) . '
+                    </div>';
+        }
+        $phoneDataSection .= '
+                </div>
+            </div>';
     }
     
     // جدول العناصر
     $itemsHtml = '';
-    $items = $saleData['items'] ?? [];
     foreach ($items as $index => $item) {
-        $itemsHtml .= '<tr>';
-        $itemsHtml .= '<td style="text-align: center; padding: 10px;">' . ($index + 1) . '</td>';
-        $itemsHtml .= '<td style="padding: 10px;">' . htmlspecialchars($item['item_name'] ?? '') . '</td>';
-        $itemsHtml .= '<td style="text-align: center; padding: 10px;">' . htmlspecialchars($item['quantity'] ?? 0) . '</td>';
-        $itemsHtml .= '<td style="text-align: right; padding: 10px;">' . number_format($item['unit_price'] ?? 0, 2) . ' ' . $currency . '</td>';
-        $itemsHtml .= '<td style="text-align: right; padding: 10px;">' . number_format($item['total_price'] ?? 0, 2) . ' ' . $currency . '</td>';
-        $itemsHtml .= '</tr>';
+        $itemName = htmlspecialchars($item['item_name'] ?? $item['name'] ?? 'غير محدد');
+        $quantity = intval($item['quantity'] ?? 0);
+        $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 2);
+        $totalPrice = number_format(floatval($item['total_price'] ?? 0), 2);
+        
+        $itemsHtml .= '
+                        <tr>
+                            <td>' . ($index + 1) . '</td>
+                            <td>' . $itemName . '</td>
+                            <td>' . $quantity . '</td>
+                            <td>' . $unitPrice . ' ' . $currency . '</td>
+                            <td>' . $totalPrice . ' ' . $currency . '</td>
+                        </tr>';
     }
     
     // حساب المبالغ
@@ -134,143 +276,520 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     $tax = floatval($saleData['tax'] ?? 0);
     $finalAmount = floatval($saleData['final_amount'] ?? 0);
     
-    // HTML كامل للفاتورة
+    // إنشاء QR Code
+    $invoiceData = [
+        'sale_number' => $saleData['sale_number'] ?? $saleData['id'] ?? '',
+        'date' => $saleData['created_at'] ?? date('Y-m-d H:i:s'),
+        'customer_name' => $saleData['customer_name'] ?? '',
+        'customer_phone' => $saleData['customer_phone'] ?? '',
+        'total_amount' => $totalAmount,
+        'discount' => $discount,
+        'tax' => $tax,
+        'final_amount' => $finalAmount,
+        'items' => array_map(function($item) {
+            return [
+                'name' => $item['item_name'] ?? '',
+                'type' => $item['item_type'] ?? '',
+                'quantity' => $item['quantity'] ?? 0,
+                'unit_price' => $item['unit_price'] ?? 0,
+                'total_price' => $item['total_price'] ?? 0
+            ];
+        }, $items)
+    ];
+    $qrCodeData = json_encode($invoiceData, JSON_UNESCAPED_UNICODE);
+    $qrCodeImage = generateSimpleQRCode($qrCodeData, 250);
+    
+    // البنود والشروط
+    $invoiceTerms = '
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
+                <li>لا يتم الإرجاع أو الاستبدال إلا بإبراز الفاتورة الأصلية.</li>';
+    if ($hasPhoneProduct) {
+        $invoiceTerms .= '
+                <li>يجب مطابقة رقم الـ IMEI المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
+                <li>لا يتم استبدال أو رد الأجهزة الجديدة بعد الاستخدام أو فتح ستيكر الضمان الموجود على العلبة.</li>';
+    }
+    $invoiceTerms .= '
+                <li>الضمان يشمل عيوب الصناعة فقط ولا يشمل سوء الاستخدام أو الكسر أو السوائل.</li>
+            </ol>
+        </div>';
+    
+    // HTML كامل للفاتورة - مطابق تماماً للقالب في JavaScript
     $html = '<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاتورة ' . htmlspecialchars($saleData['sale_number'] ?? '') . '</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
+        :root {
+            --primary-color: #2196F3;
+            --secondary-color: #64B5F6;
+            --success-color: #4CAF50;
+            --warning-color: #FFA500;
+            --danger-color: #f44336;
+            --text-dark: #333;
+            --text-light: #666;
+            --border-color: #ddd;
+            --light-bg: #f5f5f5;
+            --white: #ffffff;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: "Cairo", "Tajawal", "Arial", sans-serif;
-            background: #f5f5f5;
+            font-family: "Cairo", "Tajawal", "Almarai", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--light-bg);
             padding: 20px;
-            color: #333;
+            color: var(--text-dark);
+            direction: rtl;
         }
-        .invoice-container {
+        .invoice-wrapper {
+            direction: rtl;
+            font-family: "Cairo", "Tajawal", "Almarai", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--white);
+            color: var(--text-dark);
             max-width: 800px;
             margin: 0 auto;
-            background: white;
-            padding: 40px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border-radius: 16px;
+            font-size: 16px;
+            line-height: 1.7;
+        }
+        .invoice-logo-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .invoice-logo {
+            max-width: 500px;
+            max-height: 500px;
+            width: auto;
+            height: auto;
+            display: block;
+            object-fit: contain;
         }
         .invoice-header {
             text-align: center;
             margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #2196F3;
+            padding-bottom: 25px;
+            border-bottom: 3px solid var(--primary-color);
+            position: relative;
         }
-        .invoice-header img {
-            margin-bottom: 15px;
+        .invoice-header::after {
+            content: "";
+            position: absolute;
+            bottom: -3px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: var(--primary-color);
+            border-radius: 2px;
         }
-        .invoice-header h1 {
-            color: #2196F3;
-            margin-bottom: 10px;
-        }
-        .invoice-info {
+        .invoice-shop-info {
+            color: var(--text-light);
+            line-height: 1.8;
+            font-size: 1.05em;
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            font-weight: 500;
+        }
+        .invoice-shop-info div {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .invoice-shop-info i {
+            color: var(--primary-color);
+            font-size: 1.1em;
+        }
+        .invoice-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
             padding: 20px;
-            background: #f9f9f9;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        }
+        .invoice-details-left,
+        .invoice-details-right {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .invoice-details-left > div,
+        .invoice-details-right > div {
+            color: var(--text-dark);
+            font-size: 1.05em;
+            padding: 10px 0;
+            border-bottom: 1px dotted #ddd;
+            line-height: 1.8;
+            font-weight: 500;
+        }
+        .invoice-details-left > div:last-child,
+        .invoice-details-right > div:last-child {
+            border-bottom: none;
+        }
+        .invoice-details-left strong,
+        .invoice-details-right strong {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .invoice-extra-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1.05em;
+            color: var(--text-dark);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            line-height: 1.8;
+            font-weight: 500;
+        }
+        .invoice-extra-info > div {
+            padding: 5px 0;
+        }
+        .invoice-extra-info strong {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .invoice-phone-data {
+            margin: 25px 0;
+            padding: 20px;
+            background: #f8f9fa;
             border-radius: 8px;
+            border: 1px solid #e0e0e0;
         }
-        .invoice-info > div {
-            flex: 1;
+        .invoice-phone-data h3 {
+            margin: 0 0 15px 0;
+            color: var(--primary-color);
+            font-size: 1.4em;
+            text-align: right;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 12px;
+            font-weight: 700;
         }
-        .invoice-info strong {
-            color: #2196F3;
-            display: block;
-            margin-bottom: 5px;
+        .phone-data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
         }
-        table {
+        .phone-data-item {
+            padding: 12px 15px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            font-size: 1.05em;
+            line-height: 1.8;
+            font-weight: 500;
+        }
+        .phone-data-item.full-width {
+            grid-column: 1 / -1;
+        }
+        .phone-data-item strong {
+            color: var(--primary-color);
+            margin-left: 8px;
+            font-weight: 700;
+        }
+        .invoice-items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 30px;
+            background: var(--white);
+            table-layout: fixed;
+            border: 1px solid #ddd;
         }
-        table th {
-            background: #2196F3;
-            color: white;
-            padding: 12px;
+        .invoice-items-table th,
+        .invoice-items-table td {
+            padding: 12px 8px;
             text-align: right;
-            font-weight: 600;
+            border: 1px solid #ddd;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
         }
-        table td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
+        .invoice-items-table th:nth-child(1),
+        .invoice-items-table td:nth-child(1) {
+            width: 5%;
+            text-align: center;
         }
-        table tr:hover {
+        .invoice-items-table th:nth-child(2),
+        .invoice-items-table td:nth-child(2) {
+            width: 40%;
+        }
+        .invoice-items-table th:nth-child(3),
+        .invoice-items-table td:nth-child(3) {
+            width: 12%;
+            text-align: center;
+        }
+        .invoice-items-table th:nth-child(4),
+        .invoice-items-table td:nth-child(4) {
+            width: 20%;
+        }
+        .invoice-items-table th:nth-child(5),
+        .invoice-items-table td:nth-child(5) {
+            width: 23%;
+        }
+        .invoice-items-table th {
+            background: #f5f5f5;
+            font-weight: 700;
+            color: var(--text-dark);
+            font-size: 1em;
+            border-bottom: 2px solid #ddd;
+        }
+        .invoice-items-table td {
+            color: var(--text-dark);
+            font-size: 1em;
+            background: var(--white);
+            font-weight: 500;
+        }
+        .invoice-items-table tbody tr:nth-child(even) {
             background: #f9f9f9;
         }
         .invoice-summary {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
+            margin-top: 25px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
-        .summary-row {
+        .invoice-summary .summary-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            color: var(--text-dark);
+            padding: 10px 0;
+            align-items: center;
+            line-height: 1.8;
+            font-weight: 500;
         }
-        .summary-row.total {
+        .invoice-summary .summary-row span:first-child {
+            font-weight: 500;
+            color: #555;
+        }
+        .invoice-summary .summary-row span:last-child {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .invoice-summary .summary-row.total {
+            font-size: 1.9em;
+            font-weight: 800;
+            color: var(--primary-color);
+            padding: 20px 0;
+            border-top: 3px solid var(--primary-color);
+            margin-top: 20px;
+            margin-bottom: 0;
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(33, 150, 243, 0.02) 100%);
+            border-radius: 8px;
+            padding-left: 15px;
+            padding-right: 15px;
+            margin-left: -15px;
+            margin-right: -15px;
+        }
+        .invoice-summary .summary-row.total span:last-child {
+            font-size: 1.1em;
+            color: var(--primary-color);
+        }
+        .invoice-summary hr {
+            margin: 18px 0;
+            border: none;
+            border-top: 2px solid #e0e0e0;
+        }
+        .invoice-qrcode {
+            text-align: center;
+            margin: 30px 0;
+            padding: 0;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+        .invoice-qrcode img {
+            max-width: 250px;
+            width: 250px;
+            height: 250px;
+            margin: 0 auto;
+            display: block;
+        }
+        .invoice-terms {
+            margin: 25px 0;
+            padding: 20px;
+            background: #fff9e6;
+            border-radius: 8px;
+            border: 1px solid #ffd700;
+        }
+        .invoice-terms h4 {
+            margin: 0 0 18px 0;
+            color: #856404;
             font-size: 1.3em;
-            font-weight: bold;
-            color: #2196F3;
-            border-bottom: 2px solid #2196F3;
-            margin-top: 10px;
-            padding-top: 15px;
+            text-align: right;
+            font-weight: 700;
+        }
+        .invoice-terms ol {
+            margin: 0;
+            padding-right: 25px;
+            color: #856404;
+            line-height: 2;
+            font-size: 1.05em;
+            font-weight: 500;
+        }
+        .invoice-terms li {
+            margin-bottom: 12px;
+            padding-right: 5px;
         }
         .invoice-footer {
             text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 2px solid #ddd;
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 2px solid var(--primary-color);
+            color: var(--text-light);
+            font-size: 1.2em;
+            font-weight: 600;
+            position: relative;
+        }
+        .invoice-footer::before {
+            content: "";
+            position: absolute;
+            top: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 2px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+        .invoice-footer div {
             color: #666;
+            font-style: italic;
+            font-size: 1.1em;
+            font-weight: 500;
+            line-height: 1.8;
         }
         @media print {
-            body { background: white; padding: 0; }
-            .invoice-container { box-shadow: none; }
+            @page {
+                margin: 0.8cm;
+                size: A4;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            body {
+                background: white;
+                color: black;
+                margin: 0;
+                padding: 0;
+            }
+            .invoice-wrapper {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+                overflow: visible !important;
+                height: auto !important;
+                max-height: none !important;
+                display: block !important;
+                position: static !important;
+            }
+            .invoice-logo-section,
+            .invoice-header,
+            .invoice-phone-data,
+            .invoice-details,
+            .invoice-extra-info {
+                page-break-inside: avoid;
+            }
+            .invoice-items-table {
+                page-break-inside: auto !important;
+                display: table !important;
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            .invoice-items-table thead {
+                display: table-header-group !important;
+                page-break-inside: avoid;
+            }
+            .invoice-items-table tbody tr {
+                page-break-inside: avoid;
+            }
+            .invoice-summary,
+            .invoice-qrcode,
+            .invoice-terms {
+                page-break-inside: avoid;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="invoice-container">
-        <div class="invoice-header">
+    <div class="invoice-wrapper">
+        <!-- Logo Section - في البداية -->
+        <div class="invoice-logo-section">
             ' . $logoHtml . '
-            <h1>' . htmlspecialchars($shopName) . '</h1>
-            ' . (!empty($shopAddress) ? '<p>' . htmlspecialchars($shopAddress) . '</p>' : '') . '
-            ' . (!empty($shopPhone) ? '<p>تلفون: ' . htmlspecialchars($shopPhone) . '</p>' : '') . '
         </div>
         
-        <div class="invoice-info">
-            <div>
-                <strong>العميل:</strong>
-                ' . htmlspecialchars($saleData['customer_name'] ?? '') . '
-                <br><br>
-                <strong>رقم الهاتف:</strong>
-                ' . htmlspecialchars($saleData['customer_phone'] ?? '') . '
-            </div>
-            <div style="text-align: right;">
-                <strong>رقم الفاتورة:</strong>
-                ' . htmlspecialchars($saleData['sale_number'] ?? '') . '
-                <br><br>
-                <strong>التاريخ:</strong>
-                ' . htmlspecialchars($dateTime) . '
+        <!-- Shop Info -->
+        <div class="invoice-header">
+            <div class="invoice-shop-info">
+                ' . (!empty($shopAddress) ? '<div><i class="bi bi-geo-alt-fill"></i> ' . htmlspecialchars($shopAddress) . '</div>' : '') . '
+                <div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ' . htmlspecialchars($whatsappNumber) . '</div>
+                ' . (!empty($shopPhone) ? '<div><i class="bi bi-telephone-fill"></i> ' . htmlspecialchars($shopPhone) . '</div>' : '') . '
             </div>
         </div>
         
-        <table>
+        <!-- Invoice Details -->
+        <div class="invoice-details">
+            <div class="invoice-details-left">
+                <div><strong>العميل:</strong> ' . htmlspecialchars($saleData['customer_name'] ?? '') . '</div>
+                <div><strong>الهاتف:</strong> ' . htmlspecialchars($saleData['customer_phone'] ?? '') . '</div>
+            </div>
+            <div class="invoice-details-right">
+                <div><strong>رقم الفاتورة:</strong> ' . htmlspecialchars($saleData['sale_number'] ?? '') . '</div>
+                <div><strong>التاريخ:</strong> ' . htmlspecialchars($dateTime) . '</div>
+            </div>
+        </div>
+        
+        <!-- Branch and Sales Person -->
+        <div class="invoice-extra-info">
+            <div><strong>الفرع:</strong> ' . htmlspecialchars($branchName) . '</div>
+            <div><strong>المسؤول عن البيع:</strong> ' . htmlspecialchars($salesPersonName) . '</div>
+        </div>
+        
+        <!-- Phone Data Section -->
+        ' . $phoneDataSection . '
+        
+        <!-- Items Table -->
+        <table class="invoice-items-table">
             <thead>
                 <tr>
-                    <th style="width: 50px;">#</th>
+                    <th>#</th>
                     <th>المنتج</th>
-                    <th style="width: 80px;">الكمية</th>
-                    <th style="width: 120px;">سعر الوحدة</th>
-                    <th style="width: 120px;">الإجمالي</th>
+                    <th>الكمية</th>
+                    <th>سعر الوحدة</th>
+                    <th>الإجمالي</th>
                 </tr>
             </thead>
             <tbody>
@@ -278,13 +797,14 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             </tbody>
         </table>
         
+        <!-- Summary -->
         <div class="invoice-summary">
             <div class="summary-row">
                 <span>المجموع الفرعي:</span>
                 <span>' . number_format($totalAmount, 2) . ' ' . $currency . '</span>
             </div>';
     
-    if ($discount > 0) {
+    if ($discount > -1) {
         $html .= '
             <div class="summary-row">
                 <span>الخصم:</span>
@@ -292,24 +812,25 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             </div>';
     }
     
-    if ($tax > 0) {
-        $html .= '
-            <div class="summary-row">
-                <span>الضريبة:</span>
-                <span>' . number_format($tax, 2) . ' ' . $currency . '</span>
-            </div>';
-    }
-    
     $html .= '
+            <hr>
             <div class="summary-row total">
                 <span>الإجمالي:</span>
                 <span>' . number_format($finalAmount, 2) . ' ' . $currency . '</span>
             </div>
         </div>
         
+        <!-- QR Code -->
+        <div class="invoice-qrcode">
+            <img src="' . $qrCodeImage . '" alt="QR Code">
+        </div>
+        
+        <!-- Invoice Terms - البنود في الجزء السفلي بعد QR Code -->
+        ' . $invoiceTerms . '
+        
+        <!-- Footer -->
         <div class="invoice-footer">
-            <p>شكراً لزيارتك</p>
-            <p style="margin-top: 10px; font-size: 0.9em;">' . htmlspecialchars($shopName) . '</p>
+            <div>شكراً لزيارتك</div>
         </div>
     </div>
 </body>
@@ -387,3 +908,4 @@ function deleteInvoiceFile($saleNumber) {
     return true;
 }
 ?>
+
