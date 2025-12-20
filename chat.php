@@ -22,16 +22,17 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// منع الـ cache لهذه الصفحة
-header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
-header('Pragma: no-cache');
-header('Expires: 0');
-
 // معالجة الأخطاء
 set_error_handler(function ($errno, $errstr, $errfile, $errline) {
     error_log("PHP Error [$errno]: $errstr in $errfile on line $errline");
     return false;
 });
+
+// تحميل ملف إدارة الكاش
+require_once __DIR__ . '/includes/cache.php';
+
+// منع كاش هذه الصفحة (يجب استدعاؤه قبل أي output)
+disablePageCache();
 
 // تحميل الملفات المطلوبة مع معالجة الأخطاء
 try {
@@ -172,9 +173,9 @@ function getRoleName($role) {
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
-    <!-- CSS Files - تحميل مباشر -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/chat-integrated.css">
+    <!-- CSS Files - مع Cache Busting تلقائي -->
+    <link rel="stylesheet" href="<?php echo asset('css/style.css'); ?>">
+    <link rel="stylesheet" href="<?php echo asset('css/chat-integrated.css'); ?>">
     
     <!-- Critical CSS للتأكد من ظهور التصميم فوراً -->
     <style>
@@ -527,9 +528,9 @@ function getRoleName($role) {
         </div>
     </main>
 
-    <script src="js/api.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="<?php echo asset('js/api.js'); ?>"></script>
+    <script src="<?php echo asset('js/utils.js'); ?>"></script>
+    <script src="<?php echo asset('js/auth.js'); ?>"></script>
     <script>
         // تطبيق التصميم الأساسي فوراً
         (function() {
@@ -655,6 +656,6 @@ function getRoleName($role) {
             document.body.classList.add('dark-mode');
         }
     </script>
-    <script src="js/chat-integrated.js"></script>
+    <script src="<?php echo asset('js/chat-integrated.js'); ?>"></script>
 </body>
 </html>
