@@ -651,14 +651,28 @@
                         console.log('✅ Service Worker already active');
                     }
                     
-                    // التحقق من التحديثات بشكل دوري
-                    setInterval(async () => {
+                    // التحقق من التحديثات فوراً عند تحميل الصفحة
+                    // ثم بشكل دوري كل 30 ثانية لضمان الحصول على آخر إصدار
+                    const checkForUpdates = async () => {
                         try {
+                            console.log('🔄 التحقق من التحديثات...');
                             await registration.update();
+                            
+                            // التحقق من وجود Service Worker محدث
+                            if (registration.waiting) {
+                                console.log('🔄 تم اكتشاف Service Worker محدث - سيتم التفعيل');
+                                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                            }
                         } catch (error) {
-                            // تجاهل الأخطاء
+                            console.warn('⚠️ خطأ في التحقق من التحديثات:', error);
                         }
-                    }, 600000); // كل 10 دقائق
+                    };
+                    
+                    // التحقق فوراً بعد تحميل الصفحة
+                    setTimeout(checkForUpdates, 1000);
+                    
+                    // التحقق بشكل دوري كل 30 ثانية
+                    setInterval(checkForUpdates, 30000); // كل 30 ثانية
                     
                     return registration;
                 } catch (error) {

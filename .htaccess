@@ -48,7 +48,22 @@ AddType application/javascript .js
 <Files "sw.js">
     SetHandler default-handler
     ForceType application/javascript
+    # منع cache لـ Service Worker لضمان الحصول على آخر إصدار
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
 </Files>
+
+# منع cache لملفات JavaScript و CSS الديناميكية
+<FilesMatch "\.(js|css)$">
+    # السماح بـ cache فقط إذا كان هناك query parameter للإصدار
+    # إذا لم يكن هناك query parameter، منع cache
+    <If "%{QUERY_STRING} !~ /v=/">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </If>
+</FilesMatch>
 
 
 # قاعدة خاصة لملف chat.php

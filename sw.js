@@ -267,36 +267,41 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // استراتيجية Network First للملفات الديناميكية (CSS/JS مع query parameters)
-    // هذا يضمن أن الملفات المحدثة تُجلب من الشبكة أولاً
-    // أيضاً للأيقونات (icons) لضمان الحصول على أحدث نسخة
+    // استراتيجية Network First دائماً للملفات الديناميكية (CSS/JS/HTML)
+    // هذا يضمن أن الملفات المحدثة تُجلب من الشبكة أولاً دائماً
+    // لا نستخدم cache للملفات الديناميكية لضمان الحصول على آخر إصدار
     const isDynamicFile = request.url.includes('?v=') || 
                          request.url.includes('?version=') ||
                          request.url.endsWith('.css') ||
                          request.url.endsWith('.js') ||
-                         request.url.includes('/icons/');
+                         request.url.endsWith('.html') ||
+                         request.url.includes('/icons/') ||
+                         request.url.includes('/api/') ||
+                         request.url.endsWith('.php');
     
     if (isDynamicFile) {
-        // Network First للملفات الديناميكية
+        // Network First دائماً - لا نستخدم cache للملفات الديناميكية
+        // هذا يضمن الحصول على آخر إصدار من الخادم
         event.respondWith(
-            fetch(request)
+            fetch(request, {
+                cache: 'no-store', // عدم استخدام cache المتصفح
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            })
                 .then(response => {
-                    // إذا كانت الاستجابة ناجحة، نحفظها في cache
-                    if (response.ok && response.status >= 200 && response.status < 300) {
-                        const responseToCache = response.clone();
-                        caches.open(CACHE_NAME).then(cache => {
-                            cache.put(request, responseToCache).catch(err => {
-                                console.warn('[SW] فشل حفظ في cache:', request.url, err);
-                            });
-                        });
-                    }
+                    // نرجع الاستجابة مباشرة بدون حفظها في cache
+                    // لضمان الحصول على آخر إصدار دائماً
                     return response;
                 })
                 .catch(error => {
-                    // إذا فشل الطلب من الشبكة، نجرب من cache
-                    console.warn('[SW] فشل جلب من الشبكة:', request.url, error);
+                    // فقط في حالة فشل الشبكة تماماً، نجرب من cache كـ fallback
+                    console.warn('[SW] فشل جلب من الشبكة، استخدام cache:', request.url, error);
                     return caches.match(request).then(cachedResponse => {
                         if (cachedResponse) {
+                            console.log('[SW] استخدام نسخة من cache:', request.url);
                             return cachedResponse;
                         }
                         // إذا لم يكن في cache أيضاً، نعيد الخطأ الأصلي
