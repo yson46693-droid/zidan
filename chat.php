@@ -29,31 +29,79 @@ set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 });
 
 // تحميل ملف إدارة الكاش
+if (!file_exists(__DIR__ . '/includes/cache.php')) {
+    error_log('ملف cache.php غير موجود');
+    http_response_code(500);
+    die('خطأ: ملف cache.php غير موجود');
+}
 require_once __DIR__ . '/includes/cache.php';
 
+// التأكد من وجود دالة asset
+if (!function_exists('asset')) {
+    error_log('دالة asset غير موجودة بعد تحميل cache.php');
+    // إنشاء دالة asset بسيطة كبديل
+    function asset($path) {
+        return $path;
+    }
+}
+
 // منع كاش هذه الصفحة (يجب استدعاؤه قبل أي output)
-disablePageCache();
+if (function_exists('disablePageCache')) {
+    disablePageCache();
+}
 
 // تحميل الملفات المطلوبة مع معالجة الأخطاء
 try {
-    require_once __DIR__ . '/api/database.php';
-    require_once __DIR__ . '/api/chat/auth_helper.php';
-    require_once __DIR__ . '/includes/chat.php';
+    // التحقق من وجود الملفات قبل التحميل
+    $files = [
+        'database' => __DIR__ . '/api/database.php',
+        'auth_helper' => __DIR__ . '/api/chat/auth_helper.php',
+        'chat_functions' => __DIR__ . '/includes/chat.php'
+    ];
+    
+    foreach ($files as $name => $path) {
+        if (!file_exists($path)) {
+            error_log("ملف غير موجود: $name في المسار: $path");
+            http_response_code(500);
+            die("خطأ: ملف $name غير موجود. يرجى التحقق من المسار.");
+        }
+    }
+    
+    // تحميل قاعدة البيانات أولاً
+    require_once $files['database'];
+    
+    // تحميل auth_helper بعد بدء الجلسة
+    require_once $files['auth_helper'];
+    
+    // تحميل دوال الشات
+    require_once $files['chat_functions'];
 } catch (Throwable $e) {
     error_log('خطأ في تحميل الملفات: ' . $e->getMessage());
+    error_log('Stack trace: ' . $e->getTraceAsString());
+    error_log('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
     http_response_code(500);
     die('خطأ في تحميل الملفات المطلوبة: ' . htmlspecialchars($e->getMessage()));
 }
 
 // التحقق من تسجيل الدخول
 if (!function_exists('isLoggedIn')) {
-    error_log('دالة isLoggedIn غير موجودة');
+    error_log('دالة isLoggedIn غير موجودة بعد تحميل auth_helper.php');
+    error_log('المسار: ' . __DIR__ . '/api/chat/auth_helper.php');
+    error_log('Session status: ' . session_status());
     http_response_code(500);
-    die('خطأ: دالة isLoggedIn غير موجودة');
+    die('خطأ: دالة isLoggedIn غير موجودة. يرجى التحقق من ملف auth_helper.php');
+}
+
+// التحقق من حالة الجلسة
+if (session_status() === PHP_SESSION_NONE) {
+    error_log('تحذير: الجلسة لم تبدأ بعد');
+    session_start();
 }
 
 if (!isLoggedIn()) {
-    error_log('المستخدم غير مسجل دخول - إعادة التوجيه إلى index.html');
+    error_log('المستخدم غير مسجل دخول');
+    error_log('Session ID: ' . session_id());
+    error_log('Session data keys: ' . implode(', ', array_keys($_SESSION ?? [])));
     header('Location: index.html');
     exit;
 }
