@@ -247,18 +247,33 @@ class PWAInstallManager {
     
     showInstallButton() {
         const installButton = document.getElementById('installButton');
+        const installLink = document.getElementById('installLink');
+        
         if (installButton) {
+            console.log('✅ Showing install button');
             installButton.classList.remove('hidden');
-            // إزالة أي event listeners سابقة
-            installButton.replaceWith(installButton.cloneNode(true));
-            const newButton = document.getElementById('installButton');
-            newButton.addEventListener('click', () => {
-                if (this.getBrowser() === 'firefox') {
-                    this.installForFirefox();
-                } else {
-                    this.install();
-                }
-            });
+            installButton.style.display = 'inline-flex';
+            
+            // إزالة أي event listeners سابقة وإضافة جديدة
+            const newButton = installButton.cloneNode(true);
+            installButton.parentNode.replaceChild(newButton, installButton);
+            const buttonElement = document.getElementById('installButton');
+            if (buttonElement) {
+                buttonElement.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (this.getBrowser() === 'firefox') {
+                        this.installForFirefox();
+                    } else {
+                        this.install();
+                    }
+                });
+            }
+        }
+        
+        if (installLink) {
+            console.log('✅ Showing install link');
+            installLink.style.display = 'inline-block';
         }
     }
     
@@ -348,7 +363,7 @@ class PWAInstallManager {
             installButton.classList.remove('hidden');
             installButton.style.display = 'inline-flex';
             
-            // إزالة أي event listeners سابقة
+            // إزالة أي event listeners سابقة وإضافة جديدة
             const newButton = installButton.cloneNode(true);
             installButton.parentNode.replaceChild(newButton, installButton);
             const buttonElement = document.getElementById('installButton');
@@ -365,6 +380,8 @@ class PWAInstallManager {
                     }
                 });
             }
+        } else {
+            console.warn('⚠️ installButton element not found in DOM');
         }
         
         if (installLink) {
@@ -570,11 +587,28 @@ class PWAInstallManager {
 let pwaInstallManager;
 
 if (typeof window !== 'undefined') {
+    // تهيئة فورية عند تحميل الملف
+    const initPWAInstall = () => {
+        if (!window.pwaInstallManager) {
+            pwaInstallManager = new PWAInstallManager();
+            window.pwaInstallManager = pwaInstallManager;
+            console.log('✅ PWA Install Manager initialized');
+        }
+    };
+    
+    // تهيئة فورية إذا كان DOM جاهز
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', initPWAInstall);
+    } else {
+        initPWAInstall();
+    }
+    
+    // تهيئة إضافية عند DOMContentLoaded للتأكد
     window.addEventListener('DOMContentLoaded', () => {
-        pwaInstallManager = new PWAInstallManager();
-        
-        // جعل pwaInstallManager متاحاً بشكل عام
-        window.pwaInstallManager = pwaInstallManager;
+        if (!window.pwaInstallManager) {
+            pwaInstallManager = new PWAInstallManager();
+            window.pwaInstallManager = pwaInstallManager;
+        }
         
         // إضافة زر التثبيت في الصفحات الأخرى
         const installButton = document.getElementById('installButton');
@@ -619,8 +653,11 @@ if (typeof window !== 'undefined') {
             }
         }
         
-        // إظهار زر التثبيت في dashboard.html أيضاً
+        // إظهار زر التثبيت في dashboard.html وأي صفحة أخرى
         const installLink = document.getElementById('installLink');
+        const installButtonGlobal = document.getElementById('installButton');
+        
+        // معالجة installLink
         if (installLink) {
             const browser = pwaInstallManager.getBrowser();
             const isChromeDesktop = browser === 'chrome' && !pwaInstallManager.isAndroid() && !pwaInstallManager.isIOS();
@@ -638,6 +675,42 @@ if (typeof window !== 'undefined') {
                             installLink.style.display = 'inline-block';
                         }
                     }, 500);
+                }
+            }
+        }
+        
+        // معالجة installButton في الصفحات الأخرى (index.html, dashboard.html)
+        if (installButtonGlobal && !installButtonGlobal.onclick) {
+            const browser = pwaInstallManager.getBrowser();
+            const isChromeDesktop = browser === 'chrome' && !pwaInstallManager.isAndroid() && !pwaInstallManager.isIOS();
+            
+            if (!pwaInstallManager.isStandaloneMode()) {
+                // إظهار الزر في Chrome Desktop و Firefox
+                if (isChromeDesktop || browser === 'firefox' || pwaInstallManager.deferredPrompt) {
+                    setTimeout(async () => {
+                        if (isChromeDesktop) {
+                            const canInstall = await pwaInstallManager.checkPWARequirements();
+                            if (canInstall) {
+                                installButtonGlobal.classList.remove('hidden');
+                                installButtonGlobal.style.display = 'inline-flex';
+                                installButtonGlobal.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    pwaInstallManager.install();
+                                });
+                            }
+                        } else {
+                            installButtonGlobal.classList.remove('hidden');
+                            installButtonGlobal.style.display = 'inline-flex';
+                            installButtonGlobal.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                if (browser === 'firefox') {
+                                    pwaInstallManager.installForFirefox();
+                                } else {
+                                    pwaInstallManager.install();
+                                }
+                            });
+                        }
+                    }, 2000);
                 }
             }
         }
