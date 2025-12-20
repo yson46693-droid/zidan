@@ -711,6 +711,12 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
+.pos-invoice-content {
+    max-width: 800px;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
 .pos-modal-header {
     padding: 20px;
     border-bottom: 1px solid var(--border-color);
@@ -891,6 +897,8 @@
 /* Invoice */
 .pos-invoice-content {
     max-width: 800px;
+    max-height: none !important;
+    overflow: visible !important;
 }
 
 .invoice-actions {
@@ -918,6 +926,9 @@
 
 .pos-invoice-body {
     padding: 30px;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
 }
 
 .invoice-wrapper {
@@ -1990,10 +2001,36 @@
         font-size: 0.9em !important;
     }
     
-    /* Ensure all invoice content is visible */
-    .invoice-wrapper > * {
+    /* Ensure all invoice content is visible - لكن استثناء الجدول */
+    .invoice-wrapper > *:not(.invoice-items-table) {
         display: block !important;
         visibility: visible !important;
+    }
+    
+    /* ضمان عرض الجدول بشكل صحيح */
+    .invoice-items-table {
+        display: table !important;
+        visibility: visible !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
+    }
+    
+    .invoice-items-table thead {
+        display: table-header-group !important;
+    }
+    
+    .invoice-items-table tbody {
+        display: table-row-group !important;
+    }
+    
+    .invoice-items-table tr {
+        display: table-row !important;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        display: table-cell !important;
     }
     
     /* Ensure QR code and terms are always visible */
@@ -2095,14 +2132,46 @@
         page-break-after: auto !important;
     }
     
-    /* التأكد من ظهور جميع الأقسام */
-    .invoice-wrapper > * {
+    /* التأكد من ظهور جميع الأقسام - لكن استثناء الجدول */
+    .invoice-wrapper > *:not(.invoice-items-table) {
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
         height: auto !important;
         min-height: auto !important;
         max-height: none !important;
+    }
+    
+    /* ضمان عرض الجدول بشكل صحيح */
+    .invoice-items-table {
+        display: table !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
+    }
+    
+    .invoice-items-table thead {
+        display: table-header-group !important;
+    }
+    
+    .invoice-items-table tbody {
+        display: table-row-group !important;
+    }
+    
+    .invoice-items-table tr {
+        display: table-row !important;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        display: table-cell !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     /* السماح بتقسيم المحتوى على صفحات متعددة */
@@ -2210,19 +2279,20 @@
         opacity: 1 !important;
     }
     
-    .invoice-wrapper * {
+    /* التأكد من ظهور جميع العناصر - لكن استثناء الجدول */
+    .invoice-wrapper > *:not(.invoice-items-table) {
         visibility: visible !important;
         opacity: 1 !important;
     }
     
-    /* استثناء الجدول من display: block */
-    .invoice-items-table,
-    .invoice-items-table * {
-        display: revert !important;
-    }
-    
+    /* ضمان عرض الجدول بشكل صحيح */
     .invoice-items-table {
         display: table !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
     }
     
     .invoice-items-table thead {
@@ -2240,6 +2310,8 @@
     .invoice-items-table th,
     .invoice-items-table td {
         display: table-cell !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     /* السماح بتقسيم الفاتورة على صفحات متعددة بشكل صحيح */
