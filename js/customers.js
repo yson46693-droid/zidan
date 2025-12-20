@@ -498,7 +498,7 @@ async function viewCustomerProfile(customerId) {
                 <i class="bi bi-receipt-cutoff"></i>
             </div>
             <span>سجل المشتريات</span>
-            ${sales.length > 0 ? `<span class="section-badge">${sales.length} فاتورة</span>` : ''}
+            ${sales.length > 0 ? `<span class="section-badge"> </span>` : ''}
         `;
         
         if (sales.length === 0) {
@@ -525,7 +525,6 @@ async function viewCustomerProfile(customerId) {
                     <th>رقم الفاتورة</th>
                     <th>التاريخ</th>
                     <th style="text-align: center;">عدد العناصر</th>
-                    <th style="text-align: right;">المجموع</th>
                     <th style="text-align: right;">الإجمالي</th>
                     <th style="text-align: center;">الإجراءات</th>
                 </tr>
@@ -577,9 +576,6 @@ async function viewCustomerProfile(customerId) {
                     row.innerHTML = `
                         <td>
                             <div class="invoice-number-cell">
-                                <div class="invoice-number-icon">
-                                    <i class="bi bi-receipt"></i>
-                                </div>
                                 <strong class="invoice-number-text">${escapeHtml(saleNumber)}</strong>
                             </div>
                         </td>
@@ -595,22 +591,15 @@ async function viewCustomerProfile(customerId) {
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <span class="invoice-amount">
-                                ${totalAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
-                            </span>
-                        </td>
-                        <td style="text-align: right;">
                             <strong class="invoice-final-amount">
                                 ${finalAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
                             </strong>
                         </td>
                         <td style="text-align: center;">
                             <div class="invoice-actions">
-                                ${sale.invoice_file_path ? `
-                                    <a href="${escapeHtml(sale.invoice_file_path)}" target="_blank" class="btn-invoice-action btn-invoice-pdf">
-                                        <i class="bi bi-file-earmark-pdf"></i> ملف الفاتورة
-                                    </a>
-                                ` : ''}
+                                <button onclick="printSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-pdf">
+                                    <i class="bi bi-printer"></i> طباعة الفاتورة
+                                </button>
                                 <button onclick="viewSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-view">
                                     <i class="bi bi-eye"></i> التفاصيل
                                 </button>
@@ -673,6 +662,37 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// دالة لطباعة الفاتورة مباشرة
+async function printSaleInvoice(saleId) {
+    try {
+        if (!saleId) {
+            showMessage('معرف الفاتورة غير صحيح', 'error');
+            return;
+        }
+        
+        // جلب الفاتورة مباشرة من API
+        const response = await API.request(`sales.php?sale_id=${saleId}`, 'GET');
+        
+        if (response && response.success && response.data) {
+            // التأكد من وجود البيانات الأساسية
+            if (!response.data.id) {
+                showMessage('بيانات الفاتورة غير مكتملة', 'error');
+                return;
+            }
+            
+            // طباعة الفاتورة مباشرة
+            printInvoiceDirectly(response.data);
+        } else {
+            const errorMsg = response?.message || 'فشل في جلب بيانات الفاتورة';
+            console.error('خطأ في جلب الفاتورة:', errorMsg, response);
+            showMessage(errorMsg, 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في طباعة الفاتورة:', error);
+        showMessage('حدث خطأ في طباعة الفاتورة: ' + error.message, 'error');
+    }
+}
+
 async function viewSaleInvoice(saleId) {
     try {
         if (!saleId) {
@@ -701,6 +721,287 @@ async function viewSaleInvoice(saleId) {
         console.error('خطأ في عرض الفاتورة:', error);
         showMessage('حدث خطأ في عرض الفاتورة: ' + error.message, 'error');
     }
+}
+
+// دالة لطباعة الفاتورة مباشرة في نفس الصفحة
+function printInvoiceDirectly(saleData) {
+    const shopSettings = window.shopSettings || {};
+    const shopName = shopSettings.shop_name || 'المتجر';
+    const shopPhone = shopSettings.shop_phone || '';
+    const shopAddress = shopSettings.shop_address || '';
+    const currency = shopSettings.currency || 'ج.م';
+    
+    // تنسيق التاريخ
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ar-EG', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return dateString;
+        }
+    };
+    
+    const formatPrice = (price) => {
+        return parseFloat(price || 0).toFixed(2);
+    };
+    
+    // إنشاء نافذة طباعة
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+        showMessage('يرجى السماح بالنوافذ المنبثقة لطباعة الفاتورة', 'error');
+        return;
+    }
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>فاتورة ${saleData.sale_number || saleData.id}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
+                
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 30px;
+                    background: #fff;
+                    color: #333;
+                    line-height: 1.6;
+                }
+                
+                .invoice-container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    background: white;
+                    padding: 40px;
+                    border: 2px solid #ddd;
+                    border-radius: 8px;
+                }
+                
+                .invoice-header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid #2196F3;
+                }
+                
+                .invoice-header h1 {
+                    font-size: 2.5em;
+                    color: #2196F3;
+                    margin-bottom: 10px;
+                    font-weight: 800;
+                }
+                
+                .invoice-header p {
+                    color: #666;
+                    font-size: 1.1em;
+                    margin: 5px 0;
+                }
+                
+                .invoice-info {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                }
+                
+                .invoice-info-section {
+                    flex: 1;
+                }
+                
+                .invoice-info-section h3 {
+                    color: #2196F3;
+                    margin-bottom: 10px;
+                    font-size: 1.2em;
+                    font-weight: 700;
+                }
+                
+                .invoice-info-section p {
+                    margin: 5px 0;
+                    color: #333;
+                    font-size: 1em;
+                }
+                
+                .invoice-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 30px;
+                }
+                
+                .invoice-table thead {
+                    background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #3949ab 100%);
+                    color: white;
+                }
+                
+                .invoice-table th {
+                    padding: 15px;
+                    text-align: right;
+                    font-weight: 700;
+                    font-size: 1.05em;
+                }
+                
+                .invoice-table td {
+                    padding: 12px 15px;
+                    border-bottom: 1px solid #ddd;
+                    text-align: right;
+                }
+                
+                .invoice-table tbody tr:hover {
+                    background: #f8f9fa;
+                }
+                
+                .invoice-summary {
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 2px solid #ddd;
+                }
+                
+                .invoice-summary-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 10px;
+                    font-size: 1.1em;
+                }
+                
+                .invoice-total {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 3px solid #2196F3;
+                    font-size: 1.4em;
+                    font-weight: 800;
+                    color: #2196F3;
+                }
+                
+                .invoice-footer {
+                    text-align: center;
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 2px solid #ddd;
+                    color: #666;
+                }
+                
+                @media print {
+                    body {
+                        padding: 0;
+                        background: white;
+                    }
+                    
+                    .invoice-container {
+                        border: none;
+                        padding: 20px;
+                        box-shadow: none;
+                    }
+                    
+                    @page {
+                        size: A4;
+                        margin: 15mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <h1>${escapeHtml(shopName)}</h1>
+                    ${shopAddress ? `<p>${escapeHtml(shopAddress)}</p>` : ''}
+                    ${shopPhone ? `<p>${escapeHtml(shopPhone)}</p>` : ''}
+                </div>
+                
+                <div class="invoice-info">
+                    <div class="invoice-info-section">
+                        <h3>معلومات العميل</h3>
+                        <p><strong>الاسم:</strong> ${escapeHtml(saleData.customer_name || '')}</p>
+                        <p><strong>الهاتف:</strong> ${escapeHtml(saleData.customer_phone || '')}</p>
+                    </div>
+                    <div class="invoice-info-section">
+                        <h3>معلومات الفاتورة</h3>
+                        <p><strong>رقم الفاتورة:</strong> ${escapeHtml(saleData.sale_number || saleData.id || '')}</p>
+                        <p><strong>التاريخ:</strong> ${formatDate(saleData.created_at)}</p>
+                    </div>
+                </div>
+                
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>المنتج</th>
+                            <th>الكمية</th>
+                            <th>سعر الوحدة</th>
+                            <th>الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(saleData.items || []).map((item, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${escapeHtml(item.item_name || '')}</td>
+                                <td>${item.quantity || 0}</td>
+                                <td>${formatPrice(item.unit_price)} ${currency}</td>
+                                <td>${formatPrice(item.total_price)} ${currency}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div class="invoice-summary">
+                    <div class="invoice-summary-row">
+                        <span>المجموع الفرعي:</span>
+                        <span>${formatPrice(saleData.total_amount)} ${currency}</span>
+                    </div>
+                    ${parseFloat(saleData.discount || 0) > 0 ? `
+                        <div class="invoice-summary-row">
+                            <span>الخصم:</span>
+                            <span>- ${formatPrice(saleData.discount)} ${currency}</span>
+                        </div>
+                    ` : ''}
+                    ${parseFloat(saleData.tax || 0) > 0 ? `
+                        <div class="invoice-summary-row">
+                            <span>الضريبة:</span>
+                            <span>+ ${formatPrice(saleData.tax)} ${currency}</span>
+                        </div>
+                    ` : ''}
+                    <div class="invoice-total">
+                        <span>الإجمالي:</span>
+                        <span>${formatPrice(saleData.final_amount)} ${currency}</span>
+                    </div>
+                </div>
+                
+                <div class="invoice-footer">
+                    <p>شكراً لثقتكم</p>
+                </div>
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => {
+                        window.close();
+                    }, 500);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
 }
 
 // دالة لعرض الفاتورة في modal
