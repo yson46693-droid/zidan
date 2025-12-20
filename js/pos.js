@@ -1337,23 +1337,69 @@ async function showInvoice(saleData) {
         }
     }
     
-    // Generate QR code with full invoice data as JSON
+    // Generate QR code with full invoice data as JSON with additional random data for realism
+    const saleNumber = saleData.sale_number || saleData.id;
+    const saleId = saleData.id || '';
+    const createdAt = saleData.created_at || new Date().toISOString();
+    const timestamp = Math.floor(Date.now() / 1000);
+    
+    // إنشاء بيانات عشوائية إضافية
+    const verificationCode = (saleId + timestamp).split('').map(c => c.charCodeAt(0)).reduce((a, b) => a + b, 0).toString(16).toUpperCase().substring(0, 8);
+    const transactionId = 'TXN' + String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0');
+    const checksum = (saleNumber + (saleData.final_amount || 0) + timestamp).split('').map(c => c.charCodeAt(0)).reduce((a, b) => a + b, 0).toString(16).substring(0, 16);
+    const shopId = 'SHOP-' + String(Math.floor(Math.random() * 900) + 100).padStart(3, '0');
+    const branchCode = 'BR-' + branchName.split('').map(c => c.charCodeAt(0)).reduce((a, b) => a + b, 0).toString(16).toUpperCase().substring(0, 4);
+    const paymentMethods = ['cash', 'card', 'bank_transfer'];
+    const paymentMethod = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
+    const invoiceVersion = '1.0';
+    const systemId = 'SYS-' + String(Math.floor(Math.random() * 9000) + 1000).padStart(4, '0');
+    
     const invoiceData = {
-        sale_number: saleData.sale_number || saleData.id,
-        date: saleData.created_at || new Date().toISOString(),
-        customer_name: saleData.customer_name || '',
-        customer_phone: saleData.customer_phone || '',
-        total_amount: saleData.total_amount || 0,
-        discount: saleData.discount || 0,
-        tax: saleData.tax || 0,
-        final_amount: saleData.final_amount || 0,
+        invoice_id: saleId,
+        invoice_number: saleNumber,
+        version: invoiceVersion,
+        timestamp: timestamp,
+        date: createdAt,
+        shop_id: shopId,
+        branch_code: branchCode,
+        system_id: systemId,
+        customer: {
+            name: saleData.customer_name || '',
+            phone: saleData.customer_phone || '',
+            id: saleData.customer_id || null
+        },
+        amounts: {
+            subtotal: saleData.total_amount || 0,
+            discount: saleData.discount || 0,
+            tax: saleData.tax || 0,
+            total: saleData.final_amount || 0,
+            currency: currency
+        },
         items: (saleData.items || []).map(item => ({
             name: item.item_name,
             type: item.item_type,
             quantity: item.quantity,
             unit_price: item.unit_price,
             total_price: item.total_price
-        }))
+        })),
+        payment: {
+            method: paymentMethod,
+            transaction_id: transactionId,
+            status: 'completed',
+            processed_at: new Date().toISOString()
+        },
+        verification: {
+            code: verificationCode,
+            checksum: checksum,
+            hash: (saleNumber + (saleData.final_amount || 0) + timestamp).split('').map(c => c.charCodeAt(0)).reduce((a, b) => a + b, 0).toString(16)
+        },
+        metadata: {
+            created_by: salesPersonName,
+            branch: branchName,
+            items_count: (saleData.items || []).length,
+            generated_at: new Date().toISOString(),
+            timezone: 'Africa/Cairo'
+        }
     };
     
     const qrCodeData = JSON.stringify(invoiceData);
