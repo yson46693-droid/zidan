@@ -26,6 +26,7 @@ if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
                       `discount` decimal(10,2) NOT NULL DEFAULT 0.00,
                       `tax` decimal(10,2) NOT NULL DEFAULT 0.00,
                       `final_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+                      `customer_id` varchar(50) DEFAULT NULL,
                       `customer_name` varchar(255) DEFAULT NULL,
                       `customer_phone` varchar(50) DEFAULT NULL,
                       `created_at` datetime NOT NULL,
@@ -34,11 +35,60 @@ if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
                       PRIMARY KEY (`id`),
                       UNIQUE KEY `sale_number` (`sale_number`),
                       KEY `idx_sale_number` (`sale_number`),
+                      KEY `idx_customer_id` (`customer_id`),
                       KEY `idx_created_at` (`created_at`),
-                      KEY `idx_created_by` (`created_by`)
+                      KEY `idx_created_by` (`created_by`),
+                      CONSTRAINT `sales_ibfk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ";
                 $conn->query($createSales);
+            } else {
+                // Migration: إضافة عمود customer_id إذا لم يكن موجوداً
+                try {
+                    $checkColumn = $conn->query("SHOW COLUMNS FROM `sales` LIKE 'customer_id'");
+                    if ($checkColumn->num_rows === 0) {
+                        // إضافة العمود
+                        $conn->query("ALTER TABLE `sales` ADD COLUMN `customer_id` varchar(50) DEFAULT NULL AFTER `final_amount`");
+                        // إضافة الفهرس
+                        $conn->query("ALTER TABLE `sales` ADD KEY `idx_customer_id` (`customer_id`)");
+                        // إضافة Foreign Key إذا كان جدول customers موجوداً
+                        if (dbTableExists('customers')) {
+                            try {
+                                $conn->query("ALTER TABLE `sales` ADD CONSTRAINT `sales_ibfk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL");
+                            } catch (Exception $e) {
+                                // تجاهل الخطأ إذا كان Foreign Key موجوداً بالفعل
+                                error_log('ملاحظة: فشل إضافة Foreign Key (قد يكون موجوداً بالفعل): ' . $e->getMessage());
+                            }
+                        }
+                        error_log('تم إضافة عمود customer_id إلى جدول sales بنجاح');
+                    }
+                } catch (Exception $e) {
+                    error_log('خطأ في إضافة عمود customer_id: ' . $e->getMessage());
+                }
+                
+                // Migration: التأكد من أن sale_number فريد (UNIQUE)
+                try {
+                    $checkUnique = $conn->query("SHOW INDEX FROM `sales` WHERE Key_name = 'sale_number' AND Non_unique = 0");
+                    if ($checkUnique->num_rows === 0) {
+                        // محاولة إضافة UNIQUE constraint
+                        try {
+                            // أولاً، حذف أي أرقام فواتير مكررة (الاحتفاظ بالأحدث)
+                            $conn->query("
+                                DELETE s1 FROM sales s1
+                                INNER JOIN sales s2 
+                                WHERE s1.sale_number = s2.sale_number 
+                                AND s1.id < s2.id
+                            ");
+                            // إضافة UNIQUE constraint
+                            $conn->query("ALTER TABLE `sales` ADD UNIQUE KEY `sale_number` (`sale_number`)");
+                            error_log('تم إضافة UNIQUE constraint لـ sale_number بنجاح');
+                        } catch (Exception $e) {
+                            error_log('ملاحظة: فشل إضافة UNIQUE constraint لـ sale_number (قد يكون موجوداً بالفعل): ' . $e->getMessage());
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log('خطأ في التحقق من UNIQUE constraint لـ sale_number: ' . $e->getMessage());
+                }
             }
             
             // إنشاء جدول sale_items إذا كان مفقوداً
@@ -437,16 +487,33 @@ if ($method === 'POST') {
                 }
             } elseif ($itemType === 'phone') {
                 // للهواتف، يجب حذفها من المخزون لأنها عناصر فريدة
-                // التحقق من وجود الهاتف أولاً
-                $phoneExists = dbSelectOne("SELECT id FROM phones WHERE id = ?", [$originalItemId]);
-                if ($phoneExists) {
-                    // حذف الهاتف من المخزون
-                    $deleteResult = dbExecute("DELETE FROM phones WHERE id = ?", [$originalItemId]);
-                    if ($deleteResult === false) {
-                        throw new Exception("فشل حذف الهاتف من المخزون: $originalItemId");
-                    }
-                } else {
+                // جلب بيانات الهاتف الكاملة قبل الحذف لحفظها في الفاتورة
+                $phoneData = dbSelectOne(
+                    "SELECT brand, model, serial_number, storage, ram, screen_type, processor, battery, 
+                            accessories, password, maintenance_history, defects, tax_status, tax_amount,
+                            purchase_price, selling_price, image
+                     FROM phones WHERE id = ?", 
+                    [$originalItemId]
+                );
+                
+                if (!$phoneData) {
                     throw new Exception("الهاتف غير موجود في المخزون: $originalItemId");
+                }
+                
+                // حفظ بيانات الهاتف في عنصر البيع (كتعليق أو JSON في حقل ملاحظات إذا كان موجوداً)
+                // أو يمكن حفظها في متغير مؤقت لإضافتها لاحقاً
+                // سنضيف بيانات الهاتف مباشرة إلى sale_items بعد الحفظ
+                
+                // حذف الهاتف من المخزون
+                $deleteResult = dbExecute("DELETE FROM phones WHERE id = ?", [$originalItemId]);
+                if ($deleteResult === false) {
+                    throw new Exception("فشل حذف الهاتف من المخزون: $originalItemId");
+                }
+                
+                // إضافة بيانات الهاتف إلى عنصر البيع (في متغير مؤقت)
+                // سنضيف بيانات الهاتف إلى sale_items بعد ذلك
+                if (!isset($item['phone_data'])) {
+                    $item['phone_data'] = $phoneData;
                 }
             } elseif ($itemType === 'inventory') {
                 // تحديث كمية المخزون القديم - التحقق من الكمية أولاً

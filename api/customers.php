@@ -184,9 +184,33 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     }
     
     // التحقق من وجود العميل أولاً
-    $customer = dbSelectOne("SELECT id FROM customers WHERE id = ?", [$customerId]);
+    $customer = dbSelectOne("SELECT id, phone FROM customers WHERE id = ?", [$customerId]);
     if (!$customer) {
         response(false, 'العميل غير موجود', null, 404);
+    }
+    
+    // Migration: تحديث الفواتير القديمة التي لا تحتوي على customer_id
+    // البحث عن فواتير بدون customer_id ولكن رقم الهاتف يطابق العميل
+    if (!empty($customer['phone'])) {
+        try {
+            // التحقق من وجود عمود customer_id في جدول sales
+            $conn = getDBConnection();
+            if ($conn) {
+                $checkColumn = $conn->query("SHOW COLUMNS FROM `sales` LIKE 'customer_id'");
+                if ($checkColumn && $checkColumn->num_rows > 0) {
+                    // تحديث الفواتير التي لا تحتوي على customer_id ولكن رقم الهاتف يطابق
+                    dbExecute(
+                        "UPDATE sales 
+                         SET customer_id = ? 
+                         WHERE (customer_id IS NULL OR customer_id = '') 
+                         AND customer_phone = ?",
+                        [$customerId, $customer['phone']]
+                    );
+                }
+            }
+        } catch (Exception $e) {
+            error_log('ملاحظة: فشل تحديث الفواتير القديمة: ' . $e->getMessage());
+        }
     }
     
     // جلب مبيعات العميل فقط - التأكد من استخدام customer_id بشكل صحيح
