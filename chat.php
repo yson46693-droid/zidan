@@ -156,6 +156,20 @@ function getRoleName($role) {
     <!-- Windows Meta Tags -->
     <meta name="msapplication-TileColor" content="#2196F3">
     <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
+    <meta name="msapplication-navbutton-color" content="#2196F3">
+    <meta name="msapplication-starturl" content="/chat.php">
+    <meta name="msapplication-tooltip" content="الشات - ALAA ZIDAN">
+    <meta name="msapplication-window" content="width=1024;height=768">
+    <meta name="msapplication-config" content="browserconfig.xml">
+    
+    <!-- Meta Tags للمتصفحات القديمة -->
+    <meta name="application-name" content="ALAA ZIDAN - APP">
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- Open Graph (للمتصفحات القديمة) -->
+    <meta property="og:title" content="الشات - ALAA ZIDAN">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="icons/icon-512x512.png">
     
     <title>الشات - نظام إدارة محل صيانة الهواتف</title>
     
@@ -163,12 +177,21 @@ function getRoleName($role) {
     <link rel="manifest" href="manifest.json">
     
     <!-- Icons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-96x96.png">
-    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72x72.png">
+    <link rel="shortcut icon" href="icons/icon-192x192.png">
     
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -176,6 +199,7 @@ function getRoleName($role) {
     <!-- CSS Files - مع Cache Busting تلقائي -->
     <link rel="stylesheet" href="<?php echo asset('css/style.css'); ?>">
     <link rel="stylesheet" href="<?php echo asset('css/chat-integrated.css'); ?>">
+    <link rel="stylesheet" href="<?php echo asset('chat/chat.css'); ?>">
     
     <!-- Critical CSS للتأكد من ظهور التصميم فوراً -->
     <style>
@@ -655,7 +679,38 @@ function getRoleName($role) {
         if (localStorage.getItem('darkMode') === 'true') {
             document.body.classList.add('dark-mode');
         }
+        
+        // تسجيل Service Worker لدعم PWA
+        const registerServiceWorker = () => {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const appVersion = window.APP_VERSION || 'v' + Date.now();
+                    navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                        scope: '/',
+                        updateViaCache: 'none'
+                    }).then(registration => {
+                        console.log('✅ Service Worker registered in Chat');
+                    }).catch(error => {
+                        console.warn('Service Worker registration failed:', error);
+                    });
+                } catch (error) {
+                    console.warn('Service Worker registration error:', error);
+                }
+            }
+        };
+        
+        // تسجيل Service Worker بعد تحميل الصفحة بالكامل
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
+        } else {
+            window.addEventListener('load', () => {
+                setTimeout(registerServiceWorker, 2000);
+            });
+        }
     </script>
     <script src="<?php echo asset('js/chat-integrated.js'); ?>"></script>
+    
+    <!-- تحميل ملف الإصدارات لـ Service Worker -->
+    <script src="js/version.js"></script>
 </body>
 </html>

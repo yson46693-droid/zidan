@@ -21,8 +21,8 @@
     <link rel="manifest" href="manifest.json">
     
     <!-- Icons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72x72.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
     <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
     <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
@@ -494,6 +494,37 @@
             instructions.style.display = 'block';
             instructions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+        
+        // تسجيل Service Worker لدعم PWA
+        const registerServiceWorker = () => {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const appVersion = window.APP_VERSION || 'v' + Date.now();
+                    navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                        scope: '/',
+                        updateViaCache: 'none'
+                    }).then(registration => {
+                        console.log('✅ Service Worker registered in Install');
+                    }).catch(error => {
+                        console.warn('Service Worker registration failed:', error);
+                    });
+                } catch (error) {
+                    console.warn('Service Worker registration error:', error);
+                }
+            }
+        };
+        
+        // تسجيل Service Worker بعد تحميل الصفحة بالكامل
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
+        } else {
+            window.addEventListener('load', () => {
+                setTimeout(registerServiceWorker, 2000);
+            });
+        }
     </script>
+    
+    <!-- تحميل ملف الإصدارات لـ Service Worker -->
+    <script src="js/version.js"></script>
 </body>
 </html>

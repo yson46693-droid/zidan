@@ -1,6 +1,6 @@
 {
   "name": "ALAA ZIDAN - APP",
-  "short_name": "ALAA ZIDAN - APP",
+  "short_name": "ALAA ZIDAN",
   "description": "نظام إدارة شامل لسلسلة فروع محلات م/ علاء زيدان ",
   "version": "2.0.1",
   "version_name": "2.0.1",
@@ -21,6 +21,12 @@
       "purpose": "any maskable"
     },
     {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "icons/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
@@ -31,6 +37,12 @@
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-152x152.png",
@@ -66,12 +78,27 @@
   "categories": ["business", "productivity", "utilities"],
   "prefer_related_applications": false,
   "related_applications": [],
+  "iarc_rating_id": "",
+  "screenshots": [],
   "shortcuts": [
     {
       "name": "لوحة التحكم",
       "short_name": "التحكم",
       "description": "الوصول السريع إلى لوحة التحكم",
       "url": "/dashboard.html",
+      "icons": [
+        {
+          "src": "icons/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "نقاط البيع",
+      "short_name": "POS",
+      "description": "فتح نظام نقاط البيع",
+      "url": "/pos.html",
       "icons": [
         {
           "src": "icons/icon-96x96.png",
