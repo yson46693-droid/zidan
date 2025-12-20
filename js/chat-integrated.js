@@ -451,14 +451,30 @@
 
   function handleSend() {
     if (state.isSending) {
+      console.warn('Chat: إرسال قيد التنفيذ بالفعل');
+      return;
+    }
+
+    if (!elements.input) {
+      console.error('Chat: عنصر الإدخال غير موجود');
       return;
     }
 
     const message = elements.input.value.trim();
 
     if (!message) {
+      console.warn('Chat: الرسالة فارغة');
       return;
     }
+
+    // التأكد من وجود بيانات المستخدم
+    if (!currentUser.id || currentUser.id === '0' || currentUser.id === 0) {
+      console.error('Chat: بيانات المستخدم غير موجودة', currentUser);
+      showToast('خطأ: بيانات المستخدم غير موجودة. يرجى إعادة تحميل الصفحة.', true);
+      return;
+    }
+
+    console.log('Chat: محاولة إرسال رسالة', { message: message.substring(0, 50), userId: currentUser.id });
 
     if (state.editMessage) {
       updateMessage(state.editMessage.id, message);
@@ -1416,16 +1432,39 @@
       
       console.log('Chat: جلب المستخدمين من:', url);
       
-      const response = await fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+      } catch (fetchError) {
+        console.error('Chat: خطأ في الاتصال:', fetchError);
+        if (fetchError.message && fetchError.message.includes('errors.infinityfree.net')) {
+          return;
+        }
+        throw new Error('خطأ في الاتصال بالخادم');
+      }
+
+      // التحقق من أن الاستجابة ليست صفحة خطأ InfinityFree
+      const responseUrl = response.url || '';
+      if (responseUrl.includes('errors.infinityfree.net')) {
+        console.warn('InfinityFree error page detected, skipping...');
+        return;
+      }
 
       if (!response.ok) {
         console.warn('Chat: فشل جلب المستخدمين:', response.status, response.statusText);
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          console.warn('Chat: نص الخطأ:', errorText.substring(0, 200));
+        } catch (e) {
+          // تجاهل
+        }
         return;
       }
 
@@ -1436,7 +1475,7 @@
       try {
         payload = JSON.parse(responseText);
       } catch (e) {
-        console.error('Chat: خطأ في تحليل JSON:', e);
+        console.error('Chat: خطأ في تحليل JSON:', e, 'النص:', responseText.substring(0, 100));
         return;
       }
 
@@ -1451,16 +1490,30 @@
         
         if (users.length > 0) {
           console.log('Chat: تم جلب ' + users.length + ' مستخدم من API منفصل');
+          // التأكد من أن كل مستخدم لديه البيانات المطلوبة
+          users = users.map(user => {
+            if (!user.name && user.username) {
+              user.name = user.username;
+            }
+            if (!user.name) {
+              user.name = 'مستخدم';
+            }
+            if (!user.last_seen) {
+              user.last_seen = user.created_at || new Date().toISOString();
+            }
+            user.is_online = Number(user.is_online) || 0;
+            return user;
+          });
           state.users = users;
           updateUserList();
         } else {
-          console.warn('Chat: لا يوجد مستخدمين في الاستجابة');
+          console.warn('Chat: لا يوجد مستخدمين في الاستجابة', payload);
         }
       } else {
         console.warn('Chat: فشل جلب المستخدمين:', payload.error);
       }
     } catch (error) {
-      console.warn('Chat: خطأ في جلب المستخدمين:', error);
+      console.error('Chat: خطأ في جلب المستخدمين:', error);
     }
   }
 
