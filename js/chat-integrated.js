@@ -1,5 +1,16 @@
 // نظام الشات المدمج مع الموقع
 (function () {
+  // تجاهل أخطاء InfinityFree error pages في console
+  const originalError = console.error;
+  console.error = function(...args) {
+    const message = args.join(' ');
+    // تجاهل أخطاء InfinityFree error pages
+    if (message.includes('errors.infinityfree.net') || message.includes('ERR_ABORTED 404')) {
+      return; // لا نعرض هذا الخطأ
+    }
+    originalError.apply(console, args);
+  };
+  
   // استخدام مسار API من مجلد api/chat
   const API_BASE = window.CHAT_API_BASE || 'api/chat';
   const PRESENCE_INTERVAL = 30000;
@@ -535,7 +546,8 @@
     toggleComposerDisabled(true);
 
     try {
-      const url = `${API_BASE}/send_message.php`;
+      const apiBaseUrl = API_BASE || 'api/chat';
+      const url = `${apiBaseUrl}/send_message.php`;
       
       let response;
       try {
@@ -549,7 +561,19 @@
           }),
         });
       } catch (fetchError) {
+        // تجاهل أخطاء InfinityFree error pages
+        if (fetchError.message && fetchError.message.includes('errors.infinityfree.net')) {
+          console.warn('InfinityFree error page detected, ignoring...');
+          return;
+        }
         throw new Error('خطأ في الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+      }
+
+      // التحقق من أن الاستجابة ليست صفحة خطأ InfinityFree
+      const responseUrl = response.url || '';
+      if (responseUrl.includes('errors.infinityfree.net')) {
+        console.warn('InfinityFree error page detected in response, skipping...');
+        return;
       }
 
       if (!response.ok) {
@@ -611,15 +635,34 @@
     toggleComposerDisabled(true);
 
     try {
-      const response = await fetch(`${API_BASE}/update_message.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          message_id: messageId,
-          message,
-        }),
-      });
+      const apiBaseUrl = API_BASE || 'api/chat';
+      const url = `${apiBaseUrl}/update_message.php`;
+      
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            message_id: messageId,
+            message,
+          }),
+        });
+      } catch (fetchError) {
+        if (fetchError.message && fetchError.message.includes('errors.infinityfree.net')) {
+          console.warn('InfinityFree error page detected, ignoring...');
+          return;
+        }
+        throw new Error('خطأ في الاتصال بالخادم');
+      }
+
+      // التحقق من أن الاستجابة ليست صفحة خطأ InfinityFree
+      const responseUrl = response.url || '';
+      if (responseUrl.includes('errors.infinityfree.net')) {
+        console.warn('InfinityFree error page detected, skipping...');
+        return;
+      }
 
       const data = await response.json();
 
@@ -688,14 +731,33 @@
     }
 
     try {
-      const response = await fetch(`${API_BASE}/delete_message.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          message_id: message.id,
-        }),
-      });
+      const apiBaseUrl = API_BASE || 'api/chat';
+      const url = `${apiBaseUrl}/delete_message.php`;
+      
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            message_id: message.id,
+          }),
+        });
+      } catch (fetchError) {
+        if (fetchError.message && fetchError.message.includes('errors.infinityfree.net')) {
+          console.warn('InfinityFree error page detected, ignoring...');
+          return;
+        }
+        throw new Error('خطأ في الاتصال بالخادم');
+      }
+
+      // التحقق من أن الاستجابة ليست صفحة خطأ InfinityFree
+      const responseUrl = response.url || '';
+      if (responseUrl.includes('errors.infinityfree.net')) {
+        console.warn('InfinityFree error page detected, skipping...');
+        return;
+      }
 
       const data = await response.json();
 
@@ -729,7 +791,9 @@
         params.set('after_id', state.lastMessageId);
       }
 
-      const url = `${API_BASE}/get_messages.php?${params.toString()}`;
+      // التأكد من أن API_BASE صحيح
+      const apiBaseUrl = API_BASE || 'api/chat';
+      const url = `${apiBaseUrl}/get_messages.php?${params.toString()}`;
       console.log('Fetching messages from:', url);
       
       let response;
@@ -743,7 +807,19 @@
         });
       } catch (fetchError) {
         console.error('Network error:', fetchError);
+        // تجاهل أخطاء InfinityFree error pages
+        if (fetchError.message && fetchError.message.includes('errors.infinityfree.net')) {
+          console.warn('InfinityFree error page detected, ignoring...');
+          return; // لا نرمي خطأ، فقط نتجاهل
+        }
         throw new Error('خطأ في الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+      }
+
+      // التحقق من أن الاستجابة ليست صفحة خطأ InfinityFree
+      const responseUrl = response.url || '';
+      if (responseUrl.includes('errors.infinityfree.net')) {
+        console.warn('InfinityFree error page detected in response, skipping...');
+        return; // نتجاهل هذا الطلب
       }
 
       if (!response.ok) {
@@ -751,13 +827,22 @@
         let errorText = '';
         try {
           errorText = await response.text();
+          // التحقق من أن النص ليس صفحة HTML لخطأ InfinityFree
+          if (errorText.includes('errors.infinityfree.net') || errorText.includes('<html>')) {
+            console.warn('InfinityFree error page in response body, ignoring...');
+            return;
+          }
           console.error('Error response:', errorText);
         } catch (e) {
           console.error('Could not read error response');
         }
         
         if (response.status === 403) {
-          throw new Error('ليس لديك صلاحية للوصول إلى الشات. يرجى تسجيل الدخول مرة أخرى.');
+          // لا نرمي خطأ إذا كان من InfinityFree error page
+          if (!errorText.includes('errors.infinityfree')) {
+            throw new Error('ليس لديك صلاحية للوصول إلى الشات. يرجى تسجيل الدخول مرة أخرى.');
+          }
+          return;
         } else if (response.status === 404) {
           throw new Error('لم يتم العثور على نقطة النهاية. يرجى التحقق من إعدادات الخادم.');
         } else if (response.status === 401) {
@@ -1146,15 +1231,30 @@
 
   async function updatePresence(isOnline) {
     try {
-      await fetch(`${API_BASE}/user_status.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ is_online: Boolean(isOnline) }),
-      });
-    } catch (error) {
-      // تجاهل أخطاء presence - لا نكسر النظام
-    }
+      const apiBaseUrl = API_BASE || 'api/chat';
+      const url = `${apiBaseUrl}/user_status.php`;
+      
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ is_online: Boolean(isOnline) }),
+        });
+        
+        // التحقق من أن الاستجابة ليست صفحة خطأ InfinityFree
+        const responseUrl = response.url || '';
+        if (responseUrl.includes('errors.infinityfree.net')) {
+          return; // نتجاهل
+        }
+      } catch (fetchError) {
+        // تجاهل أخطاء InfinityFree error pages
+        if (fetchError.message && fetchError.message.includes('errors.infinityfree.net')) {
+          return; // نتجاهل
+        }
+        // تجاهل جميع أخطاء presence - لا نكسر النظام
+      }
   }
 
   function scrollToBottom(force = false) {

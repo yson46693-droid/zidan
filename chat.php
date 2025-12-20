@@ -709,8 +709,5 @@ function getRoleName($role) {
         }
     </script>
     <script src="<?php echo asset('js/chat-integrated.js'); ?>"></script>
-    
-    <!-- تحميل ملف الإصدارات لـ Service Worker -->
-    <script src="js/version.js"></script>
 </body>
 </html>

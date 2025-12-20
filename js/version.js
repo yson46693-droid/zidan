@@ -8,10 +8,11 @@
 
 // رقم الإصدار - يتم تحديثه تلقائياً مع كل تعديل
 // Version number - automatically updated with each modification
-const APP_VERSION = '2.0.1.' + Date.now(); // timestamp للتأكد من التحديث الفوري
+// استخدام var بدلاً من const لتجنب خطأ "already declared" عند تحميل الملف أكثر من مرة
+var APP_VERSION = window.APP_VERSION || '2.0.1.' + Date.now(); // timestamp للتأكد من التحديث الفوري
 
 // تاريخ آخر تحديث
-const LAST_UPDATE = new Date().toISOString();
+var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
 
 // تصدير معلومات الإصدار
 if (typeof window !== 'undefined') {
