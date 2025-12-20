@@ -54,13 +54,17 @@ try {
         echo json_encode(['success' => false, 'error' => 'User not found'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    $userId = $currentUser['id'];
+    $userId = (string) $currentUser['id']; // تحويل إلى string للتأكد من التوافق
+    
+    error_log('send_message: userId = ' . $userId . ', type = ' . gettype($userId));
 
     $payload = json_decode(file_get_contents('php://input'), true);
 
     if (!is_array($payload)) {
         $payload = $_POST;
     }
+    
+    error_log('send_message: payload = ' . json_encode($payload));
 
     $messageText = isset($payload['message']) ? trim((string) $payload['message']) : '';
     $replyTo = isset($payload['reply_to']) ? (int) $payload['reply_to'] : null;

@@ -85,14 +85,19 @@
 
   // دالة التهيئة من النظام الخارجي
   window.initChat = function(user) {
+    console.log('Chat: initChat called with user:', user);
+    
     if (!user) {
+      console.error('Chat: initChat called without user data');
       return;
     }
 
     // استخدام ID كما هو (قد يكون string)
-    currentUser.id = user.id || user.user_id || '0';
+    currentUser.id = String(user.id || user.user_id || '0');
     currentUser.name = user.name || user.username || 'مستخدم';
     currentUser.role = user.role || 'member';
+
+    console.log('Chat: currentUser set to:', currentUser);
 
     // تعيين بيانات المستخدم في العنصر
     const app = document.querySelector(selectors.app);
@@ -100,14 +105,19 @@
       app.dataset.currentUserId = currentUser.id;
       app.dataset.currentUserName = currentUser.name;
       app.dataset.currentUserRole = currentUser.role;
+      console.log('Chat: User data set in app element');
+    } else {
+      console.warn('Chat: app element not found');
     }
 
     // تهيئة فورية
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function() {
+        console.log('Chat: DOM loaded, initializing...');
         setTimeout(init, 50);
       });
     } else {
+      console.log('Chat: DOM ready, initializing...');
       setTimeout(init, 50);
     }
   };
@@ -229,7 +239,15 @@
 
   function bindEvents() {
     if (elements.sendButton) {
-      elements.sendButton.addEventListener('click', handleSend);
+      console.log('Chat: Binding send button click event');
+      elements.sendButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Chat: Send button clicked');
+        handleSend();
+      });
+    } else {
+      console.error('Chat: Send button not found!');
     }
 
     if (elements.input) {
@@ -606,7 +624,12 @@
     state.isSending = true;
     toggleComposerDisabled(true);
 
-    console.log('Chat: إرسال رسالة...', { message: message.substring(0, 50), replyTo, userId: currentUser.id });
+    console.log('Chat: إرسال رسالة...', { 
+      message: message.substring(0, 50), 
+      replyTo, 
+      userId: currentUser.id,
+      apiBase: API_BASE 
+    });
 
     try {
       const apiBaseUrl = API_BASE || 'api/chat';
@@ -617,7 +640,8 @@
         reply_to: replyTo || null,
       };
       
-      console.log('Chat: إرسال طلب إلى:', url, requestBody);
+      console.log('Chat: إرسال طلب إلى:', url);
+      console.log('Chat: بيانات الطلب:', requestBody);
       
       let response;
       try {
@@ -997,6 +1021,20 @@
       // تحديث قائمة المستخدمين
       if (Array.isArray(users) && users.length > 0) {
         console.log('Chat: تم استلام ' + users.length + ' مستخدم من API');
+        // التأكد من أن كل مستخدم لديه البيانات المطلوبة
+        users = users.map(user => {
+          if (!user.name && user.username) {
+            user.name = user.username;
+          }
+          if (!user.name) {
+            user.name = 'مستخدم';
+          }
+          if (!user.last_seen) {
+            user.last_seen = user.created_at || new Date().toISOString();
+          }
+          user.is_online = Number(user.is_online) || 0;
+          return user;
+        });
         state.users = users;
         updateUserList();
       } else if (users !== undefined) {
