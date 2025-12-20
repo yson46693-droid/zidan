@@ -8,6 +8,37 @@ ob_start();
 require_once 'config.php';
 require_once 'invoices.php';
 
+// Migration: تحديث جميع الفواتير القديمة التي لا تحتوي على customer_id
+// يتم تشغيل هذا مرة واحدة فقط عند تحميل الملف
+if (dbTableExists('sales') && dbTableExists('customers')) {
+    try {
+        if (dbColumnExists('sales', 'customer_id')) {
+            // تحديث الفواتير التي لا تحتوي على customer_id ولكن لها رقم هاتف يطابق عميل موجود
+            $conn = getDBConnection();
+            if ($conn) {
+                // تحديث الفواتير بربطها بالعملاء بناءً على رقم الهاتف
+                $updateQuery = "
+                    UPDATE sales s
+                    INNER JOIN customers c ON s.customer_phone = c.phone
+                    SET s.customer_id = c.id
+                    WHERE (s.customer_id IS NULL OR s.customer_id = '')
+                    AND s.customer_phone IS NOT NULL
+                    AND s.customer_phone != ''
+                ";
+                $result = $conn->query($updateQuery);
+                if ($result) {
+                    $updatedCount = $conn->affected_rows;
+                    if ($updatedCount > 0) {
+                        error_log("Migration: تم تحديث $updatedCount فاتورة قديمة بربطها بالعملاء");
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log('ملاحظة: فشل migration الفواتير القديمة: ' . $e->getMessage());
+    }
+}
+
 // التحقق من وجود الجداول وإنشاؤها إذا كانت مفقودة
 if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
     require_once __DIR__ . '/setup.php';

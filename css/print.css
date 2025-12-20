@@ -47,11 +47,13 @@
     /* السماح بتقسيم المحتوى على صفحات متعددة */
     .invoice-wrapper {
         page-break-inside: auto !important;
+        break-inside: auto !important; /* دعم CSS3 */
         overflow: visible !important;
         height: auto !important;
         max-height: none !important;
         display: block !important;
         min-height: auto !important;
+        position: static !important; /* التأكد من عدم استخدام position fixed */
     }
     
     /* منع تقسيم الأقسام الصغيرة فقط - لكن السماح بتقسيم الفاتورة ككل */
@@ -173,6 +175,23 @@
     .invoice-wrapper {
         break-inside: auto !important;
         page-break-inside: auto !important;
+        position: static !important; /* التأكد من عدم استخدام position fixed */
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+    }
+    
+    /* التأكد من أن الـ modal لا يمنع التقسيم */
+    #invoiceModal,
+    .pos-modal,
+    .pos-modal-content,
+    .pos-invoice-body {
+        position: static !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
     }
 }
 

@@ -194,18 +194,17 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     if (!empty($customer['phone'])) {
         try {
             // التحقق من وجود عمود customer_id في جدول sales
-            $conn = getDBConnection();
-            if ($conn) {
-                $checkColumn = $conn->query("SHOW COLUMNS FROM `sales` LIKE 'customer_id'");
-                if ($checkColumn && $checkColumn->num_rows > 0) {
-                    // تحديث الفواتير التي لا تحتوي على customer_id ولكن رقم الهاتف يطابق
-                    dbExecute(
-                        "UPDATE sales 
-                         SET customer_id = ? 
-                         WHERE (customer_id IS NULL OR customer_id = '') 
-                         AND customer_phone = ?",
-                        [$customerId, $customer['phone']]
-                    );
+            if (dbColumnExists('sales', 'customer_id')) {
+                // تحديث الفواتير التي لا تحتوي على customer_id ولكن رقم الهاتف يطابق
+                $updated = dbExecute(
+                    "UPDATE sales 
+                     SET customer_id = ? 
+                     WHERE (customer_id IS NULL OR customer_id = '') 
+                     AND customer_phone = ?",
+                    [$customerId, $customer['phone']]
+                );
+                if ($updated !== false) {
+                    error_log("تم تحديث $updated فاتورة قديمة بربطها بالعميل $customerId");
                 }
             }
         } catch (Exception $e) {
@@ -213,17 +212,19 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         }
     }
     
-    // جلب مبيعات العميل فقط - التأكد من استخدام customer_id بشكل صحيح
-    // استخدام استعلام محسّن للتأكد من جلب فواتير العميل فقط
+    // جلب مبيعات العميل - البحث باستخدام customer_id أولاً، ثم رقم الهاتف كـ fallback
+    // هذا يضمن جلب جميع الفواتير (القديمة والجديدة)
     $sales = dbSelect(
         "SELECT s.*, u.name as created_by_name 
          FROM sales s 
          LEFT JOIN users u ON s.created_by = u.id 
-         WHERE s.customer_id = ? 
-         AND s.customer_id IS NOT NULL 
-         AND s.customer_id != ''
+         WHERE (
+             (s.customer_id = ? AND s.customer_id IS NOT NULL AND s.customer_id != '')
+             OR 
+             (s.customer_id IS NULL OR s.customer_id = '') AND s.customer_phone = ?
+         )
          ORDER BY s.created_at DESC",
-        [$customerId]
+        [$customerId, $customer['phone']]
     );
     
     if ($sales === false) {
@@ -235,16 +236,34 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         $sales = [];
     }
     
-    // فلترة إضافية للمبيعات للتأكد من أنها تخص هذا العميل فقط
+    // فلترة إضافية للمبيعات والتأكد من ربطها بالعميل
     $filteredSales = [];
     foreach ($sales as $sale) {
-        // التأكد من تطابق customer_id
-        if (empty($sale['customer_id']) || $sale['customer_id'] !== $customerId) {
+        // التأكد من وجود sale id
+        if (empty($sale['id'])) {
             continue;
         }
         
-        // التأكد من وجود sale id
-        if (empty($sale['id'])) {
+        // إذا كانت الفاتورة لا تحتوي على customer_id، تحديثها تلقائياً
+        if (empty($sale['customer_id']) || $sale['customer_id'] !== $customerId) {
+            // التحقق من أن رقم الهاتف يطابق العميل
+            if (!empty($sale['customer_phone']) && $sale['customer_phone'] === $customer['phone']) {
+                // تحديث الفاتورة بربطها بالعميل
+                if (dbColumnExists('sales', 'customer_id')) {
+                    dbExecute(
+                        "UPDATE sales SET customer_id = ? WHERE id = ?",
+                        [$customerId, $sale['id']]
+                    );
+                    $sale['customer_id'] = $customerId;
+                }
+            } else {
+                // إذا كان رقم الهاتف لا يطابق، تخطي هذه الفاتورة
+                continue;
+            }
+        }
+        
+        // التأكد من تطابق customer_id بعد التحديث
+        if (empty($sale['customer_id']) || $sale['customer_id'] !== $customerId) {
             continue;
         }
         
