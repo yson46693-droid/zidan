@@ -38,37 +38,65 @@
         padding: 0;
     }
     
-    /* منع تقسيم الأقسام المهمة */
+    /* السماح بتقسيم المحتوى على صفحات متعددة */
     .invoice-wrapper {
-        page-break-inside: avoid;
+        page-break-inside: auto !important;
         overflow: visible !important;
         height: auto !important;
+        max-height: none !important;
+        display: block !important;
     }
     
+    /* منع تقسيم الأقسام الصغيرة فقط */
     .invoice-logo-section,
     .invoice-header,
-    .invoice-details,
-    .invoice-extra-info,
-    .invoice-phone-data,
-    .invoice-items-table,
-    .invoice-summary,
-    .invoice-qrcode,
-    .invoice-terms,
-    .invoice-footer {
+    .invoice-phone-data {
         page-break-inside: avoid;
+        page-break-after: auto;
     }
     
-    /* السماح بتقسيم الجدول إذا كان طويلاً جداً */
+    .invoice-details,
+    .invoice-extra-info {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    /* السماح بتقسيم الجدول على صفحات متعددة */
     .invoice-items-table {
-        page-break-inside: auto;
+        page-break-inside: auto !important;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
     }
     
     .invoice-items-table thead {
-        display: table-header-group;
+        display: table-header-group !important;
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+    
+    .invoice-items-table tbody {
+        page-break-inside: auto !important;
+        display: table-row-group !important;
     }
     
     .invoice-items-table tbody tr {
         page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    /* منع تقسيم الخلاصة والـ QR Code */
+    .invoice-summary,
+    .invoice-qrcode {
+        page-break-inside: avoid;
+        page-break-before: auto;
+        page-break-after: auto;
+    }
+    
+    .invoice-terms,
+    .invoice-footer {
+        page-break-inside: avoid;
+        page-break-before: auto;
     }
     
     /* التأكد من ظهور جميع الأقسام */

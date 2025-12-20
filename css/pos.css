@@ -1113,6 +1113,8 @@
     border: 1px solid #ddd;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    white-space: normal;
+    overflow: visible;
 }
 
 /* تحديد عرض الأعمدة */
@@ -1126,6 +1128,10 @@
 .invoice-items-table td:nth-child(2) {
     width: 40%; /* عمود المنتج - أوسع */
     min-width: 150px; /* حد أدنى لعرض عمود المنتج */
+    white-space: normal;
+    overflow: visible;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .invoice-items-table th:nth-child(3),
@@ -1745,6 +1751,10 @@
     .invoice-items-table td:nth-child(2) {
         width: 40% !important;
         min-width: 150px !important;
+        max-width: none !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        word-break: break-word !important;
     }
     
     .invoice-items-table th:nth-child(3),
@@ -1779,6 +1789,16 @@
         border: 1px solid #ddd !important;
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
+        white-space: normal !important;
+        overflow: visible !important;
+    }
+    
+    /* التأكد من عرض اسم المنتج بالكامل */
+    .invoice-items-table td:nth-child(2) {
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
     }
     
     .invoice-items-table tbody tr:nth-child(even) {
@@ -1954,17 +1974,28 @@
         page-break-before: avoid !important;
     }
     
-    /* السماح بتقسيم الجدول إذا كان طويلاً جداً */
+    /* السماح بتقسيم الجدول على صفحات متعددة */
     .invoice-items-table {
         page-break-inside: auto !important;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
     }
     
     .invoice-items-table thead {
         display: table-header-group !important;
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    
+    .invoice-items-table tbody {
+        page-break-inside: auto !important;
+        display: table-row-group !important;
     }
     
     .invoice-items-table tbody tr {
         page-break-inside: avoid !important;
+        page-break-after: auto !important;
     }
     
     /* التأكد من ظهور جميع الأقسام */
@@ -1974,6 +2005,14 @@
         opacity: 1 !important;
         height: auto !important;
         min-height: auto !important;
+        max-height: none !important;
+    }
+    
+    /* السماح بتقسيم المحتوى على صفحات متعددة */
+    .invoice-wrapper {
+        page-break-inside: auto !important;
+        overflow: visible !important;
+        height: auto !important;
         max-height: none !important;
     }
     

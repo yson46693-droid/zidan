@@ -272,17 +272,39 @@ function getRoleName($role) {
     <?php
     // دالة مساعدة لتحميل CSS مع cache busting
     function loadCSS($path) {
-        $fullPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        // تنظيف المسار
+        $cleanPath = ltrim($path, '/\\');
+        $fullPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $cleanPath);
+        
         if (file_exists($fullPath)) {
             $version = filemtime($fullPath);
-            return $path . '?v=' . $version;
+            // إرجاع المسار النسبي من جذر الموقع مع cache busting
+            $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', $cleanPath);
+            // التأكد من أن المسار يبدأ بـ / إذا لزم الأمر
+            if (!empty($relativePath) && $relativePath[0] !== '/') {
+                return $relativePath . '?v=' . $version;
+            }
+            return $relativePath . '?v=' . $version;
         }
-        error_log('CSS file not found: ' . $fullPath);
-        return $path;
+        error_log('CSS file not found: ' . $fullPath . ' (requested path: ' . $cleanPath . ')');
+        // إرجاع المسار النسبي حتى لو لم يكن الملف موجوداً
+        $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', $cleanPath);
+        return $relativePath;
     }
     ?>
     <link rel="stylesheet" href="<?php echo htmlspecialchars(loadCSS('css/style.css'), ENT_QUOTES, 'UTF-8'); ?>">
-    <link rel="stylesheet" href="<?php echo htmlspecialchars(loadCSS('css/chat-integrated.css'), ENT_QUOTES, 'UTF-8'); ?>">
+    <?php
+    // تحميل chat-integrated.css مع التحقق من وجوده
+    $chatIntegratedCSS = 'css/chat-integrated.css';
+    $chatIntegratedCSSPath = __DIR__ . DIRECTORY_SEPARATOR . $chatIntegratedCSS;
+    if (file_exists($chatIntegratedCSSPath)) {
+        $cssVersion = filemtime($chatIntegratedCSSPath);
+        echo '<link rel="stylesheet" href="' . htmlspecialchars($chatIntegratedCSS . '?v=' . $cssVersion, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+    } else {
+        error_log('Warning: chat-integrated.css not found at: ' . $chatIntegratedCSSPath);
+        echo '<!-- Warning: chat-integrated.css not found -->' . "\n";
+    }
+    ?>
     <link rel="stylesheet" href="<?php echo htmlspecialchars(loadCSS('chat/chat.css'), ENT_QUOTES, 'UTF-8'); ?>">
     
     <!-- Critical CSS للتأكد من ظهور التصميم فوراً -->
@@ -639,13 +661,24 @@ function getRoleName($role) {
     <?php
     // دالة مساعدة لتحميل JS مع cache busting
     function loadJS($path) {
-        $fullPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        // تنظيف المسار
+        $cleanPath = ltrim($path, '/\\');
+        $fullPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $cleanPath);
+        
         if (file_exists($fullPath)) {
             $version = filemtime($fullPath);
-            return $path . '?v=' . $version;
+            // إرجاع المسار النسبي من جذر الموقع مع cache busting
+            $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', $cleanPath);
+            // التأكد من أن المسار يبدأ بـ / إذا لزم الأمر
+            if (!empty($relativePath) && $relativePath[0] !== '/') {
+                return $relativePath . '?v=' . $version;
+            }
+            return $relativePath . '?v=' . $version;
         }
-        error_log('JS file not found: ' . $fullPath);
-        return $path;
+        error_log('JS file not found: ' . $fullPath . ' (requested path: ' . $cleanPath . ')');
+        // إرجاع المسار النسبي حتى لو لم يكن الملف موجوداً
+        $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', $cleanPath);
+        return $relativePath;
     }
     ?>
     <script src="<?php echo htmlspecialchars(loadJS('js/api.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>
@@ -801,6 +834,17 @@ function getRoleName($role) {
             setTimeout(registerServiceWorker, 100);
         }
     </script>
-    <script src="<?php echo htmlspecialchars(loadJS('js/chat-integrated.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>
+    <?php
+    // تحميل chat-integrated.js مع التحقق من وجوده
+    $chatIntegratedJS = 'js/chat-integrated.js';
+    $chatIntegratedJSPath = __DIR__ . DIRECTORY_SEPARATOR . $chatIntegratedJS;
+    if (file_exists($chatIntegratedJSPath)) {
+        $jsVersion = filemtime($chatIntegratedJSPath);
+        echo '<script src="' . htmlspecialchars($chatIntegratedJS . '?v=' . $jsVersion, ENT_QUOTES, 'UTF-8') . '"></script>' . "\n";
+    } else {
+        error_log('ERROR: chat-integrated.js not found at: ' . $chatIntegratedJSPath);
+        echo '<!-- ERROR: chat-integrated.js not found - Send button will not work! -->' . "\n";
+    }
+    ?>
 </body>
 </html>

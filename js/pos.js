@@ -1476,15 +1476,22 @@ async function showInvoice(saleData) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${(saleData.items || []).map((item, index) => `
+                    ${(saleData.items || []).map((item, index) => {
+                        // التأكد من وجود اسم المنتج مع معالجة الأخطاء
+                        const itemName = item.item_name || item.name || 'غير محدد';
+                        if (!item.item_name && !item.name) {
+                            console.warn('تحذير: اسم المنتج غير موجود في العنصر:', item);
+                        }
+                        return `
                         <tr>
                             <td>${index + 1}</td>
-                            <td>${item.item_name}</td>
-                            <td>${item.quantity}</td>
+                            <td>${itemName}</td>
+                            <td>${item.quantity || 0}</td>
                             <td>${formatPrice(item.unit_price)} ${currency}</td>
                             <td>${formatPrice(item.total_price)} ${currency}</td>
                         </tr>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </tbody>
             </table>
             
