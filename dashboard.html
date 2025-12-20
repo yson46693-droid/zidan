@@ -62,6 +62,45 @@
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
     <script>
+        // 🔧 حماية فورية من Service Worker reload أثناء تسجيل الدخول (يجب أن يكون في بداية الصفحة)
+        (function() {
+            // منع reload إذا كان تسجيل الدخول حديث
+            function shouldPreventReload() {
+                try {
+                    const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+                    if (justLoggedInTime) {
+                        const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
+                        if (timeSinceLogin < 20000) {
+                            console.log('🛡️ [حماية فورية] منع reload - تسجيل دخول حديث (' + Math.round(timeSinceLogin / 1000) + ' ثانية)');
+                            return true;
+                        }
+                    }
+                    return false;
+                } catch (e) {
+                    return false;
+                }
+            }
+            
+            // متغير عام لمنع reload
+            window.__PREVENT_SW_RELOAD__ = shouldPreventReload();
+            
+            // معالجة رسائل Service Worker مبكراً (قبل أي كود آخر)
+            if ('serviceWorker' in navigator) {
+                // إضافة listener مبكراً جداً باستخدام capture phase
+                window.addEventListener('message', function(event) {
+                    if (event.data && event.data.type === 'SW_UPDATED') {
+                        if (shouldPreventReload()) {
+                            console.log('🛡️ [حماية فورية] تم إلغاء reload من رسالة SW_UPDATED');
+                            event.stopImmediatePropagation();
+                            event.preventDefault();
+                            return false;
+                        }
+                    }
+                }, true);
+            }
+        })();
+    </script>
+    <script>
         // استخدام رقم الإصدار من window.APP_VERSION (معرّف في version.js)
         // لا نعيد تعريف APP_VERSION لتجنب خطأ redeclaration
         (function() {
@@ -496,31 +535,54 @@
         
         // 🔧 الحل: منع Service Worker reload أثناء تسجيل الدخول
         function shouldPreventReload() {
-            const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-            if (justLoggedInTime) {
-                const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
-                // إذا كان تسجيل الدخول حديث (أقل من 20 ثانية)، منع reload
-                if (timeSinceLogin < 20000) {
-                    console.log('⏸️ منع Service Worker reload - تسجيل دخول حديث');
-                    return true;
-                }
+            // التحقق من الحماية الفورية أولاً
+            if (window.__PREVENT_SW_RELOAD__ === true) {
+                console.log('🛡️ استخدام الحماية الفورية - منع reload');
+                return true;
             }
-            return false;
+            
+            try {
+                const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+                if (justLoggedInTime) {
+                    const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
+                    console.log('🔍 فحص تسجيل الدخول:', {
+                        justLoggedInTime,
+                        timeSinceLogin,
+                        shouldPrevent: timeSinceLogin < 20000
+                    });
+                    // إذا كان تسجيل الدخول حديث (أقل من 20 ثانية)، منع reload
+                    if (timeSinceLogin < 20000) {
+                        console.log('⏸️ منع Service Worker reload - تسجيل دخول حديث (' + Math.round(timeSinceLogin / 1000) + ' ثانية مضت)');
+                        return true;
+                    } else {
+                        // مسح العلامة إذا تجاوزت 20 ثانية
+                        sessionStorage.removeItem('just_logged_in_time');
+                        window.__PREVENT_SW_RELOAD__ = false; // تحديث الحماية الفورية
+                        console.log('✅ مسح علامة تسجيل الدخول - تجاوزت 20 ثانية');
+                    }
+                }
+                return false;
+            } catch (e) {
+                console.error('خطأ في shouldPreventReload:', e);
+                return false;
+            }
         }
         
-        // معالجة تحديث Service Worker
+        // معالجة تحديث Service Worker - يجب إعدادها قبل أي كود آخر يتعامل مع SW
         if ('serviceWorker' in navigator) {
+            // معالجة رسائل Service Worker
             navigator.serviceWorker.addEventListener('message', event => {
                 if (event.data && event.data.type === 'SW_UPDATED') {
-                    console.log('🔄 ' + event.data.message, 'Version:', event.data.version);
+                    console.log('📨 رسالة Service Worker:', event.data.message, 'Version:', event.data.version);
                     // 🔧 الحل: التحقق من تسجيل الدخول قبل reload
                     if (shouldPreventReload()) {
-                        console.log('⏸️ تم إلغاء reload بسبب تسجيل دخول حديث');
+                        console.log('⏸️ تم إلغاء reload بسبب تسجيل دخول حديث (من رسالة SW_UPDATED)');
                         return;
                     }
                     // إعادة تحميل الصفحة تلقائياً عند تحديث Service Worker (مرة واحدة فقط)
                     if (!isReloading) {
                         isReloading = true;
+                        console.log('🔄 بدء إعادة التحميل بعد رسالة SW_UPDATED...');
                         setTimeout(() => {
                             window.location.reload();
                         }, 1000);
@@ -528,30 +590,46 @@
                 }
             });
             
-            // التحقق من تحديثات Service Worker
+            // التحقق من تحديثات Service Worker عند تحميل الصفحة
             navigator.serviceWorker.getRegistration().then(registration => {
                 if (registration) {
+                    // التحقق من التحديثات الموجودة
                     registration.addEventListener('updatefound', () => {
+                        console.log('🔍 تم اكتشاف تحديث Service Worker');
                         const newWorker = registration.installing;
                         if (newWorker) {
                             newWorker.addEventListener('statechange', () => {
+                                console.log('📊 حالة Service Worker الجديد:', newWorker.state);
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    console.log('🔄 Service Worker updated - reloading...');
+                                    console.log('🔄 Service Worker تم التثبيت - التحقق من الحاجة لإعادة التحميل...');
                                     // 🔧 الحل: التحقق من تسجيل الدخول قبل reload
                                     if (shouldPreventReload()) {
-                                        console.log('⏸️ تم إلغاء reload بسبب تسجيل دخول حديث');
+                                        console.log('⏸️ تم إلغاء reload بسبب تسجيل دخول حديث (من updatefound)');
                                         return;
                                     }
                                     // منع إعادة التحميل المتعددة
                                     if (!isReloading) {
                                         isReloading = true;
+                                        console.log('🔄 بدء إعادة التحميل بعد updatefound...');
                                         window.location.reload();
+                                    } else {
+                                        console.log('⚠️ تم إلغاء reload إضافي - reload قيد التنفيذ');
                                     }
                                 }
                             });
                         }
                     });
+                    
+                    // التحقق من وجود Service Worker محدث ينتظر التفعيل
+                    if (registration.waiting) {
+                        console.log('⚠️ يوجد Service Worker ينتظر التفعيل');
+                        if (shouldPreventReload()) {
+                            console.log('⏸️ تأجيل تفعيل Service Worker بسبب تسجيل دخول حديث');
+                        }
+                    }
                 }
+            }).catch(err => {
+                console.error('خطأ في الحصول على Service Worker registration:', err);
             });
         }
     </script>
@@ -948,12 +1026,12 @@
             }
             
             await Promise.allSettled([
-                loadSectionSafely('repairs', loadRepairsSection),
-                loadSectionSafely('customers', loadCustomersSection),
-                loadSectionSafely('inventory', loadInventorySection),
-                loadSectionSafely('expenses', loadExpensesSection),
-                loadSectionSafely('reports', loadReportsSection),
-                loadSectionSafely('settings', loadSettingsSection)
+                loadSectionSafely('repairs', typeof loadRepairsSection !== 'undefined' ? loadRepairsSection : undefined),
+                loadSectionSafely('customers', typeof loadCustomersSection !== 'undefined' ? loadCustomersSection : undefined),
+                loadSectionSafely('inventory', typeof loadInventorySection !== 'undefined' ? loadInventorySection : undefined),
+                loadSectionSafely('expenses', typeof loadExpensesSection !== 'undefined' ? loadExpensesSection : undefined),
+                loadSectionSafely('reports', typeof loadReportsSection !== 'undefined' ? loadReportsSection : undefined),
+                loadSectionSafely('settings', typeof loadSettingsSection !== 'undefined' ? loadSettingsSection : undefined)
             ]);
             
             // إذا كنا نعود من pos.html، نضيف تأخير إضافي بعد تحميل الأقسام
