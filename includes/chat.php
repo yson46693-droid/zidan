@@ -121,33 +121,48 @@ function sendChatMessage($userId, $messageText, $replyTo = null) {
     $userId = (string) $userId;
     
     // إعداد الاستعلام مع معالجة NULL بشكل صحيح
-    if ($replyTo && $replyTo > 0) {
+    if ($replyTo !== null && $replyTo > 0) {
         $stmt = $conn->prepare("INSERT INTO messages (user_id, message_text, reply_to, created_at) VALUES (?, ?, ?, NOW())");
         if (!$stmt) {
-            error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
+            error_log('sendChatMessage: خطأ في إعداد الاستعلام: ' . $conn->error);
             throw new RuntimeException('فشل في إعداد الاستعلام: ' . $conn->error);
         }
-        $stmt->bind_param('ssi', $userId, $messageText, $replyTo);
+        // استخدام المراجع للتوافق مع جميع إصدارات PHP (خاصة PHP 8.0+)
+        $replyToInt = (int) $replyTo;
+        $stmt->bind_param('ssi', $userId, $messageText, $replyToInt);
     } else {
         $stmt = $conn->prepare("INSERT INTO messages (user_id, message_text, reply_to, created_at) VALUES (?, ?, NULL, NOW())");
         if (!$stmt) {
-            error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
+            error_log('sendChatMessage: خطأ في إعداد الاستعلام: ' . $conn->error);
             throw new RuntimeException('فشل في إعداد الاستعلام: ' . $conn->error);
         }
+        // استخدام المراجع للتوافق مع جميع إصدارات PHP (خاصة PHP 8.0+)
         $stmt->bind_param('ss', $userId, $messageText);
     }
 
     if (!$stmt->execute()) {
         $error = $stmt->error;
         $stmt->close();
-        error_log('خطأ في إرسال الرسالة: ' . $error);
+        error_log('sendChatMessage: خطأ في إرسال الرسالة: ' . $error);
         throw new RuntimeException('فشل في إرسال الرسالة: ' . $error);
     }
 
     $messageId = $conn->insert_id;
     $stmt->close();
 
-    return getChatMessageById($messageId);
+    if (!$messageId || $messageId <= 0) {
+        error_log('sendChatMessage: فشل في الحصول على ID الرسالة بعد الإدراج');
+        throw new RuntimeException('فشل في الحصول على ID الرسالة بعد الإدراج');
+    }
+
+    $result = getChatMessageById($messageId);
+    
+    if (!$result) {
+        error_log('sendChatMessage: فشل في جلب الرسالة بعد الإدراج - ID: ' . $messageId);
+        throw new RuntimeException('فشل في جلب الرسالة بعد الإدراج');
+    }
+    
+    return $result;
 }
 
 /**

@@ -1023,13 +1023,13 @@
 }
 
 .invoice-details {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
     margin-bottom: 25px;
     padding: 20px;
     background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     border-radius: 12px;
-    gap: 25px;
     border: 1px solid #e0e0e0;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
@@ -1039,7 +1039,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    flex: 1;
+    min-width: 0; /* يمنع تجاوز الحدود */
 }
 
 .invoice-details-left > div,
@@ -1072,8 +1072,9 @@
 }
 
 .invoice-extra-info {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
     margin-bottom: 30px;
     padding: 18px 20px;
     background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
@@ -1087,7 +1088,7 @@
 }
 
 .invoice-extra-info > div {
-    flex: 1;
+    min-width: 0; /* يمنع تجاوز الحدود */
     padding: 5px 0;
 }
 
@@ -1102,13 +1103,47 @@
     border-collapse: collapse;
     margin-bottom: 30px;
     background: var(--white);
+    table-layout: fixed; /* تثبيت عرض الأعمدة */
 }
 
 .invoice-items-table th,
 .invoice-items-table td {
-    padding: 12px;
+    padding: 12px 8px;
     text-align: right;
     border: 1px solid #ddd;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* تحديد عرض الأعمدة */
+.invoice-items-table th:nth-child(1),
+.invoice-items-table td:nth-child(1) {
+    width: 5%; /* عمود الرقم */
+    min-width: 30px;
+}
+
+.invoice-items-table th:nth-child(2),
+.invoice-items-table td:nth-child(2) {
+    width: 40%; /* عمود المنتج - أوسع */
+    min-width: 150px; /* حد أدنى لعرض عمود المنتج */
+}
+
+.invoice-items-table th:nth-child(3),
+.invoice-items-table td:nth-child(3) {
+    width: 12%; /* عمود الكمية */
+    min-width: 60px;
+}
+
+.invoice-items-table th:nth-child(4),
+.invoice-items-table td:nth-child(4) {
+    width: 20%; /* عمود سعر الوحدة */
+    min-width: 100px;
+}
+
+.invoice-items-table th:nth-child(5),
+.invoice-items-table td:nth-child(5) {
+    width: 23%; /* عمود الإجمالي */
+    min-width: 110px;
 }
 
 .invoice-items-table th {
@@ -1683,6 +1718,7 @@
         box-shadow: none !important;
         width: 100% !important;
         border-collapse: collapse !important;
+        table-layout: fixed !important; /* تثبيت عرض الأعمدة */
     }
     
     .invoice-items-table thead {
@@ -1698,6 +1734,37 @@
         display: table-row !important;
     }
     
+    /* تحديد عرض الأعمدة في الطباعة */
+    .invoice-items-table th:nth-child(1),
+    .invoice-items-table td:nth-child(1) {
+        width: 5% !important;
+        min-width: 30px !important;
+    }
+    
+    .invoice-items-table th:nth-child(2),
+    .invoice-items-table td:nth-child(2) {
+        width: 40% !important;
+        min-width: 150px !important;
+    }
+    
+    .invoice-items-table th:nth-child(3),
+    .invoice-items-table td:nth-child(3) {
+        width: 12% !important;
+        min-width: 60px !important;
+    }
+    
+    .invoice-items-table th:nth-child(4),
+    .invoice-items-table td:nth-child(4) {
+        width: 20% !important;
+        min-width: 100px !important;
+    }
+    
+    .invoice-items-table th:nth-child(5),
+    .invoice-items-table td:nth-child(5) {
+        width: 23% !important;
+        min-width: 110px !important;
+    }
+    
     .invoice-items-table th {
         background: #f5f5f5 !important;
         color: var(--text-dark) !important;
@@ -1710,12 +1777,27 @@
     .invoice-items-table td {
         padding: 10px 8px !important;
         border: 1px solid #ddd !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
     }
     
     .invoice-items-table tbody tr:nth-child(even) {
         background: #f9f9f9 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+    }
+    
+    /* تحسين الـ grid للبيانات في الطباعة */
+    .invoice-details {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .invoice-extra-info {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 15px !important;
     }
     
     .invoice-summary {
@@ -1901,6 +1983,52 @@
         size: A4;
     }
     
+    /* ضمان عرض جميع المحتويات */
+    .invoice-wrapper {
+        min-height: auto !important;
+        height: auto !important;
+    }
+    
+    /* تحسين عرض الجدول */
+    .invoice-items-table {
+        min-width: 100% !important;
+        width: 100% !important;
+    }
+    
+    /* تحسين عرض الأعمدة */
+    .invoice-items-table th,
+    .invoice-items-table td {
+        white-space: normal !important;
+        word-break: break-word !important;
+        hyphens: auto !important;
+    }
+    
+    /* تحديد الحد الأدنى لعرض الأعمدة في الطباعة */
+    .invoice-items-table th:nth-child(1),
+    .invoice-items-table td:nth-child(1) {
+        min-width: 30px !important;
+    }
+    
+    .invoice-items-table th:nth-child(2),
+    .invoice-items-table td:nth-child(2) {
+        min-width: 150px !important;
+    }
+    
+    .invoice-items-table th:nth-child(3),
+    .invoice-items-table td:nth-child(3) {
+        min-width: 60px !important;
+    }
+    
+    .invoice-items-table th:nth-child(4),
+    .invoice-items-table td:nth-child(4) {
+        min-width: 100px !important;
+    }
+    
+    .invoice-items-table th:nth-child(5),
+    .invoice-items-table td:nth-child(5) {
+        min-width: 110px !important;
+    }
+    
     /* دعم Statement (أصغر من A4) */
     @page statement {
         margin: 0.6cm;
@@ -1955,11 +2083,31 @@
         margin-bottom: 8px !important;
     }
     
-    .invoice-details,
-    .invoice-extra-info {
+    .invoice-details {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 15px !important;
         font-size: 0.9em !important;
         padding: 10px !important;
         margin-bottom: 10px !important;
+    }
+    
+    .invoice-details-left,
+    .invoice-details-right {
+        min-width: 0 !important;
+    }
+    
+    .invoice-extra-info {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 15px !important;
+        font-size: 0.9em !important;
+        padding: 10px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .invoice-extra-info > div {
+        min-width: 0 !important;
     }
     
     .invoice-phone-data {
@@ -1970,11 +2118,45 @@
     .invoice-items-table {
         font-size: 0.85em !important;
         margin-bottom: 10px !important;
+        table-layout: fixed !important;
+    }
+    
+    /* تحديد عرض الأعمدة في الطباعة */
+    .invoice-items-table th:nth-child(1),
+    .invoice-items-table td:nth-child(1) {
+        width: 5% !important;
+        min-width: 30px !important;
+    }
+    
+    .invoice-items-table th:nth-child(2),
+    .invoice-items-table td:nth-child(2) {
+        width: 40% !important;
+        min-width: 150px !important;
+    }
+    
+    .invoice-items-table th:nth-child(3),
+    .invoice-items-table td:nth-child(3) {
+        width: 12% !important;
+        min-width: 60px !important;
+    }
+    
+    .invoice-items-table th:nth-child(4),
+    .invoice-items-table td:nth-child(4) {
+        width: 20% !important;
+        min-width: 100px !important;
+    }
+    
+    .invoice-items-table th:nth-child(5),
+    .invoice-items-table td:nth-child(5) {
+        width: 23% !important;
+        min-width: 110px !important;
     }
     
     .invoice-items-table th,
     .invoice-items-table td {
         padding: 8px 6px !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
     }
     
     .invoice-summary {
