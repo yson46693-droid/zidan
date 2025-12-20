@@ -6,6 +6,7 @@ if (ob_get_level()) {
 ob_start();
 
 require_once 'config.php';
+require_once 'invoices.php';
 
 // التحقق من وجود الجداول وإنشاؤها إذا كانت مفقودة
 if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
@@ -488,6 +489,17 @@ if ($method === 'POST') {
             $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
             $sale['discount'] = floatval($sale['discount'] ?? 0);
             $sale['tax'] = floatval($sale['tax'] ?? 0);
+            
+            // حفظ الفاتورة كملف HTML
+            try {
+                $invoiceFilePath = saveInvoiceAsFile($sale);
+                if ($invoiceFilePath) {
+                    $sale['invoice_file_path'] = $invoiceFilePath;
+                }
+            } catch (Exception $e) {
+                // لا نوقف العملية إذا فشل حفظ الملف، فقط نسجل الخطأ
+                error_log('خطأ في حفظ ملف الفاتورة: ' . $e->getMessage());
+            }
         }
         
         response(true, 'تم إنشاء عملية البيع بنجاح', $sale);
