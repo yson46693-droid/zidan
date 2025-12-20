@@ -3,7 +3,7 @@
 @media print {
     /* دعم أنواع مختلفة من أحجام الصفحات */
     @page {
-        margin: 0.8cm;
+        margin: 0.5cm;
         size: A4;
     }
     

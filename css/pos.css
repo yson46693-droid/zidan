@@ -1102,56 +1102,31 @@
     border-collapse: collapse;
     margin-bottom: 30px;
     background: var(--white);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .invoice-items-table th,
 .invoice-items-table td {
-    padding: 15px 12px;
+    padding: 12px;
     text-align: right;
-    border-bottom: 1px solid #e8e8e8;
+    border: 1px solid #ddd;
 }
 
 .invoice-items-table th {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+    background: #f5f5f5;
     font-weight: 700;
-    color: white;
-    font-size: 1.1em;
-    border-bottom: none;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    letter-spacing: 0.3px;
-    font-family: 'Cairo', 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 18px 12px;
-}
-
-.invoice-items-table th:first-child {
-    border-top-right-radius: 12px;
-}
-
-.invoice-items-table th:last-child {
-    border-top-left-radius: 12px;
+    color: var(--text-dark);
+    font-size: 1em;
 }
 
 .invoice-items-table td {
     color: var(--text-dark);
-    font-size: 1.05em;
+    font-size: 1em;
     background: var(--white);
     font-weight: 500;
-    line-height: 1.8;
 }
 
-.invoice-items-table tbody tr {
-    transition: background-color 0.2s ease;
-}
-
-.invoice-items-table tbody tr:hover {
-    background-color: #f8f9fa;
-}
-
-.invoice-items-table tbody tr:last-child td {
-    border-bottom: none;
+.invoice-items-table tbody tr:nth-child(even) {
+    background: #f9f9f9;
 }
 
 .invoice-summary {
@@ -1704,14 +1679,14 @@
     
     .invoice-items-table {
         font-size: 0.9em !important;
-        page-break-inside: auto !important; /* السماح بتقسيم الجدول إذا كان طويلاً */
+        page-break-inside: auto !important;
         box-shadow: none !important;
         width: 100% !important;
         border-collapse: collapse !important;
     }
     
     .invoice-items-table thead {
-        display: table-header-group !important; /* إعادة عرض الرأس في كل صفحة */
+        display: table-header-group !important;
     }
     
     .invoice-items-table tbody {
@@ -1719,21 +1694,28 @@
     }
     
     .invoice-items-table tbody tr {
-        page-break-inside: avoid !important; /* منع تقسيم الصف الواحد */
+        page-break-inside: avoid !important;
         display: table-row !important;
     }
     
     .invoice-items-table th {
-        background: #2196F3 !important;
-        color: white !important;
+        background: #f5f5f5 !important;
+        color: var(--text-dark) !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         padding: 10px 8px !important;
+        border: 1px solid #ddd !important;
     }
     
     .invoice-items-table td {
         padding: 10px 8px !important;
-        border-bottom: 1px solid #ddd !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .invoice-items-table tbody tr:nth-child(even) {
+        background: #f9f9f9 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
     
     .invoice-summary {
@@ -1834,16 +1816,16 @@
         page-break-after: auto !important;
     }
     
-    /* Force print all content */
+    /* Force print all content - السماح بتقسيم الفاتورة على صفحات متعددة */
     .invoice-wrapper {
         overflow: visible !important;
         height: auto !important;
         min-height: auto !important;
         max-height: none !important;
-        page-break-inside: avoid !important;
+        page-break-inside: auto !important; /* السماح بتقسيم الفاتورة */
     }
     
-    /* منع تقسيم الأقسام المهمة */
+    /* منع تقسيم الأقسام المهمة - لكن السماح بتقسيم الفاتورة ككل */
     .invoice-logo-section {
         page-break-inside: avoid !important;
         page-break-after: avoid !important;
@@ -1869,9 +1851,10 @@
         page-break-after: avoid !important;
     }
     
+    /* السماح بتقسيم الملخص إذا لزم الأمر */
     .invoice-summary {
         page-break-inside: avoid !important;
-        page-break-after: avoid !important;
+        page-break-after: auto !important;
     }
     
     .invoice-qrcode {
@@ -1914,7 +1897,7 @@
     
     /* دعم أنواع مختلفة من أحجام الصفحات */
     @page {
-        margin: 0.8cm;
+        margin: 0.5cm;
         size: A4;
     }
     
@@ -1942,40 +1925,51 @@
         size: A4 landscape;
     }
     
-    /* تحسين التخطيط للطباعة */
+    /* تحسين التخطيط للطباعة - تقليل المسافات لضمان عرض جميع المحتويات */
     .invoice-wrapper {
         width: 100% !important;
         max-width: 100% !important;
-        padding: 15px !important;
+        padding: 10px !important;
         margin: 0 !important;
     }
     
     /* تحسين حجم الخط للطباعة */
     .invoice-wrapper {
-        font-size: 14px !important;
-        line-height: 1.6 !important;
+        font-size: 13px !important;
+        line-height: 1.5 !important;
     }
     
     .invoice-logo {
-        max-width: 250px !important;
-        max-height: 250px !important;
+        max-width: 200px !important;
+        max-height: 200px !important;
     }
     
-    .invoice-header {
-        font-size: 1.1em !important;
+    .invoice-logo-section {
         padding: 10px 0 !important;
         margin-bottom: 10px !important;
     }
     
+    .invoice-header {
+        font-size: 1em !important;
+        padding: 8px 0 !important;
+        margin-bottom: 8px !important;
+    }
+    
     .invoice-details,
     .invoice-extra-info {
-        font-size: 0.95em !important;
-        padding: 12px !important;
-        margin-bottom: 12px !important;
+        font-size: 0.9em !important;
+        padding: 10px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .invoice-phone-data {
+        padding: 10px !important;
+        margin: 10px 0 !important;
     }
     
     .invoice-items-table {
         font-size: 0.85em !important;
+        margin-bottom: 10px !important;
     }
     
     .invoice-items-table th,
@@ -1984,31 +1978,52 @@
     }
     
     .invoice-summary {
-        font-size: 0.95em !important;
-        padding: 15px !important;
+        font-size: 0.9em !important;
+        padding: 12px !important;
+        margin: 10px 0 !important;
+    }
+    
+    .invoice-summary .summary-row {
+        margin-bottom: 8px !important;
+        padding: 5px 0 !important;
     }
     
     .invoice-summary .summary-row.total {
-        font-size: 1.5em !important;
-        padding: 15px 0 !important;
+        font-size: 1.3em !important;
+        padding: 12px 0 !important;
+        margin-top: 10px !important;
+    }
+    
+    .invoice-qrcode {
+        margin: 10px 0 !important;
+        padding: 5px 0 !important;
     }
     
     .invoice-qrcode img {
-        max-width: 180px !important;
-        width: 180px !important;
-        height: 180px !important;
+        max-width: 150px !important;
+        width: 150px !important;
+        height: 150px !important;
     }
     
     .invoice-terms {
-        font-size: 0.9em !important;
-        padding: 15px !important;
-        margin: 15px 0 !important;
+        font-size: 0.85em !important;
+        padding: 12px !important;
+        margin: 10px 0 !important;
+    }
+    
+    .invoice-terms ol {
+        padding-right: 20px !important;
+        margin: 8px 0 !important;
+    }
+    
+    .invoice-terms li {
+        margin-bottom: 6px !important;
     }
     
     .invoice-footer {
-        font-size: 1em !important;
-        padding: 15px 0 !important;
-        margin-top: 15px !important;
+        font-size: 0.95em !important;
+        padding: 10px 0 !important;
+        margin-top: 10px !important;
     }
     
     /* تحسينات إضافية لضمان عرض جميع الأقسام */
@@ -2017,7 +2032,6 @@
     .invoice-details,
     .invoice-extra-info,
     .invoice-phone-data,
-    .invoice-items-table,
     .invoice-summary,
     .invoice-qrcode,
     .invoice-terms,
@@ -2026,55 +2040,18 @@
         -webkit-region-break-inside: avoid !important;
     }
     
+    /* السماح بتقسيم الجدول فقط */
+    .invoice-items-table {
+        break-inside: auto !important;
+    }
+    
     /* التأكد من أن الفاتورة لا تقطع في منتصف الأقسام المهمة */
     .invoice-summary,
     .invoice-qrcode,
     .invoice-terms,
     .invoice-footer {
-        orphans: 3 !important;
-        widows: 3 !important;
-    }
-    
-    /* تحسين المسافات بين الأقسام للطباعة */
-    .invoice-logo-section {
-        margin-bottom: 15px !important;
-    }
-    
-    .invoice-header {
-        margin-bottom: 15px !important;
-    }
-    
-    .invoice-details {
-        margin-bottom: 12px !important;
-    }
-    
-    .invoice-extra-info {
-        margin-bottom: 12px !important;
-    }
-    
-    .invoice-phone-data {
-        margin: 15px 0 !important;
-    }
-    
-    .invoice-items-table {
-        margin-bottom: 15px !important;
-    }
-    
-    .invoice-summary {
-        margin: 15px 0 !important;
-    }
-    
-    .invoice-qrcode {
-        margin: 15px 0 !important;
-    }
-    
-    .invoice-terms {
-        margin: 15px 0 !important;
-    }
-    
-    .invoice-footer {
-        margin-top: 15px !important;
-        margin-bottom: 0 !important;
+        orphans: 2 !important;
+        widows: 2 !important;
     }
     
     /* Ensure fonts are loaded for print */
