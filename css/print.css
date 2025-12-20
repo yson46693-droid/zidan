@@ -3,8 +3,14 @@
 @media print {
     /* دعم أنواع مختلفة من أحجام الصفحات */
     @page {
-        margin: 0.5cm;
+        margin: 0.8cm;
         size: A4;
+    }
+    
+    /* ضمان عدم قطع المحتوى عند الطباعة */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
     
     /* دعم Statement (أصغر من A4) */
@@ -45,17 +51,30 @@
         height: auto !important;
         max-height: none !important;
         display: block !important;
+        min-height: auto !important;
     }
     
-    /* منع تقسيم الأقسام الصغيرة فقط */
-    .invoice-logo-section,
-    .invoice-header,
+    /* منع تقسيم الأقسام الصغيرة فقط - لكن السماح بتقسيم الفاتورة ككل */
+    .invoice-logo-section {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    .invoice-header {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
     .invoice-phone-data {
         page-break-inside: avoid;
         page-break-after: auto;
     }
     
-    .invoice-details,
+    .invoice-details {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
     .invoice-extra-info {
         page-break-inside: avoid;
         page-break-after: auto;
@@ -85,15 +104,27 @@
         page-break-after: auto;
     }
     
-    /* منع تقسيم الخلاصة والـ QR Code */
-    .invoice-summary,
+    /* السماح بتقسيم الخلاصة إذا لزم الأمر */
+    .invoice-summary {
+        page-break-inside: avoid;
+        page-break-before: auto;
+        page-break-after: auto;
+    }
+    
+    /* منع تقسيم QR Code */
     .invoice-qrcode {
         page-break-inside: avoid;
         page-break-before: auto;
         page-break-after: auto;
     }
     
-    .invoice-terms,
+    /* السماح بتقسيم البنود إذا لزم الأمر */
+    .invoice-terms {
+        page-break-inside: avoid;
+        page-break-before: auto;
+        page-break-after: auto;
+    }
+    
     .invoice-footer {
         page-break-inside: avoid;
         page-break-before: auto;
@@ -104,6 +135,24 @@
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+    }
+    
+    /* ضمان عدم قطع الأقسام المهمة */
+    .invoice-summary,
+    .invoice-qrcode,
+    .invoice-terms,
+    .invoice-footer {
+        orphans: 3 !important;
+        widows: 3 !important;
+    }
+    
+    /* السماح بتقسيم الفاتورة على صفحات متعددة */
+    .invoice-wrapper {
+        break-inside: auto !important;
+        page-break-inside: auto !important;
     }
 }
 
