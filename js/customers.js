@@ -454,119 +454,190 @@ async function viewCustomerProfile(customerId) {
                 </div>
             </div>
         `;
-                
-                <!-- Sales History Section -->
-                <div class="customer-sales-section">
-                    <h3 style="margin-bottom: 25px; display: flex; align-items: center; gap: 12px; font-size: 1.6em; color: var(--text-dark); padding-bottom: 20px; border-bottom: 3px solid var(--primary-color); font-weight: 700;">
-                        <div style="width: 45px; height: 45px; background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);">
-                            <i class="bi bi-receipt-cutoff" style="font-size: 1.3em;"></i>
-                        </div>
-                        <span>سجل المشتريات</span>
-                        ${sales.length > 0 ? `<span style="background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white; padding: 8px 16px; border-radius: 25px; font-size: 0.9em; font-weight: 600; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);">${sales.length} فاتورة</span>` : ''}
-                    </h3>
-                    ${sales.length === 0 ? `
-                        <div style="text-align: center; padding: 60px 20px; background: var(--light-bg); border-radius: 12px; border: 2px dashed var(--border-color);">
-                            <i class="bi bi-inbox" style="font-size: 4em; color: var(--text-light); margin-bottom: 15px; display: block;"></i>
-                            <p style="color: var(--text-light); font-size: 1.1em; margin: 0;">لا توجد فواتير مسجلة لهذا العميل</p>
-                        </div>
-                    ` : `
-                        <div class="table-container" style="border-radius: 18px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.1); border: 1px solid #e0e0e0;">
-                            <table class="data-table" style="margin: 0; border-collapse: collapse;">
-                                <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                                    <tr>
-                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">رقم الفاتورة</th>
-                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">التاريخ</th>
-                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">عدد العناصر</th>
-                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: right; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">المجموع</th>
-                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: right; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">الإجمالي</th>
-                                        <th style="padding: 20px 18px; font-weight: 700; font-size: 1.05em; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">الإجراءات</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${sales.map(sale => {
-                                        // التأكد من وجود البيانات الصحيحة
-                                        const saleNumber = sale.sale_number || sale.id || 'غير محدد';
-                                        const items = sale.items && Array.isArray(sale.items) ? sale.items : [];
-                                        const itemsCount = items.length;
-                                        
-                                        // حساب المبلغ من العناصر إذا لم يكن موجوداً
-                                        let totalAmount = parseFloat(sale.total_amount || 0);
-                                        let finalAmount = parseFloat(sale.final_amount || 0);
-                                        
-                                        // إذا كانت القيم 0، نحسبها من العناصر
-                                        if (items.length > 0 && (totalAmount === 0 || finalAmount === 0)) {
-                                            const calculatedTotal = items.reduce((sum, item) => {
-                                                return sum + (parseFloat(item.total_price || 0) * parseInt(item.quantity || 1));
-                                            }, 0);
-                                            if (totalAmount === 0) totalAmount = calculatedTotal;
-                                            if (finalAmount === 0) {
-                                                const discount = parseFloat(sale.discount || 0);
-                                                const tax = parseFloat(sale.tax || 0);
-                                                finalAmount = calculatedTotal - discount + tax;
-                                            }
-                                        }
-                                        
-                                        return `
-                                        <tr class="invoice-row" style="transition: all 0.3s ease; border-bottom: 2px solid #f0f0f0;" onmouseover="this.style.background='linear-gradient(90deg, rgba(33, 150, 243, 0.05), rgba(33, 150, 243, 0.02))'; this.style.borderLeft='4px solid var(--primary-color)'" onmouseout="this.style.background='transparent'; this.style.borderLeft='none'">
-                                            <td style="padding: 18px;">
-                                                <div style="display: flex; align-items: center; gap: 10px;">
-                                                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);">
-                                                        <i class="bi bi-receipt" style="font-size: 1.1em;"></i>
-                                                    </div>
-                                                    <strong style="color: var(--primary-color); font-size: 1.1em; font-weight: 700;">${saleNumber}</strong>
-                                                </div>
-                                            </td>
-                                            <td style="padding: 18px;">
-                                                <div style="display: flex; align-items: center; gap: 8px; color: var(--text-dark);">
-                                                    <i class="bi bi-calendar3" style="color: var(--primary-color);"></i>
-                                                    <span style="font-weight: 500;">${formatDate(sale.created_at)}</span>
-                                                </div>
-                                            </td>
-                                            <td style="padding: 18px; text-align: center;">
-                                                <span style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); color: #1976d2; padding: 8px 16px; border-radius: 25px; font-weight: 700; font-size: 1.05em; box-shadow: 0 2px 6px rgba(25, 118, 210, 0.2); display: inline-flex; align-items: center; gap: 6px;">
-                                                    <i class="bi bi-box-seam"></i> ${itemsCount}
-                                                </span>
-                                            </td>
-                                            <td style="padding: 18px; text-align: right; color: var(--text-dark); font-weight: 600; font-size: 1.05em;">
-                                                ${totalAmount.toFixed(2)} <span style="color: #666; font-size: 0.9em;">ج.م</span>
-                                            </td>
-                                            <td style="padding: 18px; text-align: right;">
-                                                <strong style="color: var(--primary-color); font-size: 1.3em; font-weight: 800; text-shadow: 0 1px 3px rgba(33, 150, 243, 0.2);">
-                                                    ${finalAmount.toFixed(2)} <span style="color: #666; font-size: 0.75em; font-weight: 600;">ج.م</span>
-                                                </strong>
-                                            </td>
-                                            <td style="padding: 18px; text-align: center;">
-                                                <div style="display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
-                                                    ${sale.invoice_file_path ? `
-                                                        <a href="${sale.invoice_file_path}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); font-weight: 600; border: none; cursor: pointer;" onmouseover="this.style.transform='scale(1.08) translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(76, 175, 80, 0.4)'" onmouseout="this.style.transform='scale(1) translateY(0)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.3)'">
-                                                            <i class="bi bi-file-earmark-pdf" style="font-size: 1.1em;"></i> ملف الفاتورة
-                                                        </a>
-                                                    ` : ''}
-                                                    <button onclick="viewSaleInvoice('${sale.id}')" class="btn btn-sm btn-primary" style="padding: 10px 20px; border-radius: 10px; transition: all 0.3s; box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3); font-weight: 600; border: none; display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, var(--primary-color), #1976D2);" onmouseover="this.style.transform='scale(1.08) translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(33, 150, 243, 0.4)'" onmouseout="this.style.transform='scale(1) translateY(0)'; this.style.boxShadow='0 4px 12px rgba(33, 150, 243, 0.3)'">
-                                                        <i class="bi bi-eye" style="font-size: 1.1em;"></i> التفاصيل
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    `}
-                </div>
+        
+        // Sales History Section
+        const salesSection = document.createElement('div');
+        salesSection.className = 'customer-sales-section';
+        
+        const salesHeader = document.createElement('h3');
+        salesHeader.innerHTML = `
+            <div class="section-icon">
+                <i class="bi bi-receipt-cutoff"></i>
             </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // إغلاق عند الضغط خارج الـ modal
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
+            <span>سجل المشتريات</span>
+            ${sales.length > 0 ? `<span class="section-badge">${sales.length} فاتورة</span>` : ''}
+        `;
+        
+        if (sales.length === 0) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'customer-sales-empty';
+            emptyState.innerHTML = `
+                <i class="bi bi-inbox"></i>
+                <p>لا توجد فواتير مسجلة لهذا العميل</p>
+            `;
+            salesSection.appendChild(salesHeader);
+            salesSection.appendChild(emptyState);
+        } else {
+            // Build sales table
+            const tableContainer = document.createElement('div');
+            tableContainer.className = 'table-container customer-sales-table';
+            
+            const table = document.createElement('table');
+            table.className = 'data-table';
+            
+            // Build table header
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>رقم الفاتورة</th>
+                    <th>التاريخ</th>
+                    <th style="text-align: center;">عدد العناصر</th>
+                    <th style="text-align: right;">المجموع</th>
+                    <th style="text-align: right;">الإجمالي</th>
+                    <th style="text-align: center;">الإجراءات</th>
+                </tr>
+            `;
+            
+            // Build table body using DocumentFragment for better performance
+            const tbody = document.createElement('tbody');
+            const tbodyFragment = document.createDocumentFragment();
+            
+            sales.forEach(sale => {
+                try {
+                    // Error handling: التأكد من وجود البيانات الصحيحة
+                    const saleNumber = sale.sale_number || sale.id || 'غير محدد';
+                    const items = sale.items && Array.isArray(sale.items) ? sale.items : [];
+                    const itemsCount = items.length;
+                    
+                    // حساب المبلغ من العناصر إذا لم يكن موجوداً
+                    let totalAmount = parseFloat(sale.total_amount || 0);
+                    let finalAmount = parseFloat(sale.final_amount || 0);
+                    
+                    // إذا كانت القيم 0، نحسبها من العناصر
+                    if (items.length > 0 && (totalAmount === 0 || finalAmount === 0)) {
+                        const calculatedTotal = items.reduce((sum, item) => {
+                            try {
+                                const itemPrice = parseFloat(item.total_price || 0);
+                                const itemQty = parseInt(item.quantity || 1);
+                                return sum + (itemPrice * itemQty);
+                            } catch (error) {
+                                console.warn('خطأ في حساب عنصر الفاتورة:', error);
+                                return sum;
+                            }
+                        }, 0);
+                        
+                        if (totalAmount === 0 && !isNaN(calculatedTotal)) {
+                            totalAmount = calculatedTotal;
+                        }
+                        if (finalAmount === 0 && !isNaN(calculatedTotal)) {
+                            const discount = parseFloat(sale.discount || 0);
+                            const tax = parseFloat(sale.tax || 0);
+                            finalAmount = calculatedTotal - discount + tax;
+                        }
+                    }
+                    
+                    // Ensure valid numbers
+                    totalAmount = isNaN(totalAmount) ? 0 : totalAmount;
+                    finalAmount = isNaN(finalAmount) ? 0 : finalAmount;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            <div class="invoice-number-cell">
+                                <div class="invoice-number-icon">
+                                    <i class="bi bi-receipt"></i>
+                                </div>
+                                <strong class="invoice-number-text">${escapeHtml(saleNumber)}</strong>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="invoice-date-cell">
+                                <i class="bi bi-calendar3"></i>
+                                <span>${formatDate(sale.created_at)}</span>
+                            </div>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="invoice-items-badge">
+                                <i class="bi bi-box-seam"></i> ${itemsCount}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="invoice-amount">
+                                ${totalAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <strong class="invoice-final-amount">
+                                ${finalAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
+                            </strong>
+                        </td>
+                        <td style="text-align: center;">
+                            <div class="invoice-actions">
+                                ${sale.invoice_file_path ? `
+                                    <a href="${escapeHtml(sale.invoice_file_path)}" target="_blank" class="btn-invoice-action btn-invoice-pdf">
+                                        <i class="bi bi-file-earmark-pdf"></i> ملف الفاتورة
+                                    </a>
+                                ` : ''}
+                                <button onclick="viewSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-view">
+                                    <i class="bi bi-eye"></i> التفاصيل
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbodyFragment.appendChild(row);
+                } catch (error) {
+                    console.error('خطأ في معالجة فاتورة:', error, sale);
+                }
+            });
+            
+            tbody.appendChild(tbodyFragment);
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            tableContainer.appendChild(table);
+            
+            salesSection.appendChild(salesHeader);
+            salesSection.appendChild(tableContainer);
         }
-    });
+        
+        // Assemble all parts
+        body.appendChild(customerInfoCard);
+        body.appendChild(statsGrid);
+        body.appendChild(salesSection);
+        
+        content.appendChild(header);
+        content.appendChild(body);
+        fragment.appendChild(content);
+        
+        modal.appendChild(fragment);
+        document.body.appendChild(modal);
+        
+        // إغلاق عند الضغط خارج الـ modal
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+        // Error handling: إزالة event listener عند إغلاق الـ modal
+        const closeButtons = modal.querySelectorAll('.btn-close, [onclick*="remove"]');
+        closeButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                modal.remove();
+            });
+        });
+        
+    } catch (error) {
+        console.error('خطأ في عرض بروفايل العميل:', error);
+        showMessage('حدث خطأ أثناء عرض بروفايل العميل: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 async function viewSaleInvoice(saleId) {
