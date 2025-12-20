@@ -143,7 +143,7 @@ function getRoleName($role) {
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="description" content="دردشة جماعية لفريق العمل">
     <meta name="theme-color" content="#2196F3">
     <meta name="mobile-web-app-capable" content="yes">

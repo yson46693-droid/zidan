@@ -254,7 +254,45 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // استراتيجية Cache First للملفات الثابتة
+    // استراتيجية Network First للملفات الديناميكية (CSS/JS مع query parameters)
+    // هذا يضمن أن الملفات المحدثة تُجلب من الشبكة أولاً
+    const isDynamicFile = request.url.includes('?v=') || 
+                         request.url.includes('?version=') ||
+                         request.url.endsWith('.css') ||
+                         request.url.endsWith('.js');
+    
+    if (isDynamicFile) {
+        // Network First للملفات الديناميكية
+        event.respondWith(
+            fetch(request)
+                .then(response => {
+                    // إذا كانت الاستجابة ناجحة، نحفظها في cache
+                    if (response.ok && response.status >= 200 && response.status < 300) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(request, responseToCache).catch(err => {
+                                console.warn('[SW] فشل حفظ في cache:', request.url, err);
+                            });
+                        });
+                    }
+                    return response;
+                })
+                .catch(error => {
+                    // إذا فشل الطلب من الشبكة، نجرب من cache
+                    console.warn('[SW] فشل جلب من الشبكة:', request.url, error);
+                    return caches.match(request).then(cachedResponse => {
+                        if (cachedResponse) {
+                            return cachedResponse;
+                        }
+                        // إذا لم يكن في cache أيضاً، نعيد الخطأ الأصلي
+                        throw error;
+                    });
+                })
+        );
+        return;
+    }
+    
+    // استراتيجية Cache First للملفات الثابتة الأخرى
     // مع دعم المتصفحات القديمة
     if (typeof caches !== 'undefined' && caches.match) {
         event.respondWith(
@@ -267,6 +305,21 @@ self.addEventListener('fetch', event => {
                     
                     // محاولة جلب من الشبكة
                     return fetch(request).then(response => {
+                        // إذا كانت الاستجابة ناجحة (200-299)، نحفظها في cache
+                        if (response.ok && response.status >= 200 && response.status < 300) {
+                            // نسخ الاستجابة قبل حفظها (Response يمكن قراءتها مرة واحدة فقط)
+                            const responseToCache = response.clone();
+                            
+                            // حفظ في cache بشكل آمن
+                            caches.open(CACHE_NAME).then(cache => {
+                                cache.put(request, responseToCache).catch(err => {
+                                    console.warn('[SW] فشل حفظ في cache:', request.url, err);
+                                });
+                            });
+                            
+                            return response;
+                        }
+                        
                         // تجاهل أخطاء 404 للملفات الاختيارية (مثل telegram-backup-config.json)
                         if (response.status === 404 && (
                             request.url.includes('telegram-backup-config.json') ||

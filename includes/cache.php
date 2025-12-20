@@ -50,16 +50,17 @@ function asset($path, $basePath = null) {
     
     // التحقق من وجود الملف
     if (!file_exists($fullPath)) {
-        // إذا لم يوجد الملف، إرجاع المسار بدون timestamp
-        return '/' . $path;
+        // إذا لم يوجد الملف، إرجاع المسار بدون timestamp (مسار نسبي)
+        error_log('asset(): ملف غير موجود: ' . $fullPath . ' (المسار المطلوب: ' . $path . ')');
+        return $path;
     }
     
     // الحصول على وقت آخر تعديل للملف
     $filemtime = filemtime($fullPath);
     
-    // إضافة timestamp كـ query parameter
+    // إضافة timestamp كـ query parameter (مسار نسبي بدون / في البداية)
     $separator = strpos($path, '?') !== false ? '&' : '?';
-    return '/' . $path . $separator . 'v=' . $filemtime;
+    return $path . $separator . 'v=' . $filemtime;
 }
 
 /**

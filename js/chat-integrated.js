@@ -209,6 +209,14 @@
             fetchUsersSeparately();
           }
         }, 1000);
+        
+        // إعادة محاولة جلب المستخدمين كل 30 ثانية
+        setInterval(() => {
+          if (state.users.length === 0) {
+            console.log('Chat: إعادة محاولة جلب المستخدمين...');
+            fetchUsersSeparately();
+          }
+        }, 30000);
       }, 300);
       
       document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -227,6 +235,21 @@
     if (elements.input) {
       elements.input.addEventListener('keydown', handleInputKeydown);
       elements.input.addEventListener('input', handleInputResize);
+      // منع zoom على iOS عند التركيز
+      elements.input.addEventListener('focus', function() {
+        if (window.innerWidth < 768) {
+          const viewport = document.querySelector('meta[name="viewport"]');
+          if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+          }
+        }
+      });
+      elements.input.addEventListener('blur', function() {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+          viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+        }
+      });
       handleInputResize();
     }
 
@@ -465,14 +488,18 @@
 
     if (action === 'reply') {
       setReply(message);
-    } else     if (action === 'edit') {
-      if (String(message.user_id) !== String(currentUser.id) || message.deleted) {
+    } else if (action === 'edit') {
+      const messageUserId = String(message.user_id || '');
+      const currentUserId = String(currentUser.id || '0');
+      if (messageUserId !== currentUserId || message.deleted) {
         showToast('يمكنك تعديل رسائلك فقط', true);
         return;
       }
       setEdit(message);
     } else if (action === 'delete') {
-      if (String(message.user_id) !== String(currentUser.id) || message.deleted) {
+      const messageUserId = String(message.user_id || '');
+      const currentUserId = String(currentUser.id || '0');
+      if (messageUserId !== currentUserId || message.deleted) {
         showToast('يمكنك حذف رسائلك فقط', true);
         return;
       }
@@ -555,10 +582,15 @@
       return;
     }
 
+    if (state.isSending) {
+      console.warn('Chat: إرسال رسالة قيد التنفيذ بالفعل');
+      return;
+    }
+
     state.isSending = true;
     toggleComposerDisabled(true);
 
-    console.log('Chat: إرسال رسالة...', { message: message.substring(0, 50), replyTo });
+    console.log('Chat: إرسال رسالة...', { message: message.substring(0, 50), replyTo, userId: currentUser.id });
 
     try {
       const apiBaseUrl = API_BASE || 'api/chat';
@@ -575,7 +607,10 @@
       try {
         response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
           credentials: 'include',
           body: JSON.stringify(requestBody),
         });
@@ -598,11 +633,19 @@
 
       if (!response.ok) {
         let errorText = '';
+        let errorData = null;
         try {
           errorText = await response.text();
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            // ليس JSON
+          }
         } catch (e) {
           // تجاهل خطأ قراءة النص
         }
+        
+        const errorMessage = errorData?.error || errorText || `خطأ ${response.status}`;
         
         if (response.status === 403) {
           throw new Error('ليس لديك صلاحية لإرسال الرسائل. يرجى تسجيل الدخول مرة أخرى.');
@@ -610,21 +653,25 @@
           throw new Error('لم يتم العثور على نقطة النهاية. يرجى التحقق من إعدادات الخادم.');
         } else if (response.status === 401) {
           throw new Error('غير مصرح لك. يرجى تسجيل الدخول مرة أخرى.');
+        } else if (response.status === 422) {
+          throw new Error(errorMessage);
         } else {
-          throw new Error(`فشل في إرسال الرسالة: ${response.status}`);
+          throw new Error(`فشل في إرسال الرسالة: ${errorMessage}`);
         }
       }
 
       let data;
       try {
-        data = await response.json();
+        const responseText = await response.text();
+        console.log('Chat: استجابة الخادم:', responseText.substring(0, 200));
+        data = JSON.parse(responseText);
       } catch (jsonError) {
-        console.error('JSON parse error:', jsonError);
+        console.error('JSON parse error:', jsonError, 'Response:', response);
         throw new Error('خطأ في قراءة البيانات من الخادم.');
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'تعذر إرسال الرسالة');
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'تعذر إرسال الرسالة');
       }
 
       elements.input.value = '';
@@ -632,7 +679,7 @@
       clearReplyAndEdit();
       
       // التأكد من أن البيانات موجودة
-      if (data.data) {
+      if (data.data && data.data.id) {
         appendMessages([data.data], true);
         showToast('تم إرسال الرسالة');
         scrollToBottom(true);
@@ -656,7 +703,9 @@
 
   async function updateMessage(messageId, message) {
     const msgToUpdate = state.messages.find((m) => m.id === messageId);
-    if (!msgToUpdate || String(msgToUpdate.user_id) !== String(currentUser.id) || msgToUpdate.deleted) {
+    const messageUserId = String(msgToUpdate?.user_id || '');
+    const currentUserId = String(currentUser.id || '0');
+    if (!msgToUpdate || messageUserId !== currentUserId || msgToUpdate.deleted) {
       showToast('يمكنك تعديل رسائلك فقط', true);
       return;
     }
@@ -765,7 +814,9 @@
   }
 
   async function confirmDelete(message) {
-    if (String(message.user_id) !== String(currentUser.id) || message.deleted) {
+    const messageUserId = String(message.user_id || '');
+    const currentUserId = String(currentUser.id || '0');
+    if (messageUserId !== currentUserId || message.deleted) {
       showToast('يمكنك حذف رسائلك فقط', true);
       return;
     }
@@ -926,20 +977,22 @@
       const { messages, latest_timestamp: latestTimestamp, users } = payload.data || {};
 
       // تحديث قائمة المستخدمين
-      if (Array.isArray(users)) {
+      if (Array.isArray(users) && users.length > 0) {
         console.log('Chat: تم استلام ' + users.length + ' مستخدم من API');
         state.users = users;
         updateUserList();
       } else if (users !== undefined) {
-        console.warn('Chat: users ليست مصفوفة:', users);
+        console.warn('Chat: users ليست مصفوفة أو فارغة:', users);
         // إذا كانت users موجودة لكن ليست مصفوفة، نجرب استخدام مصفوفة فارغة
         state.users = [];
         updateUserList();
       } else {
-        console.warn('Chat: users غير موجودة في payload.data');
+        console.warn('Chat: users غير موجودة في payload.data - جلب من API منفصل');
         // إذا لم تكن users موجودة، نحاول جلبها من API منفصل
         if (initial) {
-          fetchUsersSeparately();
+          setTimeout(() => {
+            fetchUsersSeparately();
+          }, 500);
         }
       }
 
@@ -996,7 +1049,9 @@
       if (!existingIds.has(message.id)) {
         state.messages.push(message);
         state.lastMessageId = Math.max(state.lastMessageId, message.id);
-        hasNew = String(message.user_id) !== String(currentUser.id);
+        const messageUserId = String(message.user_id || '');
+        const currentUserId = String(currentUser.id || '0');
+        hasNew = messageUserId !== currentUserId;
       } else if (applyMessageUpdate(message)) {
         hasNew = true;
       }
@@ -1065,8 +1120,10 @@
   }
 
   function createMessageElement(message, totalUsers) {
-    // مقارنة ID كـ string لتجنب مشاكل التحويل
-    const outgoing = String(message.user_id) === String(currentUser.id);
+    // مقارنة ID بشكل صحيح - تحويل كلا القيمتين إلى string أولاً
+    const messageUserId = String(message.user_id || '');
+    const currentUserId = String(currentUser.id || '0');
+    const outgoing = messageUserId === currentUserId;
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${outgoing ? 'outgoing' : 'incoming'}${message.deleted ? ' deleted' : ''}${message.edited && !message.deleted ? ' edited' : ''}`;
     messageElement.dataset.chatMessageId = String(message.id);
@@ -1237,10 +1294,21 @@
         emptyMsg.style.padding = '20px';
         emptyMsg.style.textAlign = 'center';
         emptyMsg.style.color = 'var(--chat-muted)';
+        emptyMsg.style.fontFamily = 'var(--chat-font-family)';
         fragment.appendChild(emptyMsg);
       } else {
-        state.users.forEach((user) => {
-          if (!user || !user.id) {
+        // ترتيب المستخدمين: المتصلون أولاً
+        const sortedUsers = [...state.users].sort((a, b) => {
+          const aOnline = Number(a.is_online) === 1 ? 1 : 0;
+          const bOnline = Number(b.is_online) === 1 ? 1 : 0;
+          if (aOnline !== bOnline) {
+            return bOnline - aOnline; // المتصلون أولاً
+          }
+          return 0;
+        });
+
+        sortedUsers.forEach((user) => {
+          if (!user || (!user.id && user.id !== 0)) {
             console.warn('Chat: مستخدم غير صالح:', user);
             return;
           }
@@ -1248,13 +1316,14 @@
           const item = document.createElement('div');
           item.className = 'chat-user-item';
           item.dataset.chatUserItem = 'true';
-          item.dataset.name = (user.name || user.username || '').trim();
-          item.dataset.userId = String(user.id);
+          
+          const userName = (user.name || user.username || 'مستخدم').trim();
+          item.dataset.name = userName;
+          item.dataset.userId = String(user.id || '');
 
           const avatar = document.createElement('div');
           avatar.className = 'chat-user-avatar';
 
-          const userName = user.name || user.username || 'مستخدم';
           const initials = getInitials(userName);
           avatar.textContent = initials;
 
@@ -1270,9 +1339,12 @@
           meta.appendChild(nameElement);
 
           const statusText = document.createElement('span');
-          statusText.textContent = isOnline
-            ? 'متصل الآن'
-            : `آخر ظهور: ${formatRelativeTime(user.last_seen || user.created_at)}`;
+          if (isOnline) {
+            statusText.textContent = 'متصل الآن';
+            statusText.style.color = 'var(--chat-success, #4CAF50)';
+          } else {
+            statusText.textContent = `آخر ظهور: ${formatRelativeTime(user.last_seen || user.created_at || '')}`;
+          }
           meta.appendChild(statusText);
 
           item.appendChild(avatar);
@@ -1292,7 +1364,7 @@
       console.error('Chat: خطأ في updateUserList:', error);
       // عرض رسالة خطأ للمستخدم
       if (elements.userList) {
-        elements.userList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--chat-muted);">خطأ في تحميل الأعضاء</div>';
+        elements.userList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--chat-muted); font-family: var(--chat-font-family);">خطأ في تحميل الأعضاء</div>';
       }
     }
   }
@@ -1340,6 +1412,8 @@
       const apiBaseUrl = API_BASE || 'api/chat';
       const url = `${apiBaseUrl}/user_status.php`;
       
+      console.log('Chat: جلب المستخدمين من:', url);
+      
       const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
@@ -1349,15 +1423,39 @@
       });
 
       if (!response.ok) {
-        console.warn('Chat: فشل جلب المستخدمين:', response.status);
+        console.warn('Chat: فشل جلب المستخدمين:', response.status, response.statusText);
         return;
       }
 
-      const payload = await response.json();
-      if (payload.success && Array.isArray(payload.data)) {
-        console.log('Chat: تم جلب ' + payload.data.length + ' مستخدم من API منفصل');
-        state.users = payload.data;
-        updateUserList();
+      const responseText = await response.text();
+      console.log('Chat: استجابة user_status:', responseText.substring(0, 200));
+      
+      let payload;
+      try {
+        payload = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Chat: خطأ في تحليل JSON:', e);
+        return;
+      }
+
+      if (payload.success) {
+        // payload.data قد يكون مصفوفة مباشرة أو كائن يحتوي على مصفوفة
+        let users = [];
+        if (Array.isArray(payload.data)) {
+          users = payload.data;
+        } else if (payload.data && Array.isArray(payload.data.users)) {
+          users = payload.data.users;
+        }
+        
+        if (users.length > 0) {
+          console.log('Chat: تم جلب ' + users.length + ' مستخدم من API منفصل');
+          state.users = users;
+          updateUserList();
+        } else {
+          console.warn('Chat: لا يوجد مستخدمين في الاستجابة');
+        }
+      } else {
+        console.warn('Chat: فشل جلب المستخدمين:', payload.error);
       }
     } catch (error) {
       console.warn('Chat: خطأ في جلب المستخدمين:', error);
@@ -1386,10 +1484,25 @@
         
         // إذا نجح التحديث، نجرب جلب المستخدمين المحدثين
         if (response.ok) {
-          const payload = await response.json();
-          if (payload.success && Array.isArray(payload.data)) {
-            state.users = payload.data;
-            updateUserList();
+          try {
+            const responseText = await response.text();
+            const payload = JSON.parse(responseText);
+            if (payload.success) {
+              // payload.data قد يكون مصفوفة مباشرة
+              let users = [];
+              if (Array.isArray(payload.data)) {
+                users = payload.data;
+              } else if (payload.data && Array.isArray(payload.data.users)) {
+                users = payload.data.users;
+              }
+              
+              if (users.length > 0) {
+                state.users = users;
+                updateUserList();
+              }
+            }
+          } catch (e) {
+            // تجاهل خطأ JSON
           }
         }
       } catch (fetchError) {
