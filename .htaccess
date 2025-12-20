@@ -12,11 +12,6 @@ AddType text/css .css
 AddType text/javascript .js
 AddType application/javascript .js
 
-# Service Worker - يجب أن يكون Content-Type صحيح
-<FilesMatch "^sw\.js$">
-    ForceType application/javascript
-</FilesMatch>
-
 # إعدادات PHP
 <IfModule mod_php.c>
     php_flag display_errors Off
