@@ -86,6 +86,11 @@
         overflow: visible !important;
         height: auto !important;
         max-height: none !important;
+        display: table !important; /* ضمان عرض الجدول كجدول */
+        width: 100% !important;
+        border-collapse: collapse !important;
+        border: 1px solid #ddd !important;
+        table-layout: fixed !important;
     }
     
     .invoice-items-table thead {
@@ -102,6 +107,21 @@
     .invoice-items-table tbody tr {
         page-break-inside: avoid;
         page-break-after: auto;
+        display: table-row !important;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        display: table-cell !important; /* ضمان عرض الخلايا كخلايا جدول */
+        padding: 8px !important;
+        border: 1px solid #ddd !important;
+        text-align: right !important;
+    }
+    
+    .invoice-items-table th {
+        background: #f5f5f5 !important;
+        font-weight: bold !important;
+        border-bottom: 2px solid #ddd !important;
     }
     
     /* السماح بتقسيم الخلاصة إذا لزم الأمر */

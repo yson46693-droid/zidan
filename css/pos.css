@@ -1104,6 +1104,8 @@
     margin-bottom: 30px;
     background: var(--white);
     table-layout: fixed; /* تثبيت عرض الأعمدة */
+    display: table !important; /* ضمان عرض الجدول كجدول */
+    border: 1px solid #ddd; /* إضافة حدود للجدول */
 }
 
 .invoice-items-table th,
@@ -1115,6 +1117,8 @@
     overflow-wrap: break-word;
     white-space: normal;
     overflow: visible;
+    display: table-cell !important; /* ضمان عرض الخلايا كخلايا جدول */
+    vertical-align: middle; /* محاذاة عمودية */
 }
 
 /* تحديد عرض الأعمدة */
@@ -1157,6 +1161,8 @@
     font-weight: 700;
     color: var(--text-dark);
     font-size: 1em;
+    display: table-cell !important; /* ضمان عرض رأس الجدول كخلايا */
+    border-bottom: 2px solid #ddd; /* خط أسفل رأس الجدول */
 }
 
 .invoice-items-table td {
@@ -1166,8 +1172,20 @@
     font-weight: 500;
 }
 
+.invoice-items-table tbody tr {
+    display: table-row !important; /* ضمان عرض الصفوف كصفوف جدول */
+}
+
 .invoice-items-table tbody tr:nth-child(even) {
     background: #f9f9f9;
+}
+
+.invoice-items-table thead {
+    display: table-header-group !important; /* ضمان عرض رأس الجدول */
+}
+
+.invoice-items-table tbody {
+    display: table-row-group !important; /* ضمان عرض جسم الجدول */
 }
 
 .invoice-summary {
@@ -1244,6 +1262,26 @@
 .invoice-items-table th {
     background: #f5f5f5;
     color: var(--text-dark);
+}
+
+/* ضمان عرض الجدول بشكل صحيح في جميع الحالات */
+.invoice-items-table,
+.invoice-items-table * {
+    box-sizing: border-box;
+}
+
+.invoice-items-table table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+}
+
+.invoice-items-table colgroup {
+    display: table-column-group !important;
+}
+
+.invoice-items-table col {
+    display: table-column !important;
 }
 
 .invoice-summary {
@@ -1725,6 +1763,8 @@
         width: 100% !important;
         border-collapse: collapse !important;
         table-layout: fixed !important; /* تثبيت عرض الأعمدة */
+        display: table !important; /* ضمان عرض الجدول كجدول */
+        border: 1px solid #ddd !important; /* إضافة حدود للجدول */
     }
     
     .invoice-items-table thead {
@@ -1738,6 +1778,11 @@
     .invoice-items-table tbody tr {
         page-break-inside: avoid !important;
         display: table-row !important;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        display: table-cell !important; /* ضمان عرض الخلايا كخلايا جدول */
     }
     
     /* تحديد عرض الأعمدة في الطباعة */
@@ -2131,12 +2176,42 @@
         print-color-adjust: exact !important;
     }
     
-    /* التأكد من ظهور جميع العناصر */
-    .invoice-wrapper,
-    .invoice-wrapper * {
-        display: block !important;
+    /* التأكد من ظهور جميع العناصر - لكن استثناء الجدول */
+    .invoice-wrapper {
         visibility: visible !important;
         opacity: 1 !important;
+    }
+    
+    .invoice-wrapper * {
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* استثناء الجدول من display: block */
+    .invoice-items-table,
+    .invoice-items-table * {
+        display: revert !important;
+    }
+    
+    .invoice-items-table {
+        display: table !important;
+    }
+    
+    .invoice-items-table thead {
+        display: table-header-group !important;
+    }
+    
+    .invoice-items-table tbody {
+        display: table-row-group !important;
+    }
+    
+    .invoice-items-table tr {
+        display: table-row !important;
+    }
+    
+    .invoice-items-table th,
+    .invoice-items-table td {
+        display: table-cell !important;
     }
     
     /* السماح بتقسيم الفاتورة على صفحات متعددة بشكل صحيح */
