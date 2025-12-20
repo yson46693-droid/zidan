@@ -214,6 +214,7 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     
     // جلب مبيعات العميل - البحث باستخدام customer_id أولاً، ثم رقم الهاتف كـ fallback
     // هذا يضمن جلب جميع الفواتير (القديمة والجديدة)
+    // استخدام OR للبحث في كلا الحالتين
     $sales = dbSelect(
         "SELECT s.*, u.name as created_by_name 
          FROM sales s 
@@ -221,13 +222,14 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
          WHERE (
              s.customer_id = ?
              OR 
-             (COALESCE(s.customer_id, '') = '' AND s.customer_phone = ?)
+             (s.customer_phone = ? AND (s.customer_id IS NULL OR s.customer_id = ''))
          )
          ORDER BY s.created_at DESC",
         [$customerId, $customer['phone']]
     );
     
     if ($sales === false) {
+        error_log("خطأ في جلب مبيعات العميل $customerId: " . (isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف'));
         response(false, 'خطأ في قراءة المبيعات', null, 500);
     }
     
@@ -235,6 +237,8 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     if (!is_array($sales)) {
         $sales = [];
     }
+    
+    error_log("تم جلب " . count($sales) . " فاتورة للعميل $customerId (رقم الهاتف: " . ($customer['phone'] ?? 'غير محدد') . ")");
     
     // فلترة إضافية للمبيعات والتأكد من ربطها بالعميل
     $filteredSales = [];
@@ -277,9 +281,15 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
             [$sale['id']]
         );
         
-        // التأكد من وجود عناصر في الفاتورة (لتصفية الفواتير الفارغة)
-        if (!is_array($items) || count($items) === 0) {
-            continue; // تخطي الفواتير بدون عناصر
+        // التأكد من أن $items هو array
+        if (!is_array($items)) {
+            $items = [];
+        }
+        
+        // إذا كانت الفاتورة بدون عناصر، نسجل تحذير لكن نستمر (قد تكون فاتورة قديمة)
+        if (count($items) === 0) {
+            error_log("تحذير: الفاتورة " . ($sale['sale_number'] ?? $sale['id']) . " لا تحتوي على عناصر");
+            // نستمر في المعالجة لكن نضيف items كـ array فارغ
         }
         
         $sale['items'] = $items;

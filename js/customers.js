@@ -316,16 +316,22 @@ async function viewCustomerProfile(customerId) {
         // Error handling: التحقق من نجاح الطلب
         if (!salesResult || !salesResult.success) {
             console.error('خطأ في جلب مبيعات العميل:', salesResult?.message || 'خطأ غير معروف');
+            console.error('تفاصيل الاستجابة:', salesResult);
             showMessage('حدث خطأ أثناء جلب بيانات العميل', 'error');
         }
         
         let sales = salesResult && salesResult.success && Array.isArray(salesResult.data) ? salesResult.data : [];
         
+        console.log('🔍 عدد الفواتير المستلمة من API:', sales.length);
+        console.log('🔍 بيانات الفواتير:', sales);
+        
         // فلترة إضافية للتأكد من أن الفواتير تخص هذا العميل فقط
         // نتحقق من customer_id أو customer_phone للتأكد من ربط الفاتورة بالعميل
+        const originalSalesCount = sales.length;
         sales = sales.filter(sale => {
             // Error handling: التأكد من وجود sale
             if (!sale || !sale.id) {
+                console.warn('⚠️ فاتورة بدون id:', sale);
                 return false;
             }
             
@@ -336,18 +342,31 @@ async function viewCustomerProfile(customerId) {
             );
             
             if (!isCustomerMatch) {
+                console.warn('⚠️ فاتورة لا تطابق العميل:', {
+                    saleId: sale.id,
+                    saleCustomerId: sale.customer_id,
+                    saleCustomerPhone: sale.customer_phone,
+                    targetCustomerId: customerId,
+                    targetCustomerPhone: customer.phone
+                });
                 return false;
             }
             
             // Error handling: التأكد من وجود بيانات صحيحة (items)
             // نتحقق من وجود items حتى لو كانت فارغة (قد تكون فاتورة بدون عناصر)
+            // إذا لم تكن items موجودة، نضيفها كـ array فارغ
             if (!sale.items || !Array.isArray(sale.items)) {
-                // إذا لم تكن items موجودة أو ليست array، نتخطاها
-                return false;
+                console.warn('⚠️ فاتورة بدون items أو items ليست array، إضافة items فارغة:', {
+                    saleId: sale.id,
+                    items: sale.items
+                });
+                sale.items = []; // إضافة items فارغة بدلاً من تخطي الفاتورة
             }
             
             return true;
         });
+        
+        console.log(`✅ بعد الفلترة: ${sales.length} من ${originalSalesCount} فاتورة`);
         
         // حساب إجمالي المشتريات مع error handling
         const totalPurchases = sales.reduce((sum, sale) => {
