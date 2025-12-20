@@ -657,8 +657,25 @@
             });
         }
         
-        // تحميل PWA Install Manager
+        // تحميل PWA Install Manager و Diagnostics
         const loadPWAInstall = () => {
+            // تحميل Diagnostics أولاً
+            const diagnosticsScript = document.createElement('script');
+            diagnosticsScript.src = 'js/pwa-diagnostics.js';
+            diagnosticsScript.async = true;
+            diagnosticsScript.onload = () => {
+                console.log('✅ PWA Diagnostics loaded');
+                // تشغيل التشخيص بعد تحميل Service Worker
+                setTimeout(() => {
+                    if (window.PWADiagnostics) {
+                        const diagnostics = new window.PWADiagnostics();
+                        diagnostics.runDiagnostics();
+                    }
+                }, 3000);
+            };
+            document.body.appendChild(diagnosticsScript);
+            
+            // تحميل PWA Install Manager
             const script = document.createElement('script');
             script.src = 'js/pwa-install.js';
             script.async = true;

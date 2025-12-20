@@ -3378,14 +3378,31 @@ body {
     .filters-bar,
     .pagination,
     .btn-icon,
-    .modal,
     .mobile-menu-btn {
+        display: none !important;
+    }
+    
+    /* استثناء modal بروفايل العميل من الإخفاء */
+    .modal:not(.customer-profile-modal) {
         display: none !important;
     }
 
     .main-content {
         margin: 0 !important;
         padding: 0 !important;
+    }
+    
+    /* تحسينات لبروفايل العميل عند الطباعة */
+    .customer-profile-modal {
+        position: static !important;
+        display: block !important;
+        background: white !important;
+    }
+    
+    .customer-profile-content {
+        max-height: none !important;
+        overflow: visible !important;
+        height: auto !important;
     }
 }
 

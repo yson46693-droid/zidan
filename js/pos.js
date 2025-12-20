@@ -676,6 +676,13 @@ function addSparePartItemToCart(index) {
     const quantityInput = document.getElementById(`sparePartItemQty_${index}`);
     const quantity = parseInt(quantityInput.value) || 1;
     
+    // التحقق من وجود itemId (مطلوب)
+    if (!itemId || itemId.trim() === '') {
+        console.error('itemId is missing or empty', { itemOption, index });
+        showMessage('خطأ: معرف القطعة الفرعية غير موجود', 'error');
+        return;
+    }
+    
     if (quantity < 1) {
         showMessage('الكمية يجب أن تكون على الأقل 1', 'error');
         return;
@@ -689,6 +696,7 @@ function addSparePartItemToCart(index) {
     // البحث عن القطعة الفرعية في product.items
     const sparePartItem = (product.items || []).find(item => item.id === itemId);
     if (!sparePartItem) {
+        console.error('Spare part item not found in product.items', { itemId, productItems: product.items });
         showMessage('القطعة الفرعية غير موجودة', 'error');
         return;
     }
@@ -744,7 +752,7 @@ function addSparePartItemToCart(index) {
     }
     
     // إضافة للسلة مع معلومات القطعة الفرعية
-    cart.push({
+    const cartItem = {
         id: product.id,
         name: itemName,
         type: product.type,
@@ -752,9 +760,26 @@ function addSparePartItemToCart(index) {
         quantity: quantity,
         totalPrice: itemPrice * quantity,
         image: product.image,
-        spare_part_item_id: itemId, // ID القطعة الفرعية
+        spare_part_item_id: itemId, // ID القطعة الفرعية (مطلوب)
         spare_part_item_type: itemType
+    };
+    
+    // التحقق النهائي من وجود spare_part_item_id
+    if (!cartItem.spare_part_item_id) {
+        console.error('spare_part_item_id is missing before adding to cart', cartItem);
+        showMessage('خطأ: معرف القطعة الفرعية غير موجود', 'error');
+        return;
+    }
+    
+    console.log('Adding spare part item to cart:', {
+        productName: product.name,
+        itemType: itemType,
+        itemId: itemId,
+        quantity: quantity,
+        spare_part_item_id: cartItem.spare_part_item_id
     });
+    
+    cart.push(cartItem);
     
     updateCartDisplay();
     closeSparePartItemsModal();
@@ -1202,15 +1227,23 @@ async function processPayment() {
         }
         
         const saleData = {
-            items: cart.map(item => ({
-                item_type: item.type === 'spare_part' ? 'spare_part' : item.type === 'accessory' ? 'accessory' : 'phone',
-                item_id: item.id,
-                item_name: item.name,
-                quantity: item.quantity,
-                unit_price: item.unitPrice,
-                total_price: item.totalPrice,
-                spare_part_item_id: item.spare_part_item_id || null // إرسال ID القطعة الفرعية إذا كانت موجودة
-            })),
+            items: cart.map(item => {
+                const saleItem = {
+                    item_type: item.type === 'spare_part' ? 'spare_part' : item.type === 'accessory' ? 'accessory' : 'phone',
+                    item_id: item.id,
+                    item_name: item.name,
+                    quantity: item.quantity,
+                    unit_price: item.unitPrice,
+                    total_price: item.totalPrice
+                };
+                
+                // إرسال spare_part_item_id فقط إذا كان المنتج من نوع spare_part وكان موجوداً
+                if (item.type === 'spare_part' && item.spare_part_item_id) {
+                    saleItem.spare_part_item_id = item.spare_part_item_id;
+                }
+                
+                return saleItem;
+            }),
             total_amount: subtotal,
             discount: discount,
             tax: tax,
@@ -1222,6 +1255,11 @@ async function processPayment() {
         
         // Debug: Log sale data
         console.log('Sending sale data:', saleData);
+        console.log('Cart items with spare_part_item_id:', cart.map(item => ({
+            name: item.name,
+            type: item.type,
+            spare_part_item_id: item.spare_part_item_id
+        })));
         
         const response = await API.request('sales.php', 'POST', saleData);
         

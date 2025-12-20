@@ -337,5 +337,105 @@
         visibility: visible !important;
         opacity: 1 !important;
     }
+    
+    /* تحسينات لبروفايل العميل والـ modals عند الطباعة */
+    .customer-profile-modal {
+        position: static !important;
+        display: block !important;
+        background: white !important;
+    }
+    
+    .customer-profile-content {
+        position: static !important;
+        display: block !important;
+        max-width: 100% !important;
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 auto !important;
+        padding: 20px !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        background: white !important;
+        page-break-inside: auto;
+    }
+    
+    .customer-profile-modal .modal-header {
+        page-break-after: avoid;
+        overflow: visible !important;
+        background: linear-gradient(135deg, #2196F3, #21CBF3) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .customer-profile-modal .modal-body {
+        page-break-inside: auto;
+        overflow: visible !important;
+    }
+    
+    /* بروفايل العميل - السماح بتقسيم المحتوى على عدة صفحات */
+    .customer-profile-header {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    /* بطاقات الإحصاءات */
+    .customer-profile-modal [style*="grid-template-columns"] {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    /* قسم سجل المشتريات */
+    .customer-sales-section {
+        page-break-inside: auto;
+    }
+    
+    .customer-sales-section h3 {
+        page-break-after: avoid;
+    }
+    
+    /* الجداول في بروفايل العميل - السماح بالتقسيم على صفحات متعددة */
+    .customer-sales-section .table-container {
+        page-break-inside: auto;
+        overflow: visible !important;
+    }
+    
+    .customer-sales-section table {
+        page-break-inside: auto;
+        width: 100%;
+    }
+    
+    .customer-sales-section table thead {
+        display: table-header-group;
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+    
+    .customer-sales-section table tbody {
+        page-break-inside: auto;
+    }
+    
+    .customer-sales-section table tbody tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    /* إخفاء أزرار الإجراءات عند الطباعة */
+    .customer-sales-section button,
+    .customer-profile-modal .btn-close,
+    .customer-profile-modal button[onclick*="print"] {
+        display: none !important;
+    }
+    
+    /* إخفاء الـ modal overlay عند الطباعة */
+    .customer-profile-modal::before {
+        display: none !important;
+    }
+    
+    /* تحسينات عامة للطباعة */
+    .customer-profile-modal * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 

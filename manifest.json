@@ -4,7 +4,7 @@
   "description": "نظام إدارة شامل لسلسلة فروع محلات م/ علاء زيدان ",
   "version": "2.0.1",
   "version_name": "2.0.1",
-  "start_url": "/index.html?v=2.0.1",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen", "minimal-ui", "browser"],
@@ -15,7 +15,7 @@
   "lang": "ar",
   "icons": [
     {
-      "src": "icon-512x512.png",
+      "src": "icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

@@ -324,15 +324,20 @@ async function viewCustomerProfile(customerId) {
     
     // Create profile modal مع تصميم محسّن
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'modal customer-profile-modal';
     modal.style.display = 'flex';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-            <div class="modal-header" style="border-bottom: 2px solid var(--border-color); padding: 20px 30px; background: linear-gradient(135deg, #2196F3, #21CBF3); border-radius: 15px 15px 0 0;">
+        <div class="modal-content customer-profile-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="border-bottom: 2px solid var(--border-color); padding: 20px 30px; background: linear-gradient(135deg, #2196F3, #21CBF3); border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 1.5em;">
                     <i class="bi bi-person-circle" style="font-size: 1.3em;"></i> بروفايل العميل
                 </h3>
-                <button onclick="this.closest('.modal').remove()" class="btn-close" style="color: white; font-size: 28px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">&times;</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="window.print()" class="btn btn-sm" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 8px; transition: all 0.3s; display: flex; align-items: center; gap: 6px;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                        <i class="bi bi-printer"></i> طباعة
+                    </button>
+                    <button onclick="this.closest('.modal').remove()" class="btn-close" style="color: white; font-size: 28px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">&times;</button>
+                </div>
             </div>
             <div class="modal-body" style="padding: 30px;">
                 <!-- Customer Info Card - تصميم محسّن -->
