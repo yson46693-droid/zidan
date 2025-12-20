@@ -885,13 +885,17 @@
             const registerServiceWorker = async () => {
                 if ('serviceWorker' in navigator) {
                     try {
-                        // 🔧 الحل: استخدام رقم إصدار ثابت بدلاً من Date.now()
-                        const appVersion = '2.0.1'; // نفس الرقم الموجود في sw.js
-                        const registration = await navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                        const appVersion = '2.0.1';
+                        const swUrl = '/sw.js';
+                        
+                        const registration = await navigator.serviceWorker.register(swUrl, {
                             scope: '/',
                             updateViaCache: 'none'
                         });
+                        
                         console.log('✅ Service Worker registered:', registration);
+                        console.log('   - Scope:', registration.scope);
+                        console.log('   - Active:', registration.active ? 'Yes' : 'Waiting');
                         
                         // التحقق من التحديثات
                         registration.addEventListener('updatefound', () => {

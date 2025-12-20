@@ -81,25 +81,35 @@ window.fetch = async function(url, options = {}) {
         if (response.ok && !url.includes('api/')) {
             const clonedResponse = response.clone();
             try {
-                const data = await clonedResponse.json();
-                const decryptedData = decryptSensitiveData(data);
-                
-                // إنشاء استجابة جديدة بالبيانات المفكوكة
-                return new Response(JSON.stringify(decryptedData), {
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: response.headers
-                });
+                // التحقق من Content-Type قبل محاولة قراءة JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await clonedResponse.json();
+                    const decryptedData = decryptSensitiveData(data);
+                    
+                    // إنشاء استجابة جديدة بالبيانات المفكوكة
+                    return new Response(JSON.stringify(decryptedData), {
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers: response.headers
+                    });
+                } else {
+                    // إذا لم تكن JSON، ارجع الاستجابة الأصلية
+                    return response;
+                }
             } catch (e) {
-                // إذا لم تكن JSON، ارجع الاستجابة الأصلية
+                // إذا لم تكن JSON أو فشل التحليل، ارجع الاستجابة الأصلية
                 return response;
             }
         }
         
         return response;
     } catch (error) {
-        // تسجيل الأخطاء الأمنية
-        if (window.securityManager) {
+        // تسجيل الأخطاء الأمنية فقط للطلبات المهمة
+        // تجاهل أخطاء الملفات الاختيارية (مثل telegram-backup-config.json)
+        if (!url.includes('telegram-backup-config.json') && 
+            !url.includes('data/') && 
+            window.securityManager) {
             window.securityManager.logSuspiciousActivity(
                 `خطأ في طلب API: ${url} - ${error.message}`,
                 'MEDIUM'

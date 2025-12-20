@@ -777,54 +777,28 @@ function getRoleName($role) {
         }
         
         // تسجيل Service Worker لدعم PWA
-        const registerServiceWorker = () => {
+        const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    const appVersion = window.APP_VERSION || 'v' + Date.now();
-                    const swUrl = '/sw.js?v=' + appVersion;
-                    
-                    // التحقق من أن الملف موجود أولاً
-                    fetch(swUrl, { method: 'HEAD', cache: 'no-store' })
-                        .then(response => {
-                            // التحقق من Content-Type
-                            const contentType = response.headers.get('content-type');
-                            if (contentType && contentType.includes('application/javascript')) {
-                                // الملف موجود وبـ Content-Type صحيح
-                                return navigator.serviceWorker.register(swUrl, {
-                                    scope: '/',
-                                    updateViaCache: 'none'
-                                });
-                            } else {
-                                // Content-Type خاطئ - تجاهل التسجيل
-                                console.warn('Service Worker: Invalid Content-Type, skipping registration');
-                                return Promise.reject(new Error('Invalid Content-Type'));
-                            }
-                        })
-                        .then(registration => {
-                            console.log('✅ Service Worker registered in Chat');
-                        })
-                        .catch(error => {
-                            // تجاهل الأخطاء بشكل صامت في production
-                            if (error.message && !error.message.includes('Invalid Content-Type')) {
-                                console.warn('Service Worker registration failed:', error.message);
-                            }
-                        });
+                    const swUrl = '/sw.js';
+                    const registration = await navigator.serviceWorker.register(swUrl, {
+                        scope: '/',
+                        updateViaCache: 'none'
+                    });
+                    console.log('✅ Service Worker registered in Chat:', registration.scope);
                 } catch (error) {
-                    // تجاهل الأخطاء
-                    if (error.message && !error.message.includes('InfinityFree')) {
-                        console.warn('Service Worker registration error:', error.message);
-                    }
+                    console.warn('Service Worker registration failed:', error.message || error);
                 }
             }
         };
         
-        // تسجيل Service Worker بعد تحميل الصفحة بالكامل
-        if (window.requestIdleCallback) {
-            window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
-        } else {
-            window.addEventListener('load', () => {
-                setTimeout(registerServiceWorker, 2000);
+        // تسجيل Service Worker فوراً
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(registerServiceWorker, 100);
             });
+        } else {
+            setTimeout(registerServiceWorker, 100);
         }
     </script>
     <script src="<?php echo htmlspecialchars(loadJS('js/chat-integrated.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>

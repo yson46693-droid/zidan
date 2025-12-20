@@ -619,61 +619,85 @@
             initPage();
         }
         
-        // تحميل Service Worker بشكل غير متزامن تماماً - لا يعيق تحميل الصفحة
-        // استخدام requestIdleCallback إذا كان متاحاً، وإلا setTimeout
-        const registerServiceWorker = () => {
+        // تسجيل Service Worker - فوري وموثوق لضمان عمل PWA
+        const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    const appVersion = window.APP_VERSION || 'v' + Date.now();
-                    navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                    const swUrl = '/sw.js';
+                    
+                    const registration = await navigator.serviceWorker.register(swUrl, {
                         scope: '/',
                         updateViaCache: 'none'
-                    }).then(registration => {
-                        console.log('✅ Service Worker registered');
-                        
-                        // التحقق من التحديثات بشكل دوري (كل 10 دقائق)
-                        setInterval(async () => {
-                            try {
-                                await registration.update();
-                            } catch (error) {
-                                // تجاهل الأخطاء
-                            }
-                        }, 600000); // كل 10 دقائق
-                    }).catch(error => {
-                        console.warn('Service Worker registration failed:', error);
                     });
+                    
+                    console.log('✅ Service Worker registered successfully');
+                    console.log('   - Scope:', registration.scope);
+                    console.log('   - Active:', registration.active ? 'Yes' : 'Waiting');
+                    
+                    // انتظار تفعيل Service Worker
+                    if (registration.installing) {
+                        registration.installing.addEventListener('statechange', function() {
+                            if (this.state === 'activated') {
+                                console.log('✅ Service Worker activated and ready');
+                            }
+                        });
+                    } else if (registration.waiting) {
+                        console.log('✅ Service Worker waiting to activate');
+                    } else if (registration.active) {
+                        console.log('✅ Service Worker already active');
+                    }
+                    
+                    // التحقق من التحديثات بشكل دوري
+                    setInterval(async () => {
+                        try {
+                            await registration.update();
+                        } catch (error) {
+                            // تجاهل الأخطاء
+                        }
+                    }, 600000); // كل 10 دقائق
+                    
+                    return registration;
                 } catch (error) {
-                    console.warn('Service Worker registration error:', error);
+                    console.error('❌ Service Worker registration failed:', error.message || error);
+                    return null;
                 }
+            } else {
+                console.warn('⚠️ Service Worker not supported');
+                return null;
             }
         };
         
-        // تسجيل Service Worker بعد تحميل الصفحة بالكامل، مع أولوية منخفضة
-        if (window.requestIdleCallback) {
-            window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
-        } else {
-            window.addEventListener('load', () => {
-                setTimeout(registerServiceWorker, 2000); // تأخير 2 ثانية بعد تحميل الصفحة
+        // تسجيل Service Worker فوراً (مهم لـ PWA)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(registerServiceWorker, 100);
             });
+        } else {
+            setTimeout(registerServiceWorker, 100);
         }
         
-        // تحميل PWA Install Manager و Diagnostics
-        const loadPWAInstall = () => {
-            // تحميل Diagnostics أولاً
-            const diagnosticsScript = document.createElement('script');
-            diagnosticsScript.src = 'js/pwa-diagnostics.js';
-            diagnosticsScript.async = true;
-            diagnosticsScript.onload = () => {
-                console.log('✅ PWA Diagnostics loaded');
-                // تشغيل التشخيص بعد تحميل Service Worker
-                setTimeout(() => {
-                    if (window.PWADiagnostics) {
-                        const diagnostics = new window.PWADiagnostics();
-                        diagnostics.runDiagnostics();
+        // أيضاً تسجيل عند تحميل الصفحة
+        window.addEventListener('load', () => {
+            setTimeout(registerServiceWorker, 500);
+        });
+        
+        // تحميل PWA Validator و Install Manager
+        const loadPWATools = () => {
+            // تحميل Validator
+            const validatorScript = document.createElement('script');
+            validatorScript.src = 'js/pwa-validator.js';
+            validatorScript.async = true;
+            validatorScript.onload = () => {
+                console.log('✅ PWA Validator loaded');
+                // تشغيل التحقق بعد تحميل Service Worker
+                setTimeout(async () => {
+                    if (window.PWAValidator) {
+                        const validator = new window.PWAValidator();
+                        await validator.validate();
                     }
                 }, 3000);
             };
-            document.body.appendChild(diagnosticsScript);
+            document.body.appendChild(validatorScript);
             
             // تحميل PWA Install Manager
             const script = document.createElement('script');
@@ -688,12 +712,12 @@
             document.body.appendChild(script);
         };
         
-        // تحميل PWA Install Manager بعد تحميل الصفحة
+        // تحميل PWA Tools بعد تحميل الصفحة
         if (window.requestIdleCallback) {
-            window.requestIdleCallback(loadPWAInstall, { timeout: 3000 });
+            window.requestIdleCallback(loadPWATools, { timeout: 3000 });
         } else {
             window.addEventListener('load', () => {
-                setTimeout(loadPWAInstall, 1000);
+                setTimeout(loadPWATools, 1000);
             });
         }
     </script>

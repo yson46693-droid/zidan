@@ -315,31 +315,28 @@
         }
         
         // تسجيل Service Worker لدعم PWA
-        const registerServiceWorker = () => {
+        const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    const appVersion = window.APP_VERSION || 'v' + Date.now();
-                    navigator.serviceWorker.register('/sw.js?v=' + appVersion, {
+                    const swUrl = '/sw.js';
+                    const registration = await navigator.serviceWorker.register(swUrl, {
                         scope: '/',
                         updateViaCache: 'none'
-                    }).then(registration => {
-                        console.log('✅ Service Worker registered in POS');
-                    }).catch(error => {
-                        console.warn('Service Worker registration failed:', error);
                     });
+                    console.log('✅ Service Worker registered in POS:', registration.scope);
                 } catch (error) {
-                    console.warn('Service Worker registration error:', error);
+                    console.warn('Service Worker registration failed:', error.message || error);
                 }
             }
         };
         
-        // تسجيل Service Worker بعد تحميل الصفحة بالكامل
-        if (window.requestIdleCallback) {
-            window.requestIdleCallback(registerServiceWorker, { timeout: 5000 });
-        } else {
-            window.addEventListener('load', () => {
-                setTimeout(registerServiceWorker, 2000);
+        // تسجيل Service Worker فوراً
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(registerServiceWorker, 100);
             });
+        } else {
+            setTimeout(registerServiceWorker, 100);
         }
     </script>
 </body>
