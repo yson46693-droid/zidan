@@ -1313,14 +1313,26 @@ async function showInvoice(saleData) {
     if (hasPhoneProduct) {
         // Get the first phone product details
         const phoneItem = (saleData.items || []).find(item => item.item_type === 'phone');
-        if (phoneItem && phoneItem.item_id) {
-            try {
-                const phoneRes = await API.request(`inventory.php?type=phones`, 'GET');
-                if (phoneRes && phoneRes.success && phoneRes.data) {
-                    phoneData = phoneRes.data.find(p => p.id === phoneItem.item_id);
+        if (phoneItem) {
+            // محاولة استخدام بيانات الهاتف من الاستجابة أولاً (إذا تم حفظها قبل الحذف)
+            if (phoneItem.phone_data) {
+                phoneData = phoneItem.phone_data;
+                console.log('تم استخدام بيانات الهاتف من الاستجابة:', phoneData);
+            } else if (phoneItem.item_id) {
+                // محاولة جلب البيانات من API (في حالة فشل الحفظ السابق)
+                try {
+                    const phoneRes = await API.request(`inventory.php?type=phones`, 'GET');
+                    if (phoneRes && phoneRes.success && phoneRes.data) {
+                        phoneData = phoneRes.data.find(p => p.id === phoneItem.item_id);
+                        if (phoneData) {
+                            console.log('تم جلب بيانات الهاتف من API:', phoneData);
+                        } else {
+                            console.warn('لم يتم العثور على بيانات الهاتف في API (ربما تم حذفه بالفعل)');
+                        }
+                    }
+                } catch (error) {
+                    console.error('خطأ في جلب بيانات الهاتف:', error);
                 }
-            } catch (error) {
-                console.error('خطأ في جلب بيانات الهاتف:', error);
             }
         }
     }

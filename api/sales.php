@@ -103,6 +103,7 @@ if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
                       `quantity` int(11) NOT NULL DEFAULT 1,
                       `unit_price` decimal(10,2) NOT NULL DEFAULT 0.00,
                       `total_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+                      `notes` text DEFAULT NULL,
                       `created_at` datetime NOT NULL,
                       PRIMARY KEY (`id`),
                       KEY `idx_sale_id` (`sale_id`),
@@ -112,6 +113,17 @@ if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ";
                 $conn->query($createSaleItems);
+            } else {
+                // Migration: إضافة عمود notes إذا لم يكن موجوداً (لحفظ بيانات الهاتف)
+                try {
+                    $checkColumn = $conn->query("SHOW COLUMNS FROM `sale_items` LIKE 'notes'");
+                    if ($checkColumn->num_rows === 0) {
+                        $conn->query("ALTER TABLE `sale_items` ADD COLUMN `notes` text DEFAULT NULL AFTER `total_price`");
+                        error_log('تم إضافة عمود notes إلى جدول sale_items بنجاح');
+                    }
+                } catch (Exception $e) {
+                    error_log('خطأ في إضافة عمود notes: ' . $e->getMessage());
+                }
             }
             
             $conn->query("SET FOREIGN_KEY_CHECKS = 1");
@@ -150,7 +162,20 @@ if ($method === 'GET') {
             "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
             [$saleId]
         );
-        $sale['items'] = (is_array($items) && count($items) > 0) ? $items : [];
+        
+        // معالجة عناصر البيع وإضافة بيانات الهاتف إذا كانت موجودة
+        $processedItems = [];
+        foreach ($items as $item) {
+            // إذا كان العنصر هاتف وله بيانات في notes (JSON)
+            if ($item['item_type'] === 'phone' && !empty($item['notes'])) {
+                $phoneData = json_decode($item['notes'], true);
+                if ($phoneData && is_array($phoneData)) {
+                    $item['phone_data'] = $phoneData;
+                }
+            }
+            $processedItems[] = $item;
+        }
+        $sale['items'] = (is_array($processedItems) && count($processedItems) > 0) ? $processedItems : [];
         
         // التأكد من وجود sale_number
         if (empty($sale['sale_number'])) {
@@ -240,7 +265,20 @@ if ($method === 'GET') {
             "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
             [$sale['id']]
         );
-        $sale['items'] = (is_array($items) && count($items) > 0) ? $items : [];
+        
+        // معالجة عناصر البيع وإضافة بيانات الهاتف إذا كانت موجودة
+        $processedItems = [];
+        foreach ($items as $item) {
+            // إذا كان العنصر هاتف وله بيانات في notes (JSON)
+            if ($item['item_type'] === 'phone' && !empty($item['notes'])) {
+                $phoneData = json_decode($item['notes'], true);
+                if ($phoneData && is_array($phoneData)) {
+                    $item['phone_data'] = $phoneData;
+                }
+            }
+            $processedItems[] = $item;
+        }
+        $sale['items'] = (is_array($processedItems) && count($processedItems) > 0) ? $processedItems : [];
         
         // التأكد من وجود sale_number
         if (empty($sale['sale_number'])) {
@@ -396,6 +434,27 @@ if ($method === 'POST') {
         }
         
         // إضافة عناصر البيع وتحديث الكمية في المخزون
+        // حفظ بيانات الهواتف قبل الحذف
+        $phoneDataMap = [];
+        foreach ($items as $item) {
+            $itemType = trim($item['item_type'] ?? '');
+            $originalItemId = trim($item['item_id'] ?? '');
+            
+            // إذا كان عنصر هاتف، جلب بياناته قبل الحذف
+            if ($itemType === 'phone' && !empty($originalItemId)) {
+                $phoneData = dbSelectOne(
+                    "SELECT brand, model, serial_number, storage, ram, screen_type, processor, battery, 
+                            accessories, password, maintenance_history, defects, tax_status, tax_amount,
+                            purchase_price, selling_price, image
+                     FROM phones WHERE id = ?", 
+                    [$originalItemId]
+                );
+                if ($phoneData) {
+                    $phoneDataMap[$originalItemId] = $phoneData;
+                }
+            }
+        }
+        
         foreach ($items as $item) {
             $itemId = generateId();
             $itemType = trim($item['item_type'] ?? '');
@@ -409,15 +468,38 @@ if ($method === 'POST') {
                 continue;
             }
             
-            // إضافة عنصر البيع
-            $itemResult = dbExecute(
-                "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, created_at) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
-                [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice]
-            );
+            // إضافة بيانات الهاتف إذا كانت موجودة (كJSON في notes إذا كان الحقل يدعم JSON)
+            $phoneDataJson = null;
+            if ($itemType === 'phone' && isset($phoneDataMap[$originalItemId])) {
+                $phoneDataJson = json_encode($phoneDataMap[$originalItemId], JSON_UNESCAPED_UNICODE);
+            }
+            
+            // التحقق من وجود عمود notes في sale_items
+            $hasNotesColumn = dbColumnExists('sale_items', 'notes');
+            
+            if ($hasNotesColumn && $phoneDataJson) {
+                // إضافة عنصر البيع مع بيانات الهاتف في حقل notes
+                $itemResult = dbExecute(
+                    "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, created_at) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                    [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $phoneDataJson]
+                );
+            } else {
+                // إضافة عنصر البيع بدون notes
+                $itemResult = dbExecute(
+                    "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, created_at) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                    [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice]
+                );
+            }
             
             if ($itemResult === false) {
                 throw new Exception('خطأ في إضافة عنصر البيع');
+            }
+            
+            // حفظ بيانات الهاتف في متغير للاستخدام لاحقاً في الاستجابة
+            if ($itemType === 'phone' && isset($phoneDataMap[$originalItemId])) {
+                $item['phone_data'] = $phoneDataMap[$originalItemId];
             }
             
             // تحديث الكمية في المخزون
@@ -554,7 +636,20 @@ if ($method === 'POST') {
                 "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
                 [$saleId]
             );
-            $sale['items'] = (is_array($saleItems) && count($saleItems) > 0) ? $saleItems : [];
+            
+            // معالجة عناصر البيع وإضافة بيانات الهاتف إذا كانت موجودة
+            $processedItems = [];
+            foreach ($saleItems as $saleItem) {
+                // إذا كان العنصر هاتف وله بيانات في notes (JSON)
+                if ($saleItem['item_type'] === 'phone' && !empty($saleItem['notes'])) {
+                    $phoneData = json_decode($saleItem['notes'], true);
+                    if ($phoneData && is_array($phoneData)) {
+                        $saleItem['phone_data'] = $phoneData;
+                    }
+                }
+                $processedItems[] = $saleItem;
+            }
+            $sale['items'] = (is_array($processedItems) && count($processedItems) > 0) ? $processedItems : [];
             
             // التأكد من وجود sale_number
             if (empty($sale['sale_number'])) {
