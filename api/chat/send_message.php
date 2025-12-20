@@ -62,15 +62,25 @@ try {
         $payload = $_POST;
     }
 
-    $messageText = isset($payload['message']) ? (string) $payload['message'] : '';
+    $messageText = isset($payload['message']) ? trim((string) $payload['message']) : '';
     $replyTo = isset($payload['reply_to']) ? (int) $payload['reply_to'] : null;
+
+    // التحقق من أن الرسالة ليست فارغة
+    if (empty($messageText)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'الرسالة لا يمكن أن تكون فارغة'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 
     if ($replyTo !== null && $replyTo <= 0) {
         $replyTo = null;
     }
+    
+    error_log('send_message: محاولة إرسال رسالة من المستخدم ' . $userId . ' - الطول: ' . strlen($messageText));
 
     if ($replyTo !== null) {
-        $original = db()->queryOne(
+        require_once __DIR__ . '/../database.php';
+        $original = dbSelectOne(
             "SELECT id FROM messages WHERE id = ?",
             [$replyTo]
         );
@@ -79,13 +89,29 @@ try {
         }
     }
 
-    $message = sendChatMessage($userId, $messageText, $replyTo);
-    markMessageAsRead((int) $message['id'], $userId);
-
-    echo json_encode([
-        'success' => true,
-        'data' => $message,
-    ], JSON_UNESCAPED_UNICODE);
+    try {
+        $message = sendChatMessage($userId, $messageText, $replyTo);
+        
+        if (!$message || !isset($message['id'])) {
+            error_log('send_message: فشل في إرسال الرسالة - لم يتم إرجاع رسالة صحيحة');
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'فشل في إرسال الرسالة'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // تحديد الرسالة كمقروءة
+        markMessageAsRead((int) $message['id'], $userId);
+        
+        error_log('send_message: تم إرسال الرسالة بنجاح - ID: ' . $message['id']);
+        
+        echo json_encode([
+            'success' => true,
+            'data' => $message,
+        ], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        error_log('send_message: خطأ في sendChatMessage: ' . $e->getMessage());
+        throw $e;
+    }
 } catch (InvalidArgumentException $invalid) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => $invalid->getMessage()], JSON_UNESCAPED_UNICODE);

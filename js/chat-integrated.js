@@ -550,12 +550,26 @@
   }
 
   async function sendMessage(message, replyTo) {
+    if (!message || !message.trim()) {
+      console.warn('Chat: محاولة إرسال رسالة فارغة');
+      return;
+    }
+
     state.isSending = true;
     toggleComposerDisabled(true);
+
+    console.log('Chat: إرسال رسالة...', { message: message.substring(0, 50), replyTo });
 
     try {
       const apiBaseUrl = API_BASE || 'api/chat';
       const url = `${apiBaseUrl}/send_message.php`;
+      
+      const requestBody = {
+        message: message.trim(),
+        reply_to: replyTo || null,
+      };
+      
+      console.log('Chat: إرسال طلب إلى:', url, requestBody);
       
       let response;
       try {
@@ -563,12 +577,10 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            message,
-            reply_to: replyTo,
-          }),
+          body: JSON.stringify(requestBody),
         });
       } catch (fetchError) {
+        console.error('Chat: خطأ في الاتصال:', fetchError);
         // تجاهل أخطاء InfinityFree error pages
         if (fetchError.message && fetchError.message.includes('errors.infinityfree.net')) {
           console.warn('InfinityFree error page detected, ignoring...');

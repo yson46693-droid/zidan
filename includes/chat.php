@@ -117,17 +117,26 @@ function sendChatMessage($userId, $messageText, $replyTo = null) {
         throw new InvalidArgumentException('الرسالة طويلة جداً (الحد الأقصى 5000 حرف)');
     }
 
-    $stmt = $conn->prepare("INSERT INTO messages (user_id, message_text, reply_to, created_at) VALUES (?, ?, ?, NOW())");
-    if (!$stmt) {
-        throw new RuntimeException('فشل في إعداد الاستعلام');
+    // إعداد الاستعلام مع معالجة NULL بشكل صحيح
+    if ($replyTo && $replyTo > 0) {
+        $stmt = $conn->prepare("INSERT INTO messages (user_id, message_text, reply_to, created_at) VALUES (?, ?, ?, NOW())");
+        if (!$stmt) {
+            throw new RuntimeException('فشل في إعداد الاستعلام: ' . $conn->error);
+        }
+        $stmt->bind_param('ssi', $userId, $messageText, $replyTo);
+    } else {
+        $stmt = $conn->prepare("INSERT INTO messages (user_id, message_text, reply_to, created_at) VALUES (?, ?, NULL, NOW())");
+        if (!$stmt) {
+            throw new RuntimeException('فشل في إعداد الاستعلام: ' . $conn->error);
+        }
+        $stmt->bind_param('ss', $userId, $messageText);
     }
 
-    $replyToValue = $replyTo && $replyTo > 0 ? $replyTo : null;
-    $stmt->bind_param('ssi', $userId, $messageText, $replyToValue);
-
     if (!$stmt->execute()) {
+        $error = $stmt->error;
         $stmt->close();
-        throw new RuntimeException('فشل في إرسال الرسالة');
+        error_log('خطأ في إرسال الرسالة: ' . $error);
+        throw new RuntimeException('فشل في إرسال الرسالة: ' . $error);
     }
 
     $messageId = $conn->insert_id;
