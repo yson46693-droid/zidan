@@ -164,7 +164,7 @@ function displayCustomers(customers) {
     const tbody = document.getElementById('customersTableBody');
 
     if (paginated.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد عملاء</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا يوجد عملاء</td></tr>';
         return;
     }
 
@@ -599,9 +599,6 @@ async function viewCustomerProfile(customerId) {
                             <div class="invoice-actions">
                                 <button onclick="printSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-pdf">
                                     <i class="bi bi-printer"></i> طباعة الفاتورة
-                                </button>
-                                <button onclick="viewSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-view">
-                                    <i class="bi bi-eye"></i> التفاصيل
                                 </button>
                             </div>
                         </td>
