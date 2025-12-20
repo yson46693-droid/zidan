@@ -4,6 +4,72 @@ let currentUser = null;
 let userCredentials = [];
 
 // تحميل قسم الملف الشخصي
+// تحميل webauthn.js إذا لم يكن محمّلاً
+async function ensureWebAuthnLoaded() {
+    if (typeof simpleWebAuthn !== 'undefined') {
+        return Promise.resolve();
+    }
+    
+    // إذا كان هناك دالة loadScriptOnDemand، استخدمها
+    if (typeof window.loadScriptOnDemand === 'function') {
+        try {
+            await window.loadScriptOnDemand('webauthn-script');
+            // انتظار تحميل الملف (بحد أقصى 5 ثوان)
+            const maxAttempts = 50;
+            let attempts = 0;
+            return new Promise((resolve, reject) => {
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    if (typeof simpleWebAuthn !== 'undefined') {
+                        clearInterval(checkInterval);
+                        console.log('✅ WebAuthn script loaded successfully');
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        console.error('❌ Failed to load WebAuthn script after ' + (maxAttempts * 100) + 'ms');
+                        reject(new Error('فشل تحميل نظام البصمة'));
+                    }
+                }, 100);
+            });
+        } catch (error) {
+            console.error('❌ Error loading WebAuthn script:', error);
+            throw error;
+        }
+    } else {
+        // إذا لم تكن هناك دالة loadScriptOnDemand، حمّل الملف مباشرة
+        return new Promise((resolve, reject) => {
+            if (typeof simpleWebAuthn !== 'undefined') {
+                resolve();
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'webauthn/webauthn.js';
+            script.async = true;
+            script.onload = () => {
+                // انتظار تحميل الملف (بحد أقصى 3 ثوان)
+                const maxAttempts = 30;
+                let attempts = 0;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    if (typeof simpleWebAuthn !== 'undefined') {
+                        clearInterval(checkInterval);
+                        console.log('✅ WebAuthn script loaded successfully');
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        reject(new Error('فشل تحميل نظام البصمة'));
+                    }
+                }, 100);
+            };
+            script.onerror = () => {
+                reject(new Error('فشل تحميل ملف webauthn.js'));
+            };
+            document.body.appendChild(script);
+        });
+    }
+}
+
 async function loadProfileSection() {
     const section = document.getElementById('profile-content');
     if (!section) {
@@ -60,6 +126,14 @@ async function loadProfileSection() {
                 `;
                 return;
             }
+        }
+
+        // تحميل webauthn.js قبل الاستخدام
+        try {
+            await ensureWebAuthnLoaded();
+        } catch (error) {
+            console.warn('⚠️ Failed to load WebAuthn:', error);
+            // نستمر في التحميل حتى لو فشل تحميل WebAuthn
         }
 
         // تحميل البصمات المسجلة
@@ -163,7 +237,22 @@ async function loadProfileSection() {
         // إضافة event listener لزر تسجيل البصمة
         const registerBtn = document.getElementById('registerBiometricBtn');
         if (registerBtn) {
-            registerBtn.addEventListener('click', handleRegisterBiometric);
+            // إزالة event listener القديم إذا كان موجوداً
+            registerBtn.replaceWith(registerBtn.cloneNode(true));
+            const newRegisterBtn = document.getElementById('registerBiometricBtn');
+            if (newRegisterBtn) {
+                newRegisterBtn.addEventListener('click', async () => {
+                    // التأكد من تحميل webauthn.js قبل الاستخدام
+                    try {
+                        await ensureWebAuthnLoaded();
+                    } catch (error) {
+                        showMessage('خطأ: فشل تحميل نظام البصمة. يرجى إعادة تحميل الصفحة.', 'error');
+                        console.error('❌ Failed to load WebAuthn:', error);
+                        return;
+                    }
+                    handleRegisterBiometric();
+                });
+            }
         }
     } catch (error) {
         console.error('خطأ في تحميل قسم الملف الشخصي:', error);
