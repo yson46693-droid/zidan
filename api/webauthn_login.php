@@ -36,11 +36,29 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$action = $_POST['action'] ?? '';
+// قراءة البيانات من JSON أو POST
+$rawInput = file_get_contents('php://input');
+$input = null;
+
+// محاولة قراءة JSON أولاً
+if (!empty($rawInput)) {
+    $input = json_decode($rawInput, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        // إذا فشل فك الترميز JSON، نستخدم $_POST
+        $input = null;
+    }
+}
+
+// إذا لم يكن هناك JSON، استخدم $_POST
+if (!$input || !is_array($input)) {
+    $input = $_POST;
+}
+
+$action = $input['action'] ?? '';
 
 try {
     if ($action === 'create_challenge') {
-        $username = $_POST['username'] ?? '';
+        $username = $input['username'] ?? '';
         
         if (empty($username)) {
             http_response_code(400);
@@ -62,7 +80,7 @@ try {
         }
         
     } elseif ($action === 'verify') {
-        $response = $_POST['response'] ?? '';
+        $response = $input['response'] ?? $_POST['response'] ?? '';
         
         if (empty($response)) {
             http_response_code(400);
@@ -70,7 +88,7 @@ try {
             exit;
         }
         
-        // تحويل JSON string إلى array
+        // تحويل JSON string إلى array إذا لزم الأمر
         if (is_string($response)) {
             $response = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
@@ -78,6 +96,13 @@ try {
                 echo json_encode(['success' => false, 'error' => 'استجابة غير صحيحة: ' . json_last_error_msg()], JSON_UNESCAPED_UNICODE);
                 exit;
             }
+        }
+        
+        // إذا كان response هو array بالفعل، استخدمه مباشرة
+        if (!is_array($response)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'استجابة غير صحيحة: يجب أن تكون array أو JSON string'], JSON_UNESCAPED_UNICODE);
+            exit;
         }
         
         // إرسال response object كامل إلى verifyLogin

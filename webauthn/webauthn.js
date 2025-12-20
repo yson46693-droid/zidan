@@ -525,10 +525,10 @@ class SimpleWebAuthn {
             const challengeResponse = await fetch(loginApiPath, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin',
-                body: new URLSearchParams({
+                body: JSON.stringify({
                     action: 'create_challenge',
                     username: username
                 })
@@ -609,12 +609,12 @@ class SimpleWebAuthn {
             const verifyResponse = await fetch(loginApiPath, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin',
-                body: new URLSearchParams({
+                body: JSON.stringify({
                     action: 'verify',
-                    response: JSON.stringify({
+                    response: {
                         id: credential.id,
                         rawId: credentialIdBase64,
                         type: credential.type,
@@ -623,7 +623,7 @@ class SimpleWebAuthn {
                             authenticatorData: authenticatorData,
                             signature: signature
                         }
-                    })
+                    }
                 })
             });
             
@@ -651,13 +651,16 @@ class SimpleWebAuthn {
                     localStorage.clear();
                     sessionStorage.clear();
                     localStorage.setItem('currentUser', JSON.stringify(verifyData.data));
+                    // إضافة علامة تسجيل دخول حديث (مثل تسجيل الدخول العادي)
+                    sessionStorage.setItem('just_logged_in_time', Date.now().toString());
                 }
                 
                 // إعادة توجيه إلى لوحة التحكم
                 const dashboardUrl = 'dashboard.html';
                 
                 console.log('Redirecting to dashboard:', dashboardUrl);
-                window.location.href = dashboardUrl;
+                // استخدام replace لمنع loop
+                window.location.replace(dashboardUrl);
                 return {
                     success: true,
                     message: 'تم تسجيل الدخول بنجاح',

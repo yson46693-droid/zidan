@@ -351,27 +351,18 @@
                 }, 1000); // تأخير ثانية بعد تحميل الصفحة
             });
             
-            // تحميل webauthn.js عند الحاجة فقط
-            const biometricBtn = document.getElementById('biometricLoginBtn');
-            if (biometricBtn) {
-                let webauthnLoading = false;
-                biometricBtn.addEventListener('click', function loadWebAuthn() {
-                    if (webauthnLoading || typeof simpleWebAuthn !== 'undefined') return;
-                    webauthnLoading = true;
-                    
-                    const webauthnScript = document.createElement('script');
-                    webauthnScript.src = 'webauthn/webauthn.js';
-                    webauthnScript.async = true;
-                    webauthnScript.onload = () => {
-                        console.log('✅ WebAuthn script loaded successfully');
-                    };
-                    webauthnScript.onerror = () => {
-                        console.error('❌ Failed to load WebAuthn script');
-                        webauthnLoading = false;
-                    };
-                    document.body.appendChild(webauthnScript);
-                    biometricBtn.removeEventListener('click', loadWebAuthn);
-                }, { once: true });
+            // تحميل webauthn.js فوراً لتجنب أي تأخير
+            if (!document.querySelector('script[src="webauthn/webauthn.js"]')) {
+                const webauthnScript = document.createElement('script');
+                webauthnScript.src = 'webauthn/webauthn.js';
+                webauthnScript.async = true;
+                webauthnScript.onload = () => {
+                    console.log('✅ WebAuthn script loaded successfully');
+                };
+                webauthnScript.onerror = () => {
+                    console.error('❌ Failed to load WebAuthn script');
+                };
+                document.body.appendChild(webauthnScript);
             }
         });
     </script>
@@ -532,24 +523,29 @@
                 };
                 
                 // محاولة إعداد الزر بعد تحميل الملف
-                setTimeout(() => {
+                const setupAfterLoad = () => {
                     if (typeof simpleWebAuthn !== 'undefined') {
                         setupBiometricButton();
-                    } else {
-                        // انتظار تحميل الملف (بحد أقصى 5 ثوان)
-                        const maxAttempts = 25;
-                        let attempts = 0;
-                        const checkInterval = setInterval(() => {
-                            attempts++;
-                            if (typeof simpleWebAuthn !== 'undefined' || attempts >= maxAttempts) {
-                                clearInterval(checkInterval);
-                                if (typeof simpleWebAuthn !== 'undefined') {
-                                    setupBiometricButton();
-                                }
-                            }
-                        }, 200);
+                        return true;
                     }
-                }, 1500);
+                    return false;
+                };
+                
+                // محاولة فورية
+                if (!setupAfterLoad()) {
+                    // انتظار تحميل الملف (بحد أقصى 10 ثوان)
+                    const maxAttempts = 50;
+                    let attempts = 0;
+                    const checkInterval = setInterval(() => {
+                        attempts++;
+                        if (setupAfterLoad() || attempts >= maxAttempts) {
+                            clearInterval(checkInterval);
+                            if (attempts >= maxAttempts && typeof simpleWebAuthn === 'undefined') {
+                                console.warn('⚠️ WebAuthn لم يتم تحميله بعد ' + (maxAttempts * 200) + 'ms');
+                            }
+                        }
+                    }, 200);
+                }
             }
             
             // التحقق من تسجيل الدخول (مرة واحدة فقط) - مع حماية من loop
