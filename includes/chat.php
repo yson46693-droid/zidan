@@ -378,32 +378,49 @@ function updateUserPresence($userId, $isOnline) {
 function getActiveUsers() {
     $conn = getDBConnection();
     if (!$conn) {
+        error_log('getActiveUsers: فشل الاتصال بقاعدة البيانات');
         return [];
     }
 
-    // محاولة استخدام user_status أولاً
-    $query = "
-        SELECT u.id, u.username, u.name,
-               COALESCE(s.is_online, p.is_online, 0) as is_online,
-               COALESCE(s.last_seen, p.last_seen, u.created_at) as last_seen
-        FROM users u
-        LEFT JOIN user_status s ON u.id = s.user_id
-        LEFT JOIN user_presence p ON u.id = p.user_id
-        ORDER BY COALESCE(s.is_online, p.is_online, 0) DESC, 
-                 COALESCE(s.last_seen, p.last_seen, u.created_at) DESC
-    ";
+    try {
+        // محاولة استخدام user_status أولاً
+        $query = "
+            SELECT u.id, u.username, u.name,
+                   COALESCE(s.is_online, p.is_online, 0) as is_online,
+                   COALESCE(s.last_seen, p.last_seen, u.created_at) as last_seen
+            FROM users u
+            LEFT JOIN user_status s ON u.id = s.user_id
+            LEFT JOIN user_presence p ON u.id = p.user_id
+            ORDER BY COALESCE(s.is_online, p.is_online, 0) DESC, 
+                     COALESCE(s.last_seen, p.last_seen, u.created_at) DESC
+        ";
 
-    $result = $conn->query($query);
-    if (!$result) {
+        $result = $conn->query($query);
+        if (!$result) {
+            error_log('getActiveUsers: خطأ في الاستعلام: ' . $conn->error);
+            return [];
+        }
+
+        $users = [];
+        while ($row = $result->fetch_assoc()) {
+            // التأكد من وجود البيانات الأساسية
+            if (!empty($row['id'])) {
+                // تحويل is_online إلى رقم صحيح
+                $row['is_online'] = (int)($row['is_online'] ?? 0);
+                // التأكد من وجود name أو username
+                if (empty($row['name']) && !empty($row['username'])) {
+                    $row['name'] = $row['username'];
+                }
+                $users[] = $row;
+            }
+        }
+
+        error_log('getActiveUsers: تم جلب ' . count($users) . ' مستخدم');
+        return $users;
+    } catch (Exception $e) {
+        error_log('getActiveUsers: خطأ: ' . $e->getMessage());
         return [];
     }
-
-    $users = [];
-    while ($row = $result->fetch_assoc()) {
-        $users[] = $row;
-    }
-
-    return $users;
 }
 
 /**

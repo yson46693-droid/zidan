@@ -78,9 +78,22 @@ try {
         exit;
     }
 
+    // جلب المستخدمين مع معالجة الأخطاء
+    $users = [];
+    try {
+        $users = getActiveUsers();
+        if (!is_array($users)) {
+            error_log('user_status: getActiveUsers لم تعد مصفوفة');
+            $users = [];
+        }
+    } catch (Throwable $userError) {
+        error_log('user_status: خطأ في جلب المستخدمين: ' . $userError->getMessage());
+        $users = [];
+    }
+
     echo json_encode([
         'success' => true,
-        'data' => getActiveUsers(),
+        'data' => $users,
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
     error_log('chat/user_status error: ' . $e->getMessage());

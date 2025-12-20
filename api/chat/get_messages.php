@@ -109,12 +109,25 @@ try {
 
     $latestTimestamp = getLastMessageTimestamp();
 
+    // جلب المستخدمين مع معالجة الأخطاء
+    $users = [];
+    try {
+        $users = getActiveUsers();
+        if (!is_array($users)) {
+            error_log('get_messages: getActiveUsers لم تعد مصفوفة');
+            $users = [];
+        }
+    } catch (Throwable $userError) {
+        error_log('get_messages: خطأ في جلب المستخدمين: ' . $userError->getMessage());
+        $users = [];
+    }
+
     echo json_encode([
         'success' => true,
         'data' => [
             'messages' => $messages,
             'latest_timestamp' => $latestTimestamp,
-            'users' => getActiveUsers(),
+            'users' => $users,
         ],
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
