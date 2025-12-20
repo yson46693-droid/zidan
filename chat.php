@@ -41,7 +41,31 @@ if (!function_exists('asset')) {
     error_log('دالة asset غير موجودة بعد تحميل cache.php');
     // إنشاء دالة asset بسيطة كبديل
     function asset($path) {
+        // تنظيف المسار
+        $path = ltrim($path, '/');
+        // التحقق من وجود الملف
+        $fullPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (file_exists($fullPath)) {
+            // إضافة timestamp للكاش
+            $separator = strpos($path, '?') !== false ? '&' : '?';
+            $result = $path . $separator . 'v=' . filemtime($fullPath);
+            error_log('asset(): ' . $path . ' -> ' . $result);
+            return $result;
+        }
+        error_log('asset(): ملف غير موجود: ' . $fullPath . ' (المسار المطلوب: ' . $path . ')');
+        // إرجاع المسار كما هو حتى لو لم يكن الملف موجوداً
         return $path;
+    }
+} else {
+    // دالة asset موجودة، لكن نضيف تسجيل للتأكد
+    $originalAsset = 'asset';
+    if (function_exists($originalAsset)) {
+        // نسخة محسّنة من asset مع تسجيل
+        function asset_with_logging($path) {
+            $result = asset($path);
+            error_log('asset(): ' . $path . ' -> ' . $result);
+            return $result;
+        }
     }
 }
 
@@ -245,9 +269,21 @@ function getRoleName($role) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
     <!-- CSS Files - مع Cache Busting تلقائي -->
-    <link rel="stylesheet" href="<?php echo asset('css/style.css'); ?>">
-    <link rel="stylesheet" href="<?php echo asset('css/chat-integrated.css'); ?>">
-    <link rel="stylesheet" href="<?php echo asset('chat/chat.css'); ?>">
+    <?php
+    // دالة مساعدة لتحميل CSS مع cache busting
+    function loadCSS($path) {
+        $fullPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (file_exists($fullPath)) {
+            $version = filemtime($fullPath);
+            return $path . '?v=' . $version;
+        }
+        error_log('CSS file not found: ' . $fullPath);
+        return $path;
+    }
+    ?>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(loadCSS('css/style.css'), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(loadCSS('css/chat-integrated.css'), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(loadCSS('chat/chat.css'), ENT_QUOTES, 'UTF-8'); ?>">
     
     <!-- Critical CSS للتأكد من ظهور التصميم فوراً -->
     <style>
@@ -600,9 +636,21 @@ function getRoleName($role) {
         </div>
     </main>
 
-    <script src="<?php echo asset('js/api.js'); ?>"></script>
-    <script src="<?php echo asset('js/utils.js'); ?>"></script>
-    <script src="<?php echo asset('js/auth.js'); ?>"></script>
+    <?php
+    // دالة مساعدة لتحميل JS مع cache busting
+    function loadJS($path) {
+        $fullPath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+        if (file_exists($fullPath)) {
+            $version = filemtime($fullPath);
+            return $path . '?v=' . $version;
+        }
+        error_log('JS file not found: ' . $fullPath);
+        return $path;
+    }
+    ?>
+    <script src="<?php echo htmlspecialchars(loadJS('js/api.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>
+    <script src="<?php echo htmlspecialchars(loadJS('js/utils.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>
+    <script src="<?php echo htmlspecialchars(loadJS('js/auth.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>
     <script>
         // تطبيق التصميم الأساسي فوراً
         (function() {
@@ -779,6 +827,6 @@ function getRoleName($role) {
             });
         }
     </script>
-    <script src="<?php echo asset('js/chat-integrated.js'); ?>"></script>
+    <script src="<?php echo htmlspecialchars(loadJS('js/chat-integrated.js'), ENT_QUOTES, 'UTF-8'); ?>"></script>
 </body>
 </html>

@@ -299,66 +299,151 @@ async function viewCustomerProfile(customerId) {
     const customer = allCustomers.find(c => c.id === customerId);
     if (!customer) return;
     
-    // Load customer sales
+    // Load customer sales - فقط فواتير هذا العميل
     const salesResult = await API.getCustomerSales(customerId);
-    const sales = salesResult.success ? salesResult.data : [];
+    let sales = salesResult.success && Array.isArray(salesResult.data) ? salesResult.data : [];
     
-    // Debug: Log sales data
-    console.log('Customer Sales Data:', sales);
+    // فلترة إضافية للتأكد من أن الفواتير تخص هذا العميل فقط
+    sales = sales.filter(sale => {
+        // التأكد من وجود customer_id وأنه يطابق العميل المطلوب
+        if (!sale.customer_id || sale.customer_id !== customerId) {
+            return false;
+        }
+        // التأكد من وجود بيانات صحيحة (items و total_amount)
+        if (!sale.items || !Array.isArray(sale.items) || sale.items.length === 0) {
+            // إذا كانت الفاتورة بدون عناصر، نتخطاها لأنها قد تكون بيانات خاطئة
+            return false;
+        }
+        return true;
+    });
     
-    // Create profile modal
+    // حساب إجمالي المشتريات
+    const totalPurchases = sales.reduce((sum, sale) => {
+        return sum + parseFloat(sale.final_amount || sale.total_amount || 0);
+    }, 0);
+    
+    // Create profile modal مع تصميم محسّن
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header">
-                <h3><i class="bi bi-person-circle"></i> بروفايل العميل</h3>
-                <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="border-bottom: 2px solid var(--border-color); padding: 20px 30px; background: linear-gradient(135deg, #2196F3, #21CBF3); border-radius: 15px 15px 0 0;">
+                <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 1.5em;">
+                    <i class="bi bi-person-circle" style="font-size: 1.3em;"></i> بروفايل العميل
+                </h3>
+                <button onclick="this.closest('.modal').remove()" class="btn-close" style="color: white; font-size: 28px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="customer-profile-header" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; padding: 30px; border-radius: 10px; margin-bottom: 20px;">
-                    <h2 style="margin: 0 0 10px 0;">${customer.name}</h2>
-                    ${customer.customer_type === 'commercial' && customer.shop_name ? `<p style="margin: 0; font-size: 1.1em; opacity: 0.9;"><i class="bi bi-shop"></i> ${customer.shop_name}</p>` : ''}
-                    <div style="margin-top: 15px; display: flex; gap: 20px; flex-wrap: wrap;">
-                        <div><i class="bi bi-telephone"></i> ${customer.phone}</div>
-                        ${customer.address ? `<div><i class="bi bi-geo-alt"></i> ${customer.address}</div>` : ''}
-                        <div><i class="bi bi-calendar"></i> ${formatDate(customer.created_at)}</div>
+            <div class="modal-body" style="padding: 30px;">
+                <!-- Customer Info Card - تصميم محسّن -->
+                <div class="customer-profile-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%); color: white; padding: 35px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(33, 150, 243, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                        <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5em;">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h2 style="margin: 0 0 8px 0; font-size: 1.8em; font-weight: bold;">${customer.name}</h2>
+                            ${customer.customer_type === 'commercial' && customer.shop_name ? `
+                                <p style="margin: 0; font-size: 1.1em; opacity: 0.95; display: flex; align-items: center; gap: 8px;">
+                                    <i class="bi bi-shop"></i> ${customer.shop_name}
+                                </p>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 25px; padding-top: 25px; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <div style="display: flex; align-items: center; gap: 10px; font-size: 1.05em;">
+                            <i class="bi bi-telephone-fill" style="font-size: 1.2em;"></i>
+                            <span>${customer.phone}</span>
+                        </div>
+                        ${customer.address ? `
+                            <div style="display: flex; align-items: center; gap: 10px; font-size: 1.05em;">
+                                <i class="bi bi-geo-alt-fill" style="font-size: 1.2em;"></i>
+                                <span>${customer.address}</span>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; align-items: center; gap: 10px; font-size: 1.05em;">
+                            <i class="bi bi-calendar-check-fill" style="font-size: 1.2em;"></i>
+                            <span>${formatDate(customer.created_at)}</span>
+                        </div>
                     </div>
                 </div>
                 
+                <!-- Statistics Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
+                        <div style="font-size: 2.5em; font-weight: bold; margin-bottom: 8px;">${sales.length}</div>
+                        <div style="opacity: 0.95; font-size: 1.05em;"><i class="bi bi-receipt"></i> عدد الفواتير</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #FF9800, #F57C00); color: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);">
+                        <div style="font-size: 2.5em; font-weight: bold; margin-bottom: 8px;">${totalPurchases.toFixed(2)}</div>
+                        <div style="opacity: 0.95; font-size: 1.05em;"><i class="bi bi-currency-exchange"></i> إجمالي المشتريات (ج.م)</div>
+                    </div>
+                </div>
+                
+                <!-- Sales History Section -->
                 <div class="customer-sales-section">
-                    <h3 style="margin-bottom: 15px;"><i class="bi bi-receipt"></i> سجل المشتريات (${sales.length})</h3>
-                    ${sales.length === 0 ? '<p style="text-align: center; color: var(--text-light); padding: 20px;">لا توجد مشتريات</p>' : `
-                        <div class="table-container">
-                            <table class="data-table">
-                                <thead>
+                    <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 1.4em; color: var(--text-dark); padding-bottom: 15px; border-bottom: 2px solid var(--border-color);">
+                        <i class="bi bi-receipt-cutoff" style="color: var(--primary-color);"></i> 
+                        <span>سجل المشتريات</span>
+                        ${sales.length > 0 ? `<span style="background: var(--primary-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: normal;">${sales.length}</span>` : ''}
+                    </h3>
+                    ${sales.length === 0 ? `
+                        <div style="text-align: center; padding: 60px 20px; background: var(--light-bg); border-radius: 12px; border: 2px dashed var(--border-color);">
+                            <i class="bi bi-inbox" style="font-size: 4em; color: var(--text-light); margin-bottom: 15px; display: block;"></i>
+                            <p style="color: var(--text-light); font-size: 1.1em; margin: 0;">لا توجد فواتير مسجلة لهذا العميل</p>
+                        </div>
+                    ` : `
+                        <div class="table-container" style="border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                            <table class="data-table" style="margin: 0;">
+                                <thead style="background: linear-gradient(135deg, var(--primary-color), #1976D2); color: white;">
                                     <tr>
-                                        <th>رقم الفاتورة</th>
-                                        <th>التاريخ</th>
-                                        <th>عدد العناصر</th>
-                                        <th>المجموع</th>
-                                        <th>الإجمالي</th>
-                                        <th>الإجراءات</th>
+                                        <th style="padding: 15px; font-weight: 600;">رقم الفاتورة</th>
+                                        <th style="padding: 15px; font-weight: 600;">التاريخ</th>
+                                        <th style="padding: 15px; font-weight: 600; text-align: center;">عدد العناصر</th>
+                                        <th style="padding: 15px; font-weight: 600; text-align: right;">المجموع</th>
+                                        <th style="padding: 15px; font-weight: 600; text-align: right;">الإجمالي</th>
+                                        <th style="padding: 15px; font-weight: 600; text-align: center;">الإجراءات</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${sales.map(sale => {
-                                        // التأكد من وجود البيانات
+                                        // التأكد من وجود البيانات الصحيحة
                                         const saleNumber = sale.sale_number || sale.id || 'غير محدد';
-                                        const itemsCount = (sale.items && Array.isArray(sale.items)) ? sale.items.length : 0;
-                                        const totalAmount = parseFloat(sale.total_amount || 0);
-                                        const finalAmount = parseFloat(sale.final_amount || 0);
+                                        const items = sale.items && Array.isArray(sale.items) ? sale.items : [];
+                                        const itemsCount = items.length;
+                                        
+                                        // حساب المبلغ من العناصر إذا لم يكن موجوداً
+                                        let totalAmount = parseFloat(sale.total_amount || 0);
+                                        let finalAmount = parseFloat(sale.final_amount || 0);
+                                        
+                                        // إذا كانت القيم 0، نحسبها من العناصر
+                                        if (items.length > 0 && (totalAmount === 0 || finalAmount === 0)) {
+                                            const calculatedTotal = items.reduce((sum, item) => {
+                                                return sum + (parseFloat(item.total_price || 0) * parseInt(item.quantity || 1));
+                                            }, 0);
+                                            if (totalAmount === 0) totalAmount = calculatedTotal;
+                                            if (finalAmount === 0) {
+                                                const discount = parseFloat(sale.discount || 0);
+                                                const tax = parseFloat(sale.tax || 0);
+                                                finalAmount = calculatedTotal - discount + tax;
+                                            }
+                                        }
                                         
                                         return `
-                                        <tr>
-                                            <td><strong>${saleNumber}</strong></td>
-                                            <td>${formatDate(sale.created_at)}</td>
-                                            <td>${itemsCount}</td>
-                                            <td>${totalAmount.toFixed(2)} ج.م</td>
-                                            <td><strong style="color: var(--primary-color);">${finalAmount.toFixed(2)} ج.م</strong></td>
-                                            <td>
-                                                <button onclick="viewSaleInvoice('${sale.id}')" class="btn btn-sm btn-primary">
+                                        <tr style="transition: background 0.2s;" onmouseover="this.style.background='var(--light-bg)'" onmouseout="this.style.background='transparent'">
+                                            <td style="padding: 15px;"><strong style="color: var(--primary-color);">${saleNumber}</strong></td>
+                                            <td style="padding: 15px;">${formatDate(sale.created_at)}</td>
+                                            <td style="padding: 15px; text-align: center;">
+                                                <span style="background: var(--light-bg); padding: 5px 12px; border-radius: 20px; font-weight: 600; color: var(--text-dark);">
+                                                    ${itemsCount}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 15px; text-align: right; color: var(--text-dark);">${totalAmount.toFixed(2)} ج.م</td>
+                                            <td style="padding: 15px; text-align: right;">
+                                                <strong style="color: var(--primary-color); font-size: 1.1em;">${finalAmount.toFixed(2)} ج.م</strong>
+                                            </td>
+                                            <td style="padding: 15px; text-align: center;">
+                                                <button onclick="viewSaleInvoice('${sale.id}')" class="btn btn-sm btn-primary" style="padding: 8px 20px; border-radius: 8px; transition: all 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                                                     <i class="bi bi-eye"></i> عرض الفاتورة
                                                 </button>
                                             </td>
@@ -371,13 +456,17 @@ async function viewCustomerProfile(customerId) {
                     `}
                 </div>
             </div>
-            <div class="modal-footer">
-                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">إغلاق</button>
-            </div>
         </div>
     `;
     
     document.body.appendChild(modal);
+    
+    // إغلاق عند الضغط خارج الـ modal
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 async function viewSaleInvoice(saleId) {

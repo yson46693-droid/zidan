@@ -189,11 +189,14 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     }
     
     // جلب مبيعات العميل فقط - التأكد من استخدام customer_id بشكل صحيح
+    // استخدام استعلام محسّن للتأكد من جلب فواتير العميل فقط
     $sales = dbSelect(
         "SELECT s.*, u.name as created_by_name 
          FROM sales s 
          LEFT JOIN users u ON s.created_by = u.id 
-         WHERE s.customer_id = ? AND s.customer_id IS NOT NULL
+         WHERE s.customer_id = ? 
+         AND s.customer_id IS NOT NULL 
+         AND s.customer_id != ''
          ORDER BY s.created_at DESC",
         [$customerId]
     );
@@ -207,31 +210,43 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         $sales = [];
     }
     
-    // فلترة المبيعات للتأكد من أنها تخص هذا العميل فقط
-    $sales = array_filter($sales, function($sale) use ($customerId) {
-        return !empty($sale['customer_id']) && $sale['customer_id'] === $customerId;
-    });
-    
-    // إعادة ترقيم المصفوفة
-    $sales = array_values($sales);
-    
-    // جلب عناصر كل عملية بيع
-    foreach ($sales as &$sale) {
+    // فلترة إضافية للمبيعات للتأكد من أنها تخص هذا العميل فقط
+    $filteredSales = [];
+    foreach ($sales as $sale) {
+        // التأكد من تطابق customer_id
+        if (empty($sale['customer_id']) || $sale['customer_id'] !== $customerId) {
+            continue;
+        }
+        
         // التأكد من وجود sale id
         if (empty($sale['id'])) {
             continue;
         }
         
+        // جلب عناصر الفاتورة
         $items = dbSelect(
             "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
             [$sale['id']]
         );
-        $sale['items'] = (is_array($items) && count($items) > 0) ? $items : [];
+        
+        // التأكد من وجود عناصر في الفاتورة (لتصفية الفواتير الفارغة)
+        if (!is_array($items) || count($items) === 0) {
+            continue; // تخطي الفواتير بدون عناصر
+        }
+        
+        $sale['items'] = $items;
         
         // التأكد من وجود sale_number
         if (empty($sale['sale_number'])) {
-            // إذا لم يكن هناك sale_number، استخدام id كبديل
             $sale['sale_number'] = $sale['id'];
+        }
+        
+        // حساب المبالغ من العناصر إذا كانت غير موجودة أو قيمتها 0
+        $calculatedTotal = 0;
+        foreach ($items as $item) {
+            $itemTotal = floatval($item['total_price'] ?? 0);
+            $itemQuantity = intval($item['quantity'] ?? 1);
+            $calculatedTotal += ($itemTotal * $itemQuantity);
         }
         
         // التأكد من وجود القيم الرقمية
@@ -239,7 +254,19 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         $sale['final_amount'] = floatval($sale['final_amount'] ?? 0);
         $sale['discount'] = floatval($sale['discount'] ?? 0);
         $sale['tax'] = floatval($sale['tax'] ?? 0);
+        
+        // إذا كانت المبالغ 0، نستخدم القيم المحسوبة من العناصر
+        if ($sale['total_amount'] == 0 && $calculatedTotal > 0) {
+            $sale['total_amount'] = $calculatedTotal;
+        }
+        if ($sale['final_amount'] == 0 && $calculatedTotal > 0) {
+            $sale['final_amount'] = $calculatedTotal - $sale['discount'] + $sale['tax'];
+        }
+        
+        $filteredSales[] = $sale;
     }
+    
+    $sales = $filteredSales;
     
     response(true, '', $sales);
 }
