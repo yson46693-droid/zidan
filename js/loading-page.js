@@ -94,8 +94,12 @@ class LoadingPageManager {
             </div>
         `;
 
-        // إضافة إلى body
-        document.body.appendChild(loadingPage);
+        // إضافة إلى body (أو في بداية body لضمان الظهور أولاً)
+        if (document.body.firstChild) {
+            document.body.insertBefore(loadingPage, document.body.firstChild);
+        } else {
+            document.body.appendChild(loadingPage);
+        }
 
         // حفظ المراجع
         this.loadingElement = loadingPage;
@@ -116,8 +120,9 @@ class LoadingPageManager {
             return;
         }
 
-        // إظهار صفحة التحميل
+        // إظهار صفحة التحميل فوراً (حتى مع refresh)
         this.loadingElement.classList.remove('hidden');
+        this.loadingElement.style.display = 'flex';
         this.progress = 0;
         this.updateProgress(0);
 
@@ -278,14 +283,28 @@ class LoadingPageManager {
 // إنشاء instance عام
 let loadingPageManager;
 
-// تهيئة عند تحميل الصفحة
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        loadingPageManager = new LoadingPageManager();
-    });
-} else {
-    loadingPageManager = new LoadingPageManager();
-}
+// تهيئة فورية (حتى قبل DOMContentLoaded) لضمان الظهور مع refresh
+(function() {
+    // التحقق من أننا لسنا في صفحة تسجيل الدخول (لأن splash screen موجودة هناك)
+    const isLoginPage = window.location.pathname.includes('index.html') || 
+                       window.location.pathname === '/' ||
+                       window.location.pathname.endsWith('/');
+    
+    if (!isLoginPage) {
+        // تهيئة فورية لصفحة التحميل
+        if (document.body) {
+            loadingPageManager = new LoadingPageManager();
+        } else {
+            // إذا لم يكن body موجوداً، انتظار قليلاً
+            const initInterval = setInterval(() => {
+                if (document.body) {
+                    clearInterval(initInterval);
+                    loadingPageManager = new LoadingPageManager();
+                }
+            }, 10);
+        }
+    }
+})();
 
 // تصدير للاستخدام العام
 if (typeof window !== 'undefined') {

@@ -39,7 +39,7 @@ class SplashScreenManager {
         splashScreen.innerHTML = `
             <div class="splash-content">
                 <div class="splash-logo">
-                    <i class="bi bi-phone-fill"></i>
+                    <img src="icon-512x512.png" alt="Logo" class="splash-logo-img">
                 </div>
                 <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
                 <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>

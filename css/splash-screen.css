@@ -35,18 +35,20 @@
 
 /* اللوجو الرئيسي */
 .splash-logo {
-    width: 120px;
-    height: 120px;
+    width: 150px;
+    height: 150px;
     background: var(--white);
-    border-radius: 30px;
+    border-radius: 35px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
     margin-bottom: 30px;
     position: relative;
-    animation: logoFadeIn 0.8s ease-out, logoPulse 2s ease-in-out infinite 0.8s;
+    animation: logoPopIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), logoPulse 2s ease-in-out infinite 0.8s;
     transform-origin: center;
+    overflow: hidden;
+    padding: 15px;
 }
 
 .splash-logo::before {
@@ -54,26 +56,73 @@
     position: absolute;
     width: 100%;
     height: 100%;
-    border-radius: 30px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+    border-radius: 35px;
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(100, 181, 246, 0.1));
     animation: shimmer 3s infinite;
-}
-
-.splash-logo i {
-    font-size: 60px;
-    color: var(--primary-color);
     z-index: 1;
-    animation: iconBounce 1.5s ease-in-out infinite;
 }
 
-@keyframes logoFadeIn {
+.splash-logo::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(33, 150, 243, 0.2) 0%, transparent 70%);
+    animation: logoGlow 2s ease-in-out infinite;
+    z-index: 0;
+}
+
+.splash-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 2;
+    position: relative;
+    animation: logoImagePop 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s both;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+}
+
+@keyframes logoPopIn {
     0% {
         opacity: 0;
-        transform: scale(0.5) translateY(-20px);
+        transform: scale(0) rotate(-180deg);
+    }
+    60% {
+        transform: scale(1.15) rotate(10deg);
+    }
+    80% {
+        transform: scale(0.95) rotate(-5deg);
     }
     100% {
         opacity: 1;
-        transform: scale(1) translateY(0);
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+@keyframes logoImagePop {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) rotate(-90deg);
+    }
+    50% {
+        transform: scale(1.1) rotate(5deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+@keyframes logoGlow {
+    0%, 100% {
+        opacity: 0.3;
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: translate(10px, 10px) scale(1.1);
     }
 }
 
@@ -88,14 +137,6 @@
     }
 }
 
-@keyframes iconBounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-5px);
-    }
-}
 
 @keyframes shimmer {
     0% {
@@ -235,14 +276,11 @@
 /* Responsive Design */
 @media (max-width: 575.98px) {
     .splash-logo {
-        width: 100px;
-        height: 100px;
-        border-radius: 25px;
+        width: 120px;
+        height: 120px;
+        border-radius: 30px;
         margin-bottom: 25px;
-    }
-    
-    .splash-logo i {
-        font-size: 50px;
+        padding: 12px;
     }
     
     .splash-title {
@@ -265,12 +303,9 @@
 
 @media (min-width: 576px) and (max-width: 767.98px) {
     .splash-logo {
-        width: 110px;
-        height: 110px;
-    }
-    
-    .splash-logo i {
-        font-size: 55px;
+        width: 135px;
+        height: 135px;
+        padding: 13px;
     }
     
     .splash-title {
