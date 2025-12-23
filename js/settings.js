@@ -48,6 +48,23 @@ function loadSettingsSection() {
                 </form>
             </div>
 
+            <div class="settings-section">
+                <h3><i class="bi bi-hourglass-split"></i> إعدادات التحميل</h3>
+                <form id="loadingSettingsForm" onsubmit="saveLoadingSettings(event)">
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="loadingPageEnabled" style="width: 20px; height: 20px; cursor: pointer;">
+                            <span>تفعيل صفحة التحميل الديناميكية</span>
+                        </label>
+                        <p style="font-size: 0.9em; color: var(--text-light); margin-top: 5px; margin-right: 30px;">
+                            عرض صفحة تحميل مع شريط تقدم أثناء تحميل الصفحة
+                        </p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save-fill"></i> حفظ الإعدادات</button>
+                </form>
+            </div>
+
         <div class="settings-section">
             <h3><i class="bi bi-images"></i> إدارة الصور</h3>
             <p>إدارة نظام تخزين الصور والحذف التلقائي</p>
@@ -487,6 +504,13 @@ function displaySettings(settings) {
     if (shopPhone) shopPhone.value = settings.shop_phone || '';
     if (shopAddress) shopAddress.value = settings.shop_address || '';
     if (currency) currency.value = settings.currency || 'ريال';
+    
+    // إعدادات صفحة التحميل
+    const loadingPageEnabled = document.getElementById('loadingPageEnabled');
+    if (loadingPageEnabled) {
+        const enabled = settings.loading_page_enabled;
+        loadingPageEnabled.checked = enabled === '1' || enabled === true || enabled === 'true';
+    }
 }
 
 async function saveShopSettings(event) {
@@ -505,6 +529,40 @@ async function saveShopSettings(event) {
         currentSettings = result.data;
     } else {
         showMessage(result.message, 'error');
+    }
+}
+
+async function saveLoadingSettings(event) {
+    event.preventDefault();
+
+    const loadingPageEnabled = document.getElementById('loadingPageEnabled');
+    const enabled = loadingPageEnabled ? (loadingPageEnabled.checked ? '1' : '0') : '1';
+
+    const settingsData = {
+        loading_page_enabled: enabled
+    };
+
+    try {
+        const result = await API.updateSettings(settingsData);
+        if (result.success) {
+            showMessage('تم حفظ إعدادات صفحة التحميل بنجاح');
+            currentSettings = result.data;
+            
+            // تحديث cache
+            if (currentSettings) {
+                localStorage.setItem('app_settings', JSON.stringify(currentSettings));
+            }
+            
+            // تحديث حالة صفحة التحميل
+            if (typeof loadingPageManager !== 'undefined' && loadingPageManager) {
+                loadingPageManager.isEnabled = enabled === '1';
+            }
+        } else {
+            showMessage(result.message || 'فشل حفظ الإعدادات', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في حفظ إعدادات صفحة التحميل:', error);
+        showMessage('حدث خطأ أثناء حفظ الإعدادات', 'error');
     }
 }
 

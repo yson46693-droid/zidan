@@ -139,6 +139,10 @@
     <link rel="preload" href="css/style.css" as="style">
     <link rel="stylesheet" href="css/style.css">
     
+    <!-- Loading Page CSS - تحميل فوري -->
+    <link rel="preload" href="css/loading-page.css" as="style">
+    <link rel="stylesheet" href="css/loading-page.css">
+    
     <!-- Non-Critical CSS - تحميل غير متزامن (lazy load) -->
     <link rel="preload" href="css/dark-mode.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="css/dark-mode.css"></noscript>
@@ -376,11 +380,14 @@
     <!-- Preload Critical JS Files -->
     <link rel="preload" href="js/api.js" as="script">
     <link rel="preload" href="js/utils.js" as="script">
+    <link rel="preload" href="js/loading-page.js" as="script">
     <link rel="preload" href="js/auth.js" as="script">
     
     <!-- Critical Scripts - تحميل فوري (مطلوبة للتشغيل الأساسي) -->
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
+    <!-- تحميل صفحة التحميل أولاً -->
+    <script src="js/loading-page.js"></script>
     <script src="js/auth.js" defer></script>
     
     <!-- Security Scripts - تحميل متأخر (lazy load بعد تحميل الصفحة) -->

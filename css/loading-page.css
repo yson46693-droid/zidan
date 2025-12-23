@@ -1,0 +1,219 @@
+/* صفحة التحميل الديناميكية */
+.loading-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--white);
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.loading-page.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loading-page-content {
+    text-align: center;
+    padding: 20px;
+    max-width: 400px;
+    width: 100%;
+}
+
+.loading-logo {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 30px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-logo i {
+    font-size: 40px;
+    color: var(--white);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+.loading-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+    direction: rtl;
+}
+
+.loading-subtitle {
+    font-size: 16px;
+    color: var(--text-light);
+    margin-bottom: 30px;
+    direction: rtl;
+}
+
+/* Progress Bar Container */
+.progress-container {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    background: var(--light-bg);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.progress-percentage {
+    margin-top: 15px;
+    font-size: 14px;
+    color: var(--text-light);
+    font-weight: 600;
+    direction: rtl;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--light-bg);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .loading-page {
+        background: var(--dark-bg);
+    }
+    
+    .loading-title {
+        color: var(--white);
+    }
+    
+    .loading-subtitle {
+        color: var(--text-light);
+    }
+    
+    .progress-container {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 575.98px) {
+    .loading-page-content {
+        padding: 15px;
+    }
+    
+    .loading-logo {
+        width: 60px;
+        height: 60px;
+        margin-bottom: 20px;
+    }
+    
+    .loading-logo i {
+        font-size: 30px;
+    }
+    
+    .loading-title {
+        font-size: 20px;
+    }
+    
+    .loading-subtitle {
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+    
+    .progress-container {
+        max-width: 250px;
+        height: 6px;
+    }
+    
+    .progress-percentage {
+        font-size: 12px;
+        margin-top: 10px;
+    }
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+    .loading-logo {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .loading-logo i {
+        font-size: 35px;
+    }
+    
+    .loading-title {
+        font-size: 22px;
+    }
+}
+

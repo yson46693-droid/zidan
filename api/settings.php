@@ -38,7 +38,7 @@ if ($method === 'PUT') {
         $data = getRequestData();
     }
     
-    $allowedKeys = ['shop_name', 'shop_phone', 'shop_address', 'shop_logo', 'low_stock_alert', 'currency', 'theme'];
+    $allowedKeys = ['shop_name', 'shop_phone', 'shop_address', 'shop_logo', 'low_stock_alert', 'currency', 'theme', 'loading_page_enabled'];
     
     foreach ($allowedKeys as $key) {
         if (isset($data[$key])) {

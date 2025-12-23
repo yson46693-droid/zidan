@@ -307,7 +307,8 @@ function initializeSystem() {
                 ['shop_logo', ''],
                 ['low_stock_alert', '5'],
                 ['currency', 'ج.م'],
-                ['theme', 'light']
+                ['theme', 'light'],
+                ['loading_page_enabled', '1'] // تفعيل صفحة التحميل افتراضياً
             ];
             
             foreach ($defaultSettings as $setting) {

@@ -95,6 +95,10 @@
     <link rel="preload" href="css/style.css" as="style">
     <link rel="stylesheet" href="css/style.css">
     
+    <!-- Loading Page CSS - تحميل فوري -->
+    <link rel="preload" href="css/loading-page.css" as="style">
+    <link rel="stylesheet" href="css/loading-page.css">
+    
     <!-- Security CSS - تحميل متأخر (non-blocking) -->
     <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="css/security.css"></noscript>
@@ -238,10 +242,13 @@
     <!-- Preload Critical JS Files -->
     <link rel="preload" href="js/api.js" as="script">
     <link rel="preload" href="js/utils.js" as="script">
+    <link rel="preload" href="js/loading-page.js" as="script">
     <link rel="preload" href="js/auth.js" as="script">
     
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
+    <!-- تحميل صفحة التحميل أولاً -->
+    <script src="js/loading-page.js"></script>
     <!-- تحميل الملفات بشكل غير متزامن لتحسين الأداء -->
     <script src="js/auth.js" defer></script>
     <script>
