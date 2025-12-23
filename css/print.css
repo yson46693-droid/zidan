@@ -66,6 +66,12 @@
         box-shadow: none !important;
         border: none !important;
         border-radius: 0 !important;
+        box-sizing: border-box !important;
+    }
+    
+    .invoice-wrapper * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
     
     body:has(.invoice-wrapper) {
@@ -126,10 +132,12 @@
         max-height: none !important;
         display: table !important;
         width: 100% !important;
+        max-width: 100% !important;
         border-collapse: collapse !important;
         border: 1px solid #ddd !important;
         table-layout: fixed !important;
-        font-size: 0.75em !important;
+        font-size: 0.7em !important;
+        box-sizing: border-box !important;
     }
     
     .invoice-items-table thead {
@@ -150,10 +158,13 @@
     .invoice-items-table th,
     .invoice-items-table td {
         display: table-cell !important;
-        padding: 4px 2px !important;
+        padding: 3px 1px !important;
         border: 1px solid #ddd !important;
         text-align: right !important;
-        font-size: 0.75em !important;
+        font-size: 0.7em !important;
+        box-sizing: border-box !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
     }
     
     .invoice-items-table th {
@@ -165,6 +176,7 @@
     /* الخلاصة - منع التقسيم */
     .invoice-summary {
         page-break-inside: avoid !important;
+        page-break-before: avoid !important;
         padding: 8px !important;
         margin: 8px 0 !important;
         font-size: 0.85em !important;
@@ -183,14 +195,16 @@
     /* QR Code - منع التقسيم */
     .invoice-qrcode {
         page-break-inside: avoid !important;
-        margin: 10px 0 !important;
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+        margin: 5px 0 !important;
         padding: 0 !important;
     }
     
     .invoice-qrcode img {
-        max-width: 50mm !important;
-        width: 50mm !important;
-        height: 50mm !important;
+        max-width: 40mm !important;
+        width: 40mm !important;
+        height: 40mm !important;
     }
     
     /* البنود - منع التقسيم */

@@ -765,6 +765,12 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 box-shadow: none !important;
                 border: none !important;
                 border-radius: 0 !important;
+                box-sizing: border-box !important;
+            }
+            
+            .invoice-wrapper * {
+                max-width: 100% !important;
+                box-sizing: border-box !important;
             }
             .invoice-logo-section {
                 margin-bottom: 10px !important;
@@ -802,15 +808,21 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             }
             .invoice-items-table {
                 width: 100% !important;
-                font-size: 0.75em !important;
+                max-width: 100% !important;
+                font-size: 0.7em !important;
                 page-break-inside: avoid !important;
                 display: table !important;
                 border-collapse: collapse !important;
+                table-layout: fixed !important;
+                box-sizing: border-box !important;
             }
             .invoice-items-table th,
             .invoice-items-table td {
-                padding: 4px 2px !important;
-                font-size: 0.75em !important;
+                padding: 3px 1px !important;
+                font-size: 0.7em !important;
+                box-sizing: border-box !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
             }
             .invoice-items-table thead {
                 display: table-header-group !important;
@@ -823,6 +835,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 margin: 8px 0 !important;
                 font-size: 0.85em !important;
                 page-break-inside: avoid !important;
+                page-break-before: avoid !important;
             }
             .invoice-summary .summary-row {
                 font-size: 0.9em !important;
@@ -833,14 +846,16 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 padding: 8px 0 !important;
             }
             .invoice-qrcode {
-                margin: 10px 0 !important;
+                margin: 5px 0 !important;
                 padding: 0 !important;
                 page-break-inside: avoid !important;
+                page-break-before: avoid !important;
+                page-break-after: avoid !important;
             }
             .invoice-qrcode img {
-                max-width: 50mm !important;
-                width: 50mm !important;
-                height: 50mm !important;
+                max-width: 40mm !important;
+                width: 40mm !important;
+                height: 40mm !important;
             }
             .invoice-terms {
                 padding: 8px !important;
