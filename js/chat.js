@@ -412,17 +412,22 @@ function setupEventListeners() {
     // زر الرجوع
     const backBtn = document.getElementById('backBtn');
     if (backBtn) {
-        backBtn.addEventListener('click', () => {
+        backBtn.addEventListener('click', async () => {
             // العودة للمحادثة الجماعية
             if (currentRoom && currentRoom.type === 'private') {
-                // إعادة تحميل المحادثة الجماعية
-                const groupRoomResult = await API.request('chat.php', 'POST', {
-                    action: 'get_or_create_group_room'
-                });
-                
-                if (groupRoomResult && groupRoomResult.success) {
-                    currentRoom = groupRoomResult.data;
-                    await loadRoomData();
+                try {
+                    // إعادة تحميل المحادثة الجماعية
+                    const groupRoomResult = await API.request('chat.php', 'POST', {
+                        action: 'get_or_create_group_room'
+                    });
+                    
+                    if (groupRoomResult && groupRoomResult.success) {
+                        currentRoom = groupRoomResult.data;
+                        await loadRoomData();
+                    }
+                } catch (error) {
+                    console.error('خطأ في العودة للمحادثة الجماعية:', error);
+                    showMessage('حدث خطأ في العودة للمحادثة الجماعية', 'error');
                 }
             }
         });

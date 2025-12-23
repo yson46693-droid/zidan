@@ -1,0 +1,41 @@
+# إعدادات InfinityFree - حل مشكلة 404
+
+# السماح بملفات HTML
+<FilesMatch "\.html$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# ضمان تقديم ملفات HTML بشكل صحيح
+AddType text/html .html
+AddDefaultCharset UTF-8
+
+# السماح بملفات CSS و JS
+<FilesMatch "\.(css|js)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# ضمان تقديم ملفات CSS بشكل صحيح
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+    AddType text/javascript .js
+</IfModule>
+
+# إعدادات CORS الأساسية
+<IfModule mod_headers.c>
+    # السماح بملفات HTML و CSS و JS
+    <FilesMatch "\.(html|css|js)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type, X-Requested-With"
+    </FilesMatch>
+</IfModule>
+
+# منع عرض محتويات المجلدات
+Options -Indexes
+
+# معالجة الأخطاء (اختياري)
+ErrorDocument 404 /index.html
+
