@@ -93,6 +93,71 @@
                 </svg>
             </button>
             
+            <!-- قائمة المرفقات -->
+            <div class="attach-menu" id="attachMenu" style="display: none;">
+                <button class="attach-menu-item" id="cameraBtn" aria-label="كاميرا">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                    <span>كاميرا</span>
+                </button>
+                <button class="attach-menu-item" id="galleryBtn" aria-label="معرض الصور">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>معرض الصور</span>
+                </button>
+                <button class="attach-menu-item" id="locationBtn" aria-label="موقع">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>موقع</span>
+                </button>
+                <button class="attach-menu-item" id="fileBtn" aria-label="ملف">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                    <span>ملف</span>
+                </button>
+            </div>
+            
+            <!-- Overlay للكاميرا -->
+            <div class="camera-overlay" id="cameraOverlay" style="display: none;">
+                <div class="camera-container">
+                    <div class="camera-header">
+                        <button class="camera-close-btn" id="cameraCloseBtn" aria-label="إغلاق">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                        <h3>التقاط صورة</h3>
+                        <button class="camera-flip-btn" id="cameraFlipBtn" aria-label="تبديل الكاميرا" style="display: none;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 3h4v4"></path>
+                                <path d="M21 3l-7 7"></path>
+                                <path d="M7 21H3v-4"></path>
+                                <path d="M3 21l7-7"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <video id="cameraVideo" autoplay playsinline style="width: 100%; max-height: 70vh; background: #000;"></video>
+                    <canvas id="cameraCanvas" style="display: none;"></canvas>
+                    <div class="camera-controls">
+                        <button class="camera-capture-btn" id="cameraCaptureBtn" aria-label="التقاط">
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="12" r="10"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <button class="send-btn" id="sendBtn" aria-label="إرسال">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="22" y1="2" x2="11" y2="13"></line>

@@ -48,7 +48,7 @@ function createChatTables() {
               `room_id` varchar(50) NOT NULL,
               `user_id` varchar(50) NOT NULL,
               `message` text NOT NULL,
-              `message_type` enum('text','image','file','voice','audio') NOT NULL DEFAULT 'text',
+              `message_type` enum('text','image','file','voice','audio','location') NOT NULL DEFAULT 'text',
               `file_url` text DEFAULT NULL,
               `reply_to` varchar(50) DEFAULT NULL,
               `edited_at` datetime DEFAULT NULL,
@@ -117,12 +117,12 @@ function updateChatMessagesTable($conn) {
         $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `edited_at` datetime DEFAULT NULL AFTER `reply_to`");
     }
     
-    // تحديث message_type لدعم 'audio' و 'image'
+    // تحديث message_type لدعم 'audio' و 'image' و 'location'
     $result = $conn->query("SHOW COLUMNS FROM `chat_messages` WHERE Field = 'message_type'");
     if ($result && $result->num_rows > 0) {
         $row = $result->fetch_assoc();
-        if (strpos($row['Type'], 'audio') === false || strpos($row['Type'], 'image') === false) {
-            $conn->query("ALTER TABLE `chat_messages` MODIFY COLUMN `message_type` enum('text','image','file','voice','audio') NOT NULL DEFAULT 'text'");
+        if (strpos($row['Type'], 'audio') === false || strpos($row['Type'], 'image') === false || strpos($row['Type'], 'location') === false) {
+            $conn->query("ALTER TABLE `chat_messages` MODIFY COLUMN `message_type` enum('text','image','file','voice','audio','location') NOT NULL DEFAULT 'text'");
         }
     }
 }

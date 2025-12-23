@@ -351,6 +351,10 @@ function createMessageElement(message) {
             replyText.textContent = '🎤 رسالة صوتية';
         } else if (message.reply_to_type === 'file') {
             replyText.textContent = '📎 ' + (message.reply_to_message || 'ملف');
+        } else if (message.reply_to_type === 'location') {
+            replyText.textContent = '📍 موقع';
+        } else if (message.reply_to_type === 'image') {
+            replyText.textContent = '🖼️ صورة';
         } else {
             replyText.textContent = message.reply_to_message || 'رسالة';
         }
@@ -439,6 +443,66 @@ function createMessageElement(message) {
             imageContainer.appendChild(caption);
         }
         bubble.appendChild(imageContainer);
+    } else if (message.message_type === 'location' && message.location_data) {
+        const locationContainer = document.createElement('div');
+        locationContainer.className = 'location-message';
+        
+        const locationData = typeof message.location_data === 'string' 
+            ? JSON.parse(message.location_data) 
+            : message.location_data;
+        
+        const latitude = locationData.latitude;
+        const longitude = locationData.longitude;
+        const address = locationData.address || message.message || '';
+        
+        // رابط الخريطة
+        const mapLink = document.createElement('a');
+        mapLink.href = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        mapLink.target = '_blank';
+        mapLink.className = 'location-link';
+        mapLink.style.cssText = 'display: block; text-decoration: none; color: inherit;';
+        
+        // صورة الخريطة (استخدام OpenStreetMap)
+        const mapImage = document.createElement('img');
+        mapImage.src = `https://staticmap.openstreetmap.de/staticmap.php?center=${latitude},${longitude}&zoom=15&size=400x300&markers=${latitude},${longitude},red-pushpin`;
+        mapImage.alt = 'موقع';
+        mapImage.loading = 'lazy';
+        mapImage.style.cssText = 'width: 100%; max-width: 300px; height: 200px; object-fit: cover; border-radius: 8px; cursor: pointer;';
+        mapImage.onerror = function() {
+            // استخدام صورة بديلة بسيطة
+            this.style.display = 'none';
+            const fallback = document.createElement('div');
+            fallback.style.cssText = 'width: 100%; max-width: 300px; height: 200px; background: var(--light-bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 48px;';
+            fallback.textContent = '📍';
+            locationContainer.insertBefore(fallback, locationInfo);
+        };
+        
+        const locationInfo = document.createElement('div');
+        locationInfo.className = 'location-info';
+        locationInfo.style.cssText = 'padding: 10px;';
+        
+        const locationIcon = document.createElement('div');
+        locationIcon.style.cssText = 'font-size: 20px; margin-bottom: 5px;';
+        locationIcon.textContent = '📍';
+        
+        const locationText = document.createElement('div');
+        locationText.className = 'location-text';
+        locationText.style.cssText = 'font-size: 14px; font-weight: 600; margin-bottom: 3px;';
+        locationText.textContent = address || 'موقع';
+        
+        const locationCoords = document.createElement('div');
+        locationCoords.className = 'location-coords';
+        locationCoords.style.cssText = 'font-size: 12px; opacity: 0.7;';
+        locationCoords.textContent = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        
+        locationInfo.appendChild(locationIcon);
+        locationInfo.appendChild(locationText);
+        locationInfo.appendChild(locationCoords);
+        
+        mapLink.appendChild(mapImage);
+        mapLink.appendChild(locationInfo);
+        locationContainer.appendChild(mapLink);
+        bubble.appendChild(locationContainer);
     } else if (message.message_type === 'file' && message.file_url) {
         const fileContainer = document.createElement('div');
         fileContainer.className = 'file-message';
@@ -781,19 +845,69 @@ function setupEventListeners() {
     }
     
     if (attachBtn) {
-        attachBtn.addEventListener('click', () => {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.txt';
-            fileInput.multiple = false;
-            fileInput.onchange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    handleFileAttachment(file);
-                }
-            };
-            fileInput.click();
+        attachBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleAttachMenu();
         });
+    }
+    
+    // أزرار قائمة المرفقات
+    const cameraBtn = document.getElementById('cameraBtn');
+    const galleryBtn = document.getElementById('galleryBtn');
+    const locationBtn = document.getElementById('locationBtn');
+    const fileBtn = document.getElementById('fileBtn');
+    
+    if (cameraBtn) {
+        cameraBtn.addEventListener('click', () => {
+            closeAttachMenu();
+            openCamera();
+        });
+    }
+    
+    if (galleryBtn) {
+        galleryBtn.addEventListener('click', () => {
+            closeAttachMenu();
+            openGallery();
+        });
+    }
+    
+    if (locationBtn) {
+        locationBtn.addEventListener('click', () => {
+            closeAttachMenu();
+            sendLocation();
+        });
+    }
+    
+    if (fileBtn) {
+        fileBtn.addEventListener('click', () => {
+            closeAttachMenu();
+            openFilePicker();
+        });
+    }
+    
+    // إغلاق قائمة المرفقات عند النقر خارجها
+    document.addEventListener('click', (e) => {
+        const attachMenu = document.getElementById('attachMenu');
+        if (attachMenu && !attachMenu.contains(e.target) && !attachBtn.contains(e.target)) {
+            closeAttachMenu();
+        }
+    });
+    
+    // أزرار الكاميرا
+    const cameraCloseBtn = document.getElementById('cameraCloseBtn');
+    const cameraCaptureBtn = document.getElementById('cameraCaptureBtn');
+    const cameraFlipBtn = document.getElementById('cameraFlipBtn');
+    
+    if (cameraCloseBtn) {
+        cameraCloseBtn.addEventListener('click', closeCamera);
+    }
+    
+    if (cameraCaptureBtn) {
+        cameraCaptureBtn.addEventListener('click', capturePhoto);
+    }
+    
+    if (cameraFlipBtn) {
+        cameraFlipBtn.addEventListener('click', flipCamera);
     }
     
     // إغلاق منتقي الإيموجي عند النقر خارجها
@@ -1695,11 +1809,12 @@ function showSendingIndicator(content, type) {
     indicator.className = 'sending-indicator';
     indicator.id = 'sendingIndicator-' + Date.now();
     
-    const icon = type === 'audio' ? '🎤' : type === 'image' ? '🖼️' : type === 'file' ? '📎' : '💬';
-    const text = type === 'audio' ? 'جاري إرسال الرسالة الصوتية...' :
-                 type === 'image' ? 'جاري إرسال الصورة...' :
-                 type === 'file' ? 'جاري إرسال الملف...' :
-                 'جاري الإرسال...';
+        const icon = type === 'audio' ? '🎤' : type === 'image' ? '🖼️' : type === 'file' ? '📎' : type === 'location' ? '📍' : '💬';
+        const text = type === 'audio' ? 'جاري إرسال الرسالة الصوتية...' :
+                     type === 'image' ? 'جاري إرسال الصورة...' :
+                     type === 'file' ? 'جاري إرسال الملف...' :
+                     type === 'location' ? 'جاري إرسال الموقع...' :
+                     'جاري الإرسال...';
     
     indicator.innerHTML = `
         <div class="sending-indicator-content">
@@ -1870,6 +1985,266 @@ function setupKeyboardHandling(chatInput) {
     });
 }
 
+// قائمة المرفقات
+function toggleAttachMenu() {
+    const attachMenu = document.getElementById('attachMenu');
+    if (!attachMenu) return;
+    
+    const isVisible = attachMenu.style.display !== 'none';
+    if (isVisible) {
+        closeAttachMenu();
+    } else {
+        showAttachMenu();
+    }
+}
+
+function showAttachMenu() {
+    const attachMenu = document.getElementById('attachMenu');
+    const attachBtn = document.getElementById('attachBtn');
+    if (!attachMenu || !attachBtn) return;
+    
+    attachMenu.style.display = 'flex';
+    
+    // تحديد الموضع
+    const btnRect = attachBtn.getBoundingClientRect();
+    attachMenu.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
+    attachMenu.style.right = `${window.innerWidth - btnRect.right}px`;
+}
+
+function closeAttachMenu() {
+    const attachMenu = document.getElementById('attachMenu');
+    if (attachMenu) {
+        attachMenu.style.display = 'none';
+    }
+}
+
+// فتح معرض الصور
+function openGallery() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.multiple = false;
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleFileAttachment(file);
+        }
+    };
+    fileInput.click();
+}
+
+// فتح منتقي الملفات
+function openFilePicker() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'video/*,audio/*,.pdf,.doc,.docx,.txt';
+    fileInput.multiple = false;
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleFileAttachment(file);
+        }
+    };
+    fileInput.click();
+}
+
+// فتح الكاميرا
+let cameraStream = null;
+let facingMode = 'user'; // 'user' للكاميرا الأمامية، 'environment' للخلفية
+
+async function openCamera() {
+    const cameraOverlay = document.getElementById('cameraOverlay');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraFlipBtn = document.getElementById('cameraFlipBtn');
+    
+    if (!cameraOverlay || !cameraVideo) return;
+    
+    try {
+        // طلب الوصول للكاميرا
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: facingMode,
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        });
+        
+        cameraVideo.srcObject = cameraStream;
+        cameraOverlay.style.display = 'flex';
+        
+        // إظهار زر تبديل الكاميرا إذا كان الجهاز يدعم كاميرات متعددة
+        if (cameraFlipBtn && navigator.mediaDevices.getSupportedConstraints().facingMode) {
+            cameraFlipBtn.style.display = 'flex';
+        }
+        
+        // منع التمرير عند فتح الكاميرا
+        document.body.style.overflow = 'hidden';
+    } catch (error) {
+        console.error('خطأ في فتح الكاميرا:', error);
+        showMessage('فشل في الوصول للكاميرا. تأكد من السماح بالوصول للكاميرا.', 'error');
+    }
+}
+
+// إغلاق الكاميرا
+function closeCamera() {
+    const cameraOverlay = document.getElementById('cameraOverlay');
+    if (cameraOverlay) {
+        cameraOverlay.style.display = 'none';
+    }
+    
+    // إيقاف الكاميرا
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    
+    const cameraVideo = document.getElementById('cameraVideo');
+    if (cameraVideo) {
+        cameraVideo.srcObject = null;
+    }
+    
+    // إعادة التمرير
+    document.body.style.overflow = '';
+}
+
+// تبديل الكاميرا
+async function flipCamera() {
+    facingMode = facingMode === 'user' ? 'environment' : 'user';
+    
+    // إيقاف الكاميرا الحالية
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // فتح الكاميرا الجديدة
+    await openCamera();
+}
+
+// التقاط صورة
+function capturePhoto() {
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraCanvas = document.getElementById('cameraCanvas');
+    
+    if (!cameraVideo || !cameraCanvas) return;
+    
+    try {
+        // تعيين أبعاد Canvas
+        cameraCanvas.width = cameraVideo.videoWidth;
+        cameraCanvas.height = cameraVideo.videoHeight;
+        
+        // رسم الفيديو على Canvas
+        const ctx = cameraCanvas.getContext('2d');
+        ctx.drawImage(cameraVideo, 0, 0);
+        
+        // تحويل Canvas إلى Blob
+        cameraCanvas.toBlob((blob) => {
+            if (blob) {
+                // إغلاق الكاميرا
+                closeCamera();
+                
+                // إنشاء File من Blob
+                const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                
+                // إرسال الصورة
+                handleFileAttachment(file);
+            }
+        }, 'image/jpeg', 0.9);
+    } catch (error) {
+        console.error('خطأ في التقاط الصورة:', error);
+        showMessage('فشل في التقاط الصورة', 'error');
+    }
+}
+
+// إرسال الموقع
+async function sendLocation() {
+    if (!currentRoom) return;
+    
+    if (!navigator.geolocation) {
+        showMessage('المتصفح لا يدعم تحديد الموقع', 'error');
+        return;
+    }
+    
+    try {
+        showMessage('جاري الحصول على الموقع...', 'info');
+        
+        // إظهار مؤشر الإرسال
+        const sendingIndicator = showSendingIndicator('موقع', 'location');
+        
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                const accuracy = position.coords.accuracy || 0;
+                
+                // الحصول على عنوان الموقع (اختياري)
+                let address = '';
+                try {
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+                    );
+                    const data = await response.json();
+                    if (data && data.display_name) {
+                        address = data.display_name;
+                    }
+                } catch (error) {
+                    console.log('فشل في الحصول على العنوان:', error);
+                }
+                
+                // إرسال الموقع
+                const result = await API.request('chat.php', 'POST', {
+                    action: 'send_message',
+                    room_id: currentRoom.id,
+                    message: address || `الموقع: ${latitude}, ${longitude}`,
+                    message_type: 'location',
+                    location_data: {
+                        latitude: latitude,
+                        longitude: longitude,
+                        accuracy: accuracy,
+                        address: address
+                    }
+                });
+                
+                // إزالة مؤشر الإرسال
+                hideSendingIndicator(sendingIndicator);
+                
+                if (result && result.success) {
+                    showMessage('تم إرسال الموقع بنجاح', 'success');
+                    await loadMessages();
+                } else {
+                    showMessage('فشل إرسال الموقع', 'error');
+                }
+            },
+            (error) => {
+                hideSendingIndicator(sendingIndicator);
+                console.error('خطأ في الحصول على الموقع:', error);
+                let errorMessage = 'فشل في الحصول على الموقع';
+                
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'تم رفض الوصول للموقع. يرجى السماح بالوصول للموقع في إعدادات المتصفح.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'معلومات الموقع غير متاحة';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = 'انتهت مهلة الحصول على الموقع';
+                        break;
+                }
+                
+                showMessage(errorMessage, 'error');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    } catch (error) {
+        console.error('خطأ في إرسال الموقع:', error);
+        showMessage('حدث خطأ في إرسال الموقع', 'error');
+    }
+}
+
 // تنظيف عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
     if (messagePollingInterval) {
@@ -1880,6 +2255,11 @@ window.addEventListener('beforeunload', () => {
     }
     if (isRecording && mediaRecorder) {
         mediaRecorder.stop();
+    }
+    
+    // إغلاق الكاميرا إذا كانت مفتوحة
+    if (cameraStream) {
+        closeCamera();
     }
     
     // إزالة event listeners للوحة المفاتيح

@@ -153,6 +153,13 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'messages
         }
         
         $message['reactions'] = $reactionsGrouped;
+        
+        // معالجة بيانات الموقع
+        if ($message['message_type'] === 'location' && $message['file_url'] && strpos($message['file_url'], 'location:') === 0) {
+            $locationJson = substr($message['file_url'], 9); // إزالة 'location:'
+            $message['location_data'] = json_decode($locationJson, true);
+            $message['file_url'] = null; // لا يوجد ملف حقيقي
+        }
     }
     
     // تحديث last_read_at للمستخدم
@@ -174,6 +181,7 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
     $fileType = $data['file_type'] ?? null;
     $fileSize = $data['file_size'] ?? 0;
     $replyTo = $data['reply_to'] ?? null;
+    $locationData = $data['location_data'] ?? null;
     
     if (empty($roomId)) {
         response(false, 'معرف الغرفة مطلوب', null, 400);
@@ -220,16 +228,26 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
         $message = $message ?: $fileName;
     }
     
-    // التحقق من وجود رسالة أو ملف
-    if (empty($message) && empty($fileUrl)) {
-        response(false, 'الرسالة أو الملف مطلوب', null, 400);
+    // معالجة الموقع
+    $locationJson = null;
+    if ($messageType === 'location' && $locationData) {
+        $locationJson = json_encode($locationData, JSON_UNESCAPED_UNICODE);
+        $message = $message ?: ($locationData['address'] ?? 'موقع');
+    }
+    
+    // التحقق من وجود رسالة أو ملف أو موقع
+    if (empty($message) && empty($fileUrl) && empty($locationJson)) {
+        response(false, 'الرسالة أو الملف أو الموقع مطلوب', null, 400);
     }
     
     $messageId = generateId();
+    // حفظ بيانات الموقع في file_url كـ JSON (يمكن إنشاء عمود منفصل لاحقاً)
+    $fileUrlForDB = $fileUrl ?: ($locationJson ? 'location:' . $locationJson : null);
+    
     $result = dbExecute("
         INSERT INTO chat_messages (id, room_id, user_id, message, message_type, file_url, reply_to, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-    ", [$messageId, $roomId, $userId, $message, $messageType, $fileUrl, $replyTo]);
+    ", [$messageId, $roomId, $userId, $message, $messageType, $fileUrlForDB, $replyTo]);
     
     if ($result) {
         // زيادة unread_count لجميع المشاركين ما عدا المرسل
