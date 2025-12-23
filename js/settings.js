@@ -698,23 +698,37 @@ function showAddUserModal() {
     const titleElement = document.getElementById('userModalTitle');
     const formElement = document.getElementById('userForm');
     const userIdElement = document.getElementById('userId');
+    const nameField = document.getElementById('userName');
     const usernameField = document.getElementById('userUsername');
     const passwordHint = document.getElementById('passwordHint');
     const passwordField = document.getElementById('userPassword');
+    const roleField = document.getElementById('userRole');
 
     if (titleElement) titleElement.textContent = 'إضافة مستخدم';
     if (formElement) formElement.reset();
+    
+    // إعادة تعيين جميع الحقول بشكل صريح
     if (userIdElement) userIdElement.value = '';
-    
-    if (usernameField) usernameField.disabled = false;
-    
-    if (passwordHint) passwordHint.style.display = 'none';
+    if (nameField) nameField.value = '';
+    if (usernameField) {
+        usernameField.value = '';
+        usernameField.disabled = false;
+    }
     if (passwordField) {
+        passwordField.value = '';
         passwordField.required = true;
         passwordField.placeholder = '';
     }
+    if (roleField) roleField.value = 'employee'; // قيمة افتراضية
+    
+    if (passwordHint) passwordHint.style.display = 'none';
     
     userModal.style.display = 'flex';
+    
+    // التركيز على أول حقل
+    if (nameField) {
+        setTimeout(() => nameField.focus(), 100);
+    }
 }
 
 function closeUserModal() {
@@ -752,17 +766,57 @@ async function saveUser(event) {
             return;
         }
 
-        // التحقق من الحقول المطلوبة - استخدام طريقة آمنة
-        const name = nameElement ? (nameElement.value || '').trim() : '';
-        const username = usernameElement ? (usernameElement.value || '').trim() : '';
-        const password = passwordElement ? (passwordElement.value || '') : '';
-        const role = roleElement ? (roleElement.value || '') : '';
-        const userId = userIdElement ? (userIdElement.value || '') : '';
+        // قراءة القيم من الحقول مباشرة
+        const name = (nameElement && nameElement.value) ? nameElement.value.trim() : '';
+        const username = (usernameElement && usernameElement.value) ? usernameElement.value.trim() : '';
+        const password = (passwordElement && passwordElement.value) ? passwordElement.value : '';
+        const role = (roleElement && roleElement.value) ? roleElement.value : 'employee';
+        const userId = (userIdElement && userIdElement.value) ? userIdElement.value.trim() : '';
 
-        if (!name || !username || !role) {
-            showMessage('الاسم واسم المستخدم والدور مطلوبة', 'error');
+        // تسجيل القيم للتشخيص
+        console.log('User form values:', { 
+            name, 
+            username, 
+            password: password ? '***' : '(empty)', 
+            role, 
+            userId,
+            nameElementExists: !!nameElement,
+            usernameElementExists: !!usernameElement,
+            roleElementExists: !!roleElement
+        });
+
+        // التحقق من الحقول المطلوبة مع رسائل خطأ محددة
+        if (!name || name.length === 0) {
+            showMessage('الاسم مطلوب', 'error');
+            if (nameElement) {
+                nameElement.focus();
+                nameElement.style.borderColor = 'var(--danger-color)';
+            }
             return;
         }
+
+        if (!username || username.length === 0) {
+            showMessage('اسم المستخدم مطلوب', 'error');
+            if (usernameElement) {
+                usernameElement.focus();
+                usernameElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
+
+        if (!role || role.length === 0) {
+            showMessage('الدور مطلوب', 'error');
+            if (roleElement) {
+                roleElement.focus();
+                roleElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
+
+        // إزالة علامات الخطأ من الحقول
+        if (nameElement) nameElement.style.borderColor = '';
+        if (usernameElement) usernameElement.style.borderColor = '';
+        if (roleElement) roleElement.style.borderColor = '';
 
         // إذا كان مستخدم جديد، كلمة المرور مطلوبة
         if (!userId && !password) {

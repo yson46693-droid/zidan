@@ -14,6 +14,7 @@ let roomsPollingInterval = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let audioStream = null; // حفظ stream المايكروفون
 let emojiPickerVisible = false;
 let editingMessageId = null;
 let replyingToMessageId = null;
@@ -382,9 +383,6 @@ function createMessageElement(message) {
         audioLabel.textContent = '🎤 رسالة صوتية';
         audioLabel.style.cssText = 'font-size: 12px; margin-bottom: 5px; opacity: 0.8;';
         
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.preload = 'metadata';
         // التأكد من المسار الصحيح - إصلاح المسار النسبي
         let audioUrl = message.file_url;
         if (!audioUrl.startsWith('http') && !audioUrl.startsWith('//')) {
@@ -393,8 +391,22 @@ function createMessageElement(message) {
                 audioUrl = '/' + audioUrl;
             }
         }
+        
+        // إنشاء container للصوت مع زر play
+        const audioWrapper = document.createElement('div');
+        audioWrapper.className = 'audio-wrapper';
+        audioWrapper.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 8px;';
+        
+        const playBtn = document.createElement('button');
+        playBtn.className = 'audio-play-btn';
+        playBtn.innerHTML = '▶️';
+        playBtn.style.cssText = 'background: var(--primary-color); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0;';
+        
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.preload = 'metadata';
         audio.src = audioUrl;
-        audio.style.cssText = 'width: 100%; max-width: 300px; outline: none;';
+        audio.style.cssText = 'flex: 1; max-width: 250px; outline: none;';
         
         // إضافة event listeners للتحقق من التحميل
         audio.onloadstart = function() {
@@ -405,6 +417,25 @@ function createMessageElement(message) {
             console.log('الملف الصوتي جاهز للتشغيل:', audioUrl);
         };
         
+        audio.onplay = function() {
+            playBtn.innerHTML = '⏸️';
+        };
+        
+        audio.onpause = function() {
+            playBtn.innerHTML = '▶️';
+        };
+        
+        playBtn.onclick = () => {
+            if (audio.paused) {
+                audio.play().catch(err => {
+                    console.error('خطأ في تشغيل الصوت:', err);
+                    showMessage('فشل في تشغيل الملف الصوتي', 'error');
+                });
+            } else {
+                audio.pause();
+            }
+        };
+        
         // معالجة الأخطاء
         audio.onerror = function(e) {
             console.error('خطأ في تحميل الملف الصوتي:', audioUrl, e);
@@ -412,15 +443,15 @@ function createMessageElement(message) {
             errorMsg.className = 'audio-error';
             errorMsg.innerHTML = '❌ فشل تحميل الملف الصوتي<br><small style="opacity: 0.7;">المسار: ' + audioUrl + '</small>';
             errorMsg.style.cssText = 'color: var(--danger-color); font-size: 12px; margin-top: 5px; padding: 5px; background: rgba(244, 67, 54, 0.1); border-radius: 4px;';
-            // إزالة عنصر audio الفاشل
-            if (audio.parentNode) {
-                audio.parentNode.removeChild(audio);
-            }
+            audioWrapper.style.display = 'none';
             audioContainer.appendChild(errorMsg);
         };
         
+        audioWrapper.appendChild(playBtn);
+        audioWrapper.appendChild(audio);
+        
         audioContainer.appendChild(audioLabel);
-        audioContainer.appendChild(audio);
+        audioContainer.appendChild(audioWrapper);
         bubble.appendChild(audioContainer);
         
         if (message.message && message.message !== 'رسالة صوتية') {
@@ -999,8 +1030,19 @@ async function sendMessage() {
             username: currentUser.username,
             created_at: new Date().toISOString(),
             reactions: {},
-            isSending: true
+            isSending: true,
+            reply_to_id: replyingToMessageId || null
         };
+        
+        // إذا كان هناك رد، إضافة معلومات الرد
+        if (replyingToMessageId) {
+            const repliedMessage = messages.find(m => m.id === replyingToMessageId);
+            if (repliedMessage) {
+                tempMessage.reply_to_user_name = repliedMessage.user_name || repliedMessage.username;
+                tempMessage.reply_to_message = repliedMessage.message;
+                tempMessage.reply_to_type = repliedMessage.message_type || 'text';
+            }
+        }
         
         messages.push(tempMessage);
         renderMessages();
@@ -1438,25 +1480,56 @@ async function toggleVoiceRecording() {
 
 async function startVoiceRecording() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        // إيقاف أي تسجيل سابق
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            audioStream = null;
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
+        
+        // حفظ stream في متغير عام
+        audioStream = stream;
+        
+        // استخدام timeslice لضمان الحصول على البيانات بشكل مستمر
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus'
+        });
         audioChunks = [];
         
         mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
+            if (event.data && event.data.size > 0) {
                 audioChunks.push(event.data);
             }
         };
         
         mediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            await sendAudioMessage(audioBlob);
+            if (audioChunks.length > 0) {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                await sendAudioMessage(audioBlob);
+            }
             
             // إيقاف جميع المسارات
-            stream.getTracks().forEach(track => track.stop());
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+                audioStream = null;
+            }
         };
         
-        mediaRecorder.start();
+        mediaRecorder.onerror = (event) => {
+            console.error('خطأ في MediaRecorder:', event);
+            showMessage('حدث خطأ أثناء التسجيل', 'error');
+            stopVoiceRecording();
+        };
+        
+        // بدء التسجيل مع timeslice كل ثانية
+        mediaRecorder.start(1000);
         isRecording = true;
         
         const micBtn = document.getElementById('micBtn');
@@ -1465,25 +1538,37 @@ async function startVoiceRecording() {
             micBtn.title = 'إيقاف التسجيل';
         }
         
-        showMessage('بدء التسجيل الصوتي...', 'info');
+        showMessage('بدء التسجيل الصوتي... اضغط مرة أخرى لإيقاف التسجيل', 'info');
     } catch (error) {
         console.error('خطأ في بدء التسجيل الصوتي:', error);
-        showMessage('فشل في الوصول للميكروفون. تأكد من السماح بالوصول للميكروفون.', 'error');
+        let errorMessage = 'فشل في الوصول للميكروفون. ';
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            errorMessage += 'يرجى السماح بالوصول للميكروفون في إعدادات المتصفح.';
+        } else {
+            errorMessage += error.message || 'حدث خطأ غير معروف.';
+        }
+        showMessage(errorMessage, 'error');
+        isRecording = false;
     }
 }
 
 function stopVoiceRecording() {
-    if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-        isRecording = false;
-        
-        const micBtn = document.getElementById('micBtn');
-        if (micBtn) {
-            micBtn.classList.remove('recording');
-            micBtn.title = 'تسجيل صوتي';
+    if (mediaRecorder && isRecording && mediaRecorder.state !== 'inactive') {
+        try {
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) {
+                micBtn.classList.remove('recording');
+                micBtn.title = 'تسجيل صوتي';
+            }
+            
+            showMessage('تم إيقاف التسجيل. جاري إرسال الرسالة الصوتية...', 'info');
+        } catch (error) {
+            console.error('خطأ في إيقاف التسجيل:', error);
+            isRecording = false;
         }
-        
-        showMessage('تم إيقاف التسجيل. جاري إرسال الرسالة الصوتية...', 'info');
     }
 }
 
@@ -2203,8 +2288,15 @@ async function openCamera() {
             return;
         }
         
-        // إظهار overlay الكاميرا أولاً
+        // إظهار overlay الكاميرا أولاً - شاشة كاملة
         cameraOverlay.style.display = 'flex';
+        cameraOverlay.style.position = 'fixed';
+        cameraOverlay.style.top = '0';
+        cameraOverlay.style.left = '0';
+        cameraOverlay.style.width = '100vw';
+        cameraOverlay.style.height = '100vh';
+        cameraOverlay.style.height = '100dvh';
+        document.body.style.overflow = 'hidden';
         
         // طلب الوصول للكاميرا مع معالجة أفضل للأخطاء
         const constraints = {
@@ -2381,6 +2473,7 @@ async function sendLocation() {
         // إظهار مؤشر الإرسال
         const sendingIndicator = showSendingIndicator('موقع', 'location');
         
+        // طلب الصلاحيات بشكل صريح
         navigator.geolocation.getCurrentPosition(
             async (position) => {
                 try {
