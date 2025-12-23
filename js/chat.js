@@ -762,6 +762,9 @@ function setupEventListeners() {
                 // يمكن إضافة وظيفة بحث هنا
             }, 300);
         });
+        
+        // إدارة ظهور لوحة المفاتيح
+        setupKeyboardHandling(chatInput);
     }
     
     // أزرار الإدخال
@@ -1726,6 +1729,147 @@ function hideSendingIndicator(indicator) {
     }
 }
 
+// إدارة ظهور لوحة المفاتيح (ميزة واتساب)
+let keyboardHandlers = {
+    resizeHandler: null,
+    scrollHandler: null,
+    resizeWindowHandler: null
+};
+
+function setupKeyboardHandling(chatInput) {
+    const chatContainer = document.getElementById('chatContainer');
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatContainer || !chatMessages) return;
+    
+    let initialViewportHeight = window.innerHeight;
+    let isKeyboardOpen = false;
+    
+    function handleViewportResize() {
+        if (!window.visualViewport) return;
+        const viewport = window.visualViewport;
+        const heightDiff = initialViewportHeight - viewport.height;
+        
+        // إذا كان الفرق أكثر من 150px، فلوحة المفاتيح مفتوحة
+        if (heightDiff > 150) {
+            if (!isKeyboardOpen) {
+                handleKeyboardOpen();
+            }
+            // تعديل موضع حقل الإدخال
+            adjustInputPosition(viewport.height);
+        } else {
+            if (isKeyboardOpen) {
+                handleKeyboardClose();
+            }
+        }
+    }
+    
+    function handleViewportScroll() {
+        if (!window.visualViewport) return;
+        // التمرير للأسفل عند ظهور لوحة المفاتيح
+        if (isKeyboardOpen) {
+            scrollToBottom();
+        }
+    }
+    
+    function handleWindowResize() {
+        const currentHeight = window.innerHeight;
+        const heightDiff = initialViewportHeight - currentHeight;
+        
+        if (heightDiff > 150) {
+            if (!isKeyboardOpen) {
+                handleKeyboardOpen();
+            }
+        } else {
+            if (isKeyboardOpen) {
+                handleKeyboardClose();
+            }
+        }
+    }
+    
+    function handleKeyboardOpen() {
+        isKeyboardOpen = true;
+        chatContainer.classList.add('keyboard-open');
+        
+        // إخفاء أي قوائم جانبية مفتوحة
+        closeAllSidebars();
+        
+        // التمرير للأسفل
+        setTimeout(() => {
+            scrollToBottom();
+        }, 200);
+    }
+    
+    function handleKeyboardClose() {
+        isKeyboardOpen = false;
+        chatContainer.classList.remove('keyboard-open');
+    }
+    
+    function adjustInputPosition(viewportHeight) {
+        // التأكد من أن حقل الإدخال مرئي
+        const inputContainer = document.querySelector('.chat-input-container');
+        if (inputContainer) {
+            const inputRect = inputContainer.getBoundingClientRect();
+            const viewportBottom = viewportHeight;
+            
+            // إذا كان حقل الإدخال مخفي خلف لوحة المفاتيح
+            if (inputRect.bottom > viewportBottom) {
+                // التمرير للأسفل
+                scrollToBottom();
+            }
+        }
+    }
+    
+    // حفظ المراجع للدوال
+    keyboardHandlers.resizeHandler = handleViewportResize;
+    keyboardHandlers.scrollHandler = handleViewportScroll;
+    keyboardHandlers.resizeWindowHandler = handleWindowResize;
+    
+    // استخدام Visual Viewport API إذا كان متاحاً (الأفضل)
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', handleViewportResize);
+        window.visualViewport.addEventListener('scroll', handleViewportScroll);
+    } else {
+        // استخدام window resize كبديل
+        window.addEventListener('resize', handleWindowResize);
+    }
+    
+    // عند التركيز على حقل الإدخال
+    chatInput.addEventListener('focus', () => {
+        setTimeout(() => {
+            handleKeyboardOpen();
+            // التمرير للأسفل بعد ظهور لوحة المفاتيح
+            setTimeout(() => {
+                scrollToBottom();
+            }, 300);
+        }, 100);
+    });
+    
+    // عند إلغاء التركيز
+    chatInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            handleKeyboardClose();
+        }, 100);
+    });
+    
+    // حفظ الارتفاع الأولي
+    function updateInitialHeight() {
+        initialViewportHeight = window.innerHeight;
+        if (window.visualViewport) {
+            initialViewportHeight = window.visualViewport.height;
+        }
+    }
+    
+    window.addEventListener('load', updateInitialHeight);
+    
+    // إعادة تعيين عند تغيير الاتجاه
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            updateInitialHeight();
+            handleKeyboardClose();
+        }, 500);
+    });
+}
+
 // تنظيف عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
     if (messagePollingInterval) {
@@ -1736,6 +1880,15 @@ window.addEventListener('beforeunload', () => {
     }
     if (isRecording && mediaRecorder) {
         mediaRecorder.stop();
+    }
+    
+    // إزالة event listeners للوحة المفاتيح
+    if (window.visualViewport && keyboardHandlers.resizeHandler) {
+        window.visualViewport.removeEventListener('resize', keyboardHandlers.resizeHandler);
+        window.visualViewport.removeEventListener('scroll', keyboardHandlers.scrollHandler);
+    }
+    if (keyboardHandlers.resizeWindowHandler) {
+        window.removeEventListener('resize', keyboardHandlers.resizeWindowHandler);
     }
 });
 

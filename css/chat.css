@@ -80,9 +80,27 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
     background: linear-gradient(135deg, var(--light-bg) 0%, var(--secondary-color) 20%);
     position: relative;
     overflow: hidden;
+}
+
+/* عند ظهور لوحة المفاتيح */
+.chat-container.keyboard-open {
+    height: 100vh;
+    height: 100dvh;
+}
+
+/* على الأجهزة المحمولة - استخدام visual viewport */
+@supports (height: 100dvh) {
+    .chat-container {
+        height: 100dvh;
+    }
+    
+    .chat-container.keyboard-open {
+        height: 100dvh;
+    }
 }
 
 /* الشريط العلوي */
@@ -168,6 +186,17 @@ body {
     flex-direction: column;
     gap: 15px;
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 10px;
+    min-height: 0; /* مهم لـ flexbox */
+}
+
+/* عند ظهور لوحة المفاتيح - تعديل منطقة الرسائل */
+.chat-container.keyboard-open .chat-messages {
+    padding-bottom: 20px;
+    /* التأكد من أن الرسائل قابلة للتمرير */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .chat-messages::-webkit-scrollbar {
@@ -345,9 +374,28 @@ body {
     align-items: center;
     gap: 10px;
     padding: 15px 20px;
+    padding-bottom: max(15px, env(safe-area-inset-bottom));
     background: var(--white);
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
     border-top: 1px solid var(--border-color);
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+    transition: transform 0.3s ease, padding-bottom 0.3s ease;
+    will-change: transform;
+}
+
+/* عند ظهور لوحة المفاتيح - التأكد من أن حقل الإدخال مرئي */
+.chat-container.keyboard-open .chat-input-container {
+    transform: translateY(0);
+    padding-bottom: max(15px, env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* عند ظهور لوحة المفاتيح - رفع حقل الإدخال */
+.chat-container.keyboard-open .chat-input-container {
+    transform: translateY(0);
+    padding-bottom: max(15px, env(safe-area-inset-bottom));
 }
 
 .chat-input {
@@ -1233,6 +1281,44 @@ body {
     .menu-item {
         padding: 10px 12px;
         font-size: 13px;
+    }
+    
+    /* تحسينات لوحة المفاتيح على الموبايل */
+    .chat-container {
+        height: 100vh;
+        height: 100dvh;
+    }
+    
+    .chat-container.keyboard-open {
+        height: 100vh;
+        height: 100dvh;
+    }
+    
+    .chat-input-container {
+        padding: 12px 15px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+    
+    .chat-messages {
+        padding: 15px;
+        padding-bottom: 10px;
+    }
+    
+    .chat-container.keyboard-open .chat-messages {
+        padding-bottom: 15px;
+    }
+}
+
+/* تحسينات خاصة للأجهزة التي تدعم Visual Viewport */
+@supports (height: 100dvh) {
+    @media (max-width: 576px) {
+        .chat-container {
+            height: 100dvh;
+        }
+        
+        .chat-container.keyboard-open {
+            height: 100dvh;
+        }
     }
 }
 
