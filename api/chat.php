@@ -231,8 +231,26 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
     // معالجة الموقع
     $locationJson = null;
     if ($messageType === 'location' && $locationData) {
-        $locationJson = json_encode($locationData, JSON_UNESCAPED_UNICODE);
-        $message = $message ?: ($locationData['address'] ?? 'موقع');
+        // التحقق من أن location_data هو array
+        if (is_array($locationData)) {
+            // التحقق من وجود الإحداثيات المطلوبة
+            if (isset($locationData['latitude']) && isset($locationData['longitude'])) {
+                $latitude = floatval($locationData['latitude']);
+                $longitude = floatval($locationData['longitude']);
+                
+                // التحقق من صحة الإحداثيات
+                if ($latitude >= -90 && $latitude <= 90 && $longitude >= -180 && $longitude <= 180) {
+                    $locationJson = json_encode($locationData, JSON_UNESCAPED_UNICODE);
+                    $message = $message ?: ($locationData['address'] ?? "الموقع: {$latitude}, {$longitude}");
+                } else {
+                    response(false, 'إحداثيات الموقع غير صحيحة', null, 400);
+                }
+            } else {
+                response(false, 'إحداثيات الموقع مطلوبة (latitude, longitude)', null, 400);
+            }
+        } else {
+            response(false, 'بيانات الموقع يجب أن تكون مصفوفة', null, 400);
+        }
     }
     
     // التحقق من وجود رسالة أو ملف أو موقع

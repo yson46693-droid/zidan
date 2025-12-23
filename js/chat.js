@@ -383,19 +383,37 @@ function createMessageElement(message) {
         const audio = document.createElement('audio');
         audio.controls = true;
         audio.preload = 'metadata';
-        // التأكد من المسار الصحيح
-        const audioUrl = message.file_url.startsWith('http') ? message.file_url : 
-                        (message.file_url.startsWith('/') ? message.file_url : '/' + message.file_url);
+        // التأكد من المسار الصحيح - إصلاح المسار النسبي
+        let audioUrl = message.file_url;
+        if (!audioUrl.startsWith('http') && !audioUrl.startsWith('//')) {
+            // إذا كان المسار نسبي، أضف / في البداية
+            if (!audioUrl.startsWith('/')) {
+                audioUrl = '/' + audioUrl;
+            }
+        }
         audio.src = audioUrl;
         audio.style.cssText = 'width: 100%; max-width: 300px; outline: none;';
         
+        // إضافة event listeners للتحقق من التحميل
+        audio.onloadstart = function() {
+            console.log('بدء تحميل الملف الصوتي:', audioUrl);
+        };
+        
+        audio.oncanplay = function() {
+            console.log('الملف الصوتي جاهز للتشغيل:', audioUrl);
+        };
+        
         // معالجة الأخطاء
-        audio.onerror = function() {
-            console.error('خطأ في تحميل الملف الصوتي:', audioUrl);
+        audio.onerror = function(e) {
+            console.error('خطأ في تحميل الملف الصوتي:', audioUrl, e);
             const errorMsg = document.createElement('div');
             errorMsg.className = 'audio-error';
-            errorMsg.textContent = '❌ فشل تحميل الملف الصوتي';
-            errorMsg.style.cssText = 'color: var(--danger-color); font-size: 12px; margin-top: 5px;';
+            errorMsg.innerHTML = '❌ فشل تحميل الملف الصوتي<br><small style="opacity: 0.7;">المسار: ' + audioUrl + '</small>';
+            errorMsg.style.cssText = 'color: var(--danger-color); font-size: 12px; margin-top: 5px; padding: 5px; background: rgba(244, 67, 54, 0.1); border-radius: 4px;';
+            // إزالة عنصر audio الفاشل
+            if (audio.parentNode) {
+                audio.parentNode.removeChild(audio);
+            }
             audioContainer.appendChild(errorMsg);
         };
         
@@ -414,11 +432,26 @@ function createMessageElement(message) {
         imageContainer.className = 'image-message';
         
         const img = document.createElement('img');
-        img.src = message.file_url.startsWith('http') ? message.file_url : 
-                 (message.file_url.startsWith('/') ? message.file_url : '/' + message.file_url);
+        // إصلاح المسار النسبي للصور
+        let imageUrl = message.file_url;
+        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('//')) {
+            if (!imageUrl.startsWith('/')) {
+                imageUrl = '/' + imageUrl;
+            }
+        }
+        img.src = imageUrl;
         img.alt = message.message || 'صورة';
         img.loading = 'lazy';
         img.style.cssText = 'max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;';
+        img.onerror = function() {
+            console.error('خطأ في تحميل الصورة:', imageUrl);
+            this.style.display = 'none';
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'image-error';
+            errorMsg.textContent = '❌ فشل تحميل الصورة';
+            errorMsg.style.cssText = 'color: var(--danger-color); font-size: 12px; padding: 10px; background: rgba(244, 67, 54, 0.1); border-radius: 4px; text-align: center;';
+            imageContainer.appendChild(errorMsg);
+        };
         img.onclick = () => {
             // فتح الصورة في نافذة جديدة
             const imageWindow = window.open('', '_blank');
@@ -578,7 +611,9 @@ function createMessageElement(message) {
         messageDiv.appendChild(actionsMenu);
     }
     
-    // زر الرد (لجميع الرسائل)
+    content.appendChild(bubble);
+    
+    // زر الرد (لجميع الرسائل) - في أقصى اليمين من الرسالة
     const replyBtn = document.createElement('button');
     replyBtn.className = 'message-reply-btn';
     replyBtn.innerHTML = '↩️';
@@ -587,9 +622,8 @@ function createMessageElement(message) {
         e.stopPropagation();
         replyToMessage(message);
     };
+    // إضافة زر الرد في أقصى اليمين من الرسالة (بعد المحتوى)
     messageDiv.appendChild(replyBtn);
-    
-    content.appendChild(bubble);
     
     // Reactions
     if (message.reactions && Object.keys(message.reactions).length > 0) {
@@ -872,9 +906,15 @@ function setupEventListeners() {
     }
     
     if (locationBtn) {
-        locationBtn.addEventListener('click', () => {
+        locationBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
             closeAttachMenu();
-            sendLocation();
+            try {
+                await sendLocation();
+            } catch (error) {
+                console.error('خطأ في استدعاء sendLocation:', error);
+                showMessage('حدث خطأ في إرسال الموقع', 'error');
+            }
         });
     }
     
@@ -2020,32 +2060,89 @@ function closeAttachMenu() {
 
 // فتح معرض الصور
 function openGallery() {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.multiple = false;
-    fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            handleFileAttachment(file);
-        }
-    };
-    fileInput.click();
+    try {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.multiple = false;
+        fileInput.style.display = 'none';
+        
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // التحقق من نوع الملف
+                if (!file.type.startsWith('image/')) {
+                    showMessage('الملف المحدد ليس صورة', 'error');
+                    return;
+                }
+                handleFileAttachment(file);
+            }
+            // إعادة تعيين input للسماح باختيار نفس الملف مرة أخرى
+            fileInput.value = '';
+        };
+        
+        fileInput.onerror = (e) => {
+            console.error('خطأ في فتح منتقي الملفات:', e);
+            showMessage('حدث خطأ في فتح معرض الصور', 'error');
+        };
+        
+        document.body.appendChild(fileInput);
+        fileInput.click();
+        
+        // إزالة input بعد الاستخدام
+        setTimeout(() => {
+            if (fileInput.parentNode) {
+                fileInput.parentNode.removeChild(fileInput);
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('خطأ في openGallery:', error);
+        showMessage('حدث خطأ في فتح معرض الصور: ' + (error.message || error), 'error');
+    }
 }
 
 // فتح منتقي الملفات
 function openFilePicker() {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'video/*,audio/*,.pdf,.doc,.docx,.txt';
-    fileInput.multiple = false;
-    fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            handleFileAttachment(file);
-        }
-    };
-    fileInput.click();
+    try {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'video/*,audio/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.zip,.rar';
+        fileInput.multiple = false;
+        fileInput.style.display = 'none';
+        
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // التحقق من حجم الملف (10MB)
+                const maxSize = 10 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    showMessage('حجم الملف كبير جداً. الحد الأقصى 10MB', 'error');
+                    return;
+                }
+                handleFileAttachment(file);
+            }
+            // إعادة تعيين input للسماح باختيار نفس الملف مرة أخرى
+            fileInput.value = '';
+        };
+        
+        fileInput.onerror = (e) => {
+            console.error('خطأ في فتح منتقي الملفات:', e);
+            showMessage('حدث خطأ في فتح منتقي الملفات', 'error');
+        };
+        
+        document.body.appendChild(fileInput);
+        fileInput.click();
+        
+        // إزالة input بعد الاستخدام
+        setTimeout(() => {
+            if (fileInput.parentNode) {
+                fileInput.parentNode.removeChild(fileInput);
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('خطأ في openFilePicker:', error);
+        showMessage('حدث خطأ في فتح منتقي الملفات: ' + (error.message || error), 'error');
+    }
 }
 
 // فتح الكاميرا
@@ -2057,31 +2154,84 @@ async function openCamera() {
     const cameraVideo = document.getElementById('cameraVideo');
     const cameraFlipBtn = document.getElementById('cameraFlipBtn');
     
-    if (!cameraOverlay || !cameraVideo) return;
+    if (!cameraOverlay || !cameraVideo) {
+        showMessage('عناصر الكاميرا غير موجودة', 'error');
+        return;
+    }
     
     try {
-        // طلب الوصول للكاميرا
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: facingMode,
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        });
+        // إغلاق أي قوائم مفتوحة
+        closeAttachMenu();
         
-        cameraVideo.srcObject = cameraStream;
-        cameraOverlay.style.display = 'flex';
-        
-        // إظهار زر تبديل الكاميرا إذا كان الجهاز يدعم كاميرات متعددة
-        if (cameraFlipBtn && navigator.mediaDevices.getSupportedConstraints().facingMode) {
-            cameraFlipBtn.style.display = 'flex';
+        // التحقق من دعم الكاميرا
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showMessage('المتصفح لا يدعم الكاميرا', 'error');
+            return;
         }
         
-        // منع التمرير عند فتح الكاميرا
-        document.body.style.overflow = 'hidden';
+        // إظهار overlay الكاميرا أولاً
+        cameraOverlay.style.display = 'flex';
+        
+        // طلب الوصول للكاميرا مع معالجة أفضل للأخطاء
+        const constraints = {
+            video: {
+                facingMode: facingMode,
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 }
+            },
+            audio: false
+        };
+        
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            // ربط الفيديو بالستريم
+            cameraVideo.srcObject = cameraStream;
+            
+            // انتظار تحميل الفيديو
+            cameraVideo.onloadedmetadata = () => {
+                cameraVideo.play().catch(err => {
+                    console.error('خطأ في تشغيل الفيديو:', err);
+                });
+            };
+            
+            // إظهار زر تبديل الكاميرا إذا كان الجهاز يدعم كاميرات متعددة
+            if (cameraFlipBtn) {
+                const supportsFacingMode = navigator.mediaDevices.getSupportedConstraints().facingMode;
+                if (supportsFacingMode) {
+                    cameraFlipBtn.style.display = 'flex';
+                } else {
+                    cameraFlipBtn.style.display = 'none';
+                }
+            }
+            
+            // منع التمرير عند فتح الكاميرا
+            document.body.style.overflow = 'hidden';
+            
+        } catch (mediaError) {
+            // إخفاء overlay في حالة الخطأ
+            cameraOverlay.style.display = 'none';
+            
+            let errorMessage = 'فشل في الوصول للكاميرا. ';
+            if (mediaError.name === 'NotAllowedError' || mediaError.name === 'PermissionDeniedError') {
+                errorMessage += 'يرجى السماح بالوصول للكاميرا في إعدادات المتصفح.';
+            } else if (mediaError.name === 'NotFoundError' || mediaError.name === 'DevicesNotFoundError') {
+                errorMessage += 'لم يتم العثور على كاميرا.';
+            } else if (mediaError.name === 'NotReadableError' || mediaError.name === 'TrackStartError') {
+                errorMessage += 'الكاميرا مستخدمة من قبل تطبيق آخر.';
+            } else {
+                errorMessage += mediaError.message || 'حدث خطأ غير معروف.';
+            }
+            
+            console.error('خطأ في فتح الكاميرا:', mediaError);
+            showMessage(errorMessage, 'error');
+        }
     } catch (error) {
-        console.error('خطأ في فتح الكاميرا:', error);
-        showMessage('فشل في الوصول للكاميرا. تأكد من السماح بالوصول للكاميرا.', 'error');
+        console.error('خطأ عام في فتح الكاميرا:', error);
+        showMessage('حدث خطأ في فتح الكاميرا: ' + (error.message || error), 'error');
+        if (cameraOverlay) {
+            cameraOverlay.style.display = 'none';
+        }
     }
 }
 
@@ -2125,7 +2275,16 @@ function capturePhoto() {
     const cameraVideo = document.getElementById('cameraVideo');
     const cameraCanvas = document.getElementById('cameraCanvas');
     
-    if (!cameraVideo || !cameraCanvas) return;
+    if (!cameraVideo || !cameraCanvas) {
+        showMessage('عناصر الكاميرا غير موجودة', 'error');
+        return;
+    }
+    
+    // التحقق من أن الفيديو جاهز
+    if (!cameraVideo.videoWidth || !cameraVideo.videoHeight) {
+        showMessage('الكاميرا غير جاهزة. يرجى الانتظار قليلاً', 'error');
+        return;
+    }
     
     try {
         // تعيين أبعاد Canvas
@@ -2134,7 +2293,17 @@ function capturePhoto() {
         
         // رسم الفيديو على Canvas
         const ctx = cameraCanvas.getContext('2d');
+        
+        // إذا كانت الكاميرا خلفية، نحتاج لعكس الصورة
+        if (facingMode === 'user') {
+            ctx.translate(cameraCanvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+        
         ctx.drawImage(cameraVideo, 0, 0);
+        
+        // إعادة تعيين التحويلات
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         
         // تحويل Canvas إلى Blob
         cameraCanvas.toBlob((blob) => {
@@ -2147,17 +2316,25 @@ function capturePhoto() {
                 
                 // إرسال الصورة
                 handleFileAttachment(file);
+            } else {
+                showMessage('فشل في تحويل الصورة', 'error');
             }
         }, 'image/jpeg', 0.9);
     } catch (error) {
         console.error('خطأ في التقاط الصورة:', error);
-        showMessage('فشل في التقاط الصورة', 'error');
+        showMessage('فشل في التقاط الصورة: ' + (error.message || error), 'error');
     }
 }
 
 // إرسال الموقع
 async function sendLocation() {
-    if (!currentRoom) return;
+    if (!currentRoom) {
+        showMessage('لا توجد غرفة محادثة نشطة', 'error');
+        return;
+    }
+    
+    // إغلاق قائمة المرفقات
+    closeAttachMenu();
     
     if (!navigator.geolocation) {
         showMessage('المتصفح لا يدعم تحديد الموقع', 'error');
@@ -2172,46 +2349,73 @@ async function sendLocation() {
         
         navigator.geolocation.getCurrentPosition(
             async (position) => {
-                const latitude = position.coords.latitude;
-                const longitude = position.coords.longitude;
-                const accuracy = position.coords.accuracy || 0;
-                
-                // الحصول على عنوان الموقع (اختياري)
-                let address = '';
                 try {
-                    const response = await fetch(
-                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-                    );
-                    const data = await response.json();
-                    if (data && data.display_name) {
-                        address = data.display_name;
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    const accuracy = position.coords.accuracy || 0;
+                    
+                    // التحقق من صحة الإحداثيات
+                    if (isNaN(latitude) || isNaN(longitude)) {
+                        throw new Error('إحداثيات الموقع غير صحيحة');
+                    }
+                    
+                    // الحصول على عنوان الموقع (اختياري)
+                    let address = '';
+                    try {
+                        const response = await fetch(
+                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+                            {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json'
+                                }
+                            }
+                        );
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data && data.display_name) {
+                                address = data.display_name;
+                            }
+                        }
+                    } catch (error) {
+                        console.log('فشل في الحصول على العنوان:', error);
+                        // لا نوقف العملية إذا فشل الحصول على العنوان
+                    }
+                    
+                    // إرسال الموقع
+                    const locationData = {
+                        latitude: parseFloat(latitude),
+                        longitude: parseFloat(longitude),
+                        accuracy: parseFloat(accuracy),
+                        address: address || ''
+                    };
+                    
+                    console.log('إرسال بيانات الموقع:', locationData);
+                    
+                    const result = await API.request('chat.php', 'POST', {
+                        action: 'send_message',
+                        room_id: currentRoom.id,
+                        message: address || `الموقع: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                        message_type: 'location',
+                        location_data: locationData
+                    });
+                    
+                    // إزالة مؤشر الإرسال
+                    hideSendingIndicator(sendingIndicator);
+                    
+                    if (result && result.success) {
+                        showMessage('تم إرسال الموقع بنجاح', 'success');
+                        await loadMessages();
+                    } else {
+                        const errorMsg = result?.message || 'فشل إرسال الموقع';
+                        console.error('خطأ في إرسال الموقع:', result);
+                        showMessage(errorMsg, 'error');
                     }
                 } catch (error) {
-                    console.log('فشل في الحصول على العنوان:', error);
-                }
-                
-                // إرسال الموقع
-                const result = await API.request('chat.php', 'POST', {
-                    action: 'send_message',
-                    room_id: currentRoom.id,
-                    message: address || `الموقع: ${latitude}, ${longitude}`,
-                    message_type: 'location',
-                    location_data: {
-                        latitude: latitude,
-                        longitude: longitude,
-                        accuracy: accuracy,
-                        address: address
-                    }
-                });
-                
-                // إزالة مؤشر الإرسال
-                hideSendingIndicator(sendingIndicator);
-                
-                if (result && result.success) {
-                    showMessage('تم إرسال الموقع بنجاح', 'success');
-                    await loadMessages();
-                } else {
-                    showMessage('فشل إرسال الموقع', 'error');
+                    hideSendingIndicator(sendingIndicator);
+                    console.error('خطأ في معالجة الموقع:', error);
+                    showMessage('حدث خطأ في معالجة الموقع: ' + (error.message || error), 'error');
                 }
             },
             (error) => {
@@ -2224,24 +2428,26 @@ async function sendLocation() {
                         errorMessage = 'تم رفض الوصول للموقع. يرجى السماح بالوصول للموقع في إعدادات المتصفح.';
                         break;
                     case error.POSITION_UNAVAILABLE:
-                        errorMessage = 'معلومات الموقع غير متاحة';
+                        errorMessage = 'معلومات الموقع غير متاحة. تأكد من تفعيل GPS.';
                         break;
                     case error.TIMEOUT:
-                        errorMessage = 'انتهت مهلة الحصول على الموقع';
+                        errorMessage = 'انتهت مهلة الحصول على الموقع. يرجى المحاولة مرة أخرى.';
                         break;
+                    default:
+                        errorMessage = 'حدث خطأ غير متوقع: ' + (error.message || 'خطأ غير معروف');
                 }
                 
                 showMessage(errorMessage, 'error');
             },
             {
                 enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
+                timeout: 15000,
+                maximumAge: 60000 // قبول موقع عمره أقل من دقيقة
             }
         );
     } catch (error) {
-        console.error('خطأ في إرسال الموقع:', error);
-        showMessage('حدث خطأ في إرسال الموقع', 'error');
+        console.error('خطأ عام في إرسال الموقع:', error);
+        showMessage('حدث خطأ في إرسال الموقع: ' + (error.message || error), 'error');
     }
 }
 

@@ -269,6 +269,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    position: relative;
 }
 
 .user-message .message-content {
@@ -1036,6 +1037,7 @@ body {
 }
 
 .message-reply-btn {
+    position: absolute;
     top: 5px;
     right: 5px;
     background: var(--white);
@@ -1049,11 +1051,27 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    width: 32px;
+    height: 32px;
+}
+
+.message:hover .message-reply-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* زر الرد في أقصى اليمين لجميع الرسائل */
+.message .message-reply-btn {
+    right: 5px;
+    left: auto;
 }
 
 .user-message .message-reply-btn {
-    right: auto;
-    left: 5px;
+    right: 5px;
+    left: auto;
 }
 
 .message-reply-btn:hover {
