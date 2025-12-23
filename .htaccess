@@ -12,6 +12,9 @@ AddType text/css .css
 AddType text/javascript .js
 AddType application/javascript .js
 
+# MIME Type لملفات HTML
+AddType text/html .html
+
 # استثناء ملفات CSS
 <FilesMatch "\.css$">
     SetHandler default-handler
@@ -68,14 +71,14 @@ AddType application/javascript .js
     Allow from all
 </Files>
 
-# إعادة كتابة URL لملفات PHP
+# إعادة كتابة URL لملفات PHP و HTML
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
     
-    # السماح بالوصول المباشر لملفات PHP الموجودة
+    # السماح بالوصول المباشر لملفات PHP و HTML الموجودة
     RewriteCond %{REQUEST_FILENAME} -f
-    RewriteCond %{REQUEST_FILENAME} \.php$
+    RewriteCond %{REQUEST_FILENAME} \.(php|html)$
     RewriteRule ^(.*)$ $1 [L]
     
     # منع الوصول المباشر للملفات الحساسة
