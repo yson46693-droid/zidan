@@ -204,6 +204,19 @@ const API = {
         return await this.request('users.php', 'DELETE', { id });
     },
 
+    // الملف الشخصي
+    async getProfile() {
+        return await this.request('profile.php', 'GET');
+    },
+
+    async updateProfile(profileData) {
+        return await this.request('profile.php', 'PUT', profileData);
+    },
+
+    async checkUsernameAvailability(username) {
+        return await this.request('profile.php', 'POST', { action: 'check_username', username });
+    },
+
     // العملاء
     async getCustomers(type = null) {
         const url = type ? `customers.php?type=${type}` : 'customers.php';

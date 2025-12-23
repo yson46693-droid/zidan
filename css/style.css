@@ -313,22 +313,6 @@ body {
     padding: 30px;
 }
 
-.content.chat-page-content {
-    padding: 20px !important;
-    height: calc(100vh - 80px) !important;
-    overflow: visible !important;
-    min-height: 500px !important;
-    display: block !important;
-    box-sizing: border-box !important;
-    position: relative !important;
-}
-
-.content.chat-page-content .chat-app {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
 /* الأقسام */
 .section {
     display: none !important;
@@ -3489,6 +3473,148 @@ body {
     margin-bottom: 30px;
 }
 
+/* نموذج تعديل الملف الشخصي */
+.profile-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.profile-edit-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.profile-edit-form label {
+    font-weight: 600;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-edit-form label i {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.profile-edit-form input[type="text"],
+.profile-edit-form input[type="password"] {
+    padding: 12px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1em;
+    transition: all 0.3s ease;
+    background: var(--white);
+    color: var(--text-dark);
+}
+
+.profile-edit-form input[type="text"]:focus,
+.profile-edit-form input[type="password"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.profile-edit-form input[type="text"]:invalid:not(:placeholder-shown),
+.profile-edit-form input[type="password"]:invalid:not(:placeholder-shown) {
+    border-color: var(--danger-color);
+}
+
+.profile-edit-form .form-hint {
+    font-size: 0.85em;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.profile-edit-form .form-hint i {
+    color: var(--primary-color);
+}
+
+.validation-message {
+    font-size: 0.9em;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    transition: all 0.3s ease;
+}
+
+.validation-message.loading {
+    color: var(--primary-color);
+    background: rgba(33, 150, 243, 0.1);
+}
+
+.validation-message.success {
+    color: var(--success-color);
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.validation-message.error {
+    color: var(--danger-color);
+    background: rgba(244, 67, 54, 0.1);
+}
+
+.validation-message i {
+    font-size: 1.1em;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.form-actions .btn {
+    min-width: 120px;
+    padding: 12px 24px;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.form-actions .btn-primary {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.form-actions .btn-primary:hover:not(:disabled) {
+    background: #1976D2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.form-actions .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.form-actions .btn-secondary {
+    background: var(--light-bg);
+    color: var(--text-dark);
+    border: 2px solid var(--border-color);
+}
+
+.form-actions .btn-secondary:hover {
+    background: var(--border-color);
+    transform: translateY(-2px);
+}
+
 .credentials-list-section {
     margin-top: 30px;
 }
@@ -3576,6 +3702,25 @@ body {
     }
     
     .profile-info-item label {
+        min-width: auto;
+    }
+    
+    .profile-edit-form {
+        gap: 15px;
+    }
+    
+    .profile-edit-form input[type="text"],
+    .profile-edit-form input[type="password"] {
+        padding: 10px 12px;
+        font-size: 0.95em;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
         min-width: auto;
     }
     

@@ -165,6 +165,66 @@ async function loadProfileSection() {
                 </div>
             </div>
 
+            <!-- تعديل بيانات الحساب -->
+            <div class="profile-section">
+                <h3><i class="bi bi-pencil-square"></i> تعديل بيانات الحساب</h3>
+                <form id="profileEditForm" class="profile-edit-form" onsubmit="updateProfile(event)">
+                    <div class="form-group">
+                        <label for="profileName">
+                            <i class="bi bi-person"></i> اسم الحساب *
+                        </label>
+                        <input 
+                            type="text" 
+                            id="profileName" 
+                            name="name" 
+                            value="${currentUser.name || ''}" 
+                            required
+                            placeholder="أدخل اسم الحساب"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profileUsername">
+                            <i class="bi bi-at"></i> اسم المستخدم *
+                        </label>
+                        <input 
+                            type="text" 
+                            id="profileUsername" 
+                            name="username" 
+                            value="${currentUser.username || ''}" 
+                            required
+                            placeholder="أدخل اسم المستخدم"
+                        >
+                        <div id="usernameValidation" class="validation-message"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profilePassword">
+                            <i class="bi bi-lock"></i> كلمة المرور الجديدة
+                        </label>
+                        <input 
+                            type="password" 
+                            id="profilePassword" 
+                            name="password" 
+                            placeholder="اتركه فارغاً للاحتفاظ بالقديمة (الحد الأدنى 6 أحرف)"
+                            minlength="6"
+                        >
+                        <small class="form-hint">
+                            <i class="bi bi-info-circle"></i> اترك الحقل فارغاً إذا كنت لا تريد تغيير كلمة المرور
+                        </small>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+                            <i class="bi bi-save"></i> حفظ التغييرات
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="resetProfileForm()">
+                            <i class="bi bi-x-circle"></i> إلغاء
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- إدارة البصمة -->
             <div class="profile-section">
                 <h3><i class="bi bi-fingerprint"></i> إدارة البصمة</h3>
@@ -233,6 +293,9 @@ async function loadProfileSection() {
             </div>
         </div>
     `;
+
+        // إضافة event listeners للنموذج
+        setupProfileFormHandlers();
 
         // إضافة event listener لزر تسجيل البصمة
         const registerBtn = document.getElementById('registerBiometricBtn');
@@ -391,6 +454,195 @@ async function deleteCredential(credentialId) {
         console.error('خطأ في حذف البصمة:', error);
         showMessage('حدث خطأ أثناء حذف البصمة: ' + (error.message || error), 'error');
     }
+}
+
+// إعداد معالجات نموذج الملف الشخصي
+function setupProfileFormHandlers() {
+    const usernameInput = document.getElementById('profileUsername');
+    if (!usernameInput) return;
+
+    // التحقق من اسم المستخدم عند الكتابة (مع debounce)
+    const checkUsername = debounce(async (username) => {
+        const validationDiv = document.getElementById('usernameValidation');
+        if (!validationDiv) return;
+
+        // إذا كان اسم المستخدم هو نفسه الحالي، لا حاجة للتحقق
+        if (username === currentUser?.username) {
+            validationDiv.innerHTML = '';
+            validationDiv.className = 'validation-message';
+            return;
+        }
+
+        if (!username || username.trim().length < 3) {
+            validationDiv.innerHTML = '<i class="bi bi-exclamation-circle"></i> اسم المستخدم يجب أن يكون 3 أحرف على الأقل';
+            validationDiv.className = 'validation-message error';
+            return;
+        }
+
+        // عرض حالة التحميل
+        validationDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري التحقق...';
+        validationDiv.className = 'validation-message loading';
+
+        try {
+            const result = await API.checkUsernameAvailability(username.trim());
+            
+            if (result && result.success) {
+                if (result.data && result.data.available) {
+                    validationDiv.innerHTML = '<i class="bi bi-check-circle"></i> اسم المستخدم متاح';
+                    validationDiv.className = 'validation-message success';
+                } else {
+                    validationDiv.innerHTML = '<i class="bi bi-x-circle"></i> اسم المستخدم موجود مسبقاً';
+                    validationDiv.className = 'validation-message error';
+                }
+            } else {
+                validationDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> حدث خطأ أثناء التحقق';
+                validationDiv.className = 'validation-message error';
+            }
+        } catch (error) {
+            console.error('خطأ في التحقق من اسم المستخدم:', error);
+            validationDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> حدث خطأ أثناء التحقق';
+            validationDiv.className = 'validation-message error';
+        }
+    }, 500); // 500ms debounce
+
+    usernameInput.addEventListener('input', (e) => {
+        checkUsername(e.target.value);
+    });
+
+    // التحقق الأولي عند التحميل
+    if (usernameInput.value && usernameInput.value !== currentUser?.username) {
+        checkUsername(usernameInput.value);
+    }
+}
+
+// تحديث بيانات الملف الشخصي
+async function updateProfile(event) {
+    if (event) {
+        event.preventDefault();
+    }
+
+    const form = document.getElementById('profileEditForm');
+    if (!form) return;
+
+    const nameInput = document.getElementById('profileName');
+    const usernameInput = document.getElementById('profileUsername');
+    const passwordInput = document.getElementById('profilePassword');
+    const saveBtn = document.getElementById('saveProfileBtn');
+    const validationDiv = document.getElementById('usernameValidation');
+
+    if (!nameInput || !usernameInput || !passwordInput || !saveBtn) {
+        showMessage('خطأ: لم يتم العثور على حقول النموذج', 'error');
+        return;
+    }
+
+    const name = nameInput.value.trim();
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    // التحقق من صحة البيانات
+    if (!name || !username) {
+        showMessage('الاسم واسم المستخدم مطلوبان', 'error');
+        return;
+    }
+
+    if (username.length < 3) {
+        showMessage('اسم المستخدم يجب أن يكون 3 أحرف على الأقل', 'error');
+        return;
+    }
+
+    // التحقق من أن اسم المستخدم متاح (إذا تغير)
+    if (username !== currentUser?.username) {
+        if (validationDiv && validationDiv.classList.contains('error')) {
+            showMessage('اسم المستخدم موجود مسبقاً، يرجى اختيار اسم آخر', 'error');
+            return;
+        }
+
+        // التحقق مرة أخرى قبل الحفظ
+        try {
+            const checkResult = await API.checkUsernameAvailability(username);
+            if (!checkResult || !checkResult.success || !checkResult.data?.available) {
+                showMessage('اسم المستخدم موجود مسبقاً، يرجى اختيار اسم آخر', 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('خطأ في التحقق النهائي من اسم المستخدم:', error);
+            showMessage('حدث خطأ أثناء التحقق من اسم المستخدم', 'error');
+            return;
+        }
+    }
+
+    // التحقق من كلمة المرور إذا كانت محددة
+    if (password && password.length > 0 && password.length < 6) {
+        showMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+        return;
+    }
+
+    // بناء بيانات التحديث
+    const updateData = {
+        name: name,
+        username: username
+    };
+
+    if (password && password.length > 0) {
+        updateData.password = password;
+    }
+
+    // تعطيل الزر أثناء الحفظ
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري الحفظ...';
+
+    try {
+        const result = await API.updateProfile(updateData);
+
+        if (result && result.success) {
+            showMessage('تم تحديث بيانات الملف الشخصي بنجاح', 'success');
+            
+            // تحديث بيانات المستخدم الحالي
+            if (result.data) {
+                currentUser = result.data;
+                localStorage.setItem('currentUser', JSON.stringify(result.data));
+                
+                // تحديث معلومات المستخدم في الواجهة
+                if (typeof updateUserInfo === 'function') {
+                    updateUserInfo();
+                }
+            }
+
+            // إعادة تحميل القسم بعد ثانية واحدة لعرض البيانات المحدثة
+            setTimeout(() => {
+                loadProfileSection();
+            }, 1000);
+        } else {
+            showMessage(result?.message || 'فشل تحديث بيانات الملف الشخصي', 'error');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="bi bi-save"></i> حفظ التغييرات';
+        }
+    } catch (error) {
+        console.error('خطأ في تحديث الملف الشخصي:', error);
+        showMessage('حدث خطأ أثناء تحديث بيانات الملف الشخصي: ' + (error.message || 'خطأ غير معروف'), 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-save"></i> حفظ التغييرات';
+    }
+}
+
+// إعادة تعيين نموذج الملف الشخصي
+function resetProfileForm() {
+    if (!currentUser) return;
+
+    const nameInput = document.getElementById('profileName');
+    const usernameInput = document.getElementById('profileUsername');
+    const passwordInput = document.getElementById('profilePassword');
+    const validationDiv = document.getElementById('usernameValidation');
+
+    if (nameInput) nameInput.value = currentUser.name || '';
+    if (usernameInput) usernameInput.value = currentUser.username || '';
+    if (passwordInput) passwordInput.value = '';
+    if (validationDiv) {
+        validationDiv.innerHTML = '';
+        validationDiv.className = 'validation-message';
+    }
+
+    showMessage('تم إلغاء التعديلات', 'success');
 }
 
 // تنسيق التاريخ

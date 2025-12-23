@@ -25,7 +25,33 @@ if (session_status() === PHP_SESSION_NONE) {
 // تحميل الملفات المطلوبة
 require_once __DIR__ . '/includes/cache.php';
 require_once __DIR__ . '/api/database.php';
-require_once __DIR__ . '/api/chat/auth_helper.php';
+
+// دوال المصادقة
+if (!function_exists('isLoggedIn')) {
+    function isLoggedIn() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        return isset($_SESSION['user_id']);
+    }
+}
+
+if (!function_exists('getCurrentUser')) {
+    function getCurrentUser() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (!isset($_SESSION['user_id'])) {
+            return null;
+        }
+        return [
+            'id' => $_SESSION['user_id'],
+            'username' => $_SESSION['username'] ?? '',
+            'name' => $_SESSION['name'] ?? '',
+            'role' => $_SESSION['role'] ?? 'employee'
+        ];
+    }
+}
 
 // منع كاش هذه الصفحة
 if (function_exists('disablePageCache')) {
@@ -354,9 +380,6 @@ function getRoleName($role) {
             </a>
             <a href="error-logs.php" class="nav-link active" data-permission="manager">
                 <i class="bi bi-file-earmark-text"></i> سجلات الأخطاء
-            </a>
-            <a href="chat.php" class="nav-link">
-                <i class="bi bi-chat-dots"></i> الشات
             </a>
         </nav>
         

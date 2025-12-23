@@ -41,7 +41,6 @@ const optionalFiles = [
     '/install.html',
     '/css/dark-mode.css',
     '/css/security.css',
-    // تم إزالة chat-integrated.css و chat-integrated.js - سيتم تحميلهما عند الحاجة
     // تم إزالة جميع الأيقونات - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
     '/vertopal.com_photo_5922357566287580087_y.png'
     // باقي ملفات JS سيتم تحميلها عند الحاجة (lazy loading)

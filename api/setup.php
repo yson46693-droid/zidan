@@ -265,51 +265,6 @@ function setupDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
-        'messages' => "
-            CREATE TABLE IF NOT EXISTS `messages` (
-              `id` int(11) NOT NULL AUTO_INCREMENT,
-              `user_id` varchar(50) NOT NULL,
-              `message_text` text NOT NULL,
-              `reply_to` int(11) DEFAULT NULL,
-              `deleted` tinyint(1) DEFAULT 0,
-              `edited` tinyint(1) DEFAULT 0,
-              `created_at` datetime NOT NULL,
-              `updated_at` datetime DEFAULT NULL,
-              PRIMARY KEY (`id`),
-              KEY `idx_user_id` (`user_id`),
-              KEY `idx_created_at` (`created_at`),
-              KEY `idx_reply_to` (`reply_to`),
-              KEY `idx_deleted` (`deleted`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ",
-        
-        'message_reads' => "
-            CREATE TABLE IF NOT EXISTS `message_reads` (
-              `id` int(11) NOT NULL AUTO_INCREMENT,
-              `message_id` int(11) NOT NULL,
-              `user_id` varchar(50) NOT NULL,
-              `read_at` datetime NOT NULL,
-              PRIMARY KEY (`id`),
-              UNIQUE KEY `unique_read` (`message_id`, `user_id`),
-              KEY `idx_message_id` (`message_id`),
-              KEY `idx_user_id` (`user_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ",
-        
-        'user_presence' => "
-            CREATE TABLE IF NOT EXISTS `user_presence` (
-              `id` int(11) NOT NULL AUTO_INCREMENT,
-              `user_id` varchar(50) NOT NULL,
-              `is_online` tinyint(1) DEFAULT 0,
-              `last_seen` datetime NOT NULL,
-              `updated_at` datetime DEFAULT NULL,
-              PRIMARY KEY (`id`),
-              UNIQUE KEY `unique_user` (`user_id`),
-              KEY `idx_is_online` (`is_online`),
-              KEY `idx_last_seen` (`last_seen`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ",
-        
         'webauthn_credentials' => "
             CREATE TABLE IF NOT EXISTS `webauthn_credentials` (
               `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -389,9 +344,6 @@ function setupDatabase() {
         'loss_operations',
         'sales',
         'sale_items',
-        'messages',
-        'message_reads',
-        'user_presence',
         'webauthn_credentials'
     ];
     
