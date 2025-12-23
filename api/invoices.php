@@ -736,8 +736,8 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         }
         @media print {
             @page {
-                margin: 0.8cm;
-                size: A4;
+                margin: 0;
+                size: 80mm auto;
             }
             * {
                 -webkit-print-color-adjust: exact !important;
@@ -748,40 +748,122 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 color: black;
                 margin: 0;
                 padding: 0;
+                width: 80mm;
             }
             .invoice-wrapper {
-                page-break-inside: auto !important;
-                break-inside: auto !important;
+                width: 80mm !important;
+                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 10px 5px !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
                 overflow: visible !important;
                 height: auto !important;
                 max-height: none !important;
                 display: block !important;
                 position: static !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
             }
-            .invoice-logo-section,
-            .invoice-header,
-            .invoice-phone-data,
+            .invoice-logo-section {
+                margin-bottom: 10px !important;
+                padding: 5px 0 !important;
+                page-break-inside: avoid !important;
+            }
+            .invoice-logo {
+                max-width: 60mm !important;
+                max-height: 40mm !important;
+            }
+            .invoice-header {
+                margin-bottom: 10px !important;
+                padding-bottom: 10px !important;
+                page-break-inside: avoid !important;
+            }
+            .invoice-shop-info {
+                font-size: 0.85em !important;
+            }
             .invoice-details,
             .invoice-extra-info {
-                page-break-inside: avoid;
+                padding: 8px !important;
+                margin-bottom: 8px !important;
+                font-size: 0.85em !important;
+                page-break-inside: avoid !important;
+            }
+            .invoice-phone-data {
+                padding: 8px !important;
+                margin: 8px 0 !important;
+                font-size: 0.85em !important;
+                page-break-inside: avoid !important;
+            }
+            .phone-data-grid {
+                grid-template-columns: 1fr !important;
+                gap: 5px !important;
             }
             .invoice-items-table {
-                page-break-inside: auto !important;
-                display: table !important;
                 width: 100% !important;
+                font-size: 0.75em !important;
+                page-break-inside: avoid !important;
+                display: table !important;
                 border-collapse: collapse !important;
+            }
+            .invoice-items-table th,
+            .invoice-items-table td {
+                padding: 4px 2px !important;
+                font-size: 0.75em !important;
             }
             .invoice-items-table thead {
                 display: table-header-group !important;
-                page-break-inside: avoid;
             }
             .invoice-items-table tbody tr {
-                page-break-inside: avoid;
+                page-break-inside: avoid !important;
             }
-            .invoice-summary,
-            .invoice-qrcode,
+            .invoice-summary {
+                padding: 8px !important;
+                margin: 8px 0 !important;
+                font-size: 0.85em !important;
+                page-break-inside: avoid !important;
+            }
+            .invoice-summary .summary-row {
+                font-size: 0.9em !important;
+                margin-bottom: 5px !important;
+            }
+            .invoice-summary .summary-row.total {
+                font-size: 1.1em !important;
+                padding: 8px 0 !important;
+            }
+            .invoice-qrcode {
+                margin: 10px 0 !important;
+                padding: 0 !important;
+                page-break-inside: avoid !important;
+            }
+            .invoice-qrcode img {
+                max-width: 50mm !important;
+                width: 50mm !important;
+                height: 50mm !important;
+            }
             .invoice-terms {
-                page-break-inside: avoid;
+                padding: 8px !important;
+                margin: 8px 0 !important;
+                font-size: 0.7em !important;
+                page-break-inside: avoid !important;
+            }
+            .invoice-terms h4 {
+                font-size: 0.9em !important;
+                margin-bottom: 5px !important;
+            }
+            .invoice-terms ol {
+                padding-right: 15px !important;
+                line-height: 1.5 !important;
+            }
+            .invoice-terms li {
+                margin-bottom: 5px !important;
+            }
+            .invoice-footer {
+                margin: 10px 0 0 0 !important;
+                padding-top: 10px !important;
+                font-size: 0.85em !important;
+                page-break-inside: avoid !important;
             }
         }
     </style>

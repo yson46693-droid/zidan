@@ -897,20 +897,73 @@ function printInvoiceDirectly(saleData) {
                 }
                 
                 @media print {
+                    @page {
+                        margin: 0;
+                        size: 80mm auto;
+                    }
+                    
                     body {
                         padding: 0;
                         background: white;
+                        width: 80mm;
+                        margin: 0;
                     }
                     
                     .invoice-container {
+                        width: 80mm !important;
+                        max-width: 80mm !important;
                         border: none;
-                        padding: 20px;
+                        padding: 10px 5px;
                         box-shadow: none;
+                        margin: 0;
+                        page-break-inside: avoid !important;
                     }
                     
-                    @page {
-                        size: A4;
-                        margin: 15mm;
+                    .invoice-header {
+                        font-size: 0.85em !important;
+                        margin-bottom: 10px !important;
+                        padding-bottom: 10px !important;
+                    }
+                    
+                    .invoice-header h1 {
+                        font-size: 1.5em !important;
+                    }
+                    
+                    .invoice-info {
+                        font-size: 0.85em !important;
+                        padding: 8px !important;
+                        margin-bottom: 10px !important;
+                        flex-direction: column !important;
+                    }
+                    
+                    .invoice-table {
+                        font-size: 0.75em !important;
+                    }
+                    
+                    .invoice-table th,
+                    .invoice-table td {
+                        padding: 4px 2px !important;
+                    }
+                    
+                    .invoice-summary {
+                        font-size: 0.85em !important;
+                        padding: 8px !important;
+                    }
+                    
+                    .invoice-summary-row {
+                        font-size: 0.9em !important;
+                        margin-bottom: 5px !important;
+                    }
+                    
+                    .invoice-total {
+                        font-size: 1.1em !important;
+                        padding: 8px 0 !important;
+                    }
+                    
+                    .invoice-footer {
+                        font-size: 0.85em !important;
+                        margin-top: 10px !important;
+                        padding-top: 10px !important;
                     }
                 }
             </style>

@@ -1838,6 +1838,11 @@
 
 /* Print Styles */
 @media print {
+    @page {
+        margin: 0;
+        size: 80mm auto;
+    }
+    
     /* Hide everything except invoice */
     body > *:not(#invoiceModal) {
         display: none !important;
@@ -1847,28 +1852,29 @@
         margin: 0;
         padding: 0;
         background: white !important;
+        width: 80mm;
     }
     
     #invoiceModal {
         display: block !important;
-        position: static !important; /* تغيير من fixed إلى static للسماح بالتقسيم */
+        position: static !important;
         top: auto !important;
         left: auto !important;
-        width: 100% !important;
-        height: auto !important; /* تغيير من 100% إلى auto */
+        width: 80mm !important;
+        height: auto !important;
         min-height: auto !important;
         background: white !important;
         z-index: auto !important;
         overflow: visible !important;
-        page-break-inside: auto !important;
+        page-break-inside: avoid !important;
     }
     
     .pos-modal {
-        position: static !important; /* تغيير من fixed إلى static للسماح بالتقسيم */
+        position: static !important;
         left: auto !important;
         top: auto !important;
-        width: 100% !important;
-        height: auto !important; /* تغيير من 100% إلى auto */
+        width: 80mm !important;
+        height: auto !important;
         min-height: auto !important;
         background: white !important;
         display: block !important;
@@ -1876,13 +1882,13 @@
         margin: 0 !important;
         overflow: visible !important;
         z-index: auto !important;
-        page-break-inside: auto !important;
+        page-break-inside: avoid !important;
     }
     
     .pos-modal-content {
         box-shadow: none !important;
-        max-width: 100% !important;
-        width: 100% !important;
+        max-width: 80mm !important;
+        width: 80mm !important;
         margin: 0 !important;
         border: none !important;
         border-radius: 0 !important;
@@ -1890,7 +1896,7 @@
         min-height: auto !important;
         max-height: none !important;
         padding: 0 !important;
-        page-break-inside: auto !important;
+        page-break-inside: avoid !important;
         overflow: visible !important;
     }
     
@@ -1904,21 +1910,21 @@
     }
     
     .pos-invoice-body {
-        padding: 20px !important;
+        padding: 10px 5px !important;
         margin: 0 !important;
-        width: 100% !important;
+        width: 80mm !important;
         height: auto !important;
         min-height: auto !important;
         max-height: none !important;
         overflow: visible !important;
-        page-break-inside: auto !important;
+        page-break-inside: avoid !important;
     }
     
     .invoice-wrapper {
-        max-width: 100% !important;
-        width: 100% !important;
-        margin: 0 auto !important;
-        padding: 20px !important;
+        max-width: 80mm !important;
+        width: 80mm !important;
+        margin: 0 !important;
+        padding: 10px 5px !important;
         box-shadow: none !important;
         border: none !important;
         border-radius: 0 !important;
@@ -1927,20 +1933,21 @@
         min-height: auto !important;
         max-height: none !important;
         overflow: visible !important;
-        page-break-inside: auto !important; /* السماح بتقسيم الفاتورة */
+        page-break-inside: avoid !important;
     }
     
     .invoice-logo-section {
         padding-top: 0 !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 10px !important;
         background: white !important;
         box-shadow: none !important;
         text-align: center !important;
+        page-break-inside: avoid !important;
     }
     
     .invoice-logo {
-        max-width: 300px !important;
-        max-height: 300px !important;
+        max-width: 60mm !important;
+        max-height: 40mm !important;
         width: auto !important;
         height: auto !important;
         display: block !important;
@@ -1979,76 +1986,131 @@
     
     .invoice-header {
         border-bottom: 2px solid #2196F3 !important;
-        padding: 15px 0 !important;
-        margin-bottom: 15px !important;
+        padding: 8px 0 !important;
+        margin-bottom: 8px !important;
+        font-size: 0.85em !important;
+        page-break-inside: avoid !important;
+    }
+    
+    .invoice-shop-info {
+        font-size: 0.85em !important;
     }
     
     .invoice-details,
-    .invoice-extra-info,
-    .invoice-summary,
-    .invoice-barcode,
-    .invoice-qrcode,
-    .invoice-phone-data,
-    .invoice-terms,
-    .invoice-footer {
-        display: block !important;
-        visibility: visible !important;
+    .invoice-extra-info {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 5px !important;
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+        font-size: 0.85em !important;
+        page-break-inside: avoid !important;
         box-shadow: none !important;
         border: 1px solid #ddd !important;
         background: white !important;
-        padding: 15px !important;
-        margin-bottom: 15px !important;
+    }
+    
+    .invoice-summary {
+        padding: 8px !important;
+        margin: 8px 0 !important;
+        font-size: 0.85em !important;
+        page-break-inside: avoid !important;
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        background: white !important;
+    }
+    
+    .invoice-summary .summary-row {
+        font-size: 0.9em !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .invoice-summary .summary-row.total {
+        font-size: 1.1em !important;
+        padding: 8px 0 !important;
+    }
+    
+    .invoice-barcode {
+        page-break-inside: avoid !important;
     }
     
     .invoice-qrcode {
         background: transparent !important;
         border: none !important;
-        padding: 10px 0 !important;
-        margin: 20px 0 !important;
-    }
-    
-    .invoice-terms {
-        margin: 20px 0 !important;
-    }
-    
-    .invoice-footer {
-        margin: 20px 0 0 0 !important;
+        padding: 0 !important;
+        margin: 10px 0 !important;
+        page-break-inside: avoid !important;
     }
     
     .invoice-qrcode img {
-        max-width: 200px !important;
-        width: 200px !important;
-        height: 200px !important;
+        max-width: 50mm !important;
+        width: 50mm !important;
+        height: 50mm !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
     
     .invoice-phone-data {
+        padding: 8px !important;
+        margin: 8px 0 !important;
+        font-size: 0.85em !important;
         page-break-inside: avoid !important;
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        background: white !important;
     }
     
     .phone-data-grid {
         display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 10px !important;
+        grid-template-columns: 1fr !important;
+        gap: 5px !important;
     }
     
     .invoice-terms {
+        padding: 8px !important;
+        margin: 8px 0 !important;
+        font-size: 0.7em !important;
         page-break-inside: avoid !important;
         background: #fff9e6 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        box-shadow: none !important;
+        border: 1px solid #ffd700 !important;
+    }
+    
+    .invoice-terms h4 {
+        font-size: 0.9em !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .invoice-terms ol {
+        padding-right: 15px !important;
+        line-height: 1.5 !important;
+    }
+    
+    .invoice-terms li {
+        margin-bottom: 5px !important;
+    }
+    
+    .invoice-footer {
+        margin: 10px 0 0 0 !important;
+        padding-top: 10px !important;
+        font-size: 0.85em !important;
+        page-break-inside: avoid !important;
+        box-shadow: none !important;
+        border-top: 2px solid #2196F3 !important;
+        background: white !important;
     }
     
     .invoice-items-table {
-        font-size: 0.9em !important;
-        page-break-inside: auto !important;
+        font-size: 0.75em !important;
+        page-break-inside: avoid !important;
         box-shadow: none !important;
         width: 100% !important;
         border-collapse: collapse !important;
-        table-layout: fixed !important; /* تثبيت عرض الأعمدة */
-        display: table !important; /* ضمان عرض الجدول كجدول */
-        border: 1px solid #ddd !important; /* إضافة حدود للجدول */
+        table-layout: fixed !important;
+        display: table !important;
+        border: 1px solid #ddd !important;
     }
     
     .invoice-items-table thead {
@@ -2066,20 +2128,23 @@
     
     .invoice-items-table th,
     .invoice-items-table td {
-        display: table-cell !important; /* ضمان عرض الخلايا كخلايا جدول */
+        display: table-cell !important;
+        padding: 4px 2px !important;
+        font-size: 0.75em !important;
     }
     
-    /* تحديد عرض الأعمدة في الطباعة */
+    /* تحديد عرض الأعمدة في الطباعة - 80mm */
     .invoice-items-table th:nth-child(1),
     .invoice-items-table td:nth-child(1) {
-        width: 5% !important;
-        min-width: 30px !important;
+        width: 8% !important;
+        min-width: 0 !important;
+        text-align: center !important;
     }
     
     .invoice-items-table th:nth-child(2),
     .invoice-items-table td:nth-child(2) {
-        width: 40% !important;
-        min-width: 150px !important;
+        width: 35% !important;
+        min-width: 0 !important;
         max-width: none !important;
         white-space: normal !important;
         overflow: visible !important;
@@ -2089,19 +2154,22 @@
     .invoice-items-table th:nth-child(3),
     .invoice-items-table td:nth-child(3) {
         width: 12% !important;
-        min-width: 60px !important;
+        min-width: 0 !important;
+        text-align: center !important;
     }
     
     .invoice-items-table th:nth-child(4),
     .invoice-items-table td:nth-child(4) {
-        width: 20% !important;
-        min-width: 100px !important;
+        width: 22% !important;
+        min-width: 0 !important;
+        text-align: right !important;
     }
     
     .invoice-items-table th:nth-child(5),
     .invoice-items-table td:nth-child(5) {
         width: 23% !important;
-        min-width: 110px !important;
+        min-width: 0 !important;
+        text-align: right !important;
     }
     
     .invoice-items-table th {
@@ -2109,12 +2177,11 @@
         color: var(--text-dark) !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-        padding: 10px 8px !important;
         border: 1px solid #ddd !important;
+        font-weight: 700 !important;
     }
     
     .invoice-items-table td {
-        padding: 10px 8px !important;
         border: 1px solid #ddd !important;
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
@@ -2136,17 +2203,17 @@
         print-color-adjust: exact !important;
     }
     
-    /* تحسين الـ grid للبيانات في الطباعة */
+    /* تحسين الـ grid للبيانات في الطباعة - 80mm */
     .invoice-details {
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 15px !important;
+        grid-template-columns: 1fr !important;
+        gap: 5px !important;
     }
     
     .invoice-extra-info {
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 15px !important;
+        grid-template-columns: 1fr !important;
+        gap: 5px !important;
     }
     
     .invoice-summary {
