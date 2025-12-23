@@ -18,39 +18,101 @@ let emojiPickerVisible = false;
 let editingMessageId = null;
 let replyingToMessageId = null;
 
-// منع التكبير بالضغط مرتين (Double-tap zoom)
+// منع التكبير بالضغط مرتين (Double-tap zoom) - إعدادات شاملة
 (function() {
     let lastTouchEnd = 0;
+    let lastTouchStart = 0;
+    let touchCount = 0;
+    
+    // منع التكبير بالضغط مرتين
     document.addEventListener('touchend', function(event) {
         const now = Date.now();
         if (now - lastTouchEnd <= 300) {
             event.preventDefault();
+            event.stopPropagation();
+            return false;
         }
         lastTouchEnd = now;
-    }, false);
+    }, { passive: false });
     
     // منع التكبير بالضغط المزدوج
-    let lastTap = 0;
-    document.addEventListener('touchend', function(event) {
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTap;
-        if (tapLength < 500 && tapLength > 0) {
-            event.preventDefault();
+    document.addEventListener('touchstart', function(event) {
+        const now = Date.now();
+        if (now - lastTouchStart < 300) {
+            touchCount++;
+            if (touchCount >= 2) {
+                event.preventDefault();
+                event.stopPropagation();
+                touchCount = 0;
+                return false;
+            }
+        } else {
+            touchCount = 1;
         }
-        lastTap = currentTime;
-    }, false);
+        lastTouchStart = now;
+    }, { passive: false });
     
-    // منع التكبير بالضغط المزدوج على العناصر التفاعلية
+    // منع التكبير بالpinch gesture
     document.addEventListener('gesturestart', function(e) {
         e.preventDefault();
-    });
+        e.stopPropagation();
+        return false;
+    }, { passive: false });
     
     document.addEventListener('gesturechange', function(e) {
         e.preventDefault();
-    });
+        e.stopPropagation();
+        return false;
+    }, { passive: false });
     
     document.addEventListener('gestureend', function(e) {
         e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }, { passive: false });
+    
+    // منع التكبير بالwheel
+    let lastWheelTime = 0;
+    document.addEventListener('wheel', function(e) {
+        if (e.ctrlKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    }, { passive: false });
+    
+    // منع التكبير بالkeyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '0')) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    }, { passive: false });
+    
+    // إعادة تعيين viewport scale عند تغيير الاتجاه
+    window.addEventListener('orientationchange', function() {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no');
+        }
+    });
+    
+    // منع التكبير عند تحميل الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no');
+        }
+        
+        // إعادة تعيين scale كل ثانية كحماية إضافية
+        setInterval(function() {
+            if (window.visualViewport) {
+                if (window.visualViewport.scale !== 1) {
+                    window.visualViewport.scale = 1;
+                }
+            }
+        }, 1000);
     });
 })();
 
@@ -309,15 +371,29 @@ function createMessageElement(message) {
         const audioContainer = document.createElement('div');
         audioContainer.className = 'audio-message';
         
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.src = message.file_url;
-        audio.style.cssText = 'width: 100%; max-width: 300px;';
-        
         const audioLabel = document.createElement('div');
         audioLabel.className = 'audio-label';
         audioLabel.textContent = '🎤 رسالة صوتية';
         audioLabel.style.cssText = 'font-size: 12px; margin-bottom: 5px; opacity: 0.8;';
+        
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.preload = 'metadata';
+        // التأكد من المسار الصحيح
+        const audioUrl = message.file_url.startsWith('http') ? message.file_url : 
+                        (message.file_url.startsWith('/') ? message.file_url : '/' + message.file_url);
+        audio.src = audioUrl;
+        audio.style.cssText = 'width: 100%; max-width: 300px; outline: none;';
+        
+        // معالجة الأخطاء
+        audio.onerror = function() {
+            console.error('خطأ في تحميل الملف الصوتي:', audioUrl);
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'audio-error';
+            errorMsg.textContent = '❌ فشل تحميل الملف الصوتي';
+            errorMsg.style.cssText = 'color: var(--danger-color); font-size: 12px; margin-top: 5px;';
+            audioContainer.appendChild(errorMsg);
+        };
         
         audioContainer.appendChild(audioLabel);
         audioContainer.appendChild(audio);
@@ -329,6 +405,40 @@ function createMessageElement(message) {
             text.textContent = message.message;
             bubble.appendChild(text);
         }
+    } else if (message.message_type === 'image' && message.file_url) {
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'image-message';
+        
+        const img = document.createElement('img');
+        img.src = message.file_url.startsWith('http') ? message.file_url : 
+                 (message.file_url.startsWith('/') ? message.file_url : '/' + message.file_url);
+        img.alt = message.message || 'صورة';
+        img.loading = 'lazy';
+        img.style.cssText = 'max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;';
+        img.onclick = () => {
+            // فتح الصورة في نافذة جديدة
+            const imageWindow = window.open('', '_blank');
+            if (imageWindow) {
+                imageWindow.document.write(`
+                    <html>
+                        <head><title>${message.message || 'صورة'}</title></head>
+                        <body style="margin:0; display:flex; justify-content:center; align-items:center; height:100vh; background:#000;">
+                            <img src="${img.src}" style="max-width:100%; max-height:100%; object-fit:contain;">
+                        </body>
+                    </html>
+                `);
+            }
+        };
+        
+        imageContainer.appendChild(img);
+        if (message.message && !message.message.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+            const caption = document.createElement('p');
+            caption.className = 'image-caption';
+            caption.textContent = message.message;
+            caption.style.cssText = 'margin-top: 8px; font-size: 12px; color: inherit; opacity: 0.8;';
+            imageContainer.appendChild(caption);
+        }
+        bubble.appendChild(imageContainer);
     } else if (message.message_type === 'file' && message.file_url) {
         const fileContainer = document.createElement('div');
         fileContainer.className = 'file-message';
@@ -707,6 +817,9 @@ async function sendMessage() {
     if (!messageText && !replyingToMessageId) return;
     
     try {
+        // إظهار مؤشر الإرسال
+        const sendingIndicator = showSendingIndicator(messageText, 'text');
+        
         // إظهار الرسالة محلياً أولاً
         const tempMessage = {
             id: 'temp-' + Date.now(),
@@ -717,7 +830,8 @@ async function sendMessage() {
             user_name: currentUser.name || currentUser.username,
             username: currentUser.username,
             created_at: new Date().toISOString(),
-            reactions: {}
+            reactions: {},
+            isSending: true
         };
         
         messages.push(tempMessage);
@@ -725,27 +839,39 @@ async function sendMessage() {
         chatInput.value = '';
         clearReplyPreview();
         
-        // إرسال الرسالة للخادم
-        const result = await API.request('chat.php', 'POST', {
-            action: 'send_message',
-            room_id: currentRoom.id,
-            message: messageText,
-            message_type: 'text',
-            reply_to: replyingToMessageId || null
-        });
-        
-        if (result && result.success) {
-            // استبدال الرسالة المؤقتة بالرسالة الحقيقية
-            const tempIndex = messages.findIndex(m => m.id === tempMessage.id);
-            if (tempIndex !== -1) {
-                messages[tempIndex] = result.data;
+        try {
+            // إرسال الرسالة للخادم
+            const result = await API.request('chat.php', 'POST', {
+                action: 'send_message',
+                room_id: currentRoom.id,
+                message: messageText,
+                message_type: 'text',
+                reply_to: replyingToMessageId || null
+            });
+            
+            // إزالة مؤشر الإرسال
+            hideSendingIndicator(sendingIndicator);
+            
+            if (result && result.success) {
+                // استبدال الرسالة المؤقتة بالرسالة الحقيقية
+                const tempIndex = messages.findIndex(m => m.id === tempMessage.id);
+                if (tempIndex !== -1) {
+                    messages[tempIndex] = result.data;
+                    renderMessages();
+                }
+            } else {
+                // إزالة الرسالة المؤقتة في حالة الفشل
+                messages = messages.filter(m => m.id !== tempMessage.id);
                 renderMessages();
+                showMessage('فشل إرسال الرسالة', 'error');
             }
-        } else {
-            // إزالة الرسالة المؤقتة في حالة الفشل
+        } catch (error) {
+            hideSendingIndicator(sendingIndicator);
+            // إزالة الرسالة المؤقتة
             messages = messages.filter(m => m.id !== tempMessage.id);
             renderMessages();
-            showMessage('فشل إرسال الرسالة', 'error');
+            console.error('خطأ في إرسال الرسالة:', error);
+            showMessage('حدث خطأ في إرسال الرسالة', 'error');
         }
     } catch (error) {
         console.error('خطأ في إرسال الرسالة:', error);
@@ -1188,25 +1314,42 @@ async function sendAudioMessage(audioBlob) {
     if (!currentRoom) return;
     
     try {
+        // إظهار مؤشر الإرسال
+        const sendingIndicator = showSendingIndicator('رسالة صوتية', 'audio');
+        
         // تحويل الصوت إلى Base64
         const reader = new FileReader();
         reader.onloadend = async () => {
-            const base64Audio = reader.result;
-            
-            const result = await API.request('chat.php', 'POST', {
-                action: 'send_message',
-                room_id: currentRoom.id,
-                message: '',
-                message_type: 'audio',
-                audio_data: base64Audio
-            });
-            
-            if (result && result.success) {
-                showMessage('تم إرسال الرسالة الصوتية بنجاح', 'success');
-                await loadMessages();
-            } else {
-                showMessage('فشل إرسال الرسالة الصوتية', 'error');
+            try {
+                const base64Audio = reader.result;
+                
+                const result = await API.request('chat.php', 'POST', {
+                    action: 'send_message',
+                    room_id: currentRoom.id,
+                    message: '',
+                    message_type: 'audio',
+                    audio_data: base64Audio
+                });
+                
+                // إزالة مؤشر الإرسال
+                hideSendingIndicator(sendingIndicator);
+                
+                if (result && result.success) {
+                    showMessage('تم إرسال الرسالة الصوتية بنجاح', 'success');
+                    await loadMessages();
+                } else {
+                    showMessage('فشل إرسال الرسالة الصوتية', 'error');
+                }
+            } catch (error) {
+                hideSendingIndicator(sendingIndicator);
+                console.error('خطأ في إرسال الرسالة الصوتية:', error);
+                showMessage('حدث خطأ في إرسال الرسالة الصوتية', 'error');
             }
+        };
+        
+        reader.onerror = () => {
+            hideSendingIndicator(sendingIndicator);
+            showMessage('حدث خطأ في قراءة الملف الصوتي', 'error');
         };
         
         reader.readAsDataURL(audioBlob);
@@ -1228,35 +1371,50 @@ async function handleFileAttachment(file) {
             return;
         }
         
-        showMessage('جاري رفع الملف...', 'info');
+        // تحديد نوع الرسالة
+        const isImage = file.type.startsWith('image/');
+        const messageType = isImage ? 'image' : 'file';
+        
+        // إظهار مؤشر الإرسال
+        const sendingIndicator = showSendingIndicator(file.name, messageType);
         
         // قراءة الملف كـ Base64
         const reader = new FileReader();
         reader.onloadend = async () => {
-            const base64File = reader.result;
-            const fileType = file.type || 'application/octet-stream';
-            const fileName = file.name;
-            
-            const result = await API.request('chat.php', 'POST', {
-                action: 'send_message',
-                room_id: currentRoom.id,
-                message: fileName,
-                message_type: 'file',
-                file_data: base64File,
-                file_name: fileName,
-                file_type: fileType,
-                file_size: file.size
-            });
-            
-            if (result && result.success) {
-                showMessage('تم إرسال الملف بنجاح', 'success');
-                await loadMessages();
-            } else {
-                showMessage('فشل إرسال الملف', 'error');
+            try {
+                const base64File = reader.result;
+                const fileType = file.type || 'application/octet-stream';
+                const fileName = file.name;
+                
+                const result = await API.request('chat.php', 'POST', {
+                    action: 'send_message',
+                    room_id: currentRoom.id,
+                    message: fileName,
+                    message_type: messageType,
+                    file_data: base64File,
+                    file_name: fileName,
+                    file_type: fileType,
+                    file_size: file.size
+                });
+                
+                // إزالة مؤشر الإرسال
+                hideSendingIndicator(sendingIndicator);
+                
+                if (result && result.success) {
+                    showMessage(isImage ? 'تم إرسال الصورة بنجاح' : 'تم إرسال الملف بنجاح', 'success');
+                    await loadMessages();
+                } else {
+                    showMessage(isImage ? 'فشل إرسال الصورة' : 'فشل إرسال الملف', 'error');
+                }
+            } catch (error) {
+                hideSendingIndicator(sendingIndicator);
+                console.error('خطأ في إرسال الملف:', error);
+                showMessage('حدث خطأ في إرسال الملف', 'error');
             }
         };
         
         reader.onerror = () => {
+            hideSendingIndicator(sendingIndicator);
             showMessage('حدث خطأ في قراءة الملف', 'error');
         };
         
@@ -1525,6 +1683,46 @@ function scrollToMessage(messageId) {
         setTimeout(() => {
             messageElement.style.animation = '';
         }, 2000);
+    }
+}
+
+// إظهار مؤشر الإرسال
+function showSendingIndicator(content, type) {
+    const indicator = document.createElement('div');
+    indicator.className = 'sending-indicator';
+    indicator.id = 'sendingIndicator-' + Date.now();
+    
+    const icon = type === 'audio' ? '🎤' : type === 'image' ? '🖼️' : type === 'file' ? '📎' : '💬';
+    const text = type === 'audio' ? 'جاري إرسال الرسالة الصوتية...' :
+                 type === 'image' ? 'جاري إرسال الصورة...' :
+                 type === 'file' ? 'جاري إرسال الملف...' :
+                 'جاري الإرسال...';
+    
+    indicator.innerHTML = `
+        <div class="sending-indicator-content">
+            <div class="sending-spinner"></div>
+            <span class="sending-text">${icon} ${text}</span>
+        </div>
+    `;
+    
+    const chatInputContainer = document.querySelector('.chat-input-container');
+    if (chatInputContainer) {
+        chatInputContainer.insertBefore(indicator, chatInputContainer.firstChild);
+    }
+    
+    return indicator;
+}
+
+// إخفاء مؤشر الإرسال
+function hideSendingIndicator(indicator) {
+    if (indicator && indicator.parentNode) {
+        indicator.style.opacity = '0';
+        indicator.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+            if (indicator.parentNode) {
+                indicator.remove();
+            }
+        }, 300);
     }
 }
 

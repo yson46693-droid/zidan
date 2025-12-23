@@ -5,20 +5,44 @@
 
 /* استخدام CSS Variables من style.css */
 
-/* منع التكبير بالضغط مرتين */
+/* منع التكبير بالضغط مرتين - إعدادات شاملة */
+html {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    overflow-x: hidden;
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow-x: hidden;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* منع التكبير على جميع العناصر */
 * {
     touch-action: manipulation;
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
-/* السماح بتحديد النص في حقول الإدخال والرسائل */
+/* السماح بتحديد النص في حقول الإدخال والرسائل فقط */
 input,
 textarea,
 .message-text,
-.message-bubble {
-    -webkit-user-select: text;
-    user-select: text;
-    touch-action: auto;
+.message-bubble,
+.chat-input {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    touch-action: pan-y;
 }
 
 /* منع التكبير على العناصر التفاعلية */
@@ -26,18 +50,29 @@ button,
 a,
 .clickable,
 .message-actions,
-.message-reply-btn {
-    touch-action: manipulation;
+.message-reply-btn,
+.chat-header,
+.chat-input-container {
+    touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent;
-    -webkit-user-select: none;
-    user-select: none;
+    -webkit-user-select: none !important;
+    user-select: none !important;
 }
 
 /* منع التكبير على العناصر القابلة للنقر */
 [onclick],
-[role="button"] {
-    touch-action: manipulation;
+[role="button"],
+.chat-container {
+    touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent;
+}
+
+/* منع التكبير بالpinch gesture */
+.chat-messages,
+.chat-container,
+body {
+    touch-action: pan-y pan-x !important;
+    -ms-touch-action: pan-y pan-x !important;
 }
 
 /* Container الرئيسي */
@@ -1051,9 +1086,76 @@ a,
     gap: 5px;
 }
 
+/* مؤشر الإرسال */
+.sending-indicator {
+    padding: 12px 15px;
+    background: var(--primary-color);
+    color: var(--white);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow);
+}
+
+.sending-indicator-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sending-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: var(--white);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.sending-text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
 /* رسائل الصوت والملفات */
 .audio-message {
     margin: 5px 0;
+}
+
+.audio-error {
+    color: var(--danger-color);
+    font-size: 12px;
+    margin-top: 5px;
+    padding: 5px;
+    background: rgba(244, 67, 54, 0.1);
+    border-radius: 4px;
+}
+
+/* رسائل الصور */
+.image-message {
+    margin: 5px 0;
+}
+
+.image-message img {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.image-message img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.image-caption {
+    margin-top: 8px;
+    font-size: 12px;
+    color: inherit;
+    opacity: 0.8;
+    word-break: break-word;
 }
 
 .audio-message audio {

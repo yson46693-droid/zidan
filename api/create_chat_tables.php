@@ -117,11 +117,11 @@ function updateChatMessagesTable($conn) {
         $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `edited_at` datetime DEFAULT NULL AFTER `reply_to`");
     }
     
-    // تحديث message_type لدعم 'audio'
+    // تحديث message_type لدعم 'audio' و 'image'
     $result = $conn->query("SHOW COLUMNS FROM `chat_messages` WHERE Field = 'message_type'");
     if ($result && $result->num_rows > 0) {
         $row = $result->fetch_assoc();
-        if (strpos($row['Type'], 'audio') === false) {
+        if (strpos($row['Type'], 'audio') === false || strpos($row['Type'], 'image') === false) {
             $conn->query("ALTER TABLE `chat_messages` MODIFY COLUMN `message_type` enum('text','image','file','voice','audio') NOT NULL DEFAULT 'text'");
         }
     }

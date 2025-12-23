@@ -202,6 +202,15 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
         $message = $message ?: 'رسالة صوتية';
     }
     
+    // معالجة الصور
+    if ($messageType === 'image' && $fileData) {
+        $fileUrl = saveChatImage($fileData, $fileName, $fileType, $roomId, $userId);
+        if (!$fileUrl) {
+            response(false, 'فشل في حفظ الصورة', null, 500);
+        }
+        $message = $message ?: $fileName;
+    }
+    
     // معالجة الملفات
     if ($messageType === 'file' && $fileData) {
         $fileUrl = saveChatFile($fileData, $fileName, $fileType, $roomId, $userId);
@@ -370,6 +379,54 @@ function saveAudioFile($audioData, $roomId, $userId) {
         return 'chat/audio/' . $filename;
     } catch (Exception $e) {
         error_log('خطأ في حفظ الملف الصوتي: ' . $e->getMessage());
+        return null;
+    }
+}
+
+// حفظ صورة الشات
+function saveChatImage($fileData, $fileName, $fileType, $roomId, $userId) {
+    try {
+        // إنشاء مجلد الصور
+        $imagesDir = __DIR__ . '/../chat/images/';
+        if (!file_exists($imagesDir)) {
+            mkdir($imagesDir, 0755, true);
+        }
+        
+        // تنظيف بيانات Base64
+        $fileData = preg_replace('/^data:image\/[^;]+;base64,/', '', $fileData);
+        $fileData = base64_decode($fileData);
+        
+        if ($fileData === false) {
+            throw new Exception('بيانات الصورة غير صحيحة');
+        }
+        
+        // التحقق من حجم الملف (10MB)
+        if (strlen($fileData) > 10 * 1024 * 1024) {
+            throw new Exception('حجم الصورة كبير جداً');
+        }
+        
+        // تحديد امتداد الصورة
+        $extension = 'jpg';
+        if (strpos($fileType, 'png') !== false) {
+            $extension = 'png';
+        } elseif (strpos($fileType, 'gif') !== false) {
+            $extension = 'gif';
+        } elseif (strpos($fileType, 'webp') !== false) {
+            $extension = 'webp';
+        }
+        
+        // إنشاء اسم الملف
+        $filename = 'image_' . $roomId . '_' . $userId . '_' . time() . '.' . $extension;
+        $filepath = $imagesDir . $filename;
+        
+        // حفظ الصورة
+        if (file_put_contents($filepath, $fileData) === false) {
+            throw new Exception('فشل في حفظ الصورة');
+        }
+        
+        return 'chat/images/' . $filename;
+    } catch (Exception $e) {
+        error_log('خطأ في حفظ الصورة: ' . $e->getMessage());
         return null;
     }
 }
