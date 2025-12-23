@@ -452,6 +452,8 @@
 /* Cart Section */
 .pos-cart-section {
     width: 400px;
+    height: calc(100vh - 120px); /* ارتفاع محدد لضمان عمل التمرير */
+    max-height: calc(100vh - 120px);
     background: var(--white);
     border-radius: 10px;
     box-shadow: var(--shadow);
@@ -466,6 +468,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0; /* منع التصغير لضمان بقاء الهيدر ثابت */
 }
 
 .pos-cart-header h3 {
@@ -665,6 +668,7 @@
     padding: 20px;
     border-top: 2px solid var(--border-color);
     background: var(--light-bg);
+    flex-shrink: 0; /* منع التصغير لضمان بقاء الملخص ثابت */
 }
 
 .summary-row {
@@ -1577,6 +1581,8 @@
     
     .pos-cart-section {
         width: 100%;
+        height: auto;
+        max-height: 50vh;
     }
     
     .pos-products-grid {
@@ -1616,10 +1622,12 @@
     /* تحسين سلة التسوق على الجوال */
     .pos-cart-section {
         max-height: 50vh;
+        height: 50vh;
     }
     
     .pos-cart-items {
         max-height: calc(50vh - 200px);
+        height: calc(50vh - 200px);
     }
     
     .pos-products-grid {
@@ -1709,11 +1717,13 @@
     /* تحسين سلة التسوق على الجوال */
     .pos-cart-section {
         max-height: 60vh;
+        height: 60vh;
         order: -1; /* عرض السلة أولاً على الجوال */
     }
     
     .pos-cart-items {
         max-height: calc(60vh - 180px);
+        height: calc(60vh - 180px);
         padding: 10px;
     }
     
