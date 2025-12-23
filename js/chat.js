@@ -356,7 +356,9 @@ function createMessageElement(message) {
         } else if (message.reply_to_type === 'image') {
             replyText.textContent = '🖼️ صورة';
         } else {
-            replyText.textContent = message.reply_to_message || 'رسالة';
+            // عرض جزء من النص (أول 50 حرف)
+            const text = message.reply_to_message || 'رسالة';
+            replyText.textContent = text.length > 50 ? text.substring(0, 50) + '...' : text;
         }
         
         replyInfo.appendChild(replyUser);
@@ -453,18 +455,8 @@ function createMessageElement(message) {
             imageContainer.appendChild(errorMsg);
         };
         img.onclick = () => {
-            // فتح الصورة في نافذة جديدة
-            const imageWindow = window.open('', '_blank');
-            if (imageWindow) {
-                imageWindow.document.write(`
-                    <html>
-                        <head><title>${message.message || 'صورة'}</title></head>
-                        <body style="margin:0; display:flex; justify-content:center; align-items:center; height:100vh; background:#000;">
-                            <img src="${img.src}" style="max-width:100%; max-height:100%; object-fit:contain;">
-                        </body>
-                    </html>
-                `);
-            }
+            // فتح الصورة في modal
+            openImageModal(img.src, message.message || 'صورة');
         };
         
         imageContainer.appendChild(img);
@@ -540,12 +532,16 @@ function createMessageElement(message) {
         const fileContainer = document.createElement('div');
         fileContainer.className = 'file-message';
         
-        const fileLink = document.createElement('a');
-        fileLink.href = message.file_url;
-        fileLink.target = '_blank';
-        fileLink.download = message.message || 'ملف';
+        const fileLink = document.createElement('div');
         fileLink.className = 'file-link';
-        fileLink.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.2); border-radius: 8px; text-decoration: none; color: inherit;';
+        fileLink.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.2); border-radius: 8px; text-decoration: none; color: inherit; cursor: pointer;';
+        fileLink.onclick = () => {
+            // فتح الملف في نافذة جديدة
+            const fileWindow = window.open(message.file_url, '_blank');
+            if (!fileWindow) {
+                showMessage('يرجى السماح بفتح النوافذ المنبثقة لعرض الملف', 'error');
+            }
+        };
         
         const fileIcon = document.createElement('span');
         fileIcon.textContent = '📎';
@@ -553,10 +549,25 @@ function createMessageElement(message) {
         
         const fileName = document.createElement('span');
         fileName.textContent = message.message || 'ملف';
-        fileName.style.cssText = 'font-weight: 600;';
+        fileName.style.cssText = 'font-weight: 600; flex: 1;';
+        
+        const downloadIcon = document.createElement('span');
+        downloadIcon.textContent = '⬇️';
+        downloadIcon.style.cssText = 'font-size: 16px; opacity: 0.7;';
+        downloadIcon.onclick = (e) => {
+            e.stopPropagation();
+            const a = document.createElement('a');
+            a.href = message.file_url;
+            a.download = message.message || 'ملف';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
         
         fileLink.appendChild(fileIcon);
         fileLink.appendChild(fileName);
+        fileLink.appendChild(downloadIcon);
         fileContainer.appendChild(fileLink);
         bubble.appendChild(fileContainer);
     } else {
@@ -1015,6 +1026,10 @@ async function sendMessage() {
                 if (tempIndex !== -1) {
                     messages[tempIndex] = result.data;
                     renderMessages();
+                    // التمرير للرسالة المرسلة
+                    setTimeout(() => {
+                        scrollToMessage(result.data.id);
+                    }, 100);
                 }
             } else {
                 // إزالة الرسالة المؤقتة في حالة الفشل
@@ -1113,7 +1128,7 @@ function updateHeaderForGroupChat() {
     const backBtn = document.getElementById('backBtn');
     
     if (chatTitle) {
-        chatTitle.textContent = 'Quickchat';
+        chatTitle.textContent = 'Z-chat';
     }
     
     if (menuBtn) menuBtn.style.display = 'flex';
@@ -1177,9 +1192,14 @@ function startMessagePolling() {
     
     messagePollingInterval = setInterval(async () => {
         if (currentRoom) {
+            // إيقاف الريفريش إذا كان هناك ملف صوتي يعمل
+            const playingAudio = document.querySelector('audio:not([paused])');
+            if (playingAudio) {
+                return; // لا نحدث الرسائل أثناء تشغيل الصوت
+            }
             await loadMessages();
         }
-    }, 3000); // كل 3 ثوان
+    }, 5000); // كل 5 ثوان (بدلاً من 3)
 }
 
 // بدء استطلاع الإشعارات
@@ -1752,6 +1772,10 @@ function showReplyPreview(message) {
         previewText.textContent = '🎤 رسالة صوتية';
     } else if (message.message_type === 'file') {
         previewText.textContent = '📎 ' + (message.message || 'ملف');
+    } else if (message.message_type === 'image') {
+        previewText.textContent = '🖼️ صورة';
+    } else if (message.message_type === 'location') {
+        previewText.textContent = '📍 موقع';
     } else {
         previewText.textContent = message.message || 'رسالة';
     }
@@ -1770,7 +1794,12 @@ function showReplyPreview(message) {
     
     const chatInputContainer = document.querySelector('.chat-input-container');
     if (chatInputContainer) {
-        chatInputContainer.insertBefore(preview, chatInputContainer.firstChild);
+        const chatInputWrapper = chatInputContainer.querySelector('.chat-input-wrapper');
+        if (chatInputWrapper) {
+            chatInputContainer.insertBefore(preview, chatInputWrapper);
+        } else {
+            chatInputContainer.insertBefore(preview, chatInputContainer.firstChild);
+        }
     }
 }
 
@@ -1865,7 +1894,12 @@ function showSendingIndicator(content, type) {
     
     const chatInputContainer = document.querySelector('.chat-input-container');
     if (chatInputContainer) {
-        chatInputContainer.insertBefore(indicator, chatInputContainer.firstChild);
+        const chatInputWrapper = chatInputContainer.querySelector('.chat-input-wrapper');
+        if (chatInputWrapper) {
+            chatInputContainer.insertBefore(indicator, chatInputWrapper);
+        } else {
+            chatInputContainer.insertBefore(indicator, chatInputContainer.firstChild);
+        }
     }
     
     return indicator;
@@ -2449,6 +2483,55 @@ async function sendLocation() {
         console.error('خطأ عام في إرسال الموقع:', error);
         showMessage('حدث خطأ في إرسال الموقع: ' + (error.message || error), 'error');
     }
+}
+
+// فتح صورة في modal
+function openImageModal(imageSrc, imageTitle) {
+    // إنشاء modal
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column;';
+    
+    // زر الإغلاق
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 40px; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10001;';
+    closeBtn.onclick = () => modal.remove();
+    
+    // الصورة
+    const img = document.createElement('img');
+    img.src = imageSrc;
+    img.alt = imageTitle;
+    img.style.cssText = 'max-width: 100%; max-height: 90vh; object-fit: contain;';
+    
+    // العنوان
+    const title = document.createElement('div');
+    title.textContent = imageTitle;
+    title.style.cssText = 'color: white; padding: 15px; text-align: center; font-size: 16px;';
+    
+    modal.appendChild(closeBtn);
+    modal.appendChild(img);
+    if (imageTitle && !imageTitle.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        modal.appendChild(title);
+    }
+    
+    // إغلاق عند النقر خارج الصورة
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    };
+    
+    // إغلاق بمفتاح ESC
+    const handleEsc = (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+            document.removeEventListener('keydown', handleEsc);
+        }
+    };
+    document.addEventListener('keydown', handleEsc);
+    
+    document.body.appendChild(modal);
 }
 
 // تنظيف عند إغلاق الصفحة

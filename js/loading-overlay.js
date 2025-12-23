@@ -9,6 +9,16 @@ class LoadingOverlay {
     }
 
     init() {
+        // التحقق من أننا لسنا في صفحة تسجيل الدخول
+        const isLoginPage = window.location.pathname.includes('index.html') || 
+                           window.location.pathname === '/' ||
+                           window.location.pathname.endsWith('/');
+        
+        if (isLoginPage) {
+            // في صفحة تسجيل الدخول، لا نعرض loading overlay
+            return;
+        }
+        
         this.createOverlay();
         this.setupAPIInterceptor();
         this.setupPageLoadListener();
@@ -48,6 +58,16 @@ class LoadingOverlay {
     }
 
     show() {
+        // التحقق من أننا لسنا في صفحة تسجيل الدخول
+        const isLoginPage = window.location.pathname.includes('index.html') || 
+                           window.location.pathname === '/' ||
+                           window.location.pathname.endsWith('/');
+        
+        if (isLoginPage) {
+            // في صفحة تسجيل الدخول، لا نعرض loading overlay
+            return;
+        }
+        
         if (!this.overlayElement) {
             this.createOverlay();
         }
@@ -166,6 +186,16 @@ class LoadingOverlay {
     }
 
     setupPageLoadListener() {
+        // التحقق من أننا لسنا في صفحة تسجيل الدخول
+        const isLoginPage = window.location.pathname.includes('index.html') || 
+                           window.location.pathname === '/' ||
+                           window.location.pathname.endsWith('/');
+        
+        if (isLoginPage) {
+            // في صفحة تسجيل الدخول، لا نعرض loading overlay
+            return;
+        }
+        
         // إظهار overlay عند تحميل الصفحة
         if (document.readyState === 'loading') {
             this.show();
