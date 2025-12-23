@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quickchat - الشات</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/chat.css">
+    <link rel="stylesheet" href="css/dark-mode.css">
+</head>
+<body>
+    <!-- صفحة الشات الرئيسية -->
+    <div class="chat-container" id="chatContainer">
+        <!-- الشريط العلوي -->
+        <header class="chat-header">
+            <button class="menu-btn" id="menuBtn" aria-label="القائمة" style="display: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+                <span class="notification-badge" id="menuNotificationBadge" style="display: none;">0</span>
+            </button>
+            
+            <button class="back-btn" id="backBtn" aria-label="رجوع" style="display: none;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            
+            <h1 class="chat-title">Quickchat</h1>
+            
+            <button class="chat-icon-btn" id="chatIconBtn" aria-label="الشات">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- منطقة الرسائل -->
+        <div class="chat-messages" id="chatMessages">
+            <!-- الرسائل سيتم إضافتها ديناميكياً -->
+        </div>
+
+        <!-- شريط الإدخال -->
+        <div class="chat-input-container">
+            <button class="input-icon-btn emoji-btn" id="emojiBtn" aria-label="الإيموجي">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                </svg>
+            </button>
+            
+            <input 
+                type="text" 
+                class="chat-input" 
+                id="chatInput" 
+                placeholder="اكتب رسالة..."
+                autocomplete="off"
+            >
+            
+            <button class="input-icon-btn mic-btn" id="micBtn" aria-label="تسجيل صوتي">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            </button>
+            
+            <button class="input-icon-btn attach-btn" id="attachBtn" aria-label="مرفق">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+            </button>
+            
+            <button class="send-btn" id="sendBtn" aria-label="إرسال">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- قائمة المشاركين (Sidebar) -->
+    <div class="participants-sidebar" id="participantsSidebar">
+        <header class="sidebar-header">
+            <h2 class="sidebar-title">Quickchat</h2>
+            <button class="close-btn" id="closeSidebarBtn" aria-label="إغلاق">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </header>
+        
+        <div class="participants-section">
+            <h3 class="participants-title">المشاركون</h3>
+            <div class="participants-list" id="participantsList">
+                <!-- المشاركون سيتم إضافتهم ديناميكياً -->
+            </div>
+        </div>
+        
+        <div class="current-user-section" id="currentUserSection">
+            <!-- معلومات المستخدم الحالي -->
+        </div>
+    </div>
+
+    <!-- قائمة المستخدمين للدردشة الخاصة -->
+    <div class="users-sidebar" id="usersSidebar">
+        <header class="sidebar-header">
+            <h2 class="sidebar-title">المستخدمون</h2>
+            <button class="close-btn" id="closeUsersSidebarBtn" aria-label="إغلاق">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </header>
+        
+        <div class="users-list" id="usersList">
+            <!-- المستخدمون سيتم إضافتهم ديناميكياً -->
+        </div>
+    </div>
+
+    <!-- Overlay للقوائم الجانبية -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js" defer></script>
+    <script src="js/utils.js" defer></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/chat.js" defer></script>
+</body>
+</html>
+
