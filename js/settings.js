@@ -672,8 +672,8 @@ function escapeHtml(text) {
 function showAddUserModal() {
     console.log('showAddUserModal called'); // للتشخيص
     
-    if (!hasPermission('manager')) {
-        showMessage('ليس لديك صلاحية لإضافة مستخدمين', 'error');
+    if (!hasPermission('admin')) {
+        showMessage('ليس لديك صلاحية لإضافة مستخدمين. يجب أن تكون مالك (admin) للوصول إلى هذه الميزة.', 'error');
         return;
     }
     
@@ -724,77 +724,84 @@ function closeUserModal() {
 async function saveUser(event) {
     event.preventDefault();
 
-    // التحقق من وجود النموذج أولاً
-    const userModal = document.getElementById('userModal');
-    if (!userModal) {
-        showMessage('خطأ: نموذج المستخدم غير موجود. يرجى الانتقال إلى قسم الإعدادات أولاً.', 'error');
-        console.error('userModal not found');
-        return;
-    }
-
-    // التحقق من وجود العناصر أولاً
-    const nameElement = document.getElementById('userName');
-    const usernameElement = document.getElementById('userUsername');
-    const passwordElement = document.getElementById('userPassword');
-    const roleElement = document.getElementById('userRole');
-    const userIdElement = document.getElementById('userId');
-
-    if (!nameElement || !usernameElement || !roleElement || !userIdElement) {
-        showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-        console.error('Missing form elements:', {
-            nameElement: !!nameElement,
-            usernameElement: !!usernameElement,
-            passwordElement: !!passwordElement,
-            roleElement: !!roleElement,
-            userIdElement: !!userIdElement
-        });
-        return;
-    }
-
-    // التحقق من الحقول المطلوبة - استخدام طريقة آمنة
-    const name = nameElement ? (nameElement.value || '').trim() : '';
-    const username = usernameElement ? (usernameElement.value || '').trim() : '';
-    const password = passwordElement ? (passwordElement.value || '') : '';
-    const role = roleElement ? (roleElement.value || '') : '';
-    const userId = userIdElement ? (userIdElement.value || '') : '';
-
-    if (!name || !username || !role) {
-        showMessage('الاسم واسم المستخدم والدور مطلوبة', 'error');
-        return;
-    }
-
-    // إذا كان مستخدم جديد، كلمة المرور مطلوبة
-    if (!userId && !password) {
-        showMessage('كلمة المرور مطلوبة للمستخدم الجديد', 'error');
-        return;
-    }
-
-    const userData = {
-        name: name,
-        username: username,
-        password: password,
-        role: role
-    };
-
-    let result;
-
-    if (userId) {
-        userData.id = userId;
-        if (!userData.password) {
-            delete userData.password;
+    try {
+        // التحقق من وجود النموذج أولاً
+        const userModal = document.getElementById('userModal');
+        if (!userModal) {
+            showMessage('خطأ: نموذج المستخدم غير موجود. يرجى الانتقال إلى قسم الإعدادات أولاً.', 'error');
+            console.error('userModal not found');
+            return;
         }
-        delete userData.username; // لا يمكن تعديل اسم المستخدم
-        result = await API.updateUser(userData);
-    } else {
-        result = await API.addUser(userData);
-    }
 
-    if (result.success) {
-        showMessage(result.message);
-        closeUserModal();
-        loadUsers();
-    } else {
-        showMessage(result.message, 'error');
+        // التحقق من وجود العناصر أولاً
+        const nameElement = document.getElementById('userName');
+        const usernameElement = document.getElementById('userUsername');
+        const passwordElement = document.getElementById('userPassword');
+        const roleElement = document.getElementById('userRole');
+        const userIdElement = document.getElementById('userId');
+
+        if (!nameElement || !usernameElement || !roleElement || !userIdElement) {
+            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+            console.error('Missing form elements:', {
+                nameElement: !!nameElement,
+                usernameElement: !!usernameElement,
+                passwordElement: !!passwordElement,
+                roleElement: !!roleElement,
+                userIdElement: !!userIdElement
+            });
+            return;
+        }
+
+        // التحقق من الحقول المطلوبة - استخدام طريقة آمنة
+        const name = nameElement ? (nameElement.value || '').trim() : '';
+        const username = usernameElement ? (usernameElement.value || '').trim() : '';
+        const password = passwordElement ? (passwordElement.value || '') : '';
+        const role = roleElement ? (roleElement.value || '') : '';
+        const userId = userIdElement ? (userIdElement.value || '') : '';
+
+        if (!name || !username || !role) {
+            showMessage('الاسم واسم المستخدم والدور مطلوبة', 'error');
+            return;
+        }
+
+        // إذا كان مستخدم جديد، كلمة المرور مطلوبة
+        if (!userId && !password) {
+            showMessage('كلمة المرور مطلوبة للمستخدم الجديد', 'error');
+            return;
+        }
+
+        const userData = {
+            name: name,
+            username: username,
+            password: password,
+            role: role
+        };
+
+        let result;
+
+        if (userId) {
+            userData.id = userId;
+            if (!userData.password) {
+                delete userData.password;
+            }
+            delete userData.username; // لا يمكن تعديل اسم المستخدم
+            result = await API.updateUser(userData);
+        } else {
+            result = await API.addUser(userData);
+        }
+
+        if (result && result.success) {
+            showMessage(result.message || 'تم حفظ المستخدم بنجاح');
+            closeUserModal();
+            await loadUsers();
+        } else {
+            const errorMessage = result?.message || 'حدث خطأ أثناء حفظ المستخدم';
+            showMessage(errorMessage, 'error');
+            console.error('Error saving user:', result);
+        }
+    } catch (error) {
+        console.error('خطأ في saveUser:', error);
+        showMessage('حدث خطأ غير متوقع أثناء حفظ المستخدم. يرجى المحاولة مرة أخرى.', 'error');
     }
 }
 
