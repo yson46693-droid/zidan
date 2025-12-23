@@ -1,17 +1,53 @@
 <?php
-require_once __DIR__ . '/config.php';
+// تنظيف output buffer قبل أي شيء
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
 
-$method = getRequestMethod();
-$data = getRequestData();
-$session = checkAuth();
-$userId = $session['user_id'];
+try {
+    require_once __DIR__ . '/config.php';
+} catch (Exception $e) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'خطأ في تحميل ملف الإعدادات: ' . $e->getMessage(),
+        'error' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+} catch (Error $e) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'خطأ قاتل في تحميل ملف الإعدادات: ' . $e->getMessage(),
+        'error' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+try {
+    $method = getRequestMethod();
+    $data = getRequestData();
+    $session = checkAuth();
+    $userId = $session['user_id'];
+} catch (Exception $e) {
+    response(false, 'خطأ في المصادقة: ' . $e->getMessage(), null, 401);
+} catch (Error $e) {
+    response(false, 'خطأ قاتل في المصادقة: ' . $e->getMessage(), null, 500);
+}
 
 // إنشاء جداول الشات إذا لم تكن موجودة
-if (!function_exists('createChatTables')) {
-    require_once __DIR__ . '/create_chat_tables.php';
-}
-if (function_exists('createChatTables')) {
-    createChatTables();
+try {
+    if (!function_exists('createChatTables')) {
+        require_once __DIR__ . '/create_chat_tables.php';
+    }
+    if (function_exists('createChatTables')) {
+        createChatTables();
+    }
+} catch (Exception $e) {
+    error_log('خطأ في إنشاء جداول الشات: ' . $e->getMessage());
+    // لا نوقف التنفيذ، فقط نسجل الخطأ
 }
 
 // الحصول على أو إنشاء غرفة الشات الجماعية

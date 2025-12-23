@@ -16,8 +16,18 @@ let roomsPollingInterval = null;
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // التحقق من تسجيل الدخول
+        if (typeof checkLogin !== 'function') {
+            console.error('دالة checkLogin غير موجودة');
+            showMessage('خطأ في تحميل ملفات المصادقة', 'error');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+            return;
+        }
+        
         const user = await checkLogin();
         if (!user) {
+            console.log('المستخدم غير مسجل دخول، التوجيه إلى صفحة تسجيل الدخول');
             window.location.href = 'index.html';
             return;
         }
@@ -26,7 +36,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         await initializeChat();
     } catch (error) {
         console.error('خطأ في تهيئة الشات:', error);
-        showMessage('حدث خطأ في تحميل الشات', 'error');
+        showMessage('حدث خطأ في تحميل الشات: ' + (error.message || error), 'error');
+        
+        // إظهار تفاصيل الخطأ في console للمطورين
+        if (error.stack) {
+            console.error('Stack trace:', error.stack);
+        }
     }
 });
 
@@ -34,6 +49,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initializeChat() {
     try {
         showLoading(true);
+        
+        // التحقق من وجود API
+        if (typeof API === 'undefined' || !API.request) {
+            throw new Error('API غير متاح. تأكد من تحميل js/api.js');
+        }
         
         // تحديث معلومات المستخدم الحالي
         updateCurrentUserSection();
@@ -46,6 +66,8 @@ async function initializeChat() {
         if (groupRoomResult && groupRoomResult.success) {
             currentRoom = groupRoomResult.data;
             await loadRoomData();
+        } else {
+            throw new Error(groupRoomResult?.message || 'فشل في الحصول على الغرفة الجماعية');
         }
         
         // تحميل قائمة المستخدمين
@@ -63,8 +85,13 @@ async function initializeChat() {
         showLoading(false);
     } catch (error) {
         console.error('خطأ في تهيئة الشات:', error);
-        showMessage('حدث خطأ في تحميل الشات', 'error');
+        showMessage('حدث خطأ في تحميل الشات: ' + (error.message || error), 'error');
         showLoading(false);
+        
+        // إظهار تفاصيل الخطأ في console
+        if (error.stack) {
+            console.error('Stack trace:', error.stack);
+        }
     }
 }
 
