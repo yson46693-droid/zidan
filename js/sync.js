@@ -126,13 +126,16 @@ class SyncManager {
             this.updateSyncStatus('online');
 
             // مزامنة كل نوع بيانات
+            // ملاحظة: syncLossOperations يجب أن يعمل بعد syncRepairs لتجنب التضارب
             await Promise.all([
                 this.syncRepairs(),
                 this.syncCustomers(),
                 this.syncInventory(),
-                this.syncExpenses(),
-                this.syncLossOperations()
+                this.syncExpenses()
             ]);
+            
+            // مزامنة العمليات الخاسرة بعد العمليات العادية
+            await this.syncLossOperations();
 
             this.lastSyncTime = new Date();
             this.saveToLocalStorage();
@@ -204,7 +207,10 @@ class SyncManager {
             if (result.success) {
                 localStorage.setItem('repairs_cache', JSON.stringify(result.data));
                 if (typeof allRepairs !== 'undefined') {
-                    allRepairs = result.data;
+                    // الحفاظ على العمليات الخاسرة عند تحديث العمليات العادية
+                    const existingLossOperations = allRepairs.filter(r => r.is_loss_operation);
+                    allRepairs = [...result.data, ...existingLossOperations];
+                    
                     if (typeof filterRepairs === 'function') {
                         filterRepairs();
                     }
@@ -290,10 +296,36 @@ class SyncManager {
         try {
             const result = await API.getLossOperations();
             if (result.success) {
-                // تحديث العمليات في repairs.js إذا كان محمل
-                if (typeof loadRepairs === 'function') {
-                    // إعادة تحميل العمليات لتشمل العمليات الخاسرة
-                    await loadRepairs();
+                localStorage.setItem('loss_operations_cache', JSON.stringify(result.data));
+                
+                // تحديث العمليات مباشرة بدلاً من استدعاء loadRepairs() المكلف
+                if (typeof allRepairs !== 'undefined') {
+                    // تحويل العمليات الخاسرة إلى تنسيق العمليات العادية
+                    const lossOperations = result.data.map(loss => ({
+                        id: loss.id,
+                        repair_number: loss.repair_number,
+                        customer_name: loss.customer_name,
+                        customer_phone: '',
+                        device_type: loss.device_type,
+                        device_model: '',
+                        problem: loss.problem,
+                        cost: loss.loss_amount,
+                        status: 'lost',
+                        created_by: '',
+                        created_at: loss.created_at,
+                        loss_reason: loss.loss_reason,
+                        loss_notes: loss.notes,
+                        is_loss_operation: true
+                    }));
+                    
+                    // دمج العمليات الخاسرة مع العمليات العادية (إزالة المكررات)
+                    const existingRepairs = allRepairs.filter(r => !r.is_loss_operation);
+                    allRepairs = [...existingRepairs, ...lossOperations];
+                    
+                    // تحديث العرض فقط إذا كان قسم الصيانة مفتوح
+                    if (typeof filterRepairs === 'function') {
+                        filterRepairs();
+                    }
                 }
             }
         } catch (error) {
