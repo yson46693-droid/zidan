@@ -48,8 +48,10 @@ function createChatTables() {
               `room_id` varchar(50) NOT NULL,
               `user_id` varchar(50) NOT NULL,
               `message` text NOT NULL,
-              `message_type` enum('text','image','file','voice') NOT NULL DEFAULT 'text',
+              `message_type` enum('text','image','file','voice','audio') NOT NULL DEFAULT 'text',
               `file_url` text DEFAULT NULL,
+              `reply_to` varchar(50) DEFAULT NULL,
+              `edited_at` datetime DEFAULT NULL,
               `created_at` datetime NOT NULL,
               `updated_at` datetime DEFAULT NULL,
               `deleted_at` datetime DEFAULT NULL,
@@ -57,7 +59,8 @@ function createChatTables() {
               KEY `idx_room_id` (`room_id`),
               KEY `idx_user_id` (`user_id`),
               KEY `idx_created_at` (`created_at`),
-              KEY `idx_deleted_at` (`deleted_at`)
+              KEY `idx_deleted_at` (`deleted_at`),
+              KEY `idx_reply_to` (`reply_to`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
@@ -86,7 +89,42 @@ function createChatTables() {
         }
     }
     
+    // تحديث جدول chat_messages لإضافة الأعمدة الجديدة
+    updateChatMessagesTable($conn);
+    
     return $created;
+}
+
+// تحديث جدول chat_messages لإضافة الأعمدة الجديدة
+function updateChatMessagesTable($conn) {
+    if (!$conn) return;
+    
+    // التحقق من وجود الأعمدة وإضافتها إذا لم تكن موجودة
+    $columns = [
+        'reply_to' => "ALTER TABLE `chat_messages` ADD COLUMN IF NOT EXISTS `reply_to` varchar(50) DEFAULT NULL AFTER `file_url`, ADD KEY IF NOT EXISTS `idx_reply_to` (`reply_to`)",
+        'edited_at' => "ALTER TABLE `chat_messages` ADD COLUMN IF NOT EXISTS `edited_at` datetime DEFAULT NULL AFTER `reply_to`"
+    ];
+    
+    // التحقق من وجود العمود reply_to
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'reply_to'");
+    if ($result->num_rows == 0) {
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `reply_to` varchar(50) DEFAULT NULL AFTER `file_url`, ADD KEY `idx_reply_to` (`reply_to`)");
+    }
+    
+    // التحقق من وجود العمود edited_at
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'edited_at'");
+    if ($result->num_rows == 0) {
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `edited_at` datetime DEFAULT NULL AFTER `reply_to`");
+    }
+    
+    // تحديث message_type لدعم 'audio'
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` WHERE Field = 'message_type'");
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        if (strpos($row['Type'], 'audio') === false) {
+            $conn->query("ALTER TABLE `chat_messages` MODIFY COLUMN `message_type` enum('text','image','file','voice','audio') NOT NULL DEFAULT 'text'");
+        }
+    }
 }
 
 // تنفيذ إنشاء الجداول (سيتم استدعاؤها من chat.php)

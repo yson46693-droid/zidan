@@ -117,9 +117,15 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'messages
             cm.*,
             u.name as user_name,
             u.username,
+            rm.id as reply_to_id,
+            rm.message as reply_to_message,
+            rm.message_type as reply_to_type,
+            ru.name as reply_to_user_name,
             (SELECT COUNT(*) FROM chat_reactions cr WHERE cr.message_id = cm.id) as reaction_count
         FROM chat_messages cm
         INNER JOIN users u ON u.id = cm.user_id
+        LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND rm.deleted_at IS NULL
+        LEFT JOIN users ru ON ru.id = rm.user_id
         WHERE cm.room_id = ? AND cm.deleted_at IS NULL
         ORDER BY cm.created_at DESC
         LIMIT ? OFFSET ?
@@ -167,9 +173,18 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
     $fileName = $data['file_name'] ?? null;
     $fileType = $data['file_type'] ?? null;
     $fileSize = $data['file_size'] ?? 0;
+    $replyTo = $data['reply_to'] ?? null;
     
     if (empty($roomId)) {
         response(false, 'معرف الغرفة مطلوب', null, 400);
+    }
+    
+    // التحقق من صحة reply_to إذا كان موجوداً
+    if ($replyTo) {
+        $replyMessage = dbSelectOne("SELECT * FROM chat_messages WHERE id = ? AND room_id = ? AND deleted_at IS NULL", [$replyTo, $roomId]);
+        if (!$replyMessage) {
+            response(false, 'الرسالة المراد الرد عليها غير موجودة', null, 404);
+        }
     }
     
     // التحقق من أن المستخدم مشارك في الغرفة
@@ -203,9 +218,9 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
     
     $messageId = generateId();
     $result = dbExecute("
-        INSERT INTO chat_messages (id, room_id, user_id, message, message_type, file_url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-    ", [$messageId, $roomId, $userId, $message, $messageType, $fileUrl]);
+        INSERT INTO chat_messages (id, room_id, user_id, message, message_type, file_url, reply_to, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+    ", [$messageId, $roomId, $userId, $message, $messageType, $fileUrl, $replyTo]);
     
     if ($result) {
         // زيادة unread_count لجميع المشاركين ما عدا المرسل
@@ -217,9 +232,18 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
         
         // الحصول على الرسالة المرسلة مع معلومات المستخدم
         $sentMessage = dbSelectOne("
-            SELECT cm.*, u.name as user_name, u.username
+            SELECT 
+                cm.*,
+                u.name as user_name,
+                u.username,
+                rm.id as reply_to_id,
+                rm.message as reply_to_message,
+                rm.message_type as reply_to_type,
+                ru.name as reply_to_user_name
             FROM chat_messages cm
             INNER JOIN users u ON u.id = cm.user_id
+            LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND rm.deleted_at IS NULL
+            LEFT JOIN users ru ON ru.id = rm.user_id
             WHERE cm.id = ?
         ", [$messageId]);
         
@@ -228,6 +252,92 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
         response(true, 'تم إرسال الرسالة بنجاح', $sentMessage);
     } else {
         response(false, 'فشل إرسال الرسالة', null, 500);
+    }
+}
+
+// تعديل رسالة
+if ($method === 'POST' && isset($data['action']) && $data['action'] === 'edit_message') {
+    $messageId = $data['message_id'] ?? '';
+    $newMessage = $data['message'] ?? '';
+    
+    if (empty($messageId) || empty($newMessage)) {
+        response(false, 'معرف الرسالة والرسالة الجديدة مطلوبان', null, 400);
+    }
+    
+    // التحقق من أن الرسالة موجودة
+    $message = dbSelectOne("SELECT * FROM chat_messages WHERE id = ? AND deleted_at IS NULL", [$messageId]);
+    if (!$message) {
+        response(false, 'الرسالة غير موجودة', null, 404);
+    }
+    
+    // التحقق من أن المستخدم هو صاحب الرسالة
+    if ($message['user_id'] !== $userId) {
+        response(false, 'غير مصرح بتعديل هذه الرسالة', null, 403);
+    }
+    
+    // تحديث الرسالة
+    $result = dbExecute("
+        UPDATE chat_messages 
+        SET message = ?, edited_at = NOW(), updated_at = NOW()
+        WHERE id = ?
+    ", [$newMessage, $messageId]);
+    
+    if ($result) {
+        // الحصول على الرسالة المحدثة
+        $updatedMessage = dbSelectOne("
+            SELECT 
+                cm.*,
+                u.name as user_name,
+                u.username,
+                rm.id as reply_to_id,
+                rm.message as reply_to_message,
+                rm.message_type as reply_to_type,
+                ru.name as reply_to_user_name
+            FROM chat_messages cm
+            INNER JOIN users u ON u.id = cm.user_id
+            LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND rm.deleted_at IS NULL
+            LEFT JOIN users ru ON ru.id = rm.user_id
+            WHERE cm.id = ?
+        ", [$messageId]);
+        
+        $updatedMessage['reactions'] = [];
+        
+        response(true, 'تم تعديل الرسالة بنجاح', $updatedMessage);
+    } else {
+        response(false, 'فشل تعديل الرسالة', null, 500);
+    }
+}
+
+// حذف رسالة
+if ($method === 'POST' && isset($data['action']) && $data['action'] === 'delete_message') {
+    $messageId = $data['message_id'] ?? '';
+    
+    if (empty($messageId)) {
+        response(false, 'معرف الرسالة مطلوب', null, 400);
+    }
+    
+    // التحقق من أن الرسالة موجودة
+    $message = dbSelectOne("SELECT * FROM chat_messages WHERE id = ? AND deleted_at IS NULL", [$messageId]);
+    if (!$message) {
+        response(false, 'الرسالة غير موجودة', null, 404);
+    }
+    
+    // التحقق من أن المستخدم هو صاحب الرسالة أو لديه صلاحيات
+    if ($message['user_id'] !== $userId) {
+        response(false, 'غير مصرح بحذف هذه الرسالة', null, 403);
+    }
+    
+    // حذف الرسالة (soft delete)
+    $result = dbExecute("
+        UPDATE chat_messages 
+        SET deleted_at = NOW(), updated_at = NOW()
+        WHERE id = ?
+    ", [$messageId]);
+    
+    if ($result) {
+        response(true, 'تم حذف الرسالة بنجاح', ['deleted' => true]);
+    } else {
+        response(false, 'فشل حذف الرسالة', null, 500);
     }
 }
 

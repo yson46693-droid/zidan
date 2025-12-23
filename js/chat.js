@@ -15,6 +15,44 @@ let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
 let emojiPickerVisible = false;
+let editingMessageId = null;
+let replyingToMessageId = null;
+
+// منع التكبير بالضغط مرتين (Double-tap zoom)
+(function() {
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(event) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
+    
+    // منع التكبير بالضغط المزدوج
+    let lastTap = 0;
+    document.addEventListener('touchend', function(event) {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        if (tapLength < 500 && tapLength > 0) {
+            event.preventDefault();
+        }
+        lastTap = currentTime;
+    }, false);
+    
+    // منع التكبير بالضغط المزدوج على العناصر التفاعلية
+    document.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+    });
+    
+    document.addEventListener('gesturechange', function(e) {
+        e.preventDefault();
+    });
+    
+    document.addEventListener('gestureend', function(e) {
+        e.preventDefault();
+    });
+})();
 
 // تهيئة الصفحة
 document.addEventListener('DOMContentLoaded', async () => {
@@ -228,6 +266,40 @@ function createMessageElement(message) {
         content.appendChild(header);
     }
     
+    // عرض الرد إذا كان موجوداً
+    if (message.reply_to_id) {
+        const replyPreview = document.createElement('div');
+        replyPreview.className = 'message-reply-preview';
+        replyPreview.onclick = () => scrollToMessage(message.reply_to_id);
+        
+        const replyIcon = document.createElement('span');
+        replyIcon.className = 'reply-icon';
+        replyIcon.textContent = '↩️';
+        
+        const replyInfo = document.createElement('div');
+        replyInfo.className = 'reply-info';
+        
+        const replyUser = document.createElement('div');
+        replyUser.className = 'reply-user';
+        replyUser.textContent = message.reply_to_user_name || 'مستخدم';
+        
+        const replyText = document.createElement('div');
+        replyText.className = 'reply-text';
+        if (message.reply_to_type === 'audio') {
+            replyText.textContent = '🎤 رسالة صوتية';
+        } else if (message.reply_to_type === 'file') {
+            replyText.textContent = '📎 ' + (message.reply_to_message || 'ملف');
+        } else {
+            replyText.textContent = message.reply_to_message || 'رسالة';
+        }
+        
+        replyInfo.appendChild(replyUser);
+        replyInfo.appendChild(replyText);
+        replyPreview.appendChild(replyIcon);
+        replyPreview.appendChild(replyInfo);
+        content.appendChild(replyPreview);
+    }
+    
     // Bubble
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
@@ -287,14 +359,61 @@ function createMessageElement(message) {
         bubble.appendChild(text);
     }
     
-    // Time for user messages
-    if (isUserMessage) {
-        const time = document.createElement('span');
-        time.className = 'message-time';
-        time.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 4px; display: block;';
-        time.textContent = formatTime(message.created_at);
-        bubble.appendChild(time);
+    // Time and edit indicator
+    const timeContainer = document.createElement('div');
+    timeContainer.className = 'message-time-container';
+    
+    const time = document.createElement('span');
+    time.className = 'message-time';
+    time.style.cssText = isUserMessage ? 'font-size: 11px; color: rgba(255,255,255,0.8);' : 'font-size: 11px; color: var(--text-light);';
+    time.textContent = formatTime(message.created_at);
+    
+    if (message.edited_at) {
+        const editedLabel = document.createElement('span');
+        editedLabel.className = 'edited-label';
+        editedLabel.textContent = ' (تم التعديل)';
+        editedLabel.style.cssText = 'font-size: 10px; opacity: 0.7;';
+        time.appendChild(editedLabel);
     }
+    
+    timeContainer.appendChild(time);
+    
+    if (isUserMessage) {
+        bubble.appendChild(timeContainer);
+    } else {
+        const header = content.querySelector('.message-header');
+        if (header) {
+            header.appendChild(timeContainer);
+        }
+    }
+    
+    // أزرار التعديل والحذف (للمستخدم فقط)
+    if (isUserMessage) {
+        const actionsMenu = document.createElement('div');
+        actionsMenu.className = 'message-actions';
+        
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'message-menu-btn';
+        menuBtn.innerHTML = '⋮';
+        menuBtn.onclick = (e) => {
+            e.stopPropagation();
+            showMessageMenu(message.id, menuBtn);
+        };
+        
+        actionsMenu.appendChild(menuBtn);
+        messageDiv.appendChild(actionsMenu);
+    }
+    
+    // زر الرد (لجميع الرسائل)
+    const replyBtn = document.createElement('button');
+    replyBtn.className = 'message-reply-btn';
+    replyBtn.innerHTML = '↩️';
+    replyBtn.title = 'رد';
+    replyBtn.onclick = (e) => {
+        e.stopPropagation();
+        replyToMessage(message);
+    };
+    messageDiv.appendChild(replyBtn);
     
     content.appendChild(bubble);
     
@@ -578,8 +697,14 @@ async function sendMessage() {
     const chatInput = document.getElementById('chatInput');
     if (!chatInput || !currentRoom) return;
     
+    // إذا كان في وضع التعديل
+    if (editingMessageId) {
+        await editMessage(editingMessageId, chatInput.value.trim());
+        return;
+    }
+    
     const messageText = chatInput.value.trim();
-    if (!messageText) return;
+    if (!messageText && !replyingToMessageId) return;
     
     try {
         // إظهار الرسالة محلياً أولاً
@@ -598,13 +723,15 @@ async function sendMessage() {
         messages.push(tempMessage);
         renderMessages();
         chatInput.value = '';
+        clearReplyPreview();
         
         // إرسال الرسالة للخادم
         const result = await API.request('chat.php', 'POST', {
             action: 'send_message',
             room_id: currentRoom.id,
             message: messageText,
-            message_type: 'text'
+            message_type: 'text',
+            reply_to: replyingToMessageId || null
         });
         
         if (result && result.success) {
@@ -1137,6 +1264,267 @@ async function handleFileAttachment(file) {
     } catch (error) {
         console.error('خطأ في إرسال الملف:', error);
         showMessage('حدث خطأ في إرسال الملف', 'error');
+    }
+}
+
+// عرض قائمة الرسالة (تعديل/حذف)
+function showMessageMenu(messageId, button) {
+    // إزالة القوائم الأخرى
+    const existingMenu = document.querySelector('.message-menu-popup');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    const message = messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    const menu = document.createElement('div');
+    menu.className = 'message-menu-popup';
+    
+    const editBtn = document.createElement('button');
+    editBtn.className = 'menu-item';
+    editBtn.innerHTML = '✏️ تعديل';
+    editBtn.onclick = () => {
+        startEditingMessage(messageId);
+        menu.remove();
+    };
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'menu-item delete';
+    deleteBtn.innerHTML = '🗑️ حذف';
+    deleteBtn.onclick = () => {
+        if (confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
+            deleteMessage(messageId);
+        }
+        menu.remove();
+    };
+    
+    menu.appendChild(editBtn);
+    menu.appendChild(deleteBtn);
+    
+    const rect = button.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.right = `${window.innerWidth - rect.right}px`;
+    
+    document.body.appendChild(menu);
+    
+    // إغلاق القائمة عند النقر خارجها
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target) && e.target !== button) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 100);
+}
+
+// بدء تعديل رسالة
+function startEditingMessage(messageId) {
+    const message = messages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    editingMessageId = messageId;
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.value = message.message;
+        chatInput.focus();
+        chatInput.setSelectionRange(chatInput.value.length, chatInput.value.length);
+        
+        // تغيير زر الإرسال
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn) {
+            sendBtn.innerHTML = '✓';
+            sendBtn.title = 'حفظ التعديل';
+        }
+    }
+    
+    // إظهار معاينة التعديل
+    showEditPreview(message);
+}
+
+// تعديل رسالة
+async function editMessage(messageId, newMessage) {
+    if (!newMessage || !newMessage.trim()) {
+        showMessage('الرسالة لا يمكن أن تكون فارغة', 'error');
+        return;
+    }
+    
+    try {
+        const result = await API.request('chat.php', 'POST', {
+            action: 'edit_message',
+            message_id: messageId,
+            message: newMessage.trim()
+        });
+        
+        if (result && result.success) {
+            // تحديث الرسالة في القائمة
+            const index = messages.findIndex(m => m.id === messageId);
+            if (index !== -1) {
+                messages[index] = result.data;
+                renderMessages();
+            }
+            
+            // إعادة تعيين حالة التعديل
+            cancelEditing();
+            showMessage('تم تعديل الرسالة بنجاح', 'success');
+        } else {
+            showMessage('فشل تعديل الرسالة', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في تعديل الرسالة:', error);
+        showMessage('حدث خطأ في تعديل الرسالة', 'error');
+    }
+}
+
+// حذف رسالة
+async function deleteMessage(messageId) {
+    try {
+        const result = await API.request('chat.php', 'POST', {
+            action: 'delete_message',
+            message_id: messageId
+        });
+        
+        if (result && result.success) {
+            // إزالة الرسالة من القائمة
+            messages = messages.filter(m => m.id !== messageId);
+            renderMessages();
+            showMessage('تم حذف الرسالة بنجاح', 'success');
+        } else {
+            showMessage('فشل حذف الرسالة', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في حذف الرسالة:', error);
+        showMessage('حدث خطأ في حذف الرسالة', 'error');
+    }
+}
+
+// الرد على رسالة
+function replyToMessage(message) {
+    replyingToMessageId = message.id;
+    showReplyPreview(message);
+    
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.focus();
+    }
+}
+
+// إظهار معاينة الرد
+function showReplyPreview(message) {
+    const existingPreview = document.getElementById('replyPreview');
+    if (existingPreview) {
+        existingPreview.remove();
+    }
+    
+    const preview = document.createElement('div');
+    preview.id = 'replyPreview';
+    preview.className = 'reply-preview';
+    
+    const previewContent = document.createElement('div');
+    previewContent.className = 'reply-preview-content';
+    
+    const previewInfo = document.createElement('div');
+    previewInfo.className = 'reply-preview-info';
+    
+    const previewUser = document.createElement('div');
+    previewUser.className = 'reply-preview-user';
+    previewUser.textContent = `رد على ${message.user_name || message.username || 'مستخدم'}`;
+    
+    const previewText = document.createElement('div');
+    previewText.className = 'reply-preview-text';
+    if (message.message_type === 'audio') {
+        previewText.textContent = '🎤 رسالة صوتية';
+    } else if (message.message_type === 'file') {
+        previewText.textContent = '📎 ' + (message.message || 'ملف');
+    } else {
+        previewText.textContent = message.message || 'رسالة';
+    }
+    
+    previewInfo.appendChild(previewUser);
+    previewInfo.appendChild(previewText);
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'reply-preview-close';
+    closeBtn.innerHTML = '×';
+    closeBtn.onclick = clearReplyPreview;
+    
+    previewContent.appendChild(previewInfo);
+    previewContent.appendChild(closeBtn);
+    preview.appendChild(previewContent);
+    
+    const chatInputContainer = document.querySelector('.chat-input-container');
+    if (chatInputContainer) {
+        chatInputContainer.insertBefore(preview, chatInputContainer.firstChild);
+    }
+}
+
+// إزالة معاينة الرد
+function clearReplyPreview() {
+    replyingToMessageId = null;
+    const preview = document.getElementById('replyPreview');
+    if (preview) {
+        preview.remove();
+    }
+}
+
+// إظهار معاينة التعديل
+function showEditPreview(message) {
+    const existingPreview = document.getElementById('editPreview');
+    if (existingPreview) {
+        existingPreview.remove();
+    }
+    
+    const preview = document.createElement('div');
+    preview.id = 'editPreview';
+    preview.className = 'edit-preview';
+    preview.innerHTML = `
+        <div class="edit-preview-content">
+            <span>✏️ تعديل رسالة</span>
+            <button class="edit-preview-close" onclick="cancelEditing()">×</button>
+        </div>
+    `;
+    
+    const chatInputContainer = document.querySelector('.chat-input-container');
+    if (chatInputContainer) {
+        chatInputContainer.insertBefore(preview, chatInputContainer.firstChild);
+    }
+}
+
+// إلغاء التعديل
+function cancelEditing() {
+    editingMessageId = null;
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.value = '';
+    }
+    
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) {
+        sendBtn.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        `;
+        sendBtn.title = 'إرسال';
+    }
+    
+    const preview = document.getElementById('editPreview');
+    if (preview) {
+        preview.remove();
+    }
+}
+
+// التمرير لرسالة محددة
+function scrollToMessage(messageId) {
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        messageElement.style.animation = 'highlightMessage 2s ease';
+        setTimeout(() => {
+            messageElement.style.animation = '';
+        }, 2000);
     }
 }
 
