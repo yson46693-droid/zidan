@@ -1653,20 +1653,20 @@ async function showInvoice(saleData) {
                 </div>
             </div>
             
-            <!-- QR Code -->
-            <div class="invoice-qrcode">
-                <img src="${qrCodeImage || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(saleNumber || saleId || '')}`}" 
-                     alt="QR Code" 
-                     loading="lazy"
-                     onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(saleNumber || saleId || '')}'">
-            </div>
-            
-            <!-- Invoice Terms - البنود في الجزء السفلي بعد QR Code -->
+            <!-- Invoice Terms - البنود -->
             ${invoiceTerms}
             
             <!-- Footer -->
             <div class="invoice-footer">
                 <div>شكراً لزيارتك</div>
+            </div>
+            
+            <!-- QR Code - في نهاية الفاتورة -->
+            <div class="invoice-qrcode">
+                <img src="${qrCodeImage || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(saleNumber || saleId || '')}`}" 
+                     alt="QR Code" 
+                     loading="lazy"
+                     onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(saleNumber || saleId || '')}'">
             </div>
         </div>
     `;

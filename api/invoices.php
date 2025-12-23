@@ -862,17 +862,17 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             </div>
         </div>
         
-        <!-- QR Code -->
-        <div class="invoice-qrcode">
-            <img src="' . $qrCodeImage . '" alt="QR Code">
-        </div>
-        
-        <!-- Invoice Terms - البنود في الجزء السفلي بعد QR Code -->
+        <!-- Invoice Terms - البنود -->
         ' . $invoiceTerms . '
         
         <!-- Footer -->
         <div class="invoice-footer">
             <div>شكراً لزيارتك</div>
+        </div>
+        
+        <!-- QR Code - في نهاية الفاتورة -->
+        <div class="invoice-qrcode">
+            <img src="' . $qrCodeImage . '" alt="QR Code">
         </div>
     </div>
 </body>
