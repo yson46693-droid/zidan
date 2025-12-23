@@ -494,7 +494,32 @@
 .pos-cart-items {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 15px;
+    min-height: 0; /* مهم لضمان عمل flexbox بشكل صحيح */
+    -webkit-overflow-scrolling: touch; /* تمرير سلس على الجوال */
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--light-bg);
+}
+
+/* تخصيص scrollbar للمتصفحات التي تدعم webkit */
+.pos-cart-items::-webkit-scrollbar {
+    width: 8px;
+}
+
+.pos-cart-items::-webkit-scrollbar-track {
+    background: var(--light-bg);
+    border-radius: 10px;
+}
+
+.pos-cart-items::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 10px;
+    transition: background 0.3s ease;
+}
+
+.pos-cart-items::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
 }
 
 .pos-cart-empty {
@@ -1588,6 +1613,15 @@
         padding: 15px;
     }
     
+    /* تحسين سلة التسوق على الجوال */
+    .pos-cart-section {
+        max-height: 50vh;
+    }
+    
+    .pos-cart-items {
+        max-height: calc(50vh - 200px);
+    }
+    
     .pos-products-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 10px;
@@ -1670,6 +1704,23 @@
     
     .pos-product-price {
         font-size: 1.1em;
+    }
+    
+    /* تحسين سلة التسوق على الجوال */
+    .pos-cart-section {
+        max-height: 60vh;
+        order: -1; /* عرض السلة أولاً على الجوال */
+    }
+    
+    .pos-cart-items {
+        max-height: calc(60vh - 180px);
+        padding: 10px;
+    }
+    
+    .pos-cart-item {
+        padding: 12px;
+        gap: 10px;
+        margin-bottom: 8px;
     }
     
     .pos-product-quantity {
