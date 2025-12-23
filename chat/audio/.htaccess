@@ -1,0 +1,18 @@
+# السماح بالوصول للملفات الصوتية
+<FilesMatch "\.(webm|mp3|ogg|wav|m4a)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# إعدادات CORS للملفات الصوتية
+<IfModule mod_headers.c>
+    <FilesMatch "\.(webm|mp3|ogg|wav|m4a)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+    </FilesMatch>
+</IfModule>
+
+# منع عرض محتويات المجلد
+Options -Indexes
+

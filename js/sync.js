@@ -3,7 +3,7 @@
 class SyncManager {
     constructor() {
         this.syncInterval = null;
-        this.syncFrequency = 30000; // 30 ثانية
+        this.syncFrequency = 300000; // 5 دقائق (300000 ميلي ثانية)
         this.isSyncing = false;
         this.lastSyncTime = null;
         this.connectionRetries = 0;

@@ -3,21 +3,11 @@
 # تفعيل PHP
 AddType application/x-httpd-php .php
 
-# حل مشكلة CORS للاستضافات المجانية
-<IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
-    Header always set Access-Control-Allow-Credentials "true"
-    Header always set Access-Control-Max-Age "3600"
-    
-    # إضافة headers إضافية للأمان
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set X-XSS-Protection "1; mode=block"
-</IfModule>
+# ملاحظة: إعدادات CORS والأمان يتم ضبطها من config.php ديناميكياً
+# هذا يمنع التعارضات ويضمن عمل credentials بشكل صحيح
 
-# معالجة طلبات OPTIONS (preflight)
+# معالجة طلبات OPTIONS (preflight) - نسخة احتياطية
+# config.php يتعامل معها أيضاً، لكن نتركها للاستضافات التي قد تحتاجها
 RewriteEngine On
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ - [R=200,L]

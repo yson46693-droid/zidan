@@ -1,0 +1,16 @@
+# السماح بالوصول للملفات
+<FilesMatch ".*">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# إعدادات CORS للملفات
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
+</IfModule>
+
+# منع عرض محتويات المجلد
+Options -Indexes
+

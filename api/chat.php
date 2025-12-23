@@ -162,15 +162,43 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
     $message = $data['message'] ?? '';
     $messageType = $data['message_type'] ?? 'text';
     $fileUrl = $data['file_url'] ?? null;
+    $audioData = $data['audio_data'] ?? null;
+    $fileData = $data['file_data'] ?? null;
+    $fileName = $data['file_name'] ?? null;
+    $fileType = $data['file_type'] ?? null;
+    $fileSize = $data['file_size'] ?? 0;
     
-    if (empty($roomId) || empty($message)) {
-        response(false, 'معرف الغرفة والرسالة مطلوبان', null, 400);
+    if (empty($roomId)) {
+        response(false, 'معرف الغرفة مطلوب', null, 400);
     }
     
     // التحقق من أن المستخدم مشارك في الغرفة
     $participant = dbSelectOne("SELECT * FROM chat_participants WHERE room_id = ? AND user_id = ?", [$roomId, $userId]);
     if (!$participant) {
         response(false, 'غير مصرح بالوصول لهذه الغرفة', null, 403);
+    }
+    
+    // معالجة الملفات الصوتية
+    if ($messageType === 'audio' && $audioData) {
+        $fileUrl = saveAudioFile($audioData, $roomId, $userId);
+        if (!$fileUrl) {
+            response(false, 'فشل في حفظ الملف الصوتي', null, 500);
+        }
+        $message = $message ?: 'رسالة صوتية';
+    }
+    
+    // معالجة الملفات
+    if ($messageType === 'file' && $fileData) {
+        $fileUrl = saveChatFile($fileData, $fileName, $fileType, $roomId, $userId);
+        if (!$fileUrl) {
+            response(false, 'فشل في حفظ الملف', null, 500);
+        }
+        $message = $message ?: $fileName;
+    }
+    
+    // التحقق من وجود رسالة أو ملف
+    if (empty($message) && empty($fileUrl)) {
+        response(false, 'الرسالة أو الملف مطلوب', null, 400);
     }
     
     $messageId = generateId();
@@ -200,6 +228,78 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'send_me
         response(true, 'تم إرسال الرسالة بنجاح', $sentMessage);
     } else {
         response(false, 'فشل إرسال الرسالة', null, 500);
+    }
+}
+
+// حفظ الملف الصوتي
+function saveAudioFile($audioData, $roomId, $userId) {
+    try {
+        // إنشاء مجلد الملفات الصوتية
+        $audioDir = __DIR__ . '/../chat/audio/';
+        if (!file_exists($audioDir)) {
+            mkdir($audioDir, 0755, true);
+        }
+        
+        // تنظيف بيانات Base64
+        $audioData = preg_replace('/^data:audio\/[^;]+;base64,/', '', $audioData);
+        $audioData = base64_decode($audioData);
+        
+        if ($audioData === false) {
+            throw new Exception('بيانات الصوت غير صحيحة');
+        }
+        
+        // إنشاء اسم الملف
+        $filename = 'audio_' . $roomId . '_' . $userId . '_' . time() . '.webm';
+        $filepath = $audioDir . $filename;
+        
+        // حفظ الملف
+        if (file_put_contents($filepath, $audioData) === false) {
+            throw new Exception('فشل في حفظ الملف الصوتي');
+        }
+        
+        return 'chat/audio/' . $filename;
+    } catch (Exception $e) {
+        error_log('خطأ في حفظ الملف الصوتي: ' . $e->getMessage());
+        return null;
+    }
+}
+
+// حفظ ملف الشات
+function saveChatFile($fileData, $fileName, $fileType, $roomId, $userId) {
+    try {
+        // إنشاء مجلد الملفات
+        $filesDir = __DIR__ . '/../chat/files/';
+        if (!file_exists($filesDir)) {
+            mkdir($filesDir, 0755, true);
+        }
+        
+        // تنظيف بيانات Base64
+        $fileData = preg_replace('/^data:[^;]+;base64,/', '', $fileData);
+        $fileData = base64_decode($fileData);
+        
+        if ($fileData === false) {
+            throw new Exception('بيانات الملف غير صحيحة');
+        }
+        
+        // التحقق من حجم الملف (10MB)
+        if (strlen($fileData) > 10 * 1024 * 1024) {
+            throw new Exception('حجم الملف كبير جداً');
+        }
+        
+        // إنشاء اسم الملف آمن
+        $safeFileName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $fileName);
+        $filename = 'file_' . $roomId . '_' . $userId . '_' . time() . '_' . $safeFileName;
+        $filepath = $filesDir . $filename;
+        
+        // حفظ الملف
+        if (file_put_contents($filepath, $fileData) === false) {
+            throw new Exception('فشل في حفظ الملف');
+        }
+        
+        return 'chat/files/' . $filename;
+    } catch (Exception $e) {
+        error_log('خطأ في حفظ الملف: ' . $e->getMessage());
+        return null;
     }
 }
 

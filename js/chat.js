@@ -11,6 +11,10 @@ let participants = [];
 let allUsers = [];
 let messagePollingInterval = null;
 let roomsPollingInterval = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let emojiPickerVisible = false;
 
 // تهيئة الصفحة
 document.addEventListener('DOMContentLoaded', async () => {
@@ -228,10 +232,60 @@ function createMessageElement(message) {
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     
-    const text = document.createElement('p');
-    text.className = 'message-text';
-    text.textContent = message.message;
-    bubble.appendChild(text);
+    // عرض المحتوى حسب نوع الرسالة
+    if (message.message_type === 'audio' && message.file_url) {
+        const audioContainer = document.createElement('div');
+        audioContainer.className = 'audio-message';
+        
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = message.file_url;
+        audio.style.cssText = 'width: 100%; max-width: 300px;';
+        
+        const audioLabel = document.createElement('div');
+        audioLabel.className = 'audio-label';
+        audioLabel.textContent = '🎤 رسالة صوتية';
+        audioLabel.style.cssText = 'font-size: 12px; margin-bottom: 5px; opacity: 0.8;';
+        
+        audioContainer.appendChild(audioLabel);
+        audioContainer.appendChild(audio);
+        bubble.appendChild(audioContainer);
+        
+        if (message.message && message.message !== 'رسالة صوتية') {
+            const text = document.createElement('p');
+            text.className = 'message-text';
+            text.textContent = message.message;
+            bubble.appendChild(text);
+        }
+    } else if (message.message_type === 'file' && message.file_url) {
+        const fileContainer = document.createElement('div');
+        fileContainer.className = 'file-message';
+        
+        const fileLink = document.createElement('a');
+        fileLink.href = message.file_url;
+        fileLink.target = '_blank';
+        fileLink.download = message.message || 'ملف';
+        fileLink.className = 'file-link';
+        fileLink.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.2); border-radius: 8px; text-decoration: none; color: inherit;';
+        
+        const fileIcon = document.createElement('span');
+        fileIcon.textContent = '📎';
+        fileIcon.style.cssText = 'font-size: 20px;';
+        
+        const fileName = document.createElement('span');
+        fileName.textContent = message.message || 'ملف';
+        fileName.style.cssText = 'font-weight: 600;';
+        
+        fileLink.appendChild(fileIcon);
+        fileLink.appendChild(fileName);
+        fileContainer.appendChild(fileLink);
+        bubble.appendChild(fileContainer);
+    } else {
+        const text = document.createElement('p');
+        text.className = 'message-text';
+        text.textContent = message.message;
+        bubble.appendChild(text);
+    }
     
     // Time for user messages
     if (isUserMessage) {
@@ -433,6 +487,14 @@ function setupEventListeners() {
         });
     }
     
+    // زر العودة للوحة التحكم
+    const dashboardBtn = document.getElementById('dashboardBtn');
+    if (dashboardBtn) {
+        dashboardBtn.addEventListener('click', () => {
+            window.location.href = 'dashboard.html';
+        });
+    }
+    
     // زر إغلاق قائمة المستخدمين
     const closeUsersSidebarBtn = document.getElementById('closeUsersSidebarBtn');
     if (closeUsersSidebarBtn) {
@@ -479,23 +541,36 @@ function setupEventListeners() {
     const attachBtn = document.getElementById('attachBtn');
     
     if (emojiBtn) {
-        emojiBtn.addEventListener('click', () => {
-            // يمكن إضافة emoji picker هنا
-            showMessage('قريباً: منتقي الإيموجي', 'info');
-        });
+        emojiBtn.addEventListener('click', toggleEmojiPicker);
     }
     
     if (micBtn) {
-        micBtn.addEventListener('click', () => {
-            showMessage('قريباً: التسجيل الصوتي', 'info');
-        });
+        micBtn.addEventListener('click', toggleVoiceRecording);
     }
     
     if (attachBtn) {
         attachBtn.addEventListener('click', () => {
-            showMessage('قريباً: إرفاق الملفات', 'info');
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.txt';
+            fileInput.multiple = false;
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    handleFileAttachment(file);
+                }
+            };
+            fileInput.click();
         });
     }
+    
+    // إغلاق منتقي الإيموجي عند النقر خارجها
+    document.addEventListener('click', (e) => {
+        const emojiPicker = document.getElementById('emojiPicker');
+        if (emojiPicker && !emojiPicker.contains(e.target) && !emojiBtn.contains(e.target)) {
+            closeEmojiPicker();
+        }
+    });
 }
 
 // إرسال رسالة
@@ -833,6 +908,238 @@ async function handleLogout() {
     }
 }
 
+// منتقي الإيموجي
+function toggleEmojiPicker() {
+    const emojiPicker = document.getElementById('emojiPicker');
+    if (!emojiPicker) {
+        createEmojiPicker();
+        return;
+    }
+    
+    if (emojiPickerVisible) {
+        closeEmojiPicker();
+    } else {
+        showEmojiPicker();
+    }
+}
+
+function createEmojiPicker() {
+    const emojiPicker = document.createElement('div');
+    emojiPicker.id = 'emojiPicker';
+    emojiPicker.className = 'emoji-picker';
+    
+    const emojis = [
+        '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+        '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+        '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+        '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+        '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮',
+        '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '🤯', '🤠', '🥳', '😎', '🤓',
+        '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺',
+        '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣',
+        '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈',
+        '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾',
+        '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾',
+        '👍', '👎', '👊', '✊', '🤛', '🤜', '🤞', '✌️', '🤟', '🤘',
+        '🤙', '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐', '✋',
+        '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈',
+        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+        '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️'
+    ];
+    
+    const emojiGrid = document.createElement('div');
+    emojiGrid.className = 'emoji-grid';
+    
+    emojis.forEach(emoji => {
+        const emojiBtn = document.createElement('button');
+        emojiBtn.className = 'emoji-item';
+        emojiBtn.textContent = emoji;
+        emojiBtn.type = 'button';
+        emojiBtn.onclick = () => insertEmoji(emoji);
+        emojiGrid.appendChild(emojiBtn);
+    });
+    
+    emojiPicker.appendChild(emojiGrid);
+    document.body.appendChild(emojiPicker);
+    showEmojiPicker();
+}
+
+function showEmojiPicker() {
+    const emojiPicker = document.getElementById('emojiPicker');
+    const emojiBtn = document.getElementById('emojiBtn');
+    if (!emojiPicker || !emojiBtn) return;
+    
+    const btnRect = emojiBtn.getBoundingClientRect();
+    emojiPicker.style.display = 'block';
+    emojiPicker.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
+    emojiPicker.style.right = `${window.innerWidth - btnRect.right}px`;
+    emojiPickerVisible = true;
+}
+
+function closeEmojiPicker() {
+    const emojiPicker = document.getElementById('emojiPicker');
+    if (emojiPicker) {
+        emojiPicker.style.display = 'none';
+        emojiPickerVisible = false;
+    }
+}
+
+function insertEmoji(emoji) {
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        const cursorPos = chatInput.selectionStart || chatInput.value.length;
+        const textBefore = chatInput.value.substring(0, cursorPos);
+        const textAfter = chatInput.value.substring(cursorPos);
+        chatInput.value = textBefore + emoji + textAfter;
+        chatInput.focus();
+        chatInput.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
+    }
+    closeEmojiPicker();
+}
+
+// تسجيل الصوت
+async function toggleVoiceRecording() {
+    if (isRecording) {
+        stopVoiceRecording();
+    } else {
+        await startVoiceRecording();
+    }
+}
+
+async function startVoiceRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            await sendAudioMessage(audioBlob);
+            
+            // إيقاف جميع المسارات
+            stream.getTracks().forEach(track => track.stop());
+        };
+        
+        mediaRecorder.start();
+        isRecording = true;
+        
+        const micBtn = document.getElementById('micBtn');
+        if (micBtn) {
+            micBtn.classList.add('recording');
+            micBtn.title = 'إيقاف التسجيل';
+        }
+        
+        showMessage('بدء التسجيل الصوتي...', 'info');
+    } catch (error) {
+        console.error('خطأ في بدء التسجيل الصوتي:', error);
+        showMessage('فشل في الوصول للميكروفون. تأكد من السماح بالوصول للميكروفون.', 'error');
+    }
+}
+
+function stopVoiceRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        
+        const micBtn = document.getElementById('micBtn');
+        if (micBtn) {
+            micBtn.classList.remove('recording');
+            micBtn.title = 'تسجيل صوتي';
+        }
+        
+        showMessage('تم إيقاف التسجيل. جاري إرسال الرسالة الصوتية...', 'info');
+    }
+}
+
+async function sendAudioMessage(audioBlob) {
+    if (!currentRoom) return;
+    
+    try {
+        // تحويل الصوت إلى Base64
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64Audio = reader.result;
+            
+            const result = await API.request('chat.php', 'POST', {
+                action: 'send_message',
+                room_id: currentRoom.id,
+                message: '',
+                message_type: 'audio',
+                audio_data: base64Audio
+            });
+            
+            if (result && result.success) {
+                showMessage('تم إرسال الرسالة الصوتية بنجاح', 'success');
+                await loadMessages();
+            } else {
+                showMessage('فشل إرسال الرسالة الصوتية', 'error');
+            }
+        };
+        
+        reader.readAsDataURL(audioBlob);
+    } catch (error) {
+        console.error('خطأ في إرسال الرسالة الصوتية:', error);
+        showMessage('حدث خطأ في إرسال الرسالة الصوتية', 'error');
+    }
+}
+
+// المرفقات
+async function handleFileAttachment(file) {
+    if (!currentRoom) return;
+    
+    try {
+        // التحقق من حجم الملف (حد أقصى 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            showMessage('حجم الملف كبير جداً. الحد الأقصى 10MB', 'error');
+            return;
+        }
+        
+        showMessage('جاري رفع الملف...', 'info');
+        
+        // قراءة الملف كـ Base64
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64File = reader.result;
+            const fileType = file.type || 'application/octet-stream';
+            const fileName = file.name;
+            
+            const result = await API.request('chat.php', 'POST', {
+                action: 'send_message',
+                room_id: currentRoom.id,
+                message: fileName,
+                message_type: 'file',
+                file_data: base64File,
+                file_name: fileName,
+                file_type: fileType,
+                file_size: file.size
+            });
+            
+            if (result && result.success) {
+                showMessage('تم إرسال الملف بنجاح', 'success');
+                await loadMessages();
+            } else {
+                showMessage('فشل إرسال الملف', 'error');
+            }
+        };
+        
+        reader.onerror = () => {
+            showMessage('حدث خطأ في قراءة الملف', 'error');
+        };
+        
+        reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('خطأ في إرسال الملف:', error);
+        showMessage('حدث خطأ في إرسال الملف', 'error');
+    }
+}
+
 // تنظيف عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
     if (messagePollingInterval) {
@@ -840,6 +1147,9 @@ window.addEventListener('beforeunload', () => {
     }
     if (roomsPollingInterval) {
         clearInterval(roomsPollingInterval);
+    }
+    if (isRecording && mediaRecorder) {
+        mediaRecorder.stop();
     }
 });
 
