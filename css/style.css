@@ -2944,8 +2944,30 @@ body {
 .inventory-card-image img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
+    object-position: center;
     border-radius: 10px;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: high-quality;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.inventory-card:hover .inventory-card-image img {
+    transform: scale(1.05) translateZ(0);
+}
+
+.inventory-card-image img[loading="lazy"] {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.inventory-card-image img[loading="lazy"].loaded {
+    opacity: 1;
 }
 
 .inventory-card-price {

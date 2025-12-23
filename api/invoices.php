@@ -97,16 +97,40 @@ function getShopSettings() {
  * @return string - URL لصورة QR Code
  */
 function generateSimpleQRCode($data, $size = 250) {
-    // استخدام Google Charts API لإنشاء QR Code حقيقي قابل للقراءة
-    // هذا API مجاني وموثوق ولا يحتاج إلى مكتبات إضافية
+    // استخدام API موثوق لإنشاء QR Code حقيقي قابل للقراءة
     $encodedData = urlencode($data);
-    $qrCodeUrl = "https://chart.googleapis.com/chart?chs={$size}x{$size}&cht=qr&chl={$encodedData}&choe=UTF-8";
+    
+    // محاولة استخدام qr-server.com API (أكثر موثوقية)
+    $qrServerUrl = "https://api.qrserver.com/v1/create-qr-code/?size={$size}x{$size}&data={$encodedData}";
     
     // محاولة تحميل الصورة وتحويلها إلى base64 للاستخدام المحلي
-    // إذا فشل التحميل، نعيد URL مباشرة
     try {
-        $imageData = @file_get_contents($qrCodeUrl);
-        if ($imageData !== false) {
+        $imageData = @file_get_contents($qrServerUrl, false, stream_context_create([
+            'http' => [
+                'timeout' => 5,
+                'user_agent' => 'Mozilla/5.0'
+            ]
+        ]));
+        
+        if ($imageData !== false && strlen($imageData) > 0) {
+            $base64 = base64_encode($imageData);
+            return 'data:image/png;base64,' . $base64;
+        }
+    } catch (Exception $e) {
+        error_log('خطأ في تحميل QR Code من qr-server.com API: ' . $e->getMessage());
+    }
+    
+    // محاولة استخدام Google Charts API كبديل
+    try {
+        $googleUrl = "https://chart.googleapis.com/chart?chs={$size}x{$size}&cht=qr&chl={$encodedData}&choe=UTF-8";
+        $imageData = @file_get_contents($googleUrl, false, stream_context_create([
+            'http' => [
+                'timeout' => 5,
+                'user_agent' => 'Mozilla/5.0'
+            ]
+        ]));
+        
+        if ($imageData !== false && strlen($imageData) > 0) {
             $base64 = base64_encode($imageData);
             return 'data:image/png;base64,' . $base64;
         }
@@ -115,7 +139,7 @@ function generateSimpleQRCode($data, $size = 250) {
     }
     
     // إذا فشل التحميل، نستخدم URL مباشرة (سيعمل في المتصفح)
-    return $qrCodeUrl;
+    return $qrServerUrl;
 }
 
 /**
@@ -302,8 +326,17 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             'timezone' => 'Africa/Cairo'
         ]
     ];
-    $qrCodeData = json_encode($invoiceData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    $qrCodeImage = generateSimpleQRCode($qrCodeData, 250);
+    // إنشاء بيانات QR Code مبسطة (لتقليل الحجم وضمان القراءة)
+    $simpleQRData = json_encode([
+        'invoice_id' => $saleId,
+        'invoice_number' => $saleNumber,
+        'date' => $createdAt,
+        'total' => $finalAmount,
+        'currency' => $currency,
+        'verification_code' => $verificationCode
+    ], JSON_UNESCAPED_UNICODE);
+    
+    $qrCodeImage = generateSimpleQRCode($simpleQRData, 250);
     
     // البنود والشروط
     $invoiceTerms = '

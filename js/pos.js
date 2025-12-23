@@ -870,7 +870,12 @@ function updateCartDisplay() {
         cartItem.className = 'pos-cart-item';
         
         const imageHtml = item.image
-            ? `<img src="${item.image}" alt="${item.name}" class="pos-cart-item-image" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'pos-cart-item-image-placeholder\\'><i class=\\'bi bi-image\\'></i></div>'">`
+            ? `<img src="${item.image}" 
+                     alt="${item.name}" 
+                     class="pos-cart-item-image" 
+                     loading="lazy" 
+                     decoding="async"
+                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'pos-cart-item-image-placeholder\\'><i class=\\'bi bi-image\\'></i></div>'">`
             : `<div class="pos-cart-item-image-placeholder"><i class="bi bi-image"></i></div>`;
         
         cartItem.innerHTML = `
@@ -1290,6 +1295,20 @@ async function processPayment() {
     }
 }
 
+// دالة مساعدة لإنشاء QR Code باستخدام API خارجي
+function generateQRCodeFallback(data) {
+    try {
+        // استخدام API موثوق لإنشاء QR Code
+        const encodedData = encodeURIComponent(data);
+        // استخدام qr-server.com API (أكثر موثوقية من Google Charts)
+        return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodedData}`;
+    } catch (error) {
+        console.error('خطأ في إنشاء QR Code البديل:', error);
+        // استخدام Google Charts API كبديل نهائي
+        return `https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=${encodeURIComponent(data)}&choe=UTF-8`;
+    }
+}
+
 // Show Invoice
 async function showInvoice(saleData) {
     const invoiceModal = document.getElementById('invoiceModal');
@@ -1402,15 +1421,31 @@ async function showInvoice(saleData) {
         }
     };
     
-    const qrCodeData = JSON.stringify(invoiceData);
+    // إنشاء بيانات QR Code مبسطة (لتقليل الحجم وضمان القراءة)
+    const qrCodeData = JSON.stringify({
+        invoice_id: saleId,
+        invoice_number: saleNumber,
+        date: createdAt,
+        total: saleData.final_amount || 0,
+        currency: currency,
+        verification_code: verificationCode
+    });
     
     // إنشاء QR Code حقيقي قابل للقراءة
     let qrCodeImage = '';
-    if (typeof QRCode !== 'undefined') {
-        // استخدام مكتبة QRCode.js الحقيقية
-        try {
+    
+    // محاولة استخدام مكتبة QRCode.js الحقيقية
+    try {
+        // التأكد من تحميل المكتبة
+        if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
             // استخدام Promise wrapper مع await
             qrCodeImage = await new Promise((resolve, reject) => {
+                // تعيين timeout لضمان عدم الانتظار إلى ما لا نهاية
+                const timeout = setTimeout(() => {
+                    console.warn('انتهت مهلة إنشاء QR Code، استخدام API خارجي');
+                    resolve(generateQRCodeFallback(qrCodeData));
+                }, 3000);
+                
                 QRCode.toDataURL(qrCodeData, {
                     width: 250,
                     margin: 2,
@@ -1420,23 +1455,37 @@ async function showInvoice(saleData) {
                     },
                     errorCorrectionLevel: 'M'
                 }, function (error, url) {
+                    clearTimeout(timeout);
                     if (error) {
                         console.error('خطأ في إنشاء QR Code:', error);
                         // استخدام API خارجي كبديل
-                        resolve('https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=' + encodeURIComponent(qrCodeData) + '&choe=UTF-8');
-                    } else {
+                        resolve(generateQRCodeFallback(qrCodeData));
+                    } else if (url) {
                         resolve(url);
+                    } else {
+                        console.warn('لم يتم إنشاء QR Code، استخدام API خارجي');
+                        resolve(generateQRCodeFallback(qrCodeData));
                     }
                 });
             });
-        } catch (error) {
-            console.error('خطأ في إنشاء QR Code:', error);
-            // استخدام API خارجي كبديل
-            qrCodeImage = 'https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=' + encodeURIComponent(qrCodeData) + '&choe=UTF-8';
+        } else {
+            // المكتبة غير متوفرة، استخدام API خارجي
+            console.warn('مكتبة QRCode غير متوفرة، استخدام API خارجي');
+            qrCodeImage = generateQRCodeFallback(qrCodeData);
         }
-    } else {
-        // استخدام API خارجي كبديل إذا لم تكن المكتبة متوفرة
-        qrCodeImage = 'https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=' + encodeURIComponent(qrCodeData) + '&choe=UTF-8';
+    } catch (error) {
+        console.error('خطأ في إنشاء QR Code:', error);
+        // استخدام API خارجي كبديل
+        qrCodeImage = generateQRCodeFallback(qrCodeData);
+    }
+    
+    // التأكد من وجود QR Code
+    if (!qrCodeImage) {
+        console.warn('فشل إنشاء QR Code، استخدام بيانات بسيطة');
+        qrCodeImage = generateQRCodeFallback(JSON.stringify({
+            invoice_number: saleNumber,
+            total: saleData.final_amount || 0
+        }));
     }
     
     // Format date and time in 12-hour format with AM/PM
@@ -1605,11 +1654,12 @@ async function showInvoice(saleData) {
             </div>
             
             <!-- QR Code -->
-            ${qrCodeImage ? `
-                <div class="invoice-qrcode">
-                    <img src="${qrCodeImage}" alt="QR Code">
-                </div>
-            ` : ''}
+            <div class="invoice-qrcode">
+                <img src="${qrCodeImage || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(saleNumber || saleId || '')}`}" 
+                     alt="QR Code" 
+                     loading="lazy"
+                     onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(saleNumber || saleId || '')}'">
+            </div>
             
             <!-- Invoice Terms - البنود في الجزء السفلي بعد QR Code -->
             ${invoiceTerms}

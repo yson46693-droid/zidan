@@ -888,7 +888,11 @@ function displayPhones(phones) {
                 <div class="inventory-card-body">
                     ${phone.image ? `
                         <div class="inventory-card-image">
-                            <img src="${phone.image}" alt="${phone.brand} ${phone.model}">
+                            <img src="${phone.image}" 
+                                 alt="${phone.brand} ${phone.model}" 
+                                 loading="lazy" 
+                                 decoding="async"
+                                 onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'bi bi-phone\\' style=\\'font-size: 48px;\\'></i>';">
                         </div>
                     ` : `
                         <div class="inventory-card-image">
@@ -919,6 +923,27 @@ function displayPhones(phones) {
             </div>
         `;
     }).join('');
+    
+    // تحسين جودة الصور بعد إضافتها للـ DOM
+    setTimeout(() => {
+        const images = grid.querySelectorAll('.inventory-card-image img');
+        images.forEach(img => {
+            if (img.complete) {
+                img.classList.add('loaded');
+            } else {
+                img.addEventListener('load', function() {
+                    this.classList.add('loaded');
+                });
+                img.addEventListener('error', function() {
+                    this.style.display = 'none';
+                    const placeholder = document.createElement('i');
+                    placeholder.className = 'bi bi-phone';
+                    placeholder.style.fontSize = '48px';
+                    this.parentElement.appendChild(placeholder);
+                });
+            }
+        });
+    }, 100);
     
     hideByPermission();
 }
@@ -980,8 +1005,11 @@ function viewPhoneDetails(id) {
         <div style="max-height: 80vh; overflow-y: auto; padding: 20px;">
             ${phone.image ? `
                 <div style="text-align: center; margin-bottom: 25px;">
-                    <img src="${phone.image}" alt="${phone.brand} ${phone.model}" 
-                         style="max-width: 250px; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <img src="${phone.image}" 
+                         alt="${phone.brand} ${phone.model}" 
+                         loading="lazy"
+                         decoding="async"
+                         style="max-width: 250px; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1); image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; image-rendering: high-quality;">
                 </div>
             ` : ''}
             
