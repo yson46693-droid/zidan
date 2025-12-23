@@ -869,13 +869,39 @@ function updateCartDisplay() {
         const cartItem = document.createElement('div');
         cartItem.className = 'pos-cart-item';
         
+        // التحقق من نوع الصورة (base64 أو URL)
+        // معالجة الصور base64
+        let imageSrc = item.image;
+        let isBase64 = false;
+        
+        if (item.image) {
+            // التحقق من base64 (قد يبدأ بـ data: أو مباشرة بـ base64 string)
+            if (item.image.startsWith('data:')) {
+                isBase64 = true;
+                imageSrc = item.image;
+            } else if (item.image.startsWith('/9j/') || item.image.startsWith('iVBORw0KGgo') || item.image.length > 100) {
+                // صورة base64 بدون prefix
+                isBase64 = true;
+                // محاولة تحديد نوع الصورة
+                if (item.image.startsWith('/9j/')) {
+                    imageSrc = `data:image/jpeg;base64,${item.image}`;
+                } else if (item.image.startsWith('iVBORw0KGgo')) {
+                    imageSrc = `data:image/png;base64,${item.image}`;
+                } else {
+                    // افتراض JPEG
+                    imageSrc = `data:image/jpeg;base64,${item.image}`;
+                }
+            }
+        }
+        
         const imageHtml = item.image
-            ? `<img src="${item.image}" 
+            ? `<img src="${imageSrc}" 
                      alt="${item.name}" 
-                     class="pos-cart-item-image" 
-                     loading="lazy" 
-                     decoding="async"
-                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'pos-cart-item-image-placeholder\\'><i class=\\'bi bi-image\\'></i></div>'">`
+                     class="pos-cart-item-image ${isBase64 ? 'base64-image' : ''}" 
+                     ${isBase64 ? '' : 'loading="lazy"'} 
+                     ${isBase64 ? '' : 'decoding="async"'}
+                     onerror="this.onerror=null; this.style.display='none'; const placeholder = document.createElement('div'); placeholder.className='pos-cart-item-image-placeholder'; placeholder.innerHTML='<i class=\\'bi bi-image\\'></i>'; this.parentElement.replaceChild(placeholder, this);"
+                     onload="if(!this.classList.contains('base64-image')) this.classList.add('loaded');">`
             : `<div class="pos-cart-item-image-placeholder"><i class="bi bi-image"></i></div>`;
         
         cartItem.innerHTML = `

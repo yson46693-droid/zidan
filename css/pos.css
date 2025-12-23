@@ -520,6 +520,12 @@
 }
 
 .pos-cart-item-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 5px;
+    background: var(--white);
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
     image-rendering: high-quality;
@@ -528,22 +534,26 @@
     transform: translateZ(0);
     will-change: transform;
     transition: transform 0.3s ease, opacity 0.3s ease;
+    display: block;
+    opacity: 1 !important; /* إظهار الصور base64 فوراً */
 }
 
-.pos-cart-item-image[loading="lazy"] {
+/* إزالة opacity: 0 للصور base64 لأنها محملة بالفعل */
+.pos-cart-item-image[src^="data:"] {
+    opacity: 1 !important;
+}
+
+.pos-cart-item-image[loading="lazy"]:not([src^="data:"]) {
     opacity: 0;
 }
 
-.pos-cart-item-image[loading="lazy"].loaded {
+.pos-cart-item-image[loading="lazy"].loaded:not([src^="data:"]) {
     opacity: 1;
 }
 
-.pos-cart-item-image {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 5px;
-    background: var(--white);
+.pos-cart-item-image.base64-image {
+    opacity: 1 !important;
+    display: block !important;
 }
 
 .pos-cart-item-image-placeholder {
@@ -769,6 +779,31 @@
 
 .pos-modal-body {
     padding: 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--light-bg);
+}
+
+.pos-modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.pos-modal-body::-webkit-scrollbar-track {
+    background: var(--light-bg);
+    border-radius: 10px;
+}
+
+.pos-modal-body::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 10px;
+}
+
+.pos-modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
 }
 
 .form-group {
