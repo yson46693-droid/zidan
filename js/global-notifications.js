@@ -65,12 +65,29 @@ class GlobalNotificationManager {
             // تحميل آخر معرف رسالة
             this.loadLastMessageId();
 
+            // جلب آخر رسالة لضبط lastMessageId بشكل صحيح
+            if (!this.lastMessageId || this.lastMessageId === '0') {
+                try {
+                    const result = await API.request('get_messages.php');
+                    if (result && result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+                        // الحصول على آخر رسالة
+                        const lastMessage = result.data[result.data.length - 1];
+                        if (lastMessage && lastMessage.id) {
+                            this.saveLastMessageId(lastMessage.id);
+                            console.log('📝 تم ضبط آخر معرف رسالة:', lastMessage.id);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('⚠️ فشل جلب آخر رسالة:', error);
+                }
+            }
+
             // بدء النظام (إلا إذا كنا في صفحة الشات - لديها نظامها الخاص)
             if (!this.isChatPage) {
                 // تأخير صغير قبل البدء
                 setTimeout(() => {
                     this.start();
-                }, 500);
+                }, 1000);
             }
 
         } catch (error) {
@@ -339,13 +356,31 @@ class GlobalNotificationManager {
 const globalNotificationManager = new GlobalNotificationManager();
 
 // تهيئة عند تحميل الصفحة
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        globalNotificationManager.init();
-    });
-} else {
-    globalNotificationManager.init();
+function initializeNotifications() {
+    // الانتظار حتى يتم تحميل API و auth
+    const checkAndInit = () => {
+        if (typeof API !== 'undefined' && API.request) {
+            // إضافة تأخير إضافي للتأكد من تحميل كل شيء
+            setTimeout(() => {
+                globalNotificationManager.init();
+            }, 500);
+        } else {
+            // إعادة المحاولة بعد 200ms
+            setTimeout(checkAndInit, 200);
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkAndInit, 300);
+        });
+    } else {
+        checkAndInit();
+    }
 }
+
+// بدء التهيئة
+initializeNotifications();
 
 // إيقاف النظام عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
