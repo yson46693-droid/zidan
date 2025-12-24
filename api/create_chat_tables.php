@@ -195,6 +195,30 @@ function updateChatMessagesTable($conn) {
         }
     }
     
+    // التحقق من وجود عمود file_path
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'file_path'");
+    if ($result->num_rows == 0) {
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `file_path` varchar(500) DEFAULT NULL AFTER `reply_to`");
+    }
+    
+    // التحقق من وجود عمود file_type
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'file_type'");
+    if ($result->num_rows == 0) {
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `file_type` varchar(50) DEFAULT NULL AFTER `file_path`");
+    }
+    
+    // التحقق من وجود عمود file_name
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'file_name'");
+    if ($result->num_rows == 0) {
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `file_name` varchar(255) DEFAULT NULL AFTER `file_type`");
+    }
+    
+    // التحقق من وجود عمود deleted_at
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'deleted_at'");
+    if ($result->num_rows == 0) {
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `deleted_at` datetime DEFAULT NULL AFTER `created_at`");
+    }
+    
     // ملاحظة: لا نحذف الأعمدة القديمة (room_id, message_type, etc.) لتجنب فقدان البيانات
     // لكن الجدول الجديد لن يستخدمها
 }

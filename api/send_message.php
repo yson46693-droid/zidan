@@ -88,13 +88,15 @@ try {
     // إنشاء معرف فريد للرسالة
     $messageId = generateId();
     
+    // التأكد من وجود الأعمدة المطلوبة
+    ensureChatMessagesColumns();
+    
     // حفظ الرسالة في قاعدة البيانات
-    // التحقق من وجود عمود username أولاً
     try {
         $result = dbExecute("
-            INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-        ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType]);
+            INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, file_name, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType, $fileName]);
     } catch (Exception $e) {
         // إذا فشل بسبب عدم وجود عمود، محاولة إضافته
         error_log('محاولة إضافة الأعمدة المفقودة: ' . $e->getMessage());
@@ -102,27 +104,29 @@ try {
             $conn = getDBConnection();
             if ($conn) {
                 // محاولة إضافة الأعمدة المفقودة
-                try {
-                    $conn->query("ALTER TABLE chat_messages ADD COLUMN username VARCHAR(255) DEFAULT NULL");
-                } catch (Exception $e3) {
-                    // العمود موجود بالفعل
-                }
-                try {
-                    $conn->query("ALTER TABLE chat_messages ADD COLUMN file_path VARCHAR(500) DEFAULT NULL");
-                } catch (Exception $e3) {
-                    // العمود موجود بالفعل
-                }
-                try {
-                    $conn->query("ALTER TABLE chat_messages ADD COLUMN file_type VARCHAR(50) DEFAULT NULL");
-                } catch (Exception $e3) {
-                    // العمود موجود بالفعل
+                $columns = [
+                    'username' => "ALTER TABLE chat_messages ADD COLUMN username VARCHAR(255) DEFAULT NULL",
+                    'file_path' => "ALTER TABLE chat_messages ADD COLUMN file_path VARCHAR(500) DEFAULT NULL",
+                    'file_type' => "ALTER TABLE chat_messages ADD COLUMN file_type VARCHAR(50) DEFAULT NULL",
+                    'file_name' => "ALTER TABLE chat_messages ADD COLUMN file_name VARCHAR(255) DEFAULT NULL"
+                ];
+                
+                foreach ($columns as $columnName => $alterSql) {
+                    try {
+                        $result = $conn->query("SHOW COLUMNS FROM chat_messages LIKE '{$columnName}'");
+                        if ($result && $result->num_rows == 0) {
+                            $conn->query($alterSql);
+                        }
+                    } catch (Exception $e3) {
+                        // العمود موجود بالفعل أو خطأ آخر
+                    }
                 }
                 
                 // محاولة الإدراج مرة أخرى
                 $result = dbExecute("
-                    INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType]);
+                    INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, file_name, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType, $fileName]);
             } else {
                 throw new Exception('فشل الاتصال بقاعدة البيانات');
             }
@@ -209,6 +213,43 @@ try {
 } catch (Error $e) {
     error_log('خطأ قاتل في send_message.php: ' . $e->getMessage());
     response(false, 'حدث خطأ قاتل في إرسال الرسالة', null, 500);
+}
+
+/**
+ * التأكد من وجود الأعمدة المطلوبة في جدول chat_messages
+ */
+function ensureChatMessagesColumns() {
+    try {
+        $conn = getDBConnection();
+        if (!$conn) {
+            return false;
+        }
+        
+        // التحقق من وجود الأعمدة وإضافتها إذا لم تكن موجودة
+        $columns = [
+            'username' => "ALTER TABLE `chat_messages` ADD COLUMN `username` varchar(100) DEFAULT NULL AFTER `user_id`",
+            'file_path' => "ALTER TABLE `chat_messages` ADD COLUMN `file_path` varchar(500) DEFAULT NULL AFTER `reply_to`",
+            'file_type' => "ALTER TABLE `chat_messages` ADD COLUMN `file_type` varchar(50) DEFAULT NULL AFTER `file_path`",
+            'file_name' => "ALTER TABLE `chat_messages` ADD COLUMN `file_name` varchar(255) DEFAULT NULL AFTER `file_type`",
+            'deleted_at' => "ALTER TABLE `chat_messages` ADD COLUMN `deleted_at` datetime DEFAULT NULL AFTER `created_at`"
+        ];
+        
+        foreach ($columns as $columnName => $alterSql) {
+            $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE '{$columnName}'");
+            if ($result && $result->num_rows == 0) {
+                try {
+                    $conn->query($alterSql);
+                } catch (Exception $e) {
+                    error_log("خطأ في إضافة عمود {$columnName}: " . $e->getMessage());
+                }
+            }
+        }
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('خطأ في ensureChatMessagesColumns: ' . $e->getMessage());
+        return false;
+    }
 }
 
 /**
