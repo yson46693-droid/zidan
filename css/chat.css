@@ -115,73 +115,17 @@ body {
     z-index: 100;
 }
 
-.chat-title-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    min-width: 0; /* للسماح بالتقصير عند الحاجة */
-}
-
 .chat-title {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.chat-title-icon {
-    font-size: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.1);
-        opacity: 0.8;
-    }
-}
-
-.chat-title-text {
-    font-size: 20px;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 700;
-}
-
-.chat-subtitle {
-    font-size: 11px;
-    color: var(--text-light);
-    font-weight: 400;
-    opacity: 0.8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
+    flex: 1;
+    text-align: center;
 }
 
 .menu-btn,
 .chat-icon-btn,
-.back-btn,
 .dashboard-btn {
     background: none;
     border: none;
@@ -196,9 +140,44 @@ body {
     border-radius: 8px;
 }
 
+/* زر الرجوع - تصميم محسّن وأكبر */
+.back-btn {
+    background: var(--primary-color);
+    border: none;
+    cursor: pointer;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    position: relative;
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    min-width: 48px;
+    min-height: 48px;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.back-btn svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 2.5;
+}
+
+.back-btn:hover {
+    background: var(--secondary-color);
+    color: var(--white);
+    transform: translateX(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+.back-btn:active {
+    transform: translateX(-1px) scale(0.95);
+    box-shadow: 0 2px 6px rgba(33, 150, 243, 0.3);
+}
+
 .menu-btn:hover,
 .chat-icon-btn:hover,
-.back-btn:hover,
 .dashboard-btn:hover {
     background: var(--light-bg);
     color: var(--primary-color);
@@ -316,6 +295,48 @@ body {
     flex-shrink: 0;
     border: 2px solid var(--white);
     box-shadow: var(--shadow);
+    position: relative;
+}
+
+/* مؤشر حالة النشاط في الرسائل */
+.online-indicator {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--white);
+    box-shadow: 0 0 0 2px var(--white);
+    transition: all 0.3s ease;
+}
+
+.online-indicator.online {
+    background: var(--success-color);
+    box-shadow: 0 0 0 2px var(--white), 0 0 6px rgba(76, 175, 80, 0.5);
+    animation: pulse-online 2s ease-in-out infinite;
+}
+
+.online-indicator.offline {
+    background: var(--text-light);
+    box-shadow: 0 0 0 2px var(--white);
+}
+
+@keyframes pulse-online {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
+}
+
+/* في الرسائل الخاصة بالمستخدم، المؤشر في الجهة اليسرى */
+.user-message .message-avatar .online-indicator {
+    right: auto;
+    left: 0;
 }
 
 .message-content {
@@ -850,26 +871,20 @@ body {
         padding: 12px 15px;
     }
     
-    .chat-title-wrapper {
-        gap: 1px;
-    }
-    
     .chat-title {
-        font-size: 18px;
-        gap: 6px;
-    }
-    
-    .chat-title-icon {
         font-size: 20px;
     }
     
-    .chat-title-text {
-        font-size: 18px;
+    /* تحسين زر الرجوع على الشاشات المتوسطة */
+    .back-btn {
+        padding: 10px 14px;
+        min-width: 44px;
+        min-height: 44px;
     }
     
-    .chat-subtitle {
-        font-size: 10px;
-        max-width: 150px;
+    .back-btn svg {
+        width: 24px;
+        height: 24px;
     }
     
     .chat-input-container {
@@ -907,6 +922,19 @@ body {
     .chat-input {
         padding: 10px 14px;
         font-size: 14px;
+    }
+    
+    /* تحسين زر الرجوع على الشاشات الصغيرة جداً */
+    .back-btn {
+        padding: 10px 12px;
+        min-width: 44px;
+        min-height: 44px;
+        border-radius: 10px;
+    }
+    
+    .back-btn svg {
+        width: 24px;
+        height: 24px;
     }
 }
 

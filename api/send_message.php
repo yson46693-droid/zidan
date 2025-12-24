@@ -38,7 +38,17 @@ try {
     
     // التحقق من وجود الرسالة المراد الرد عليها (إذا كان reply_to موجود)
     $replyToMessage = null;
+    $replyToId = null;
+    
     if (!empty($replyTo)) {
+        // إذا كان reply_to كائن، استخراج ID
+        if (is_array($replyTo) && isset($replyTo['id'])) {
+            $replyToId = $replyTo['id'];
+        } else {
+            $replyToId = $replyTo;
+        }
+        
+        // التحقق من وجود الرسالة في قاعدة البيانات
         $replyToMessage = dbSelectOne("
             SELECT 
                 cm.id, 
@@ -48,7 +58,7 @@ try {
             FROM chat_messages cm
             LEFT JOIN users u ON u.id = cm.user_id
             WHERE cm.id = ? AND (cm.deleted_at IS NULL OR cm.deleted_at = '')
-        ", [$replyTo]);
+        ", [$replyToId]);
         
         if (!$replyToMessage) {
             response(false, 'الرسالة المراد الرد عليها غير موجودة', null, 404);
@@ -64,14 +74,14 @@ try {
         $result = dbExecute("
             INSERT INTO chat_messages (id, user_id, username, message, reply_to, created_at)
             VALUES (?, ?, ?, ?, ?, NOW())
-        ", [$messageId, $userId, $username, $message, $replyTo]);
+        ", [$messageId, $userId, $username, $message, $replyToId]);
     } catch (Exception $e) {
         // إذا فشل بسبب عدم وجود عمود username، محاولة بدون username
         error_log('محاولة إدراج بدون username: ' . $e->getMessage());
         $result = dbExecute("
             INSERT INTO chat_messages (id, user_id, message, reply_to, created_at)
             VALUES (?, ?, ?, ?, NOW())
-        ", [$messageId, $userId, $message, $replyTo]);
+        ", [$messageId, $userId, $message, $replyToId]);
     }
     
     if (!$result) {

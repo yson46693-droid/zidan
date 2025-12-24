@@ -10,6 +10,7 @@ let lastMessageId = '';
 let longPollingActive = false;
 let longPollingAbortController = null;
 let replyingToMessageId = null;
+let replyingToMessage = null; // حفظ معلومات الرسالة الأصلية
 let notifications = [];
 let pushSubscription = null;
 let activityUpdateInterval = null;
@@ -141,6 +142,10 @@ function renderMessages() {
     });
     
     messagesContainer.appendChild(fragment);
+    
+    // تحديث حالة النشاط بعد عرض الرسائل
+    updateMessagesActivity();
+    
     scrollToBottom();
 }
 
@@ -156,6 +161,23 @@ function createMessageElement(message) {
     avatar.className = 'message-avatar';
     avatar.textContent = getInitials(message.username || 'U');
     avatar.style.background = getAvatarColor(message.user_id);
+    
+    // مؤشر حالة النشاط
+    const onlineIndicator = document.createElement('div');
+    onlineIndicator.className = 'online-indicator';
+    
+    // التحقق من حالة النشاط
+    if (usersActivity[message.user_id]) {
+        const activity = usersActivity[message.user_id];
+        onlineIndicator.className = `online-indicator ${activity.is_online ? 'online' : 'offline'}`;
+        onlineIndicator.title = activity.is_online ? 'نشط الآن' : (activity.time_ago_text || 'غير متصل');
+    } else {
+        // افتراضياً غير متصل إذا لم تكن هناك معلومات
+        onlineIndicator.className = 'online-indicator offline';
+        onlineIndicator.title = 'غير متصل';
+    }
+    
+    avatar.appendChild(onlineIndicator);
     
     // Content
     const content = document.createElement('div');
@@ -283,15 +305,26 @@ function setupEventListeners() {
         notificationIcon.addEventListener('click', toggleNotificationsList);
     }
     
-    // زر التنقل إلى لوحة التحكم
+    // زر الرجوع
     const backToDashboardBtn = document.getElementById('backToDashboardBtn');
     if (backToDashboardBtn) {
-        backToDashboardBtn.addEventListener('click', () => {
-            // الرجوع إلى الصفحة السابقة
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                // إذا لم تكن هناك صفحة سابقة، الانتقال إلى لوحة التحكم
+        backToDashboardBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            try {
+                // محاولة الرجوع إلى الصفحة السابقة
+                if (document.referrer && document.referrer !== window.location.href) {
+                    window.history.back();
+                } else if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    // إذا لم تكن هناك صفحة سابقة، الانتقال إلى لوحة التحكم
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (error) {
+                console.error('خطأ في الرجوع:', error);
+                // Fallback: الانتقال إلى لوحة التحكم
                 window.location.href = 'dashboard.html';
             }
         });
@@ -327,10 +360,10 @@ async function sendMessage() {
             message: messageText,
             created_at: new Date().toISOString(),
             isSending: true,
-            reply_to: replyingToMessageId ? {
-                id: replyingToMessageId,
-                username: '',
-                message: ''
+            reply_to: replyingToMessage ? {
+                id: replyingToMessage.id,
+                username: replyingToMessage.username,
+                message: replyingToMessage.message
             } : null
         };
         
@@ -342,7 +375,11 @@ async function sendMessage() {
         // إرسال الرسالة للخادم
         const result = await API.request('send_message.php', 'POST', {
             message: messageText,
-            reply_to: replyingToMessageId || null
+            reply_to: replyingToMessage ? {
+                id: replyingToMessage.id,
+                username: replyingToMessage.username,
+                message: replyingToMessage.message
+            } : null
         });
         
         if (result && result.success) {
@@ -375,6 +412,11 @@ async function sendMessage() {
 // الرد على رسالة
 function replyToMessage(message) {
     replyingToMessageId = message.id;
+    replyingToMessage = {
+        id: message.id,
+        username: message.username || 'مستخدم',
+        message: message.message || 'رسالة'
+    };
     showReplyPreview(message);
     
     const chatInput = document.getElementById('chatInput');
@@ -434,6 +476,7 @@ function showReplyPreview(message) {
 // إزالة معاينة الرد
 function clearReplyPreview() {
     replyingToMessageId = null;
+    replyingToMessage = null;
     const preview = document.getElementById('replyPreview');
     if (preview) {
         preview.remove();
