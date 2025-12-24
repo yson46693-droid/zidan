@@ -1546,11 +1546,22 @@ async function saveCustomerNotes(customerId) {
 
 // عرض modal تعديل التقييم
 function showEditRatingModal(customerId, currentRating) {
+    // التحقق من أن customerId موجود وصحيح
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || String(customerId).trim() === '') {
+        console.error('showEditRatingModal: customerId is missing or invalid:', customerId);
+        showMessage('معرف العميل غير صحيح', 'error');
+        return;
+    }
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
     // إضافة z-index أعلى من customer-profile-modal لضمان ظهوره فوقه
     modal.style.zIndex = '20000';
+    
+    // حفظ customerId في data attribute للـ modal
+    modal.setAttribute('data-customer-id', String(customerId));
+    
     modal.innerHTML = `
         <div class="modal-content modal-sm">
             <div class="modal-header">
@@ -1576,7 +1587,7 @@ function showEditRatingModal(customerId, currentRating) {
             </div>
             <div class="modal-footer">
                 <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">إلغاء</button>
-                <button onclick="saveCustomerRatingUpdate('${customerId}')" class="btn btn-primary">
+                <button onclick="saveCustomerRatingUpdateFromModal(this)" class="btn btn-primary">
                     <i class="bi bi-save"></i> حفظ
                 </button>
             </div>
@@ -1652,8 +1663,34 @@ function resetRatingStars(element, currentRating) {
     });
 }
 
+// دالة جديدة لقراءة customerId من data attribute
+function saveCustomerRatingUpdateFromModal(button) {
+    const modal = button.closest('.modal');
+    if (!modal) {
+        console.error('saveCustomerRatingUpdateFromModal: modal not found');
+        showMessage('لم يتم العثور على النموذج', 'error');
+        return;
+    }
+    
+    const customerId = modal.getAttribute('data-customer-id');
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || customerId.trim() === '') {
+        console.error('saveCustomerRatingUpdateFromModal: customerId is invalid:', customerId);
+        showMessage('معرف العميل غير صحيح', 'error');
+        return;
+    }
+    
+    saveCustomerRatingUpdate(customerId);
+}
+
 // حفظ التقييم المحدث
 async function saveCustomerRatingUpdate(customerId) {
+    // التحقق من أن customerId موجود وصحيح
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || String(customerId).trim() === '') {
+        console.error('saveCustomerRatingUpdate: customerId is invalid:', customerId);
+        showMessage('معرف العميل غير صحيح', 'error');
+        return;
+    }
+    
     const selectedRatingInput = document.getElementById('selectedRating');
     if (!selectedRatingInput) {
         showMessage('لم يتم العثور على التقييم المحدد', 'error');
@@ -1661,25 +1698,19 @@ async function saveCustomerRatingUpdate(customerId) {
     }
     
     const rating = parseInt(selectedRatingInput.value);
-    if (rating < 1 || rating > 5) {
+    if (rating < 1 || rating > 5 || isNaN(rating)) {
         showMessage('التقييم يجب أن يكون بين 1 و 5', 'error');
         return;
     }
     
     try {
-        // التحقق من أن customerId موجود وصحيح
-        if (!customerId) {
-            showMessage('معرف العميل غير صحيح', 'error');
-            return;
-        }
-        
         console.log('🔄 تحديث التقييم:', { customerId, rating });
         const result = await API.updateCustomerRating(customerId, rating);
         
         if (result && result.success) {
             showMessage('تم تحديث التقييم بنجاح', 'success');
             // إغلاق modal
-            const modal = document.querySelector('.modal');
+            const modal = document.querySelector('.modal[data-customer-id]');
             if (modal) {
                 modal.remove();
             }
