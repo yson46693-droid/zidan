@@ -1534,39 +1534,109 @@ body {
         justify-content: flex-start;
     }
     
-    /* أزرار البروفايل والوضع الليلي في grid 2 أعمدة */
+    /* إعادة تنظيم الأزرار في الهيدر العلوي */
     .top-bar .header-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
         width: 100%;
+        align-items: center;
     }
     
-    .top-bar .header-actions .sync-indicator,
     .top-bar .header-actions #installButton {
         width: 100%;
         flex-basis: 100%;
+        order: -1;
     }
     
-    /* أزرار البروفايل والوضع الليلي في grid 2 أعمدة - آخر عنصرين من btn-icon */
-    .top-bar .header-actions .btn-icon:nth-last-child(2),
-    .top-bar .header-actions .btn-icon:nth-last-child(1) {
-        flex: 1 1 calc(50% - 5px);
-        min-width: calc(50% - 5px);
-        max-width: calc(50% - 5px);
+    /* زر المزامنة - مربع صغير مع border */
+    .top-bar .header-actions .sync-indicator {
+        min-width: 40px;
+        min-height: 40px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        background: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        order: 0;
+        flex-shrink: 0;
+        position: relative;
+        font-size: 0;
+        text-indent: -9999px;
+        white-space: nowrap;
     }
     
-    .header-actions .btn-icon {
-        min-width: 32px !important;
-        min-height: 32px !important;
-        padding: 6px !important;
-        font-size: 0.9em !important;
+    .top-bar .header-actions .sync-indicator i {
+        font-size: 1.2em;
+        margin: 0;
+        position: absolute;
+        display: block;
+        text-indent: 0;
     }
     
-    .header-actions .sync-indicator {
-        min-height: 32px !important;
-        padding: 6px 10px !important;
-        font-size: 0.75em !important;
+    /* إخفاء النص في زر المزامنة على الموبايل */
+    .top-bar .header-actions .sync-indicator > *:not(i) {
+        display: none !important;
+    }
+    
+    /* زر الوضع الليلي - مربع صغير مع border */
+    .top-bar .header-actions .btn-icon[onclick*="toggleDarkMode"] {
+        min-width: 40px;
+        min-height: 40px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        background: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        order: 1;
+        flex-shrink: 0;
+    }
+    
+    /* زر البروفايل - منسق في نفس الصف على اليمين */
+    .top-bar .header-actions .btn-icon[onclick*="profile"] {
+        min-width: 40px;
+        min-height: 40px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        background: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        order: 2;
+        margin-right: 0;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    
+    /* محاذاة الأزرار في صف واحد */
+    .top-bar .header-actions {
+        align-items: center;
+    }
+    
+    /* تجاوز الأنماط العامة للأزرار في الهيدر العلوي */
+    .top-bar .header-actions .btn-icon {
+        min-width: 40px !important;
+        min-height: 40px !important;
+        padding: 0 !important;
+        font-size: 1.2em !important;
+    }
+    
+    .top-bar .header-actions .sync-indicator {
+        min-height: 40px !important;
+        padding: 0 !important;
+        font-size: 0 !important;
     }
     
     .header-actions .sync-indicator i {
