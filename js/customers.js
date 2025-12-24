@@ -193,7 +193,7 @@ function displayCustomers(customers) {
                 ` : '<span style="color: var(--text-light);">لا يوجد تقييم</span>'}
             </td>
             <td>
-                <button onclick="viewCustomerProfile('${customer.id}')" class="btn btn-sm btn-icon" title="عرض البروفايل" style="background: var(--primary-color); color: var(--white);">
+                <button data-action="view-profile" data-customer-id="${escapeHtml(customer.id)}" class="btn btn-sm btn-icon" title="عرض البروفايل" style="background: var(--primary-color); color: var(--white);">
                     <i class="bi bi-eye"></i>
                 </button>
                 <button onclick="editCustomer('${customer.id}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
@@ -214,6 +214,9 @@ function displayCustomers(customers) {
     );
 
     hideByPermission();
+    
+    // إضافة event delegation للأزرار
+    setupCustomerActionButtons();
 }
 
 function toggleShopNameField() {
@@ -308,20 +311,21 @@ async function editCustomer(id) {
 }
 
 async function viewCustomerProfile(customerId) {
-    // Error handling: التحقق من وجود customerId
-    if (!customerId) {
-        showMessage('معرف العميل غير صحيح', 'error');
-        return;
-    }
-
-    // Error handling: البحث عن العميل
-    const customer = allCustomers.find(c => c.id === customerId);
-    if (!customer) {
-        showMessage('العميل غير موجود', 'error');
-        return;
-    }
-    
     try {
+        // Error handling: التحقق من وجود customerId
+        if (!customerId) {
+            console.error('viewCustomerProfile: customerId is missing');
+            showMessage('معرف العميل غير صحيح', 'error');
+            return;
+        }
+
+        // Error handling: البحث عن العميل
+        const customer = allCustomers.find(c => c.id === customerId);
+        if (!customer) {
+            console.error('viewCustomerProfile: Customer not found', { customerId, allCustomersCount: allCustomers.length });
+            showMessage('العميل غير موجود', 'error');
+            return;
+        }
         // Load customer sales - فقط فواتير هذا العميل
         const salesResult = await API.getCustomerSales(customerId);
         
@@ -688,6 +692,11 @@ async function viewCustomerProfile(customerId) {
         console.error('خطأ في عرض بروفايل العميل:', error);
         showMessage('حدث خطأ أثناء عرض بروفايل العميل: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
+}
+
+// التأكد من أن الدالة متاحة في النطاق العام
+if (typeof window !== 'undefined') {
+    window.viewCustomerProfile = viewCustomerProfile;
 }
 
 // Helper function to escape HTML
@@ -1690,5 +1699,43 @@ function clearSalesSearch() {
     const allSales = window.currentCustomerSales || [];
     window.currentSalesPage = 1;
     displaySalesWithPagination(allSales);
+}
+
+// إعداد event delegation لأزرار العملاء
+function setupCustomerActionButtons() {
+    const tbody = document.getElementById('customersTableBody');
+    if (!tbody) return;
+    
+    // إزالة event listeners السابقة لتجنب التكرار
+    const existingHandler = tbody._customerActionHandler;
+    if (existingHandler) {
+        tbody.removeEventListener('click', existingHandler);
+    }
+    
+    // إضافة event listener جديد
+    const handler = function(e) {
+        const button = e.target.closest('[data-action="view-profile"]');
+        if (button) {
+            e.preventDefault();
+            e.stopPropagation();
+            const customerId = button.getAttribute('data-customer-id');
+            if (customerId) {
+                try {
+                    if (typeof viewCustomerProfile === 'function') {
+                        viewCustomerProfile(customerId);
+                    } else {
+                        console.error('viewCustomerProfile function is not available');
+                        showMessage('حدث خطأ في عرض البروفايل', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error calling viewCustomerProfile:', error);
+                    showMessage('حدث خطأ في عرض البروفايل: ' + (error.message || 'خطأ غير معروف'), 'error');
+                }
+            }
+        }
+    };
+    
+    tbody._customerActionHandler = handler;
+    tbody.addEventListener('click', handler);
 }
 

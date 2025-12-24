@@ -1754,7 +1754,8 @@ body {
     .dark-mode .mobile-user-info strong {
         color: #fff;
     }
-    
+}
+
 /* Navbar عائم للهاتف */
 .mobile-navbar {
     display: none;
@@ -3150,7 +3151,7 @@ body {
 .inventory-card-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
     border-radius: 10px;
     image-rendering: -webkit-optimize-contrast;
@@ -4822,3 +4823,31 @@ body {
     }
 }
 
+/* إخفاء روابط الشريط الجانبي في الهيدر العلوي */
+.top-bar .nav-link,
+.top-bar .sidebar-nav,
+.top-bar .sidebar {
+    display: none !important;
+}
+
+/* التأكد من أن الـ sidebar في مكانه الصحيح */
+.sidebar {
+    position: fixed !important;
+    right: 0 !important;
+    top: 0 !important;
+    width: 260px !important;
+    height: 100vh !important;
+    z-index: 1000 !important;
+}
+
+/* التأكد من أن روابط الشريط الجانبي تظهر فقط داخل الـ sidebar */
+.sidebar-nav .nav-link {
+    display: flex !important;
+}
+
+/* منع ظهور أي روابط خارج الـ sidebar */
+body > .nav-link,
+.main-content > .nav-link,
+.top-bar > .nav-link {
+    display: none !important;
+}
