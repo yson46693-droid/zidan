@@ -348,31 +348,12 @@ async function viewCustomerProfile(customerId) {
         console.log('🔍 عدد الفواتير المستلمة من API:', sales.length);
         console.log('🔍 بيانات الفواتير:', sales);
         
-        // فلترة إضافية للتأكد من أن الفواتير تخص هذا العميل فقط
-        // نتحقق من customer_id أو customer_phone للتأكد من ربط الفاتورة بالعميل
-        const originalSalesCount = sales.length;
-        sales = sales.filter(sale => {
+        // التأكد من أن جميع الفواتير تحتوي على items (حتى لو كانت فارغة)
+        sales = sales.map(sale => {
             // Error handling: التأكد من وجود sale
             if (!sale || !sale.id) {
                 console.warn('⚠️ فاتورة بدون id:', sale);
-                return false;
-            }
-            
-            // التحقق من ربط الفاتورة بالعميل (customer_id أو customer_phone)
-            const isCustomerMatch = (
-                (sale.customer_id && sale.customer_id === customerId) ||
-                (sale.customer_phone && sale.customer_phone === customer.phone)
-            );
-            
-            if (!isCustomerMatch) {
-                console.warn('⚠️ فاتورة لا تطابق العميل:', {
-                    saleId: sale.id,
-                    saleCustomerId: sale.customer_id,
-                    saleCustomerPhone: sale.customer_phone,
-                    targetCustomerId: customerId,
-                    targetCustomerPhone: customer.phone
-                });
-                return false;
+                return null;
             }
             
             // Error handling: التأكد من وجود بيانات صحيحة (items)
@@ -386,10 +367,10 @@ async function viewCustomerProfile(customerId) {
                 sale.items = []; // إضافة items فارغة بدلاً من تخطي الفاتورة
             }
             
-            return true;
-        });
+            return sale;
+        }).filter(sale => sale !== null); // إزالة الفواتير الفارغة فقط
         
-        console.log(`✅ بعد الفلترة: ${sales.length} من ${originalSalesCount} فاتورة`);
+        console.log(`✅ بعد المعالجة: ${sales.length} فاتورة`);
         
         // حساب إجمالي المشتريات مع error handling
         const totalPurchases = sales.reduce((sum, sale) => {
@@ -586,10 +567,7 @@ async function viewCustomerProfile(customerId) {
             searchBar.style.cssText = 'margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;';
             searchBar.innerHTML = `
                 <input type="text" id="salesSearchInvoiceNumber" placeholder="بحث برقم الفاتورة..." class="search-input" style="flex: 1; min-width: 200px;">
-                <input type="date" id="salesSearchDate" class="search-input" style="flex: 0 0 auto;">
-                <button onclick="clearSalesSearch()" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-x-circle"></i> مسح البحث
-                </button>
+                <input type="date" id="salesSearchDate" placeholder="اختر التاريخ" class="search-input" style="flex: 0 0 auto; max-width: 150px; font-size: 14px;">
             `;
             
             // Build sales table
@@ -643,14 +621,14 @@ async function viewCustomerProfile(customerId) {
             // عرض المبيعات مع pagination
             displaySalesWithPagination(sales);
             
-            // إضافة event listeners للبحث
+            // إضافة event listeners للبحث (لحظي بدون debounce)
             const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
             const dateSearchInput = document.getElementById('salesSearchDate');
             
             if (invoiceSearchInput) {
-                invoiceSearchInput.addEventListener('input', debounce(() => {
+                invoiceSearchInput.addEventListener('input', () => {
                     filterAndDisplaySales(sales);
-                }, 300));
+                });
             }
             
             if (dateSearchInput) {
@@ -1663,12 +1641,12 @@ function filterAndDisplaySales(allSales) {
     
     let filtered = [...allSales];
     
-    // فلترة برقم الفاتورة
+    // فلترة برقم الفاتورة (البحث يبدأ بالأرقام المكتوبة)
     if (invoiceSearchInput && invoiceSearchInput.value.trim()) {
         const searchTerm = invoiceSearchInput.value.trim().toLowerCase();
         filtered = filtered.filter(sale => {
-            const saleNumber = (sale.sale_number || sale.id || '').toLowerCase();
-            return saleNumber.includes(searchTerm);
+            const saleNumber = String(sale.sale_number || sale.id || '').toLowerCase();
+            return saleNumber.startsWith(searchTerm);
         });
     }
     
@@ -1689,18 +1667,6 @@ function filterAndDisplaySales(allSales) {
     displaySalesWithPagination(filtered);
 }
 
-// مسح البحث
-function clearSalesSearch() {
-    const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
-    const dateSearchInput = document.getElementById('salesSearchDate');
-    
-    if (invoiceSearchInput) invoiceSearchInput.value = '';
-    if (dateSearchInput) dateSearchInput.value = '';
-    
-    const allSales = window.currentCustomerSales || [];
-    window.currentSalesPage = 1;
-    displaySalesWithPagination(allSales);
-}
 
 // إعداد event delegation لأزرار العملاء
 function setupCustomerActionButtons() {

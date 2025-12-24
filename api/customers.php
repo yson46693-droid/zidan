@@ -513,7 +513,8 @@ if ($isPutMethod && isset($data['action']) && $data['action'] === 'update_rating
     $requestData = getRequestData();
     $data = array_merge($data, $requestData);
     
-    $customerId = trim($data['customer_id'] ?? '');
+    // محاولة قراءة customer_id من مصادر مختلفة
+    $customerId = trim($data['customer_id'] ?? $data['id'] ?? '');
     $rating = intval($data['rating'] ?? 0);
     
     // تسجيل البيانات للتحقق
