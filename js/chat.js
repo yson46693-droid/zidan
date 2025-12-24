@@ -7,6 +7,7 @@
 let currentUser = null;
 let messages = [];
 let lastMessageId = '';
+let lastReadMessageId = ''; // آخر رسالة تم قراءتها
 let longPollingActive = false;
 let longPollingAbortController = null;
 let notifications = [];
@@ -221,9 +222,20 @@ async function loadMessages() {
             // حفظ last_id
             if (messages.length > 0) {
                 lastMessageId = messages[messages.length - 1].id;
+                // تحديث آخر رسالة مقروءة عند فتح الشات
+                lastReadMessageId = lastMessageId;
+                saveLastReadMessageId();
             }
             
             renderMessages();
+            
+            // تصفير العداد عند فتح الشات
+            updateUnreadBadge(0);
+            
+            // تحديث العداد في dashboard إذا كان متاحاً
+            if (typeof window.updateChatUnreadBadge === 'function') {
+                window.updateChatUnreadBadge(0);
+            }
         }
     } catch (error) {
         console.error('خطأ في تحميل الرسائل:', error);
@@ -661,6 +673,8 @@ async function performLongPoll() {
         if (result && result.success && result.data && result.data.length > 0) {
             // إضافة الرسائل الجديدة
             let hasNewMessages = false;
+            let unreadCount = 0;
+            
             result.data.forEach(newMessage => {
                 // تجنب التكرار (بما في ذلك الرسائل المؤقتة)
                 const existingMessage = messages.find(m => m.id === newMessage.id || (m.id && m.id.startsWith('temp-') && newMessage.user_id === m.user_id && newMessage.message === m.message));
@@ -671,6 +685,11 @@ async function performLongPoll() {
                     // تحديث lastMessageId إلى آخر رسالة
                     if (newMessage.id > lastMessageId || lastMessageId === '') {
                         lastMessageId = newMessage.id;
+                    }
+                    // حساب الرسائل غير المقروءة (رسائل من مستخدمين آخرين بعد آخر رسالة مقروءة)
+                    if (newMessage.user_id !== currentUser.id && 
+                        (lastReadMessageId === '' || newMessage.id > lastReadMessageId)) {
+                        unreadCount++;
                     }
                 } else if (existingMessage.id && existingMessage.id.startsWith('temp-')) {
                     // استبدال الرسالة المؤقتة بالرسالة الحقيقية
@@ -699,6 +718,12 @@ async function performLongPoll() {
                 });
                 
                 renderMessages();
+                
+                // تحديث العداد إذا كان المستخدم ليس في صفحة الشات
+                if (!document.location.pathname.includes('chat.html')) {
+                    const unreadCount = calculateUnreadCount();
+                    updateUnreadBadge(unreadCount);
+                }
             }
             
             // عرض إشعار إذا كان التاب مخفي
@@ -1593,6 +1618,92 @@ function loadSavedNotifications() {
 
 // تحميل الإشعارات عند التهيئة
 loadSavedNotifications();
+
+// تحميل آخر رسالة مقروءة
+function loadLastReadMessageId() {
+    try {
+        const saved = localStorage.getItem('lastReadMessageId');
+        if (saved) {
+            lastReadMessageId = saved;
+        }
+    } catch (e) {
+        console.error('خطأ في تحميل آخر رسالة مقروءة:', e);
+    }
+}
+
+// حفظ آخر رسالة مقروءة
+function saveLastReadMessageId() {
+    try {
+        localStorage.setItem('lastReadMessageId', lastReadMessageId);
+    } catch (e) {
+        console.error('خطأ في حفظ آخر رسالة مقروءة:', e);
+    }
+}
+
+// تحديث عداد الرسائل غير المقروءة في الشريط الجانبي
+function updateUnreadBadge(count) {
+    try {
+        // تحديث العداد في الشريط الجانبي
+        const badge = document.getElementById('chatUnreadBadge');
+        const badgeMobile = document.getElementById('chatUnreadBadgeMobile');
+        
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count.toString();
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        if (badgeMobile) {
+            if (count > 0) {
+                badgeMobile.textContent = count > 99 ? '99+' : count.toString();
+                badgeMobile.style.display = 'flex';
+            } else {
+                badgeMobile.style.display = 'none';
+            }
+        }
+        
+        // حفظ العدد في localStorage للوصول من صفحات أخرى
+        localStorage.setItem('chatUnreadCount', count.toString());
+        
+        // تحديث العداد في dashboard إذا كان متاحاً
+        if (typeof window.updateChatUnreadBadge === 'function') {
+            window.updateChatUnreadBadge(count);
+        }
+    } catch (e) {
+        console.error('خطأ في تحديث عداد الرسائل غير المقروءة:', e);
+    }
+}
+
+// حساب عدد الرسائل غير المقروءة
+function calculateUnreadCount() {
+    try {
+        if (!messages || messages.length === 0 || !lastReadMessageId) {
+            return 0;
+        }
+        
+        let count = 0;
+        messages.forEach(message => {
+            // فقط الرسائل من مستخدمين آخرين بعد آخر رسالة مقروءة
+            if (message.user_id !== currentUser.id && 
+                message.id && 
+                !message.id.startsWith('temp-') &&
+                message.id > lastReadMessageId) {
+                count++;
+            }
+        });
+        
+        return count;
+    } catch (e) {
+        console.error('خطأ في حساب الرسائل غير المقروءة:', e);
+        return 0;
+    }
+}
+
+// تحميل آخر رسالة مقروءة عند التهيئة
+loadLastReadMessageId();
 
 // حذف جميع إشعارات الرسائل عند فتح صفحة الشات
 function clearChatNotifications() {

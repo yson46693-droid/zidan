@@ -151,6 +151,65 @@ body {
     font-size: 1.2em;
 }
 
+.nav-link {
+    position: relative;
+}
+
+.nav-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--danger-color);
+    color: var(--white);
+    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 5px;
+    box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.nav-link.active .nav-badge {
+    background: var(--white);
+    color: var(--danger-color);
+}
+
+.mobile-nav-item {
+    position: relative;
+}
+
+.mobile-nav-item .nav-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: var(--danger-color);
+    color: var(--white);
+    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 5px;
+    box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
 .section-header h2 i {
     margin-left: 8px;
     color: var(--primary-color);

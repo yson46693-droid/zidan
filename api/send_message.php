@@ -316,13 +316,55 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
  */
 function sendMentionNotification($mentionedUserId, $senderId, $senderName, $message, $messageId) {
     try {
-        // حفظ الإشعار في قاعدة البيانات (إذا كان هناك جدول notifications)
-        // يمكن إضافة جدول notifications لاحقاً
+        // التأكد من وجود جدول notifications
+        if (!dbTableExists('notifications')) {
+            // محاولة إنشاء الجدول
+            $conn = getDBConnection();
+            if ($conn) {
+                $sql = "
+                    CREATE TABLE IF NOT EXISTS `notifications` (
+                      `id` varchar(50) NOT NULL,
+                      `user_id` varchar(50) NOT NULL,
+                      `type` varchar(50) NOT NULL DEFAULT 'mention',
+                      `title` varchar(255) NOT NULL,
+                      `message` text NOT NULL,
+                      `related_id` varchar(50) DEFAULT NULL,
+                      `is_read` tinyint(1) DEFAULT 0,
+                      `created_at` datetime NOT NULL,
+                      PRIMARY KEY (`id`),
+                      KEY `idx_user_id` (`user_id`),
+                      KEY `idx_type` (`type`),
+                      KEY `idx_is_read` (`is_read`),
+                      KEY `idx_created_at` (`created_at`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ";
+                $conn->query($sql);
+            }
+        }
         
-        // إرسال إشعار متصفح إذا كان المستخدم المذكور متصلاً
-        // سيتم التعامل معه من خلال Long Polling
+        // إنشاء معرف فريد للإشعار
+        $notificationId = generateId();
         
-        error_log("Mention notification: User {$mentionedUserId} mentioned by {$senderName} in message {$messageId}");
+        // تقصير الرسالة إذا كانت طويلة
+        $shortMessage = mb_strlen($message) > 100 ? mb_substr($message, 0, 100) . '...' : $message;
+        
+        // حفظ الإشعار في قاعدة البيانات
+        $result = dbExecute("
+            INSERT INTO notifications (id, user_id, type, title, message, related_id, is_read, created_at)
+            VALUES (?, ?, 'mention', ?, ?, ?, 0, NOW())
+        ", [
+            $notificationId,
+            $mentionedUserId,
+            "تم ذكرك في الشات",
+            "تم ذكرك في الشات بواسطة {$senderName}: {$shortMessage}",
+            $messageId
+        ]);
+        
+        if ($result) {
+            error_log("✅ تم حفظ إشعار mention: User {$mentionedUserId} mentioned by {$senderName} in message {$messageId}");
+        } else {
+            error_log("❌ فشل حفظ إشعار mention: User {$mentionedUserId} mentioned by {$senderName}");
+        }
         
     } catch (Exception $e) {
         error_log('خطأ في إرسال إشعار mention: ' . $e->getMessage());

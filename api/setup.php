@@ -406,6 +406,24 @@ function setupDatabase() {
               KEY `idx_user_id` (`user_id`),
               KEY `idx_reaction_type` (`reaction_type`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'notifications' => "
+            CREATE TABLE IF NOT EXISTS `notifications` (
+              `id` varchar(50) NOT NULL,
+              `user_id` varchar(50) NOT NULL,
+              `type` varchar(50) NOT NULL DEFAULT 'mention',
+              `title` varchar(255) NOT NULL,
+              `message` text NOT NULL,
+              `related_id` varchar(50) DEFAULT NULL,
+              `is_read` tinyint(1) DEFAULT 0,
+              `created_at` datetime NOT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_user_id` (`user_id`),
+              KEY `idx_type` (`type`),
+              KEY `idx_is_read` (`is_read`),
+              KEY `idx_created_at` (`created_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         "
     ];
     
@@ -433,7 +451,8 @@ function setupDatabase() {
         'chat_rooms',
         'chat_participants',
         'chat_messages',
-        'chat_reactions'
+        'chat_reactions',
+        'notifications'
     ];
     
     foreach ($tableOrder as $tableName) {
