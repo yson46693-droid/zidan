@@ -14,7 +14,6 @@ function loadRepairsSection() {
     const section = document.getElementById('repairs-section');
     section.innerHTML = `
         <div class="section-header">
-            <h2><i class="bi bi-tools"></i> عمليات الصيانة</h2>
             <div class="header-actions">
                 <button onclick="openBarcodeScanner()" class="btn btn-info btn-sm">
                     <i class="bi bi-upc-scan"></i> قارئ الباركود
