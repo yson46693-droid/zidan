@@ -91,16 +91,13 @@
         })();
     </script>
     
-    <!-- Critical CSS - تحميل فوري مع preload -->
-    <link rel="preload" href="css/style.css" as="style">
+    <!-- Critical CSS - تحميل فوري -->
     <link rel="stylesheet" href="css/style.css">
     
     <!-- Loading Overlay CSS - Splash Screen للتحميل -->
-    <link rel="preload" href="css/loading-overlay.css" as="style">
     <link rel="stylesheet" href="css/loading-overlay.css">
     
     <!-- Splash Screen CSS - تحميل فوري (لصفحة تسجيل الدخول فقط) -->
-    <link rel="preload" href="css/splash-screen.css" as="style">
     <link rel="stylesheet" href="css/splash-screen.css">
     
     <!-- Security CSS - تحميل متأخر (non-blocking) -->
@@ -114,6 +111,12 @@
     <!-- Bootstrap Icons - تحميل متأخر (non-blocking) -->
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
+    
+    <!-- Preload Critical JS Files - في head للتحميل المبكر -->
+    <link rel="preload" href="js/api.js" as="script">
+    <link rel="preload" href="js/utils.js" as="script">
+    <link rel="preload" href="js/loading-overlay.js" as="script">
+    <link rel="preload" href="js/auth.js" as="script">
     
     <!-- أنماط فورية لضمان عرض العناصر بشكل صحيح -->
     <style>
@@ -265,12 +268,6 @@
         </div>
     </div>
 
-    <!-- Preload Critical JS Files -->
-    <link rel="preload" href="js/api.js" as="script">
-    <link rel="preload" href="js/utils.js" as="script">
-    <link rel="preload" href="js/loading-overlay.js" as="script">
-    <link rel="preload" href="js/auth.js" as="script">
-    
     <script src="js/api.js"></script>
     <script src="js/utils.js"></script>
     <!-- تحميل Splash Screen أولاً (لصفحة تسجيل الدخول فقط) -->
