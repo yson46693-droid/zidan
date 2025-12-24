@@ -642,153 +642,161 @@ async function sendMessage() {
 }
 
 
-// Server-Sent Events (SSE) - بديل أفضل لـ Long Polling
+// نظام محسّن: فتح اتصال SSE فقط عند وجود رسالة جديدة
 let eventSource = null;
+let checkInterval = null;
 
 function startLongPolling() {
     if (longPollingActive) return;
     
     longPollingActive = true;
-    startSSE();
+    startPeriodicCheck();
 }
 
-function startSSE() {
+/**
+ * فحص دوري للإشعارات المعلقة (كل 10 ثواني)
+ * عند وجود إشعار معلق، يتم فتح اتصال SSE مؤقت لجلب الرسائل
+ */
+function startPeriodicCheck() {
+    if (!longPollingActive) return;
+    
+    // فحص فوري أولاً
+    checkForNewMessages();
+    
+    // ثم فحص دوري كل 10 ثواني
+    checkInterval = setInterval(() => {
+        if (longPollingActive) {
+            checkForNewMessages();
+        } else {
+            clearInterval(checkInterval);
+            checkInterval = null;
+        }
+    }, 10000); // كل 10 ثواني
+}
+
+/**
+ * التحقق من وجود رسائل جديدة عبر الإشعارات المعلقة
+ */
+async function checkForNewMessages() {
     if (!longPollingActive) return;
     
     try {
-        // إغلاق الاتصال السابق إذا كان موجوداً
-        if (eventSource) {
-            eventSource.close();
-            eventSource = null;
+        // فتح اتصال SSE مؤقت فقط عند وجود إشعار معلق
+        // نستخدم listen.php للتحقق من الإشعارات المعلقة
+        const url = `api/listen.php?last_id=${lastMessageId}`;
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'X-Silent-Request': 'true'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
         
-        // إنشاء اتصال SSE جديد
-        const url = `api/sse.php?last_id=${lastMessageId}`;
-        eventSource = new EventSource(url);
+        const result = await response.json();
         
-        // معالجة الرسائل الواردة
-        eventSource.onmessage = function(event) {
-            try {
-                const data = JSON.parse(event.data);
-                
-                if (data.type === 'messages' && data.data && data.data.length > 0) {
-                    // إضافة الرسائل الجديدة
-                    let hasNewMessages = false;
-                    let unreadCount = 0;
-                    
-                    data.data.forEach(newMessage => {
-                        // تجنب التكرار (بما في ذلك الرسائل المؤقتة)
-                        const existingMessage = messages.find(m => m.id === newMessage.id || (m.id && m.id.startsWith('temp-') && newMessage.user_id === m.user_id && newMessage.message === m.message));
-                        
-                        if (!existingMessage) {
-                            messages.push(newMessage);
-                            hasNewMessages = true;
-                            // تحديث lastMessageId إلى آخر رسالة
-                            if (newMessage.id > lastMessageId || lastMessageId === '') {
-                                lastMessageId = newMessage.id;
-                            }
-                            // حساب الرسائل غير المقروءة (رسائل من مستخدمين آخرين بعد آخر رسالة مقروءة)
-                            if (newMessage.user_id !== currentUser.id && 
-                                (lastReadMessageId === '' || newMessage.id > lastReadMessageId)) {
-                                unreadCount++;
-                            }
-                        } else if (existingMessage.id && existingMessage.id.startsWith('temp-')) {
-                            // استبدال الرسالة المؤقتة بالرسالة الحقيقية
-                            const tempIndex = messages.indexOf(existingMessage);
-                            if (tempIndex !== -1) {
-                                messages[tempIndex] = newMessage;
-                                hasNewMessages = true;
-                                // تحديث lastMessageId
-                                if (newMessage.id > lastMessageId || lastMessageId === '') {
-                                    lastMessageId = newMessage.id;
-                                }
-                            }
-                        }
-                    });
-                    
-                    if (hasNewMessages) {
-                        // إعادة ترتيب الرسائل حسب id
-                        messages.sort((a, b) => {
-                            // الرسائل المؤقتة تأتي أولاً
-                            if (a.id && a.id.startsWith('temp-') && !(b.id && b.id.startsWith('temp-'))) return -1;
-                            if (b.id && b.id.startsWith('temp-') && !(a.id && a.id.startsWith('temp-'))) return 1;
-                            // ترتيب حسب id
-                            if (a.id < b.id) return -1;
-                            if (a.id > b.id) return 1;
-                            return 0;
-                        });
-                        
-                        renderMessages();
-                        
-                        // تحديث العداد إذا كان المستخدم ليس في صفحة الشات
-                        if (!document.location.pathname.includes('chat.html')) {
-                            const unreadCount = calculateUnreadCount();
-                            updateUnreadBadge(unreadCount);
-                        }
-                    }
-                    
-                    // عرض إشعار إذا كان التاب مخفي
-                    if (document.hidden) {
-                        data.data.forEach(message => {
-                            if (message.user_id !== currentUser.id) {
-                                showBrowserNotification(message);
-                            }
-                        });
-                    }
-                } else if (data.type === 'connected') {
-                    console.log('✅ تم الاتصال بـ SSE بنجاح');
-                } else if (data.type === 'heartbeat') {
-                    // Heartbeat - لا حاجة للقيام بأي شيء
-                } else if (data.type === 'closed') {
-                    console.log('⚠️ تم إغلاق اتصال SSE');
-                    // إعادة الاتصال بعد 2 ثانية
-                    if (longPollingActive) {
-                        setTimeout(() => startSSE(), 2000);
-                    }
-                } else if (data.type === 'error') {
-                    console.error('❌ خطأ في SSE:', data.message);
-                    // إعادة الاتصال بعد 2 ثانية
-                    if (longPollingActive) {
-                        setTimeout(() => startSSE(), 2000);
-                    }
-                }
-            } catch (error) {
-                console.error('خطأ في معالجة رسالة SSE:', error);
-            }
-        };
-        
-        // معالجة الأخطاء
-        eventSource.onerror = function(error) {
-            console.error('خطأ في اتصال SSE:', error);
-            
-            // إغلاق الاتصال الحالي
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
-            }
-            
-            // إعادة المحاولة بعد 2 ثانية
-            if (longPollingActive) {
-                setTimeout(() => startSSE(), 2000);
-            }
-        };
+        if (result && result.success && result.data && result.data.length > 0) {
+            // معالجة الرسائل الجديدة
+            processNewMessages(result.data);
+        }
         
     } catch (error) {
-        console.error('خطأ في بدء SSE:', error);
+        if (error.name === 'AbortError') {
+            return; // تم إلغاء الطلب
+        }
         
-        // إعادة المحاولة بعد 2 ثانية
-        if (longPollingActive) {
-            setTimeout(() => startSSE(), 2000);
+        console.error('خطأ في فحص الرسائل الجديدة:', error);
+        // لا نعيد المحاولة فوراً - سنحاول في الفحص الدوري التالي
+    }
+}
+
+/**
+ * معالجة الرسائل الجديدة
+ */
+function processNewMessages(newMessagesArray) {
+    let hasNewMessages = false;
+    let unreadCount = 0;
+    
+    newMessagesArray.forEach(newMessage => {
+        // تجنب التكرار (بما في ذلك الرسائل المؤقتة)
+        const existingMessage = messages.find(m => m.id === newMessage.id || (m.id && m.id.startsWith('temp-') && newMessage.user_id === m.user_id && newMessage.message === m.message));
+        
+        if (!existingMessage) {
+            messages.push(newMessage);
+            hasNewMessages = true;
+            // تحديث lastMessageId إلى آخر رسالة
+            if (newMessage.id > lastMessageId || lastMessageId === '') {
+                lastMessageId = newMessage.id;
+            }
+            // حساب الرسائل غير المقروءة (رسائل من مستخدمين آخرين بعد آخر رسالة مقروءة)
+            if (newMessage.user_id !== currentUser.id && 
+                (lastReadMessageId === '' || newMessage.id > lastReadMessageId)) {
+                unreadCount++;
+            }
+        } else if (existingMessage.id && existingMessage.id.startsWith('temp-')) {
+            // استبدال الرسالة المؤقتة بالرسالة الحقيقية
+            const tempIndex = messages.indexOf(existingMessage);
+            if (tempIndex !== -1) {
+                messages[tempIndex] = newMessage;
+                hasNewMessages = true;
+                // تحديث lastMessageId
+                if (newMessage.id > lastMessageId || lastMessageId === '') {
+                    lastMessageId = newMessage.id;
+                }
+            }
+        }
+    });
+    
+    if (hasNewMessages) {
+        // إعادة ترتيب الرسائل حسب id
+        messages.sort((a, b) => {
+            // الرسائل المؤقتة تأتي أولاً
+            if (a.id && a.id.startsWith('temp-') && !(b.id && b.id.startsWith('temp-'))) return -1;
+            if (b.id && b.id.startsWith('temp-') && !(a.id && a.id.startsWith('temp-'))) return 1;
+            // ترتيب حسب id
+            if (a.id < b.id) return -1;
+            if (a.id > b.id) return 1;
+            return 0;
+        });
+        
+        renderMessages();
+        
+        // تحديث العداد إذا كان المستخدم ليس في صفحة الشات
+        if (!document.location.pathname.includes('chat.html')) {
+            const unreadCount = calculateUnreadCount();
+            updateUnreadBadge(unreadCount);
+        }
+        
+        // عرض إشعار إذا كان التاب مخفي
+        if (document.hidden) {
+            newMessagesArray.forEach(message => {
+                if (message.user_id !== currentUser.id) {
+                    showBrowserNotification(message);
+                }
+            });
         }
     }
 }
 
 function stopLongPolling() {
     longPollingActive = false;
+    
+    // إيقاف الفحص الدوري
+    if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+    }
+    
+    // إغلاق اتصال SSE إذا كان مفتوحاً
     if (eventSource) {
         eventSource.close();
         eventSource = null;
     }
+    
     if (longPollingAbortController) {
         longPollingAbortController.abort();
         longPollingAbortController = null;

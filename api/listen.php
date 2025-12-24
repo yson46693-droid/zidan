@@ -21,8 +21,9 @@ try {
     updateUserActivity($userId);
     
     // التحقق من وجود إشعارات معلقة أولاً (نظام محسّن)
+    // عند وجود إشعار معلق، يتم إرجاع الرسائل فوراً بدون انتظار
     $pendingNotification = checkPendingNotification($userId);
-    if ($pendingNotification) {
+    if ($pendingNotification && isset($pendingNotification['message_id'])) {
         // يوجد إشعار معلق - جلب الرسائل الجديدة فوراً
         $newMessages = getNewMessages($lastId);
         if (!empty($newMessages)) {
@@ -33,49 +34,8 @@ try {
         }
     }
     
-    // إعداد timeout 20 ثانية
-    set_time_limit(25); // 20 ثانية + 5 ثواني buffer
-    ignore_user_abort(false);
-    
-    // Long Polling loop محسّن - فحص أقل تكراراً
-    $maxIterations = 20; // 20 ثانية = 20 * sleep(1)
-    $iteration = 0;
-    
-    while ($iteration < $maxIterations) {
-        // التحقق من الإشعارات المعلقة أولاً (أسرع)
-        $pendingNotification = checkPendingNotification($userId);
-        if ($pendingNotification) {
-            // يوجد إشعار معلق - جلب الرسائل فوراً
-            $newMessages = getNewMessages($lastId);
-            if (!empty($newMessages)) {
-                clearPendingNotifications($userId, $pendingNotification['message_id']);
-                response(true, 'تم جلب الرسائل بنجاح', $newMessages);
-                return;
-            }
-        }
-        
-        // البحث عن رسائل جديدة بعد last_id (فحص أقل تكراراً)
-        if ($iteration % 2 === 0) { // فحص كل ثانيتين بدلاً من كل ثانية
-            $newMessages = getNewMessages($lastId);
-            
-            if (!empty($newMessages)) {
-                // تم العثور على رسائل جديدة - إرجاعها فوراً
-                response(true, 'تم جلب الرسائل بنجاح', $newMessages);
-                return; // إنهاء التنفيذ بعد إرجاع الرسائل
-            }
-        }
-        
-        // انتظار ثانية واحدة قبل المحاولة التالية
-        sleep(1);
-        $iteration++;
-        
-        // التحقق من انقطاع الاتصال
-        if (connection_aborted()) {
-            exit;
-        }
-    }
-    
-    // انتهى الوقت - إرجاع array فارغ
+    // إذا لم يكن هناك إشعار معلق، إرجاع array فارغ فوراً
+    // لا حاجة لـ long polling - المستخدمون يفحصون كل 10 ثواني
     response(true, 'لا توجد رسائل جديدة', []);
     
 } catch (Exception $e) {
