@@ -1753,6 +1753,25 @@
                     });
                 }
                 
+                // تحميل product-returns مباشرة إذا كان القسم المطلوب
+                if (section === 'product-returns') {
+                    if (typeof loadProductReturnsSection !== 'function') {
+                        console.log('تحميل product-returns.js...');
+                        loadScriptOnDemand('product-returns-script').then(() => {
+                            console.log('تم تحميل product-returns.js بنجاح');
+                            if (typeof loadProductReturnsSection === 'function') {
+                                loadProductReturnsSection();
+                            } else {
+                                console.error('loadProductReturnsSection غير متوفرة بعد تحميل الملف');
+                            }
+                        }).catch(err => {
+                            console.error('خطأ في تحميل product-returns.js:', err);
+                        });
+                    } else {
+                        loadProductReturnsSection();
+                    }
+                }
+                
                 // إذا كان القسم فارغاً أو لا يحتوي على محتوى كافٍ، نعيد تحميله
                 if (!hasContent || !hasMinContent) {
                     console.log(`⚠️ القسم ${section} فارغ أو لا يحتوي على محتوى كافٍ (${targetSection.innerHTML.trim().length} حرف)، إعادة تحميل...`);
@@ -1769,19 +1788,6 @@
                             loadExpensesSection();
                         } else if (section === 'reports' && typeof loadReportsSection === 'function') {
                             loadReportsSection();
-                        } else if (section === 'product-returns') {
-                            // تحميل product-returns.js إذا لم يكن محملاً
-                            if (typeof loadProductReturnsSection !== 'function') {
-                                loadScriptOnDemand('product-returns-script').then(() => {
-                                    if (typeof loadProductReturnsSection === 'function') {
-                                        loadProductReturnsSection();
-                                    }
-                                }).catch(err => {
-                                    console.error('خطأ في تحميل product-returns.js:', err);
-                                });
-                            } else {
-                                loadProductReturnsSection();
-                            }
                         } else {
                             // إذا لم تكن الدالة متوفرة، ننتظر قليلاً ثم نحاول مرة أخرى
                             setTimeout(() => {
@@ -1789,7 +1795,6 @@
                             }, 500);
                         }
                     }, reloadDelay);
-                }
             } else {
                 console.warn('القسم غير موجود:', section);
                 // إعادة تحميل القسم إذا لم يكن موجوداً
@@ -1805,10 +1810,14 @@
                     loadReportsSection();
                 } else if (section === 'product-returns') {
                     // تحميل product-returns.js إذا لم يكن محملاً
+                    console.log('القسم غير موجود، تحميل product-returns.js...');
                     if (typeof loadProductReturnsSection !== 'function') {
                         loadScriptOnDemand('product-returns-script').then(() => {
+                            console.log('تم تحميل product-returns.js بنجاح');
                             if (typeof loadProductReturnsSection === 'function') {
                                 loadProductReturnsSection();
+                            } else {
+                                console.error('loadProductReturnsSection غير متوفرة بعد تحميل الملف');
                             }
                         }).catch(err => {
                             console.error('خطأ في تحميل product-returns.js:', err);
