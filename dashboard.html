@@ -1536,7 +1536,7 @@
         }
 
         // عرض قسم معين
-        function showSection(section, skipSave = false) {
+        window.showSection = function(section, skipSave = false) {
             console.log(`📄 عرض القسم: ${section}, isReturningFromPOS: ${isReturningFromPOS}`);
             
             // التحقق من الصلاحيات
