@@ -223,7 +223,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .header-actions .btn-icon {
@@ -266,6 +266,7 @@ body {
 @media (max-width: 768px) {
     .header-actions {
         gap: 8px;
+        flex-wrap: nowrap;
     }
     
     .header-actions .btn-icon {
