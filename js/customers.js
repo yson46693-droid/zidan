@@ -402,9 +402,23 @@ async function viewCustomerProfile(customerId) {
             sales.forEach((sale, index) => {
                 console.log(`  ${index + 1}. فاتورة ${sale.sale_number || sale.id}: ${sale.items?.length || 0} عنصر، المبلغ: ${sale.final_amount || sale.total_amount || 0}`);
             });
+            
+            // التحقق من أن جميع الفواتير صالحة
+            const validSales = sales.filter(sale => sale && sale.id);
+            if (validSales.length !== sales.length) {
+                console.warn(`⚠️ تحذير: ${sales.length - validSales.length} فاتورة غير صالحة تمت إزالتها`);
+                sales = validSales;
+            }
         } else {
             console.warn('⚠️ لا توجد فواتير للعرض');
+            console.warn('⚠️ تحقق من:');
+            console.warn('  1. هل العميل لديه فواتير في قاعدة البيانات؟');
+            console.warn('  2. هل customer_id في الفواتير يطابق customerId؟');
+            console.warn('  3. هل customer_phone في الفواتير يطابق رقم هاتف العميل؟');
         }
+        
+        // حفظ نسخة من sales للتحقق لاحقاً
+        window._debugCustomerSales = sales;
         
         // حساب إجمالي المشتريات مع error handling
         const totalPurchases = sales.reduce((sum, sale) => {
@@ -652,8 +666,27 @@ async function viewCustomerProfile(customerId) {
             window.currentSalesPage = 1;
             window.salesPerPage = 5;
             
-            // عرض المبيعات مع pagination
-            displaySalesWithPagination(sales);
+            console.log('🔍 قبل استدعاء displaySalesWithPagination:');
+            console.log('  - عدد الفواتير:', sales.length);
+            console.log('  - window.currentCustomerSales:', window.currentCustomerSales?.length);
+            console.log('  - window.currentSalesPage:', window.currentSalesPage);
+            console.log('  - window.salesPerPage:', window.salesPerPage);
+            
+            // التأكد من أن sales ليس فارغاً قبل العرض
+            if (sales && sales.length > 0) {
+                console.log('✅ استدعاء displaySalesWithPagination مع', sales.length, 'فاتورة');
+                // استخدام setTimeout لضمان أن DOM جاهز
+                setTimeout(() => {
+                    displaySalesWithPagination(sales);
+                }, 100);
+            } else {
+                console.warn('⚠️ لا توجد فواتير للعرض - sales فارغ أو length = 0');
+                // عرض رسالة في الجدول
+                const tbody = document.getElementById('customerSalesTableBody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مسجلة لهذا العميل</td></tr>';
+                }
+            }
             
             // إضافة event listeners للبحث (لحظي بدون debounce)
             const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
@@ -1574,26 +1607,80 @@ async function saveCustomerRatingUpdate(customerId) {
 
 // عرض المبيعات مع pagination
 function displaySalesWithPagination(allSales) {
+    console.log('🚀 displaySalesWithPagination called with:', {
+        allSalesLength: allSales?.length,
+        allSalesType: typeof allSales,
+        isArray: Array.isArray(allSales),
+        windowCurrentCustomerSales: window.currentCustomerSales?.length
+    });
+    
     const tbody = document.getElementById('customerSalesTableBody');
     if (!tbody) {
         console.error('❌ customerSalesTableBody not found');
+        console.error('❌ تحقق من أن الجدول تم إنشاؤه قبل استدعاء displaySalesWithPagination');
         return;
     }
     
     // Error handling: التأكد من أن allSales هو array
     if (!Array.isArray(allSales)) {
         console.error('❌ allSales is not an array:', allSales);
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ في عرض البيانات</td></tr>';
+        console.error('❌ allSales type:', typeof allSales);
+        console.error('❌ allSales value:', allSales);
+        
+        // محاولة استخدام window.currentCustomerSales كبديل
+        if (Array.isArray(window.currentCustomerSales)) {
+            console.warn('⚠️ استخدام window.currentCustomerSales كبديل');
+            allSales = window.currentCustomerSales;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ في عرض البيانات: البيانات غير صحيحة</td></tr>';
+            return;
+        }
+    }
+    
+    // التأكد من أن allSales ليس null أو undefined
+    if (!allSales) {
+        console.error('❌ allSales is null or undefined');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ: لا توجد بيانات للعرض</td></tr>';
         return;
     }
     
     console.log(`📊 عرض ${allSales.length} فاتورة (الصفحة ${window.currentSalesPage || 1})`);
+    console.log('📊 بيانات allSales:', allSales);
     
-    const paginated = paginate(allSales, window.currentSalesPage || 1, window.salesPerPage || 5);
+    // التأكد من أن paginate function موجودة
+    if (typeof paginate !== 'function') {
+        console.error('❌ paginate function is not defined!');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ: دالة paginate غير موجودة</td></tr>';
+        return;
+    }
+    
+    const currentPage = window.currentSalesPage || 1;
+    const perPage = window.salesPerPage || 5;
+    
+    console.log(`📊 Pagination settings: page=${currentPage}, perPage=${perPage}`);
+    
+    const paginated = paginate(allSales, currentPage, perPage);
+    
+    console.log('📊 Paginated result:', {
+        dataLength: paginated.data.length,
+        totalPages: paginated.totalPages,
+        totalItems: paginated.totalItems,
+        currentPage: paginated.currentPage
+    });
     
     if (paginated.data.length === 0) {
         console.warn('⚠️ لا توجد فواتير للعرض في هذه الصفحة');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد فواتير</td></tr>';
+        console.warn('⚠️ allSales.length:', allSales.length);
+        console.warn('⚠️ currentPage:', currentPage);
+        console.warn('⚠️ perPage:', perPage);
+        
+        // إذا كان هناك فواتير لكن لا توجد في هذه الصفحة
+        if (allSales.length > 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير في الصفحة ${currentPage} من ${paginated.totalPages}</td></tr>`;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مسجلة لهذا العميل</td></tr>';
+        }
+        
         const paginationContainer = document.getElementById('customerSalesPagination');
         if (paginationContainer) {
             paginationContainer.innerHTML = '';
@@ -1605,8 +1692,17 @@ function displaySalesWithPagination(allSales) {
     
     // بناء HTML للفواتير
     const fragment = document.createDocumentFragment();
-    paginated.data.forEach(sale => {
+    console.log('🔨 بدء بناء HTML للفواتير...');
+    
+    paginated.data.forEach((sale, index) => {
         try {
+            console.log(`🔨 معالجة فاتورة ${index + 1}/${paginated.data.length}:`, {
+                id: sale.id,
+                sale_number: sale.sale_number,
+                items_count: sale.items?.length || 0,
+                final_amount: sale.final_amount
+            });
+            
             const saleNumber = sale.sale_number || sale.id || 'غير محدد';
             const items = sale.items && Array.isArray(sale.items) ? sale.items : [];
             const itemsCount = items.length;
@@ -1666,13 +1762,19 @@ function displaySalesWithPagination(allSales) {
                 </td>
             `;
             fragment.appendChild(row);
+            console.log(`✅ تم إضافة صف للفاتورة ${saleNumber}`);
         } catch (error) {
-            console.error('خطأ في معالجة فاتورة:', error, sale);
+            console.error('❌ خطأ في معالجة فاتورة:', error, sale);
         }
     });
     
+    console.log(`🔨 تم بناء ${fragment.children.length} صف في fragment`);
+    
+    // مسح tbody وإضافة fragment
     tbody.innerHTML = '';
     tbody.appendChild(fragment);
+    
+    console.log(`✅ تم إضافة ${tbody.children.length} صف إلى tbody`);
     
     // عرض pagination
     const paginationContainer = document.getElementById('customerSalesPagination');

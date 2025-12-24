@@ -146,10 +146,42 @@ function getNewMessages($lastId) {
 }
 
 /**
+ * التأكد من وجود جدول active_users
+ */
+function ensureActiveUsersTable() {
+    if (!dbTableExists('active_users')) {
+        $conn = getDBConnection();
+        if ($conn) {
+            $sql = "
+                CREATE TABLE IF NOT EXISTS `active_users` (
+                  `user_id` varchar(50) NOT NULL,
+                  `last_activity` datetime NOT NULL,
+                  `is_online` tinyint(1) DEFAULT 1,
+                  PRIMARY KEY (`user_id`),
+                  KEY `idx_last_activity` (`last_activity`),
+                  KEY `idx_is_online` (`is_online`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ";
+            if (!$conn->query($sql)) {
+                error_log("خطأ في إنشاء جدول active_users: " . $conn->error);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
  * تحديث حالة النشاط للمستخدم
  */
 function updateUserActivity($userId) {
     try {
+        // التأكد من وجود الجدول أولاً
+        if (!ensureActiveUsersTable()) {
+            error_log('فشل في التأكد من وجود جدول active_users');
+            return;
+        }
+        
         // التحقق من وجود المستخدم في active_users
         $existing = dbSelectOne("SELECT * FROM active_users WHERE user_id = ?", [$userId]);
         
