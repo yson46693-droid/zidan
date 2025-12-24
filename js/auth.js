@@ -256,6 +256,35 @@ function hideByPermission() {
         document.querySelectorAll('[data-permission="manager"]').forEach(el => {
             el.style.display = 'none';
         });
+        
+        // للموظف: إخفاء جميع العناصر عدا (الصيانة، المخزون، نقاط البيع، الشات)
+        // إخفاء لوحة التحكم
+        const dashboardLinks = document.querySelectorAll('a[href="#dashboard"]');
+        dashboardLinks.forEach(link => {
+            if (link.closest('.sidebar-nav') || link.closest('.mobile-nav-container')) {
+                link.style.display = 'none';
+            }
+        });
+        
+        // إخفاء العملاء
+        const customersLinks = document.querySelectorAll('a[href="#customers"]');
+        customersLinks.forEach(link => {
+            if (link.closest('.sidebar-nav') || link.closest('.mobile-nav-container')) {
+                link.style.display = 'none';
+            }
+        });
+        
+        // إخفاء المصروفات
+        const expensesLinks = document.querySelectorAll('a[href="#expenses"]');
+        expensesLinks.forEach(link => {
+            if (link.closest('.sidebar-nav') || link.closest('.mobile-nav-container')) {
+                link.style.display = 'none';
+            }
+        });
+        
+        // إخفاء التقارير (موجود بالفعل في data-permission="manager")
+        // إخفاء الإعدادات (موجود بالفعل في data-permission="manager")
+        // إخفاء سجلات الأخطاء (موجود بالفعل في data-permission="manager")
     }
 }
 

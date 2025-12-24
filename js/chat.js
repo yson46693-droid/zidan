@@ -202,10 +202,14 @@ function createMessageElement(message) {
     }
     
     // عرض الرسالة الأصلية إذا كان رد
-    if (message.reply_to) {
+    if (message.reply_to && message.reply_to.id) {
         const replyPreview = document.createElement('div');
         replyPreview.className = 'message-reply-preview';
-        replyPreview.onclick = () => scrollToMessage(message.reply_to.id);
+        replyPreview.onclick = () => {
+            if (message.reply_to && message.reply_to.id) {
+                scrollToMessage(message.reply_to.id);
+            }
+        };
         
         const replyIcon = document.createElement('span');
         replyIcon.className = 'reply-icon';
@@ -216,7 +220,7 @@ function createMessageElement(message) {
         
         const replyUser = document.createElement('div');
         replyUser.className = 'reply-user';
-        replyUser.textContent = message.reply_to.username || 'مستخدم';
+        replyUser.textContent = (message.reply_to.username || 'مستخدم');
         
         const replyText = document.createElement('div');
         replyText.className = 'reply-text';
@@ -297,6 +301,12 @@ function setupEventListeners() {
     const emojiBtn = document.getElementById('emojiBtn');
     if (emojiBtn) {
         emojiBtn.addEventListener('click', toggleEmojiPicker);
+    }
+    
+    // زر المرفقات
+    const attachBtn = document.getElementById('attachBtn');
+    if (attachBtn) {
+        attachBtn.addEventListener('click', toggleAttachMenu);
     }
     
     // أيقونة الإشعارات
@@ -1098,6 +1108,138 @@ function updateCurrentUserSection() {
 function toggleEmojiPicker() {
     // TODO: تنفيذ منتقي الإيموجي
     showMessage('ميزة الإيموجي قيد التطوير', 'info');
+}
+
+// قائمة المرفقات
+function toggleAttachMenu() {
+    let attachMenu = document.getElementById('attachMenu');
+    
+    if (!attachMenu) {
+        // إنشاء قائمة المرفقات
+        attachMenu = document.createElement('div');
+        attachMenu.id = 'attachMenu';
+        attachMenu.className = 'attach-menu';
+        
+        // زر الملفات
+        const fileItem = document.createElement('button');
+        fileItem.className = 'attach-menu-item';
+        fileItem.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>ملف</span>
+        `;
+        fileItem.onclick = () => {
+            attachMenu.style.display = 'none';
+            attachFile();
+        };
+        
+        // زر الصور
+        const imageItem = document.createElement('button');
+        imageItem.className = 'attach-menu-item';
+        imageItem.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            <span>صورة</span>
+        `;
+        imageItem.onclick = () => {
+            attachMenu.style.display = 'none';
+            attachImage();
+        };
+        
+        // زر الكاميرا
+        const cameraItem = document.createElement('button');
+        cameraItem.className = 'attach-menu-item';
+        cameraItem.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            <span>كاميرا</span>
+        `;
+        cameraItem.onclick = () => {
+            attachMenu.style.display = 'none';
+            openCamera();
+        };
+        
+        attachMenu.appendChild(fileItem);
+        attachMenu.appendChild(imageItem);
+        attachMenu.appendChild(cameraItem);
+        
+        document.body.appendChild(attachMenu);
+        
+        // إغلاق القائمة عند النقر خارجها
+        document.addEventListener('click', (e) => {
+            if (!attachMenu.contains(e.target) && e.target.id !== 'attachBtn' && !e.target.closest('#attachBtn')) {
+                attachMenu.style.display = 'none';
+            }
+        });
+    }
+    
+    // تبديل عرض القائمة
+    if (attachMenu.style.display === 'none' || !attachMenu.style.display) {
+        attachMenu.style.display = 'flex';
+    } else {
+        attachMenu.style.display = 'none';
+    }
+}
+
+// إرفاق ملف
+function attachFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '*/*';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            showMessage('ميزة إرسال الملفات قيد التطوير', 'info');
+            // TODO: تنفيذ إرسال الملفات
+        }
+    };
+    input.click();
+}
+
+// إرفاق صورة
+function attachImage() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            showMessage('ميزة إرسال الصور قيد التطوير', 'info');
+            // TODO: تنفيذ إرسال الصور
+        }
+    };
+    input.click();
+}
+
+// فتح الكاميرا
+function openCamera() {
+    try {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment'; // استخدام الكاميرا الخلفية
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                showMessage('ميزة الكاميرا قيد التطوير', 'info');
+                // TODO: تنفيذ الكاميرا
+            }
+        };
+        input.click();
+    } catch (error) {
+        console.error('خطأ في فتح الكاميرا:', error);
+        showMessage('حدث خطأ في فتح الكاميرا', 'error');
+    }
 }
 
 async function handleLogout() {

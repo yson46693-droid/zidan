@@ -346,6 +346,7 @@ body {
     flex-direction: column;
     gap: 5px;
     position: relative;
+    min-width: 0;
 }
 
 .user-message .message-content {
@@ -382,6 +383,9 @@ body {
     position: relative;
     box-shadow: var(--shadow);
     line-height: 1.5;
+    width: fit-content;
+    max-width: 100%;
+    min-width: 60px;
 }
 
 .message:not(.user-message) .message-bubble {
