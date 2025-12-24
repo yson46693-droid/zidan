@@ -9,12 +9,13 @@ let messages = [];
 let lastMessageId = '';
 let longPollingActive = false;
 let longPollingAbortController = null;
-let replyingToMessageId = null;
-let replyingToMessage = null; // حفظ معلومات الرسالة الأصلية
 let notifications = [];
 let pushSubscription = null;
 let activityUpdateInterval = null;
 let usersActivity = {};
+let allUsers = []; // قائمة جميع المستخدمين للـ mention
+let mentionMenuVisible = false;
+let mentionStartPosition = -1;
 
 // منع التكبير بالضغط مرتين
 (function() {
@@ -201,47 +202,96 @@ function createMessageElement(message) {
         content.appendChild(header);
     }
     
-    // عرض الرسالة الأصلية إذا كان رد
-    if (message.reply_to && message.reply_to.id) {
-        const replyPreview = document.createElement('div');
-        replyPreview.className = 'message-reply-preview';
-        replyPreview.onclick = () => {
-            if (message.reply_to && message.reply_to.id) {
-                scrollToMessage(message.reply_to.id);
-            }
-        };
-        
-        const replyIcon = document.createElement('span');
-        replyIcon.className = 'reply-icon';
-        replyIcon.textContent = '↩️';
-        
-        const replyInfo = document.createElement('div');
-        replyInfo.className = 'reply-info';
-        
-        const replyUser = document.createElement('div');
-        replyUser.className = 'reply-user';
-        replyUser.textContent = (message.reply_to.username || 'مستخدم');
-        
-        const replyText = document.createElement('div');
-        replyText.className = 'reply-text';
-        const replyMessage = message.reply_to.message || 'رسالة';
-        replyText.textContent = replyMessage.length > 50 ? replyMessage.substring(0, 50) + '...' : replyMessage;
-        
-        replyInfo.appendChild(replyUser);
-        replyInfo.appendChild(replyText);
-        replyPreview.appendChild(replyIcon);
-        replyPreview.appendChild(replyInfo);
-        content.appendChild(replyPreview);
-    }
-    
     // Bubble
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     
-    const text = document.createElement('p');
-    text.className = 'message-text';
-    text.textContent = message.message;
-    bubble.appendChild(text);
+    // عرض الملف أو الصورة إذا كان موجوداً
+    if (message.file_path || message.file_type) {
+        const fileType = message.file_type || 'file';
+        let filePath = message.file_path || '';
+        
+        // إذا كان المسار نسبي، إضافة المسار الأساسي
+        if (filePath && !filePath.startsWith('http') && !filePath.startsWith('data:')) {
+            if (!filePath.startsWith('/')) {
+                filePath = '/' + filePath;
+            }
+        }
+        
+        if (fileType === 'image') {
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'image-message';
+            
+            const img = document.createElement('img');
+            img.src = filePath;
+            img.alt = 'صورة';
+            img.loading = 'lazy';
+            img.onerror = () => {
+                img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3Eفشل تحميل الصورة%3C/text%3E%3C/svg%3E';
+            };
+            
+            imageContainer.appendChild(img);
+            
+            if (message.message && message.message.trim() && message.message !== '📷 صورة') {
+                const caption = document.createElement('div');
+                caption.className = 'image-caption';
+                caption.textContent = message.message;
+                imageContainer.appendChild(caption);
+            }
+            
+            bubble.appendChild(imageContainer);
+        } else {
+            const fileContainer = document.createElement('div');
+            fileContainer.className = 'file-message';
+            
+            const fileLink = document.createElement('a');
+            fileLink.className = 'file-link';
+            fileLink.href = filePath;
+            fileLink.target = '_blank';
+            if (message.file_name) {
+                fileLink.download = message.file_name;
+            }
+            
+            const fileIcon = document.createElement('span');
+            fileIcon.textContent = '📎';
+            
+            const fileName = document.createElement('span');
+            fileName.textContent = message.file_name || 'ملف';
+            
+            fileLink.appendChild(fileIcon);
+            fileLink.appendChild(fileName);
+            fileContainer.appendChild(fileLink);
+            
+            if (message.message && message.message.trim() && !message.message.startsWith('📎 ملف:')) {
+                const fileText = document.createElement('div');
+                fileText.className = 'file-text';
+                fileText.textContent = message.message;
+                fileContainer.appendChild(fileText);
+            }
+            
+            bubble.appendChild(fileContainer);
+        }
+    } else {
+        // عرض النص العادي مع دعم الـ mentions
+        const textContainer = document.createElement('p');
+        textContainer.className = 'message-text';
+        
+        if (message.mentions && message.mentions.length > 0) {
+            // عرض النص مع تمييز الـ mentions
+            let displayText = message.message;
+            message.mentions.forEach(mention => {
+                const mentionPattern = new RegExp(`@${mention.name || mention.username || mention.user_id}`, 'g');
+                displayText = displayText.replace(mentionPattern, (match) => {
+                    return `<span class="mention-highlight">${match}</span>`;
+                });
+            });
+            textContainer.innerHTML = displayText;
+        } else {
+            textContainer.textContent = message.message;
+        }
+        
+        bubble.appendChild(textContainer);
+    }
     
     // Time
     const timeContainer = document.createElement('div');
@@ -261,20 +311,9 @@ function createMessageElement(message) {
         }
     }
     
-    // زر الرد (لجميع الرسائل)
-    const replyBtn = document.createElement('button');
-    replyBtn.className = 'message-reply-btn';
-    replyBtn.innerHTML = '↩️';
-    replyBtn.title = 'رد';
-    replyBtn.onclick = (e) => {
-        e.stopPropagation();
-        replyToMessage(message);
-    };
-    
     content.appendChild(bubble);
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(content);
-    messageDiv.appendChild(replyBtn);
     
     return messageDiv;
 }
@@ -295,6 +334,10 @@ function setupEventListeners() {
                 sendMessage();
             }
         });
+        
+        // كشف @ للـ mention
+        chatInput.addEventListener('input', handleMentionInput);
+        chatInput.addEventListener('keydown', handleMentionKeydown);
     }
     
     // زر الإيموجي
@@ -355,11 +398,17 @@ async function sendMessage() {
     const messageText = chatInput.value.trim();
     if (!messageText) return;
     
+    // إخفاء قائمة الـ mention
+    hideMentionMenu();
+    
     // التحقق من طول الرسالة
     if (messageText.length > 1000) {
         showMessage('الرسالة طويلة جداً. الحد الأقصى 1000 حرف', 'error');
         return;
     }
+    
+    // استخراج الـ mentions من الرسالة
+    const mentions = extractMentions(messageText);
     
     try {
         // إظهار الرسالة محلياً أولاً (optimistic update)
@@ -370,26 +419,17 @@ async function sendMessage() {
             message: messageText,
             created_at: new Date().toISOString(),
             isSending: true,
-            reply_to: replyingToMessage ? {
-                id: replyingToMessage.id,
-                username: replyingToMessage.username,
-                message: replyingToMessage.message
-            } : null
+            mentions: mentions
         };
         
         messages.push(tempMessage);
         renderMessages();
         chatInput.value = '';
-        clearReplyPreview();
         
         // إرسال الرسالة للخادم
         const result = await API.request('send_message.php', 'POST', {
             message: messageText,
-            reply_to: replyingToMessage ? {
-                id: replyingToMessage.id,
-                username: replyingToMessage.username,
-                message: replyingToMessage.message
-            } : null
+            mentions: mentions
         });
         
         if (result && result.success) {
@@ -419,79 +459,6 @@ async function sendMessage() {
     }
 }
 
-// الرد على رسالة
-function replyToMessage(message) {
-    replyingToMessageId = message.id;
-    replyingToMessage = {
-        id: message.id,
-        username: message.username || 'مستخدم',
-        message: message.message || 'رسالة'
-    };
-    showReplyPreview(message);
-    
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.focus();
-    }
-}
-
-// إظهار معاينة الرد
-function showReplyPreview(message) {
-    const existingPreview = document.getElementById('replyPreview');
-    if (existingPreview) {
-        existingPreview.remove();
-    }
-    
-    const preview = document.createElement('div');
-    preview.id = 'replyPreview';
-    preview.className = 'reply-preview';
-    
-    const previewContent = document.createElement('div');
-    previewContent.className = 'reply-preview-content';
-    
-    const previewInfo = document.createElement('div');
-    previewInfo.className = 'reply-preview-info';
-    
-    const previewUser = document.createElement('div');
-    previewUser.className = 'reply-preview-user';
-    previewUser.textContent = `رد على ${message.username || 'مستخدم'}`;
-    
-    const previewText = document.createElement('div');
-    previewText.className = 'reply-preview-text';
-    previewText.textContent = message.message || 'رسالة';
-    
-    previewInfo.appendChild(previewUser);
-    previewInfo.appendChild(previewText);
-    
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'reply-preview-close';
-    closeBtn.innerHTML = '×';
-    closeBtn.onclick = clearReplyPreview;
-    
-    previewContent.appendChild(previewInfo);
-    previewContent.appendChild(closeBtn);
-    preview.appendChild(previewContent);
-    
-    const chatInputContainer = document.querySelector('.chat-input-container');
-    if (chatInputContainer) {
-        const chatInputWrapper = chatInputContainer.querySelector('.chat-input-wrapper');
-        if (chatInputWrapper) {
-            chatInputContainer.insertBefore(preview, chatInputWrapper);
-        } else {
-            chatInputContainer.insertBefore(preview, chatInputContainer.firstChild);
-        }
-    }
-}
-
-// إزالة معاينة الرد
-function clearReplyPreview() {
-    replyingToMessageId = null;
-    replyingToMessage = null;
-    const preview = document.getElementById('replyPreview');
-    if (preview) {
-        preview.remove();
-    }
-}
 
 // Long Polling
 function startLongPolling() {
@@ -1104,10 +1071,53 @@ function updateCurrentUserSection() {
     `;
 }
 
-// منتقي الإيموجي (مبسط)
+// منتقي الإيموجي
 function toggleEmojiPicker() {
-    // TODO: تنفيذ منتقي الإيموجي
-    showMessage('ميزة الإيموجي قيد التطوير', 'info');
+    let emojiPicker = document.getElementById('emojiPicker');
+    
+    if (!emojiPicker) {
+        // إنشاء منتقي الإيموجي
+        emojiPicker = document.createElement('div');
+        emojiPicker.id = 'emojiPicker';
+        emojiPicker.className = 'emoji-picker';
+        
+        const emojiGrid = document.createElement('div');
+        emojiGrid.className = 'emoji-grid';
+        
+        // قائمة الإيموجي الشائعة
+        const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'];
+        
+        emojis.forEach(emoji => {
+            const emojiItem = document.createElement('button');
+            emojiItem.className = 'emoji-item';
+            emojiItem.textContent = emoji;
+            emojiItem.onclick = () => {
+                const chatInput = document.getElementById('chatInput');
+                if (chatInput) {
+                    chatInput.value += emoji;
+                    chatInput.focus();
+                }
+            };
+            emojiGrid.appendChild(emojiItem);
+        });
+        
+        emojiPicker.appendChild(emojiGrid);
+        document.body.appendChild(emojiPicker);
+        
+        // إغلاق منتقي الإيموجي عند النقر خارجه
+        document.addEventListener('click', (e) => {
+            if (!emojiPicker.contains(e.target) && e.target.id !== 'emojiBtn' && !e.target.closest('#emojiBtn')) {
+                emojiPicker.style.display = 'none';
+            }
+        });
+    }
+    
+    // تبديل عرض منتقي الإيموجي
+    if (emojiPicker.style.display === 'none' || !emojiPicker.style.display) {
+        emojiPicker.style.display = 'block';
+    } else {
+        emojiPicker.style.display = 'none';
+    }
 }
 
 // قائمة المرفقات
@@ -1196,11 +1206,30 @@ function attachFile() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '*/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            showMessage('ميزة إرسال الملفات قيد التطوير', 'info');
-            // TODO: تنفيذ إرسال الملفات
+            try {
+                // التحقق من حجم الملف (حد أقصى 10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    showMessage('حجم الملف كبير جداً. الحد الأقصى 10MB', 'error');
+                    return;
+                }
+                
+                // قراءة الملف كـ Base64
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const fileData = event.target.result;
+                    await sendFileMessage(fileData, 'file', file.name);
+                };
+                reader.onerror = () => {
+                    showMessage('حدث خطأ في قراءة الملف', 'error');
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('خطأ في إرسال الملف:', error);
+                showMessage('حدث خطأ في إرسال الملف', 'error');
+            }
         }
     };
     input.click();
@@ -1211,11 +1240,30 @@ function attachImage() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            showMessage('ميزة إرسال الصور قيد التطوير', 'info');
-            // TODO: تنفيذ إرسال الصور
+            try {
+                // التحقق من حجم الصورة (حد أقصى 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    showMessage('حجم الصورة كبير جداً. الحد الأقصى 5MB', 'error');
+                    return;
+                }
+                
+                // قراءة الصورة كـ Base64
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const fileData = event.target.result;
+                    await sendFileMessage(fileData, 'image', file.name);
+                };
+                reader.onerror = () => {
+                    showMessage('حدث خطأ في قراءة الصورة', 'error');
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('خطأ في إرسال الصورة:', error);
+                showMessage('حدث خطأ في إرسال الصورة', 'error');
+            }
         }
     };
     input.click();
@@ -1228,17 +1276,94 @@ function openCamera() {
         input.type = 'file';
         input.accept = 'image/*';
         input.capture = 'environment'; // استخدام الكاميرا الخلفية
-        input.onchange = (e) => {
+        input.onchange = async (e) => {
             const file = e.target.files[0];
             if (file) {
-                showMessage('ميزة الكاميرا قيد التطوير', 'info');
-                // TODO: تنفيذ الكاميرا
+                try {
+                    // التحقق من حجم الصورة (حد أقصى 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        showMessage('حجم الصورة كبير جداً. الحد الأقصى 5MB', 'error');
+                        return;
+                    }
+                    
+                    // قراءة الصورة كـ Base64
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const fileData = event.target.result;
+                        await sendFileMessage(fileData, 'image', file.name || 'camera.jpg');
+                    };
+                    reader.onerror = () => {
+                        showMessage('حدث خطأ في قراءة الصورة', 'error');
+                    };
+                    reader.readAsDataURL(file);
+                } catch (error) {
+                    console.error('خطأ في إرسال الصورة من الكاميرا:', error);
+                    showMessage('حدث خطأ في إرسال الصورة', 'error');
+                }
             }
         };
         input.click();
     } catch (error) {
         console.error('خطأ في فتح الكاميرا:', error);
         showMessage('حدث خطأ في فتح الكاميرا', 'error');
+    }
+}
+
+// إرسال رسالة مع ملف
+async function sendFileMessage(fileData, fileType, fileName) {
+    try {
+        const chatInput = document.getElementById('chatInput');
+        const messageText = chatInput ? chatInput.value.trim() : '';
+        
+        // إظهار الرسالة محلياً أولاً
+        const tempMessage = {
+            id: 'temp-' + Date.now(),
+            user_id: currentUser.id,
+            username: currentUser.name || currentUser.username,
+            message: messageText || (fileType === 'image' ? '📷 صورة' : '📎 ملف'),
+            created_at: new Date().toISOString(),
+            isSending: true,
+            file_path: fileData,
+            file_type: fileType,
+            file_name: fileName
+        };
+        
+        messages.push(tempMessage);
+        renderMessages();
+        if (chatInput) chatInput.value = '';
+        
+        // إرسال الرسالة للخادم
+        const result = await API.request('send_message.php', 'POST', {
+            message: messageText,
+            file_type: fileType,
+            file_data: fileData,
+            file_name: fileName
+        });
+        
+        if (result && result.success) {
+            // استبدال الرسالة المؤقتة بالرسالة الحقيقية
+            const tempIndex = messages.findIndex(m => m.id === tempMessage.id);
+            if (tempIndex !== -1) {
+                messages[tempIndex] = result.data;
+                lastMessageId = result.data.id;
+                renderMessages();
+            }
+        } else {
+            // إزالة الرسالة المؤقتة في حالة الفشل
+            messages = messages.filter(m => m.id !== tempMessage.id);
+            renderMessages();
+            showMessage('فشل إرسال الملف', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في إرسال الملف:', error);
+        showMessage('حدث خطأ في إرسال الملف', 'error');
+        
+        // إزالة الرسالة المؤقتة
+        const tempIndex = messages.findIndex(m => m.id && m.id.startsWith('temp-'));
+        if (tempIndex !== -1) {
+            messages.splice(tempIndex, 1);
+            renderMessages();
+        }
     }
 }
 
@@ -1264,6 +1389,203 @@ function loadSavedNotifications() {
     } catch (e) {
         console.error('خطأ في تحميل الإشعارات:', e);
     }
+}
+
+// تحميل الإشعارات عند التهيئة
+loadSavedNotifications();
+
+// معالجة إدخال @ للـ mention
+function handleMentionInput(e) {
+    const chatInput = e.target;
+    const value = chatInput.value;
+    const cursorPosition = chatInput.selectionStart;
+    
+    // البحث عن @ قبل موضع المؤشر
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+        // التحقق من أن @ ليس جزءاً من كلمة (يجب أن يكون بعد مسافة أو في البداية)
+        const charBefore = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+        if (charBefore === ' ' || charBefore === '\n' || lastAtIndex === 0) {
+            const query = textBeforeCursor.substring(lastAtIndex + 1);
+            // التحقق من أن الاستعلام لا يحتوي على مسافات (لم يكتمل الـ mention بعد)
+            if (!query.includes(' ') && !query.includes('\n')) {
+                mentionStartPosition = lastAtIndex;
+                showMentionMenu(query);
+                return;
+            }
+        }
+    }
+    
+    // إخفاء قائمة الـ mention إذا لم يكن هناك @
+    hideMentionMenu();
+}
+
+// معالجة مفاتيح لوحة المفاتيح في قائمة الـ mention
+function handleMentionKeydown(e) {
+    if (!mentionMenuVisible) return;
+    
+    const mentionMenu = document.getElementById('mentionMenu');
+    if (!mentionMenu) return;
+    
+    const items = mentionMenu.querySelectorAll('.mention-menu-item');
+    const activeItem = mentionMenu.querySelector('.mention-menu-item.active');
+    
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (activeItem) {
+            const next = activeItem.nextElementSibling;
+            if (next) {
+                activeItem.classList.remove('active');
+                next.classList.add('active');
+                next.scrollIntoView({ block: 'nearest' });
+            }
+        } else if (items.length > 0) {
+            items[0].classList.add('active');
+        }
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (activeItem) {
+            const prev = activeItem.previousElementSibling;
+            if (prev) {
+                activeItem.classList.remove('active');
+                prev.classList.add('active');
+                prev.scrollIntoView({ block: 'nearest' });
+            }
+        }
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        if (activeItem) {
+            activeItem.click();
+        }
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        hideMentionMenu();
+    }
+}
+
+// عرض قائمة الـ mention
+function showMentionMenu(query = '') {
+    const chatInput = document.getElementById('chatInput');
+    if (!chatInput) return;
+    
+    let mentionMenu = document.getElementById('mentionMenu');
+    
+    if (!mentionMenu) {
+        mentionMenu = document.createElement('div');
+        mentionMenu.id = 'mentionMenu';
+        mentionMenu.className = 'mention-menu';
+        document.body.appendChild(mentionMenu);
+    }
+    
+    // فلترة المستخدمين حسب الاستعلام
+    const filteredUsers = allUsers.filter(user => {
+        if (!query) return true;
+        const name = (user.name || user.username || '').toLowerCase();
+        const username = (user.username || '').toLowerCase();
+        const searchQuery = query.toLowerCase();
+        return name.includes(searchQuery) || username.includes(searchQuery);
+    }).filter(user => user.user_id !== currentUser.id); // استبعاد المستخدم الحالي
+    
+    if (filteredUsers.length === 0) {
+        mentionMenu.style.display = 'none';
+        mentionMenuVisible = false;
+        return;
+    }
+    
+    mentionMenu.innerHTML = '';
+    
+    filteredUsers.forEach(user => {
+        const item = document.createElement('button');
+        item.className = 'mention-menu-item';
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'mention-avatar';
+        avatar.textContent = getInitials(user.name || user.username || 'U');
+        avatar.style.background = getAvatarColor(user.user_id);
+        
+        const info = document.createElement('div');
+        info.className = 'mention-info';
+        
+        const name = document.createElement('div');
+        name.className = 'mention-name';
+        name.textContent = user.name || user.username || 'مستخدم';
+        
+        const username = document.createElement('div');
+        username.className = 'mention-username';
+        username.textContent = '@' + (user.username || user.user_id);
+        
+        info.appendChild(name);
+        info.appendChild(username);
+        
+        item.appendChild(avatar);
+        item.appendChild(info);
+        
+        item.onclick = () => {
+            selectMention(user);
+        };
+        
+        mentionMenu.appendChild(item);
+    });
+    
+    // تحديد العنصر الأول
+    const firstItem = mentionMenu.querySelector('.mention-menu-item');
+    if (firstItem) {
+        firstItem.classList.add('active');
+    }
+    
+    // تحديد موضع القائمة
+    positionMentionMenu(chatInput);
+    mentionMenu.style.display = 'flex';
+    mentionMenuVisible = true;
+}
+
+// تحديد موضع قائمة الـ mention
+function positionMentionMenu(chatInput) {
+    const mentionMenu = document.getElementById('mentionMenu');
+    if (!mentionMenu) return;
+    
+    const inputRect = chatInput.getBoundingClientRect();
+    const inputContainer = chatInput.closest('.chat-input-container');
+    const containerRect = inputContainer ? inputContainer.getBoundingClientRect() : inputRect;
+    
+    mentionMenu.style.bottom = `${window.innerHeight - containerRect.top + 10}px`;
+    mentionMenu.style.right = '20px';
+    mentionMenu.style.left = 'auto';
+    mentionMenu.style.maxWidth = '300px';
+}
+
+// إخفاء قائمة الـ mention
+function hideMentionMenu() {
+    const mentionMenu = document.getElementById('mentionMenu');
+    if (mentionMenu) {
+        mentionMenu.style.display = 'none';
+    }
+    mentionMenuVisible = false;
+    mentionStartPosition = -1;
+}
+
+// اختيار مستخدم من قائمة الـ mention
+function selectMention(user) {
+    const chatInput = document.getElementById('chatInput');
+    if (!chatInput || mentionStartPosition === -1) return;
+    
+    const value = chatInput.value;
+    const cursorPosition = chatInput.selectionStart;
+    const textBefore = value.substring(0, mentionStartPosition);
+    const textAfter = value.substring(cursorPosition);
+    
+    // إدراج الـ mention
+    const mentionText = `@${user.name || user.username || user.user_id} `;
+    chatInput.value = textBefore + mentionText + textAfter;
+    
+    // تحديث موضع المؤشر
+    const newPosition = mentionStartPosition + mentionText.length;
+    chatInput.setSelectionRange(newPosition, newPosition);
+    chatInput.focus();
+    
+    hideMentionMenu();
 }
 
 // تحميل الإشعارات عند التهيئة

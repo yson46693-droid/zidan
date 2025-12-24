@@ -21,6 +21,8 @@ try {
             COALESCE(u.name, u.username, 'مستخدم') as username,
             cm.message,
             cm.reply_to,
+            cm.file_path,
+            cm.file_type,
             cm.created_at,
             rm.id as reply_to_id,
             rm.user_id as reply_to_user_id,
@@ -48,6 +50,12 @@ try {
             'message' => $message['message'],
             'created_at' => $message['created_at']
         ];
+        
+        // إضافة معلومات الملف إذا كان موجوداً
+        if (!empty($message['file_path'])) {
+            $formattedMessage['file_path'] = $message['file_path'];
+            $formattedMessage['file_type'] = $message['file_type'] ?? 'file';
+        }
         
         // إضافة معلومات الرد إذا كان موجوداً
         if (!empty($message['reply_to'])) {

@@ -22,10 +22,14 @@ try {
     // الحصول على البيانات
     $message = trim($data['message'] ?? '');
     $replyTo = $data['reply_to'] ?? null;
+    $fileType = $data['file_type'] ?? null; // 'image', 'file'
+    $fileData = $data['file_data'] ?? null; // Base64 encoded file
+    $fileName = $data['file_name'] ?? null;
+    $mentions = $data['mentions'] ?? [];
     
-    // التحقق من وجود الرسالة
-    if (empty($message)) {
-        response(false, 'الرسالة لا يمكن أن تكون فارغة', null, 400);
+    // التحقق من وجود الرسالة أو الملف
+    if (empty($message) && empty($fileData)) {
+        response(false, 'الرسالة أو الملف مطلوب', null, 400);
     }
     
     // التحقق من طول الرسالة (حد أقصى 1000 حرف)
@@ -65,6 +69,22 @@ try {
         }
     }
     
+    // معالجة الملفات والصور
+    $filePath = null;
+    if (!empty($fileData) && !empty($fileType)) {
+        $filePath = saveChatFile($fileData, $fileType, $fileName, $userId);
+        if (!$filePath) {
+            response(false, 'فشل في حفظ الملف', null, 500);
+        }
+        
+        // إذا كانت صورة وليس هناك نص، إضافة نص افتراضي
+        if ($fileType === 'image' && empty($message)) {
+            $message = '📷 صورة';
+        } elseif ($fileType === 'file' && empty($message)) {
+            $message = '📎 ملف: ' . ($fileName ?? 'ملف');
+        }
+    }
+    
     // إنشاء معرف فريد للرسالة
     $messageId = generateId();
     
@@ -72,16 +92,21 @@ try {
     // التحقق من وجود عمود username أولاً
     try {
         $result = dbExecute("
-            INSERT INTO chat_messages (id, user_id, username, message, reply_to, created_at)
-            VALUES (?, ?, ?, ?, ?, NOW())
-        ", [$messageId, $userId, $username, $message, $replyToId]);
+            INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType]);
     } catch (Exception $e) {
-        // إذا فشل بسبب عدم وجود عمود username، محاولة بدون username
-        error_log('محاولة إدراج بدون username: ' . $e->getMessage());
-        $result = dbExecute("
-            INSERT INTO chat_messages (id, user_id, message, reply_to, created_at)
-            VALUES (?, ?, ?, ?, NOW())
-        ", [$messageId, $userId, $message, $replyToId]);
+        // إذا فشل بسبب عدم وجود عمود username أو file_path، محاولة بدونها
+        error_log('محاولة إدراج بدون أعمدة إضافية: ' . $e->getMessage());
+        try {
+            $result = dbExecute("
+                INSERT INTO chat_messages (id, user_id, message, reply_to, created_at)
+                VALUES (?, ?, ?, ?, NOW())
+            ", [$messageId, $userId, $message, $replyToId]);
+        } catch (Exception $e2) {
+            error_log('فشل الإدراج: ' . $e2->getMessage());
+            response(false, 'فشل إرسال الرسالة', null, 500);
+        }
     }
     
     if (!$result) {
@@ -90,6 +115,15 @@ try {
     
     // تحديث حالة النشاط للمرسل
     updateUserActivity($userId);
+    
+    // معالجة الـ mentions وإرسال الإشعارات
+    if (!empty($mentions) && is_array($mentions)) {
+        foreach ($mentions as $mention) {
+            if (isset($mention['user_id']) && $mention['user_id'] !== $userId) {
+                sendMentionNotification($mention['user_id'], $userId, $username, $message, $messageId);
+            }
+        }
+    }
     
     // إعداد بيانات الرسالة المرسلة
     $sentMessage = [
@@ -100,6 +134,13 @@ try {
         'created_at' => date('Y-m-d H:i:s')
     ];
     
+    // إضافة معلومات الملف إذا كان موجوداً
+    if ($filePath) {
+        $sentMessage['file_path'] = $filePath;
+        $sentMessage['file_type'] = $fileType;
+        $sentMessage['file_name'] = $fileName;
+    }
+    
     // إضافة معلومات الرد إذا كان موجوداً
     if ($replyToMessage) {
         $sentMessage['reply_to'] = [
@@ -108,6 +149,11 @@ try {
             'username' => $replyToMessage['username'],
             'message' => $replyToMessage['message']
         ];
+    }
+    
+    // إضافة معلومات الـ mentions
+    if (!empty($mentions)) {
+        $sentMessage['mentions'] = $mentions;
     }
     
     // إرسال Web Push للمستخدمين غير المفتوحين (سيتم تنفيذه لاحقاً)
@@ -167,6 +213,77 @@ function updateUserActivity($userId) {
         ", [$userId]);
     } catch (Exception $e) {
         error_log('خطأ في updateUserActivity: ' . $e->getMessage());
+    }
+}
+
+/**
+ * حفظ ملف الشات
+ */
+function saveChatFile($fileData, $fileType, $fileName, $userId) {
+    try {
+        // تحديد المجلد
+        $chatDir = __DIR__ . '/../chat/';
+        if ($fileType === 'image') {
+            $targetDir = $chatDir . 'images/';
+        } else {
+            $targetDir = $chatDir . 'files/';
+        }
+        
+        // التأكد من وجود المجلد
+        if (!file_exists($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+        
+        // تنظيف بيانات Base64
+        $fileData = preg_replace('/^data:[^;]+;base64,/', '', $fileData);
+        $fileData = base64_decode($fileData);
+        
+        if ($fileData === false) {
+            throw new Exception('بيانات الملف غير صحيحة');
+        }
+        
+        // إنشاء اسم الملف
+        $extension = '';
+        if ($fileType === 'image') {
+            $extension = '.jpg';
+        } elseif ($fileName) {
+            $extension = '.' . pathinfo($fileName, PATHINFO_EXTENSION);
+        } else {
+            $extension = '.bin';
+        }
+        
+        $filename = 'chat_' . generateId() . $extension;
+        $filepath = $targetDir . $filename;
+        
+        // حفظ الملف
+        if (file_put_contents($filepath, $fileData) === false) {
+            throw new Exception('فشل في حفظ الملف');
+        }
+        
+        // إرجاع المسار النسبي
+        return 'chat/' . ($fileType === 'image' ? 'images/' : 'files/') . $filename;
+        
+    } catch (Exception $e) {
+        error_log('خطأ في saveChatFile: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * إرسال إشعار mention للمستخدم
+ */
+function sendMentionNotification($mentionedUserId, $senderId, $senderName, $message, $messageId) {
+    try {
+        // حفظ الإشعار في قاعدة البيانات (إذا كان هناك جدول notifications)
+        // يمكن إضافة جدول notifications لاحقاً
+        
+        // إرسال إشعار متصفح إذا كان المستخدم المذكور متصلاً
+        // سيتم التعامل معه من خلال Long Polling
+        
+        error_log("Mention notification: User {$mentionedUserId} mentioned by {$senderName} in message {$messageId}");
+        
+    } catch (Exception $e) {
+        error_log('خطأ في إرسال إشعار mention: ' . $e->getMessage());
     }
 }
 
