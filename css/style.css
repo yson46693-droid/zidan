@@ -1462,8 +1462,8 @@ body {
         align-items: center;
         justify-content: space-between;
         width: 100%;
-        padding: 10px 0;
-        margin-top: 10px;
+        padding: 8px 0;
+        margin-top: 5px;
         border-top: 1px solid var(--border-color);
         gap: 10px;
     }
@@ -1518,8 +1518,8 @@ body {
         font-size: 1.1em;
         margin: 0;
         width: 100%;
-        margin-bottom: 8px;
-        padding: 10px 15px;
+        margin-bottom: 5px;
+        padding: 8px 12px;
         border: 2px solid var(--primary-color);
         border-radius: 8px;
         background: var(--white);
@@ -1529,35 +1529,37 @@ body {
     }
     
     .header-actions {
-        gap: 6px !important;
+        gap: 4px !important;
         width: 100%;
         justify-content: flex-start;
     }
     
-    /* إعادة تنظيم الأزرار في الهيدر العلوي */
+    /* إعادة تنظيم الأزرار في الهيدر العلوي - صف واحد */
     .top-bar .header-actions {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        flex-wrap: nowrap;
+        gap: 4px;
         width: 100%;
         align-items: center;
+        justify-content: flex-start;
     }
     
     .top-bar .header-actions #installButton {
         width: 100%;
         flex-basis: 100%;
         order: -1;
+        margin-bottom: 5px;
     }
     
     /* زر المزامنة - مربع صغير مع border */
     .top-bar .header-actions .sync-indicator {
-        min-width: 40px;
-        min-height: 40px;
-        width: 40px;
-        height: 40px;
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
         padding: 0;
         border: 2px solid var(--primary-color);
-        border-radius: 8px;
+        border-radius: 6px;
         background: var(--white);
         display: flex;
         align-items: center;
@@ -1569,14 +1571,16 @@ body {
         font-size: 0;
         text-indent: -9999px;
         white-space: nowrap;
+        cursor: pointer;
     }
     
     .top-bar .header-actions .sync-indicator i {
-        font-size: 1.2em;
+        font-size: 1.1em;
         margin: 0;
         position: absolute;
         display: block;
         text-indent: 0;
+        color: var(--primary-color);
     }
     
     /* إخفاء النص في زر المزامنة على الموبايل */
@@ -1586,13 +1590,13 @@ body {
     
     /* زر الوضع الليلي - مربع صغير مع border */
     .top-bar .header-actions .btn-icon[onclick*="toggleDarkMode"] {
-        min-width: 40px;
-        min-height: 40px;
-        width: 40px;
-        height: 40px;
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
         padding: 0;
         border: 2px solid var(--primary-color);
-        border-radius: 8px;
+        border-radius: 6px;
         background: var(--white);
         display: flex;
         align-items: center;
@@ -1601,23 +1605,62 @@ body {
         flex-shrink: 0;
     }
     
-    /* زر البروفايل - منسق في نفس الصف على اليمين */
-    .top-bar .header-actions .btn-icon[onclick*="profile"] {
-        min-width: 40px;
-        min-height: 40px;
-        width: 40px;
-        height: 40px;
+    /* زر الإشعارات - مربع صغير مع border */
+    .top-bar .header-actions .btn-icon[onclick*="showNotifications"],
+    .top-bar .header-actions #notificationsBtn {
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
         padding: 0;
         border: 2px solid var(--primary-color);
-        border-radius: 8px;
+        border-radius: 6px;
         background: var(--white);
         display: flex;
         align-items: center;
         justify-content: center;
         order: 2;
-        margin-right: 0;
-        margin-left: auto;
         flex-shrink: 0;
+    }
+    
+    /* زر البروفايل - مربع صغير مع border */
+    .top-bar .header-actions .btn-icon[onclick*="profile"] {
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 2px solid var(--primary-color);
+        border-radius: 6px;
+        background: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        order: 3;
+        flex-shrink: 0;
+    }
+    
+    /* زر تسجيل الخروج - مربع صغير مع border */
+    .top-bar .header-actions .btn-icon.btn-logout,
+    .top-bar .header-actions .btn-icon[onclick*="logout"] {
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 2px solid var(--danger-color);
+        border-radius: 6px;
+        background: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        order: 4;
+        flex-shrink: 0;
+    }
+    
+    .top-bar .header-actions .btn-icon.btn-logout i,
+    .top-bar .header-actions .btn-icon[onclick*="logout"] i {
+        color: var(--danger-color);
     }
     
     /* محاذاة الأزرار في صف واحد */
@@ -1626,17 +1669,30 @@ body {
     }
     
     /* تجاوز الأنماط العامة للأزرار في الهيدر العلوي */
-    .top-bar .header-actions .btn-icon {
-        min-width: 40px !important;
-        min-height: 40px !important;
+    .top-bar .header-actions .btn-icon:not(.btn-logout):not([onclick*="logout"]) {
+        min-width: 36px !important;
+        min-height: 36px !important;
         padding: 0 !important;
-        font-size: 1.2em !important;
+        font-size: 1.1em !important;
+        border: 2px solid var(--primary-color) !important;
+        border-radius: 6px !important;
     }
     
     .top-bar .header-actions .sync-indicator {
-        min-height: 40px !important;
+        min-height: 36px !important;
         padding: 0 !important;
         font-size: 0 !important;
+    }
+    
+    /* ضمان أن جميع الأزرار بنفس الحجم */
+    .top-bar .header-actions .btn-icon {
+        min-width: 36px !important;
+        min-height: 36px !important;
+        width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        font-size: 1.1em !important;
+        border-radius: 6px !important;
     }
     
     .header-actions .sync-indicator i {

@@ -270,20 +270,21 @@
             <button class="btn-menu" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
             <h1 id="pageTitle">لوحة التحكم</h1>
             <div class="header-actions">
-                <span id="syncIndicator" class="sync-indicator" onclick="syncManager.manualSync()" title="اضغط للمزامنة يدوياً"><i class="bi bi-arrow-repeat"></i> جاري التحميل...</span>
+                <span id="syncIndicator" class="sync-indicator" onclick="syncManager.manualSync()" title="اضغط للمزامنة يدوياً"><i class="bi bi-arrow-clockwise"></i> جاري التحميل...</span>
                 <button id="installButton" class="btn btn-primary hidden" style="display: none; margin-left: 10px; padding: 8px 16px;" title="تثبيت التطبيق">
                     <i class="bi bi-download"></i> <span class="d-none d-md-inline">تثبيت</span>
                 </button>
-                <button onclick="showSection('profile')" class="btn btn-icon" title="الملف الشخصي"><i class="bi bi-person-circle"></i></button>
                 <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
+                <button id="notificationsBtn" onclick="showNotifications()" class="btn btn-icon" title="الإشعارات"><i class="bi bi-bell"></i></button>
+                <button onclick="showSection('profile')" class="btn btn-icon" title="الملف الشخصي"><i class="bi bi-person-circle"></i></button>
+                <button onclick="logout()" class="btn btn-icon btn-logout" title="تسجيل الخروج"><i class="bi bi-box-arrow-right"></i></button>
             </div>
-            <!-- معلومات المستخدم وزر تسجيل الخروج للهواتف -->
+            <!-- معلومات المستخدم للهواتف -->
             <div class="mobile-top-user-info">
                 <div class="mobile-user-info">
                     <p><i class="bi bi-person-circle"></i> <strong id="mobileUserName">المستخدم</strong></p>
                     <p><i class="bi bi-shield-check"></i> <span id="mobileUserRole">الدور</span></p>
                 </div>
-                <button onclick="logout()" class="btn btn-danger btn-xs"><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</button>
             </div>
         </header>
 
@@ -2139,6 +2140,11 @@
                 console.error('خطأ في عرض العمليات:', error);
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--danger-color);">خطأ في عرض البيانات</td></tr>';
             }
+        }
+
+        // دالة عرض الإشعارات
+        function showNotifications() {
+            showMessage('قريباً: نظام الإشعارات', 'info');
         }
 
         // إدارة القائمة المتنقلة
