@@ -28,6 +28,7 @@ try {
                 cm.reply_to,
                 cm.file_path,
                 cm.file_type,
+                cm.file_name,
                 cm.created_at,
                 rm.id as reply_to_id,
                 rm.user_id as reply_to_user_id,
@@ -54,6 +55,7 @@ try {
                 cm.reply_to,
                 cm.file_path,
                 cm.file_type,
+                cm.file_name,
                 cm.created_at,
                 rm.id as reply_to_id,
                 rm.user_id as reply_to_user_id,
@@ -84,9 +86,13 @@ try {
         ];
         
         // إضافة معلومات الملف إذا كان موجوداً
-        if (!empty($message['file_path'])) {
-            $formattedMessage['file_path'] = $message['file_path'];
+        if (!empty($message['file_path']) || !empty($message['file_type'])) {
+            $formattedMessage['file_path'] = $message['file_path'] ?? null;
             $formattedMessage['file_type'] = $message['file_type'] ?? 'file';
+            // إضافة file_name إذا كان موجوداً
+            if (!empty($message['file_name'])) {
+                $formattedMessage['file_name'] = $message['file_name'];
+            }
         }
         
         // إضافة معلومات الرد إذا كان موجوداً

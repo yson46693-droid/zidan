@@ -96,16 +96,57 @@ try {
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType]);
     } catch (Exception $e) {
-        // إذا فشل بسبب عدم وجود عمود username أو file_path، محاولة بدونها
-        error_log('محاولة إدراج بدون أعمدة إضافية: ' . $e->getMessage());
+        // إذا فشل بسبب عدم وجود عمود، محاولة إضافته
+        error_log('محاولة إضافة الأعمدة المفقودة: ' . $e->getMessage());
         try {
-            $result = dbExecute("
-                INSERT INTO chat_messages (id, user_id, message, reply_to, created_at)
-                VALUES (?, ?, ?, ?, NOW())
-            ", [$messageId, $userId, $message, $replyToId]);
+            $conn = getDBConnection();
+            if ($conn) {
+                // محاولة إضافة الأعمدة المفقودة
+                try {
+                    $conn->query("ALTER TABLE chat_messages ADD COLUMN username VARCHAR(255) DEFAULT NULL");
+                } catch (Exception $e3) {
+                    // العمود موجود بالفعل
+                }
+                try {
+                    $conn->query("ALTER TABLE chat_messages ADD COLUMN file_path VARCHAR(500) DEFAULT NULL");
+                } catch (Exception $e3) {
+                    // العمود موجود بالفعل
+                }
+                try {
+                    $conn->query("ALTER TABLE chat_messages ADD COLUMN file_type VARCHAR(50) DEFAULT NULL");
+                } catch (Exception $e3) {
+                    // العمود موجود بالفعل
+                }
+                
+                // محاولة الإدراج مرة أخرى
+                $result = dbExecute("
+                    INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType]);
+            } else {
+                throw new Exception('فشل الاتصال بقاعدة البيانات');
+            }
         } catch (Exception $e2) {
-            error_log('فشل الإدراج: ' . $e2->getMessage());
-            response(false, 'فشل إرسال الرسالة', null, 500);
+            error_log('فشل الإدراج بعد إضافة الأعمدة: ' . $e2->getMessage());
+            // محاولة أخيرة بدون الأعمدة الإضافية
+            try {
+                $result = dbExecute("
+                    INSERT INTO chat_messages (id, user_id, message, reply_to, created_at)
+                    VALUES (?, ?, ?, ?, NOW())
+                ", [$messageId, $userId, $message, $replyToId]);
+                // إذا نجح الإدراج بدون file_path، محاولة تحديثه
+                if ($filePath) {
+                    try {
+                        dbExecute("UPDATE chat_messages SET file_path = ?, file_type = ? WHERE id = ?", 
+                            [$filePath, $fileType, $messageId]);
+                    } catch (Exception $e3) {
+                        error_log('فشل تحديث file_path: ' . $e3->getMessage());
+                    }
+                }
+            } catch (Exception $e3) {
+                error_log('فشل الإدراج النهائي: ' . $e3->getMessage());
+                response(false, 'فشل إرسال الرسالة', null, 500);
+            }
         }
     }
     

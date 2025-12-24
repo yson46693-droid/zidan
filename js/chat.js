@@ -227,9 +227,14 @@ function createMessageElement(message) {
         
         // إذا كان المسار نسبي، إضافة المسار الأساسي
         if (filePath && !filePath.startsWith('http') && !filePath.startsWith('data:')) {
+            // إزالة أي مسافات في البداية
+            filePath = filePath.trim();
+            // إذا لم يبدأ بـ /، إضافته
             if (!filePath.startsWith('/')) {
                 filePath = '/' + filePath;
             }
+            // إزالة أي مسافات إضافية
+            filePath = filePath.replace(/\/+/g, '/');
         }
         
         if (fileType === 'image') {
@@ -237,11 +242,21 @@ function createMessageElement(message) {
             imageContainer.className = 'image-message';
             
             const img = document.createElement('img');
-            img.src = filePath;
+            // التأكد من أن المسار صحيح
+            if (filePath) {
+                img.src = filePath;
+            } else {
+                console.error('مسار الصورة غير موجود:', message);
+                img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3Eصورة غير متاحة%3C/text%3E%3C/svg%3E';
+            }
             img.alt = 'صورة';
             img.loading = 'lazy';
-            img.onerror = () => {
-                img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3Eفشل تحميل الصورة%3C/text%3E%3C/svg%3E';
+            img.onerror = (e) => {
+                console.error('فشل تحميل الصورة:', filePath, message);
+                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3Eفشل تحميل الصورة%3C/text%3E%3C/svg%3E';
+            };
+            img.onload = () => {
+                console.log('تم تحميل الصورة بنجاح:', filePath);
             };
             
             imageContainer.appendChild(img);
