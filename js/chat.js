@@ -523,6 +523,12 @@ function setupEventListeners() {
         notificationIcon.addEventListener('click', toggleNotificationsList);
     }
     
+    // زر حذف الرسائل (للمالك فقط)
+    const deleteMessagesBtn = document.getElementById('deleteMessagesBtn');
+    if (deleteMessagesBtn) {
+        deleteMessagesBtn.addEventListener('click', showDeleteMessagesModal);
+    }
+    
     // زر الرجوع
     const backToDashboardBtn = document.getElementById('backToDashboardBtn');
     if (backToDashboardBtn) {
@@ -1135,6 +1141,10 @@ function renderNotificationsList() {
     
     const fragment = document.createDocumentFragment();
     
+    // أزرار التحكم
+    const controlButtons = document.createElement('div');
+    controlButtons.className = 'notifications-control-buttons';
+    
     // زر "تحديد الكل كمقروء"
     const markAllReadBtn = document.createElement('button');
     markAllReadBtn.className = 'mark-all-read-btn';
@@ -1142,7 +1152,20 @@ function renderNotificationsList() {
     markAllReadBtn.onclick = () => {
         markAllNotificationsAsRead();
     };
-    fragment.appendChild(markAllReadBtn);
+    controlButtons.appendChild(markAllReadBtn);
+    
+    // زر "حذف الكل"
+    const deleteAllBtn = document.createElement('button');
+    deleteAllBtn.className = 'delete-all-notifications-btn';
+    deleteAllBtn.textContent = 'حذف جميع الإشعارات';
+    deleteAllBtn.onclick = () => {
+        if (confirm('هل أنت متأكد من حذف جميع الإشعارات؟')) {
+            deleteAllNotifications();
+        }
+    };
+    controlButtons.appendChild(deleteAllBtn);
+    
+    fragment.appendChild(controlButtons);
     
     notifications.forEach(notification => {
         const item = document.createElement('div');
@@ -1226,6 +1249,21 @@ function deleteNotification(notificationId) {
     }
     
     renderNotificationsList();
+}
+
+// دالة لحذف جميع الإشعارات
+function deleteAllNotifications() {
+    notifications = [];
+    
+    try {
+        localStorage.setItem('chat_notifications', JSON.stringify([]));
+        updateNotificationBadge();
+        renderNotificationsList();
+        showMessage('تم حذف جميع الإشعارات', 'success');
+    } catch (e) {
+        console.error('خطأ في حذف جميع الإشعارات:', e);
+        showMessage('حدث خطأ في حذف الإشعارات', 'error');
+    }
 }
 
 function updateNotificationBadge() {
@@ -1443,6 +1481,25 @@ function updateCurrentUserSection() {
             </button>
         </div>
     `;
+    
+    // التحقق من المالك وإظهار زر حذف الرسائل
+    checkAndShowDeleteButton();
+}
+
+// التحقق من المالك وإظهار زر حذف الرسائل
+function checkAndShowDeleteButton() {
+    const deleteBtn = document.getElementById('deleteMessagesBtn');
+    if (!deleteBtn) return;
+    
+    // التحقق من is_owner من localStorage أو currentUser
+    const isOwner = localStorage.getItem('is_owner') === 'true' || 
+                    (currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin'));
+    
+    if (isOwner) {
+        deleteBtn.style.display = 'flex';
+    } else {
+        deleteBtn.style.display = 'none';
+    }
 }
 
 // منتقي الإيموجي
@@ -1780,6 +1837,127 @@ function loadSavedNotifications() {
 
 // تحميل الإشعارات عند التهيئة
 loadSavedNotifications();
+
+// مودال حذف الرسائل
+function showDeleteMessagesModal() {
+    // التحقق من المالك مرة أخرى
+    const isOwner = localStorage.getItem('is_owner') === 'true' || 
+                    (currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin'));
+    
+    if (!isOwner) {
+        showMessage('هذه الميزة متاحة للمالك فقط', 'error');
+        return;
+    }
+    
+    // إنشاء المودال
+    let modal = document.getElementById('deleteMessagesModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'deleteMessagesModal';
+        modal.className = 'delete-messages-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="closeDeleteMessagesModal()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>حذف الرسائل</h3>
+                    <button class="modal-close" onclick="closeDeleteMessagesModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <p class="warning-text">⚠️ تحذير: سيتم حذف جميع الرسائل في الفترة الزمنية المحددة بشكل نهائي ولا يمكن استرجاعها!</p>
+                    
+                    <div class="form-group">
+                        <label for="deleteFromDate">من تاريخ:</label>
+                        <input type="datetime-local" id="deleteFromDate" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="deleteToDate">إلى تاريخ:</label>
+                        <input type="datetime-local" id="deleteToDate" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="confirmDelete" required>
+                            أنا أؤكد أنني أريد حذف الرسائل في هذه الفترة الزمنية
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeDeleteMessagesModal()">إلغاء</button>
+                    <button class="btn btn-danger" id="confirmDeleteBtn" onclick="confirmDeleteMessages()">حذف الرسائل</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // إعادة تعيين القيم
+    document.getElementById('deleteFromDate').value = '';
+    document.getElementById('deleteToDate').value = '';
+    document.getElementById('confirmDelete').checked = false;
+    
+    // إظهار المودال
+    modal.style.display = 'flex';
+}
+
+function closeDeleteMessagesModal() {
+    const modal = document.getElementById('deleteMessagesModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function confirmDeleteMessages() {
+    const fromDate = document.getElementById('deleteFromDate').value;
+    const toDate = document.getElementById('deleteToDate').value;
+    const confirmCheck = document.getElementById('confirmDelete').checked;
+    
+    if (!fromDate || !toDate) {
+        showMessage('يرجى تحديد الفترة الزمنية', 'error');
+        return;
+    }
+    
+    if (!confirmCheck) {
+        showMessage('يرجى تأكيد الحذف', 'error');
+        return;
+    }
+    
+    // التحقق من أن تاريخ البداية قبل تاريخ النهاية
+    if (new Date(fromDate) > new Date(toDate)) {
+        showMessage('تاريخ البداية يجب أن يكون قبل تاريخ النهاية', 'error');
+        return;
+    }
+    
+    // تأكيد نهائي
+    if (!confirm('هل أنت متأكد تماماً من حذف جميع الرسائل في هذه الفترة؟\n\nهذا الإجراء لا يمكن التراجع عنه!')) {
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        const result = await API.request('delete_messages.php', 'POST', {
+            from_date: fromDate,
+            to_date: toDate
+        });
+        
+        showLoading(false);
+        
+        if (result && result.success) {
+            showMessage(result.message || 'تم حذف الرسائل بنجاح', 'success');
+            closeDeleteMessagesModal();
+            
+            // إعادة تحميل الرسائل
+            await loadMessages();
+        } else {
+            showMessage(result.message || 'حدث خطأ في حذف الرسائل', 'error');
+        }
+    } catch (error) {
+        showLoading(false);
+        console.error('خطأ في حذف الرسائل:', error);
+        showMessage('حدث خطأ في حذف الرسائل', 'error');
+    }
+}
 
 // تحميل آخر رسالة مقروءة
 function loadLastReadMessageId() {

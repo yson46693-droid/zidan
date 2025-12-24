@@ -2310,6 +2310,224 @@ body {
     padding-bottom: 8px;
 }
 
+/* زر حذف الرسائل (للمالك) */
+.delete-messages-btn {
+    background: var(--danger-color);
+    border: none;
+    color: var(--white);
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+}
+
+.delete-messages-btn:hover {
+    background: #D32F2F;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.delete-messages-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* مودال حذف الرسائل */
+.delete-messages-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.delete-messages-modal .modal-content {
+    position: relative;
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 10001;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: var(--light-bg);
+    color: var(--text-dark);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.warning-text {
+    background: rgba(244, 67, 54, 0.1);
+    border-right: 3px solid var(--danger-color);
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: var(--danger-color);
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.modal-body .form-group {
+    margin-bottom: 20px;
+}
+
+.modal-body .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.modal-body .form-input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.3s;
+}
+
+.modal-body .form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.modal-body .form-group input[type="checkbox"] {
+    margin-left: 8px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.modal-body .form-group label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid var(--border-color);
+    justify-content: flex-end;
+}
+
+.modal-footer .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.modal-footer .btn-secondary {
+    background: var(--text-light);
+    color: var(--white);
+}
+
+.modal-footer .btn-secondary:hover {
+    background: #555;
+}
+
+.modal-footer .btn-danger {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+.modal-footer .btn-danger:hover {
+    background: #D32F2F;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+/* أزرار التحكم في الإشعارات */
+.notifications-control-buttons {
+    display: flex;
+    gap: 10px;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.delete-all-notifications-btn {
+    flex: 1;
+    min-width: 150px;
+    padding: 10px 15px;
+    background: var(--danger-color);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.delete-all-notifications-btn:hover {
+    background: #D32F2F;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
 /* Responsive */
 @media (max-width: 576px) {
     .notifications-list {
@@ -2322,6 +2540,26 @@ body {
     
     .notification-item {
         padding: 10px 12px;
+    }
+    
+    .delete-messages-modal .modal-content {
+        width: 95%;
+        max-height: 95vh;
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 15px;
+    }
+    
+    .notifications-control-buttons {
+        flex-direction: column;
+    }
+    
+    .mark-all-read-btn,
+    .delete-all-notifications-btn {
+        width: 100%;
     }
 }
 
