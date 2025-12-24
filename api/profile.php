@@ -12,10 +12,23 @@ $currentUserId = $session['user_id'];
 // قراءة بيانات الملف الشخصي للمستخدم الحالي
 if ($method === 'GET') {
     try {
-        $user = dbSelectOne(
-            "SELECT id, username, name, role, created_at, updated_at FROM users WHERE id = ?",
-            [$currentUserId]
-        );
+        // محاولة جلب avatar مع البيانات
+        try {
+            $user = dbSelectOne(
+                "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
+                [$currentUserId]
+            );
+        } catch (Exception $e) {
+            // إذا فشل بسبب عمود avatar غير موجود، جلب البيانات بدون avatar
+            error_log('محاولة جلب البيانات بدون avatar: ' . $e->getMessage());
+            $user = dbSelectOne(
+                "SELECT id, username, name, role, created_at, updated_at FROM users WHERE id = ?",
+                [$currentUserId]
+            );
+            if ($user) {
+                $user['avatar'] = null;
+            }
+        }
         
         if (!$user) {
             response(false, 'المستخدم غير موجود', null, 404);
@@ -23,6 +36,11 @@ if ($method === 'GET') {
         
         // إزالة الحقول الحساسة إن وجدت
         unset($user['password']);
+        
+        // التأكد من وجود avatar (null إذا لم يكن موجوداً)
+        if (!isset($user['avatar'])) {
+            $user['avatar'] = null;
+        }
         
         response(true, '', $user);
     } catch (Exception $e) {

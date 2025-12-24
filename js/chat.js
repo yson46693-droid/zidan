@@ -43,16 +43,25 @@ let mentionStartPosition = -1;
     try {
         // الانتظار حتى يتم تحميل API و auth
         let retries = 0;
-        while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < 20) {
+        const maxRetries = 50; // زيادة عدد المحاولات
+        while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 100));
             retries++;
         }
         
         if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
-            console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
-            window.location.href = 'index.html';
-            return;
+            console.error('❌ فشل تحميل ملفات المصادقة بعد', maxRetries, 'محاولة');
+            // إعطاء فرصة إضافية - الانتظار قليلاً ثم المحاولة مرة أخرى
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
+                console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
+                window.location.href = 'index.html';
+                return;
+            }
         }
+        
+        // إعطاء فرصة إضافية للتأكد من أن API جاهز
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         // فحص تسجيل الدخول فوراً
         const user = await checkLogin();
@@ -67,6 +76,20 @@ let mentionStartPosition = -1;
         
     } catch (error) {
         console.error('❌ خطأ في فحص تسجيل الدخول:', error);
+        // محاولة مرة أخرى قبل التوجيه
+        try {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (typeof checkLogin === 'function') {
+                const user = await checkLogin();
+                if (user) {
+                    console.log('✅ نجحت المحاولة الثانية للتحقق من تسجيل الدخول');
+                    currentUser = user;
+                    return;
+                }
+            }
+        } catch (retryError) {
+            console.error('❌ فشلت المحاولة الثانية:', retryError);
+        }
         window.location.href = 'index.html';
         return;
     }
@@ -75,28 +98,69 @@ let mentionStartPosition = -1;
 // تهيئة الصفحة
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // الانتظار قليلاً للتأكد من تحميل جميع الملفات
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
         // التحقق مرة أخرى من تسجيل الدخول
         if (typeof checkLogin !== 'function') {
-            console.error('❌ خطأ في تحميل ملفات المصادقة');
-            window.location.href = 'index.html';
-            return;
+            console.error('❌ خطأ في تحميل ملفات المصادقة - محاولة مرة أخرى...');
+            // إعطاء فرصة إضافية
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (typeof checkLogin !== 'function') {
+                console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
+                window.location.href = 'index.html';
+                return;
+            }
         }
         
         // إذا لم يكن هناك مستخدم محفوظ، فحص مرة أخرى
         if (!currentUser) {
-            const user = await checkLogin();
-            if (!user) {
-                console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
-                window.location.href = 'index.html';
-                return;
+            try {
+                const user = await checkLogin();
+                if (!user) {
+                    console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                currentUser = user;
+            } catch (loginError) {
+                console.error('❌ خطأ في فحص تسجيل الدخول:', loginError);
+                // محاولة مرة أخرى
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                try {
+                    const user = await checkLogin();
+                    if (user) {
+                        currentUser = user;
+                    } else {
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                } catch (retryError) {
+                    console.error('❌ فشلت المحاولة الثانية:', retryError);
+                    window.location.href = 'index.html';
+                    return;
+                }
             }
-            currentUser = user;
         }
         
         // الآن يمكن تهيئة الشات
         await initializeChat();
     } catch (error) {
         console.error('❌ خطأ في تهيئة الشات:', error);
+        // محاولة مرة أخيرة قبل التوجيه
+        try {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (typeof checkLogin === 'function') {
+                const user = await checkLogin();
+                if (user) {
+                    currentUser = user;
+                    await initializeChat();
+                    return;
+                }
+            }
+        } catch (retryError) {
+            console.error('❌ فشلت المحاولة الأخيرة:', retryError);
+        }
         window.location.href = 'index.html';
     }
 });

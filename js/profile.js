@@ -107,44 +107,47 @@ async function loadProfileSection() {
         }
 
         // الحصول على بيانات المستخدم الحالي مع معالجة أفضل للأخطاء
+        // أولاً: محاولة جلب البيانات من API للحصول على أحدث البيانات (بما في ذلك avatar)
         try {
-            currentUser = getCurrentUser();
-        } catch (error) {
-            console.error('خطأ في getCurrentUser:', error);
-            currentUser = null;
+            if (typeof checkLogin === 'function') {
+                const user = await checkLogin();
+                if (user) {
+                    currentUser = user;
+                    // حفظ البيانات المحدثة في localStorage
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                }
+            }
+        } catch (e) {
+            console.warn('فشل الحصول على المستخدم من checkLogin:', e);
         }
         
+        // إذا فشل جلب البيانات من API، محاولة من localStorage
         if (!currentUser) {
-            // محاولة الحصول على المستخدم من checkLogin مع retry
             try {
-                if (typeof checkLogin === 'function') {
-                    const user = await checkLogin();
-                    if (user) {
-                        currentUser = user;
-                    }
-                }
-            } catch (e) {
-                console.warn('فشل الحصول على المستخدم من checkLogin:', e);
+                currentUser = getCurrentUser();
+            } catch (error) {
+                console.error('خطأ في getCurrentUser:', error);
+                currentUser = null;
             }
+        }
 
-            if (!currentUser) {
-                section.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: var(--danger-color);">
-                        <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                        <p>خطأ في تحميل الملف الشخصي</p>
-                        <p style="font-size: 14px; color: var(--text-light); margin-top: 10px;">يرجى تسجيل الدخول مرة أخرى أو إعادة تحميل الصفحة</p>
-                        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                            <button onclick="if(typeof loadProfileSection === 'function') loadProfileSection(); else location.reload();" class="btn btn-primary">
-                                <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
-                            </button>
-                            <button onclick="location.href='index.html'" class="btn btn-secondary">
-                                <i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول
-                            </button>
-                        </div>
+        if (!currentUser) {
+            section.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                    <p>خطأ في تحميل الملف الشخصي</p>
+                    <p style="font-size: 14px; color: var(--text-light); margin-top: 10px;">يرجى تسجيل الدخول مرة أخرى أو إعادة تحميل الصفحة</p>
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                        <button onclick="if(typeof loadProfileSection === 'function') loadProfileSection(); else location.reload();" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                        </button>
+                        <button onclick="location.href='index.html'" class="btn btn-secondary">
+                            <i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول
+                        </button>
                     </div>
-                `;
-                return;
-            }
+                </div>
+            `;
+            return;
         }
 
         // تحميل webauthn.js قبل الاستخدام
@@ -159,7 +162,11 @@ async function loadProfileSection() {
         await loadCredentials();
 
         // استخدام أيقونة Bootstrap الافتراضية للملف الشخصي
-        const hasAvatar = currentUser.avatar && currentUser.avatar.trim() !== '';
+        // التحقق من وجود avatar بشكل صحيح
+        const hasAvatar = currentUser.avatar && 
+                         currentUser.avatar !== null && 
+                         currentUser.avatar !== '' && 
+                         String(currentUser.avatar).trim() !== '';
         const avatarSrc = hasAvatar ? currentUser.avatar : '';
         
         // عرض واجهة الملف الشخصي
@@ -171,7 +178,7 @@ async function loadProfileSection() {
                 <div class="profile-avatar-section">
                     <div class="profile-avatar-container">
                         ${hasAvatar 
-                            ? `<img id="profileAvatarImg" src="${avatarSrc}" 
+                            ? `<img id="profileAvatarImg" src="${avatarSrc}?t=${Date.now()}" 
                                      alt="صورة الملف الشخصي" 
                                      class="profile-avatar-preview"
                                      onerror="handleAvatarError()">`

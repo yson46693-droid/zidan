@@ -44,6 +44,24 @@ async function checkLogin() {
         const result = await API.checkAuth();
         
         if (!result || !result.success) {
+            // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
+            if (result && result.networkError) {
+                console.warn('⚠️ خطأ في الشبكة - محاولة استخدام البيانات المحفوظة');
+                // محاولة استخدام البيانات المحفوظة من localStorage
+                try {
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        const user = JSON.parse(savedUser);
+                        console.log('✅ استخدام بيانات المستخدم المحفوظة');
+                        // تحديث cache بدون تحديث cacheTime (لإجبار إعادة المحاولة لاحقاً)
+                        cachedAuthResult = user;
+                        return user;
+                    }
+                } catch (e) {
+                    console.error('خطأ في قراءة البيانات المحفوظة:', e);
+                }
+            }
+            
             cachedAuthResult = null;
             cacheTime = 0;
             

@@ -98,10 +98,22 @@ if ($method === 'POST') {
         error_log("✅ تم الاتصال بقاعدة البيانات بنجاح");
         
         // البحث عن المستخدم في قاعدة البيانات
-        $user = dbSelectOne(
-            "SELECT id, username, password, name, role FROM users WHERE username = ?",
-            [$username]
-        );
+        try {
+            $user = dbSelectOne(
+                "SELECT id, username, password, name, role, avatar FROM users WHERE username = ?",
+                [$username]
+            );
+        } catch (Exception $e) {
+            // إذا فشل بسبب عمود avatar غير موجود، جلب البيانات بدون avatar
+            error_log('محاولة جلب بيانات المستخدم بدون avatar: ' . $e->getMessage());
+            $user = dbSelectOne(
+                "SELECT id, username, password, name, role FROM users WHERE username = ?",
+                [$username]
+            );
+            if ($user) {
+                $user['avatar'] = null;
+            }
+        }
         
         error_log("نتيجة البحث عن المستخدم: " . ($user ? "موجود" : "غير موجود"));
         
@@ -135,12 +147,21 @@ if ($method === 'POST') {
                 error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username);
                 
                 // إرجاع الاستجابة مباشرة - response() ستقوم بـ exit تلقائياً
-                response(true, 'تم تسجيل الدخول بنجاح', [
+                $userData = [
                     'id' => $user['id'],
                     'username' => $user['username'],
                     'name' => $user['name'],
                     'role' => $user['role']
-                ]);
+                ];
+                
+                // إضافة avatar إذا كان موجوداً
+                if (isset($user['avatar'])) {
+                    $userData['avatar'] = $user['avatar'];
+                } else {
+                    $userData['avatar'] = null;
+                }
+                
+                response(true, 'تم تسجيل الدخول بنجاح', $userData);
             } else {
                 error_log("❌ كلمة المرور غير صحيحة للمستخدم: " . $username);
             }
@@ -177,12 +198,37 @@ if ($method === 'GET') {
     }
     
     if (isset($_SESSION['user_id'])) {
-        response(true, 'الجلسة نشطة', [
-            'id' => $_SESSION['user_id'],
-            'username' => $_SESSION['username'] ?? '',
-            'name' => $_SESSION['name'] ?? '',
-            'role' => $_SESSION['role'] ?? 'employee'
-        ]);
+        // جلب بيانات المستخدم من قاعدة البيانات (بما في ذلك avatar)
+        $userId = $_SESSION['user_id'];
+        try {
+            $user = dbSelectOne(
+                "SELECT id, username, name, role, avatar FROM users WHERE id = ?",
+                [$userId]
+            );
+            
+            if ($user) {
+                response(true, 'الجلسة نشطة', $user);
+            } else {
+                // إذا لم يتم العثور على المستخدم في قاعدة البيانات، استخدام بيانات الجلسة
+                response(true, 'الجلسة نشطة', [
+                    'id' => $_SESSION['user_id'],
+                    'username' => $_SESSION['username'] ?? '',
+                    'name' => $_SESSION['name'] ?? '',
+                    'role' => $_SESSION['role'] ?? 'employee',
+                    'avatar' => null
+                ]);
+            }
+        } catch (Exception $e) {
+            error_log('خطأ في جلب بيانات المستخدم: ' . $e->getMessage());
+            // في حالة الخطأ، استخدام بيانات الجلسة
+            response(true, 'الجلسة نشطة', [
+                'id' => $_SESSION['user_id'],
+                'username' => $_SESSION['username'] ?? '',
+                'name' => $_SESSION['name'] ?? '',
+                'role' => $_SESSION['role'] ?? 'employee',
+                'avatar' => null
+            ]);
+        }
     } else {
         response(false, 'لا توجد جلسة نشطة', null, 401);
     }
