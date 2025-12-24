@@ -160,8 +160,22 @@ function createMessageElement(message) {
     // Avatar
     const avatar = document.createElement('div');
     avatar.className = 'message-avatar';
-    avatar.textContent = getInitials(message.username || 'U');
-    avatar.style.background = getAvatarColor(message.user_id);
+    
+    if (message.avatar) {
+        const avatarImg = document.createElement('img');
+        avatarImg.src = message.avatar;
+        avatarImg.alt = message.username || 'مستخدم';
+        avatarImg.onerror = () => {
+            // في حالة فشل تحميل الصورة، عرض الأحرف الأولى
+            avatar.innerHTML = '';
+            avatar.textContent = getInitials(message.username || 'U');
+            avatar.style.background = getAvatarColor(message.user_id);
+        };
+        avatar.appendChild(avatarImg);
+    } else {
+        avatar.textContent = getInitials(message.username || 'U');
+        avatar.style.background = getAvatarColor(message.user_id);
+    }
     
     // مؤشر حالة النشاط
     const onlineIndicator = document.createElement('div');
@@ -293,7 +307,7 @@ function createMessageElement(message) {
         bubble.appendChild(textContainer);
     }
     
-    // Time
+    // Time - إضافة التوقيت داخل الـ bubble لجميع الرسائل
     const timeContainer = document.createElement('div');
     timeContainer.className = 'message-time-container';
     
@@ -302,14 +316,8 @@ function createMessageElement(message) {
     time.textContent = formatTime(message.created_at);
     timeContainer.appendChild(time);
     
-    if (isUserMessage) {
-        bubble.appendChild(timeContainer);
-    } else {
-        const header = content.querySelector('.message-header');
-        if (header) {
-            header.appendChild(timeContainer);
-        }
-    }
+    // إضافة التوقيت داخل الـ bubble لجميع الرسائل
+    bubble.appendChild(timeContainer);
     
     content.appendChild(bubble);
     messageDiv.appendChild(avatar);

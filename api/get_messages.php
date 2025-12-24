@@ -19,6 +19,7 @@ try {
             cm.id,
             cm.user_id,
             COALESCE(u.name, u.username, 'مستخدم') as username,
+            u.avatar,
             cm.message,
             cm.reply_to,
             cm.file_path,
@@ -47,6 +48,7 @@ try {
             'id' => $message['id'],
             'user_id' => $message['user_id'],
             'username' => $message['username'],
+            'avatar' => $message['avatar'] ?? null,
             'message' => $message['message'],
             'created_at' => $message['created_at']
         ];

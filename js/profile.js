@@ -158,9 +158,43 @@ async function loadProfileSection() {
         // تحميل البصمات المسجلة
         await loadCredentials();
 
+        // إنشاء SVG للصورة الافتراضية
+        const userInitials = getInitials(currentUser.name || currentUser.username || 'U');
+        const defaultAvatarSvg = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="white" font-size="60" font-weight="bold"%3E' + userInitials + '%3C/text%3E%3C/svg%3E';
+        const avatarSrc = currentUser.avatar || defaultAvatarSvg;
+        const avatarDisabled = !currentUser.avatar ? 'disabled' : '';
+        
         // عرض واجهة الملف الشخصي
         section.innerHTML = `
         <div class="profile-container">
+            <!-- صورة الملف الشخصي -->
+            <div class="profile-section">
+                <h3><i class="bi bi-image"></i> صورة الملف الشخصي</h3>
+                <div class="profile-avatar-section">
+                    <div class="profile-avatar-container">
+                        <img id="profileAvatarImg" src="${avatarSrc}" 
+                             alt="صورة الملف الشخصي" 
+                             class="profile-avatar-preview"
+                             onerror="this.src='${defaultAvatarSvg}'">
+                        <div class="profile-avatar-overlay">
+                            <label for="profileAvatarInput" class="profile-avatar-upload-btn">
+                                <i class="bi bi-camera"></i>
+                                <span>تغيير الصورة</span>
+                            </label>
+                            <input type="file" id="profileAvatarInput" accept="image/*" style="display: none;" onchange="handleAvatarUpload(event)">
+                        </div>
+                    </div>
+                    <div class="profile-avatar-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="removeAvatar()" ${avatarDisabled}>
+                            <i class="bi bi-trash"></i> حذف الصورة
+                        </button>
+                        <p class="profile-avatar-hint">
+                            <i class="bi bi-info-circle"></i> الحد الأقصى لحجم الصورة: 2MB. الصيغ المدعومة: JPG, PNG, GIF
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <!-- معلومات الحساب -->
             <div class="profile-section">
                 <h3><i class="bi bi-person-badge"></i> معلومات الحساب</h3>
@@ -739,3 +773,138 @@ document.addEventListener('DOMContentLoaded', () => {
         loadProfileSection();
     }
 });
+
+// دالة مساعدة للحصول على الأحرف الأولى
+function getInitials(name) {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+}
+
+// معالجة رفع صورة الملف الشخصي
+async function handleAvatarUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // التحقق من نوع الملف
+    if (!file.type.startsWith('image/')) {
+        showMessage('الملف المحدد ليس صورة', 'error');
+        return;
+    }
+    
+    // التحقق من حجم الملف (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+        showMessage('حجم الصورة كبير جداً. الحد الأقصى 2MB', 'error');
+        return;
+    }
+    
+    try {
+        // قراءة الصورة كـ Base64
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const imageData = e.target.result;
+            
+            // عرض حالة التحميل
+            const uploadBtn = document.querySelector('.profile-avatar-upload-btn');
+            if (uploadBtn) {
+                uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري الرفع...';
+                uploadBtn.style.pointerEvents = 'none';
+            }
+            
+            try {
+                // إرسال الصورة للخادم
+                const result = await API.request('profile.php', 'POST', {
+                    action: 'upload_avatar',
+                    avatar_data: imageData
+                });
+                
+                if (result && result.success) {
+                    showMessage('تم تحديث صورة الملف الشخصي بنجاح', 'success');
+                    
+                    // تحديث الصورة في الواجهة
+                    const avatarImg = document.getElementById('profileAvatarImg');
+                    if (avatarImg && result.data && result.data.avatar) {
+                        avatarImg.src = result.data.avatar + '?t=' + Date.now();
+                    }
+                    
+                    // تحديث بيانات المستخدم
+                    if (result.data) {
+                        currentUser = { ...currentUser, ...result.data };
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    }
+                    
+                    // تفعيل زر حذف الصورة
+                    const removeBtn = document.querySelector('button[onclick="removeAvatar()"]');
+                    if (removeBtn) {
+                        removeBtn.disabled = false;
+                    }
+                } else {
+                    showMessage(result?.message || 'فشل تحديث صورة الملف الشخصي', 'error');
+                }
+            } catch (error) {
+                console.error('خطأ في رفع صورة الملف الشخصي:', error);
+                showMessage('حدث خطأ أثناء رفع الصورة', 'error');
+            } finally {
+                if (uploadBtn) {
+                    uploadBtn.innerHTML = '<i class="bi bi-camera"></i><span>تغيير الصورة</span>';
+                    uploadBtn.style.pointerEvents = 'auto';
+                }
+                // إعادة تعيين input
+                event.target.value = '';
+            }
+        };
+        
+        reader.onerror = () => {
+            showMessage('حدث خطأ أثناء قراءة الصورة', 'error');
+        };
+        
+        reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('خطأ في معالجة الصورة:', error);
+        showMessage('حدث خطأ أثناء معالجة الصورة', 'error');
+    }
+}
+
+// حذف صورة الملف الشخصي
+async function removeAvatar() {
+    if (!confirm('هل أنت متأكد من حذف صورة الملف الشخصي؟')) {
+        return;
+    }
+    
+    try {
+        const result = await API.request('profile.php', 'POST', {
+            action: 'remove_avatar'
+        });
+        
+        if (result && result.success) {
+            showMessage('تم حذف صورة الملف الشخصي بنجاح', 'success');
+            
+            // تحديث الصورة في الواجهة
+            const avatarImg = document.getElementById('profileAvatarImg');
+            if (avatarImg && currentUser) {
+                const initials = getInitials(currentUser.name || currentUser.username || 'U');
+                avatarImg.src = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="white" font-size="60" font-weight="bold"%3E${initials}%3C/text%3E%3C/svg%3E`;
+            }
+            
+            // تحديث بيانات المستخدم
+            if (result.data) {
+                currentUser = { ...currentUser, ...result.data };
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            }
+            
+            // تعطيل زر حذف الصورة
+            const removeBtn = document.querySelector('button[onclick="removeAvatar()"]');
+            if (removeBtn) {
+                removeBtn.disabled = true;
+            }
+        } else {
+            showMessage(result?.message || 'فشل حذف صورة الملف الشخصي', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في حذف صورة الملف الشخصي:', error);
+        showMessage('حدث خطأ أثناء حذف الصورة', 'error');
+    }
+}
