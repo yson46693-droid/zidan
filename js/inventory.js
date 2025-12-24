@@ -286,18 +286,24 @@ function displaySpareParts(parts) {
                 </div>
                 
                 <div class="inventory-card-actions">
-                    <button onclick="printSparePartBarcode('${part.id}', '${barcode.replace(/'/g, "\\'")}', '${barcodeImage.replace(/'/g, "\\'")}')" class="btn btn-info btn-sm" title="طباعة الباركود">
-                        <i class="bi bi-printer"></i> طباعة
-                    </button>
-                    <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
-                        <i class="bi bi-eye"></i> معاينة
-                    </button>
-                    <button onclick="editSparePart('${part.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
-                        <i class="bi bi-pencil"></i> تعديل
-                    </button>
-                    <button onclick="deleteSparePart('${part.id}')" class="btn btn-danger btn-sm" data-permission="admin">
-                        <i class="bi bi-trash"></i> حذف
-                    </button>
+                    ${canEditInventory() ? `
+                        <button onclick="printSparePartBarcode('${part.id}', '${barcode.replace(/'/g, "\\'")}', '${barcodeImage.replace(/'/g, "\\'")}')" class="btn btn-info btn-sm" title="طباعة الباركود">
+                            <i class="bi bi-printer"></i> طباعة
+                        </button>
+                        <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
+                            <i class="bi bi-eye"></i> معاينة
+                        </button>
+                        <button onclick="editSparePart('${part.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
+                            <i class="bi bi-pencil"></i> تعديل
+                        </button>
+                        <button onclick="deleteSparePart('${part.id}')" class="btn btn-danger btn-sm" data-permission="admin">
+                            <i class="bi bi-trash"></i> حذف
+                        </button>
+                    ` : `
+                        <button onclick="requestInventoryItem('spare_part', '${part.id}', '${part.brand} ${part.model}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
+                            <i class="bi bi-cart-plus"></i> طلب قطعة غيار
+                        </button>
+                    `}
                 </div>
             </div>
         `;
@@ -682,15 +688,21 @@ function displayAccessories(accessories) {
                 </div>
                 
                 <div class="inventory-card-actions">
-                    <button onclick="printAccessoryBarcode('${accessory.id}')" class="btn btn-info btn-sm">
-                        <i class="bi bi-printer"></i> طباعة باركود
-                    </button>
-                    <button onclick="editAccessory('${accessory.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
-                        <i class="bi bi-pencil"></i> تعديل
-                    </button>
-                    <button onclick="deleteAccessory('${accessory.id}')" class="btn btn-danger btn-sm" data-permission="admin">
-                        <i class="bi bi-trash"></i> حذف
-                    </button>
+                    ${canEditInventory() ? `
+                        <button onclick="printAccessoryBarcode('${accessory.id}')" class="btn btn-info btn-sm">
+                            <i class="bi bi-printer"></i> طباعة باركود
+                        </button>
+                        <button onclick="editAccessory('${accessory.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
+                            <i class="bi bi-pencil"></i> تعديل
+                        </button>
+                        <button onclick="deleteAccessory('${accessory.id}')" class="btn btn-danger btn-sm" data-permission="admin">
+                            <i class="bi bi-trash"></i> حذف
+                        </button>
+                    ` : `
+                        <button onclick="requestInventoryItem('accessory', '${accessory.id}', '${accessory.name}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
+                            <i class="bi bi-cart-plus"></i> طلب قطعة غيار
+                        </button>
+                    `}
                 </div>
             </div>
         `;
@@ -921,18 +933,24 @@ function displayPhones(phones) {
                 </div>
                 
                 <div class="inventory-card-actions">
-                    <button onclick="event.stopPropagation(); printPhoneLabel('${phone.id}')" class="btn btn-info btn-sm">
-                        <i class="bi bi-printer"></i> طباعة ملصق
-                    </button>
-                    <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm">
-                        <i class="bi bi-eye"></i> التفاصيل
-                    </button>
-                    <button onclick="event.stopPropagation(); editPhone('${phone.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
-                        <i class="bi bi-pencil"></i> تعديل
-                    </button>
-                    <button onclick="event.stopPropagation(); deletePhone('${phone.id}')" class="btn btn-danger btn-sm" data-permission="admin">
-                        <i class="bi bi-trash"></i> حذف
-                    </button>
+                    ${canEditInventory() ? `
+                        <button onclick="event.stopPropagation(); printPhoneLabel('${phone.id}')" class="btn btn-info btn-sm">
+                            <i class="bi bi-printer"></i> طباعة ملصق
+                        </button>
+                        <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm">
+                            <i class="bi bi-eye"></i> التفاصيل
+                        </button>
+                        <button onclick="event.stopPropagation(); editPhone('${phone.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
+                            <i class="bi bi-pencil"></i> تعديل
+                        </button>
+                        <button onclick="event.stopPropagation(); deletePhone('${phone.id}')" class="btn btn-danger btn-sm" data-permission="admin">
+                            <i class="bi bi-trash"></i> حذف
+                        </button>
+                    ` : `
+                        <button onclick="event.stopPropagation(); requestInventoryItem('phone', '${phone.id}', '${phone.brand} ${phone.model}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
+                            <i class="bi bi-cart-plus"></i> طلب قطعة غيار
+                        </button>
+                    `}
                 </div>
             </div>
         `;

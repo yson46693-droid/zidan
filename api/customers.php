@@ -296,7 +296,9 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'rating')
 
 // قراءة جميع العملاء
 if ($method === 'GET') {
-    checkAuth();
+    $session = checkAuth();
+    $userRole = $session['role'];
+    $userBranchId = $session['branch_id'] ?? null;
     
     // Filter by customer type if provided
     $customerType = $_GET['type'] ?? null;
@@ -304,12 +306,20 @@ if ($method === 'GET') {
     // استخدام استعلام محسّن متوافق مع ONLY_FULL_GROUP_BY
     // تحديد الأعمدة صراحة بدلاً من c.* لتجنب مشاكل GROUP BY
     $query = "SELECT c.id, c.name, c.phone, c.address, c.customer_type, c.shop_name, c.notes, c.created_at, c.updated_at, c.created_by,
+              c.branch_id, b.name as branch_name,
               COALESCE(AVG(cr.rating), 0) as average_rating,
               COUNT(cr.id) as total_ratings
               FROM customers c
               LEFT JOIN customer_ratings cr ON c.id = cr.customer_id
+              LEFT JOIN branches b ON c.branch_id = b.id
               WHERE 1=1";
     $params = [];
+    
+    // فلترة حسب الفرع (عدا المالك)
+    if ($userRole !== 'admin' && $userBranchId) {
+        $query .= " AND c.branch_id = ?";
+        $params[] = $userBranchId;
+    }
     
     if ($customerType && in_array($customerType, ['retail', 'commercial'])) {
         $query .= " AND c.customer_type = ?";
@@ -317,7 +327,7 @@ if ($method === 'GET') {
     }
     
     // إضافة جميع الأعمدة في GROUP BY للتوافق مع ONLY_FULL_GROUP_BY
-    $query .= " GROUP BY c.id, c.name, c.phone, c.address, c.customer_type, c.shop_name, c.notes, c.created_at, c.updated_at, c.created_by ORDER BY c.created_at DESC";
+    $query .= " GROUP BY c.id, c.name, c.phone, c.address, c.customer_type, c.shop_name, c.notes, c.branch_id, b.name, c.created_at, c.updated_at, c.created_by ORDER BY c.created_at DESC";
     
     $customers = dbSelect($query, $params);
     
@@ -381,11 +391,19 @@ if ($method === 'POST') {
     }
     
     $session = checkAuth();
+    $userBranchId = $session['branch_id'] ?? null;
+    $userRole = $session['role'];
+    
+    // التحقق من أن المستخدم مرتبط بفرع (عدا المالك)
+    if ($userRole !== 'admin' && !$userBranchId) {
+        response(false, 'المستخدم غير مرتبط بفرع', null, 400);
+    }
+    
     $customerId = generateId();
     
     $result = dbExecute(
-        "INSERT INTO customers (id, name, phone, address, customer_type, shop_name, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)",
-        [$customerId, $name, $phone, $address, $customerType, $shopName ?: null, $session['user_id']]
+        "INSERT INTO customers (id, branch_id, name, phone, address, customer_type, shop_name, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+        [$customerId, $userBranchId, $name, $phone, $address, $customerType, $shopName ?: null, $session['user_id']]
     );
     
     if ($result === false) {

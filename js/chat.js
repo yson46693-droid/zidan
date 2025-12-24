@@ -181,6 +181,9 @@ async function initializeChat() {
         // تحديث معلومات المستخدم الحالي
         updateCurrentUserSection();
         
+        // تحميل آخر رسالة مقروءة أولاً
+        loadLastReadMessageId();
+        
         // تحميل الرسائل عند الدخول
         await loadMessages();
         
@@ -231,6 +234,11 @@ async function loadMessages() {
             
             // تصفير العداد عند فتح الشات
             updateUnreadBadge(0);
+            
+            // تحديث lastReadMessageId في chat-unread-badge.js
+            if (typeof window.updateLastReadMessageId === 'function') {
+                window.updateLastReadMessageId(lastReadMessageId);
+            }
             
             // تحديث العداد في dashboard إذا كان متاحاً
             if (typeof window.updateChatUnreadBadge === 'function') {
@@ -1635,6 +1643,10 @@ function loadLastReadMessageId() {
 function saveLastReadMessageId() {
     try {
         localStorage.setItem('lastReadMessageId', lastReadMessageId);
+        // تحديث lastReadMessageId في chat-unread-badge.js أيضاً
+        if (typeof window.updateLastReadMessageId === 'function') {
+            window.updateLastReadMessageId(lastReadMessageId);
+        }
     } catch (e) {
         console.error('خطأ في حفظ آخر رسالة مقروءة:', e);
     }

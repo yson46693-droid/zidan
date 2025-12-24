@@ -53,6 +53,14 @@ async function checkLogin() {
                     if (savedUser) {
                         const user = JSON.parse(savedUser);
                         console.log('✅ استخدام بيانات المستخدم المحفوظة');
+                        // تحديث معلومات الفرع من localStorage
+                        if (user.branch_id) {
+                            localStorage.setItem('branch_id', user.branch_id);
+                            localStorage.setItem('branch_name', user.branch_name || '');
+                            localStorage.setItem('branch_code', user.branch_code || '');
+                            localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
+                        }
+                        localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
                         // تحديث cache بدون تحديث cacheTime (لإجبار إعادة المحاولة لاحقاً)
                         cachedAuthResult = user;
                         return user;
@@ -77,18 +85,28 @@ async function checkLogin() {
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 // محاولة مرة أخرى
                 try {
-                    const retryResult = await API.checkAuth();
-                    if (retryResult && retryResult.success) {
-                        const user = retryResult.data;
-                        if (user) {
-                            localStorage.setItem('currentUser', JSON.stringify(user));
-                            cachedAuthResult = user;
-                            cacheTime = Date.now();
-                            // مسح العلامة بعد النجاح
-                            sessionStorage.removeItem('just_logged_in_time');
+                        const retryResult = await API.checkAuth();
+                        if (retryResult && retryResult.success) {
+                            const user = retryResult.data;
+                            if (user) {
+                                localStorage.setItem('currentUser', JSON.stringify(user));
+                                
+                                // حفظ معلومات الفرع
+                                if (user.branch_id) {
+                                    localStorage.setItem('branch_id', user.branch_id);
+                                    localStorage.setItem('branch_name', user.branch_name || '');
+                                    localStorage.setItem('branch_code', user.branch_code || '');
+                                    localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
+                                }
+                                localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
+                                
+                                cachedAuthResult = user;
+                                cacheTime = Date.now();
+                                // مسح العلامة بعد النجاح
+                                sessionStorage.removeItem('just_logged_in_time');
+                            }
+                            return user;
                         }
-                        return user;
-                    }
                 } catch (retryError) {
                     console.log('فشلت إعادة المحاولة:', retryError);
                 }
@@ -120,6 +138,23 @@ async function checkLogin() {
         const user = result.data;
         if (user) {
             localStorage.setItem('currentUser', JSON.stringify(user));
+            
+            // حفظ معلومات الفرع
+            if (user.branch_id) {
+                localStorage.setItem('branch_id', user.branch_id);
+                localStorage.setItem('branch_name', user.branch_name || '');
+                localStorage.setItem('branch_code', user.branch_code || '');
+                localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
+            } else {
+                localStorage.removeItem('branch_id');
+                localStorage.removeItem('branch_name');
+                localStorage.removeItem('branch_code');
+                localStorage.removeItem('has_pos');
+            }
+            
+            // حفظ معلومات المالك
+            localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
+            
             // حفظ في التخزين المؤقت
             cachedAuthResult = user;
             cacheTime = Date.now();
@@ -137,6 +172,14 @@ async function checkLogin() {
             if (savedUser) {
                 const user = JSON.parse(savedUser);
                 console.log('⚠️ استخدام بيانات المستخدم المحفوظة بعد الخطأ');
+                // تحديث معلومات الفرع من localStorage
+                if (user.branch_id) {
+                    localStorage.setItem('branch_id', user.branch_id);
+                    localStorage.setItem('branch_name', user.branch_name || '');
+                    localStorage.setItem('branch_code', user.branch_code || '');
+                    localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
+                }
+                localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
                 // تحديث cache بدون تحديث cacheTime (لإجبار إعادة المحاولة لاحقاً)
                 cachedAuthResult = user;
                 return user;
@@ -177,6 +220,22 @@ async function login(username, password) {
             
             // حفظ بيانات المستخدم الجديدة
             localStorage.setItem('currentUser', JSON.stringify(result.data));
+            
+            // حفظ معلومات الفرع
+            if (result.data.branch_id) {
+                localStorage.setItem('branch_id', result.data.branch_id);
+                localStorage.setItem('branch_name', result.data.branch_name || '');
+                localStorage.setItem('branch_code', result.data.branch_code || '');
+                localStorage.setItem('has_pos', result.data.has_pos ? 'true' : 'false');
+            } else {
+                localStorage.removeItem('branch_id');
+                localStorage.removeItem('branch_name');
+                localStorage.removeItem('branch_code');
+                localStorage.removeItem('has_pos');
+            }
+            
+            // حفظ معلومات المالك
+            localStorage.setItem('is_owner', result.data.is_owner ? 'true' : 'false');
             
             // 🔧 الحل 2: إضافة علامة تسجيل دخول حديث مع timestamp
             sessionStorage.setItem('just_logged_in_time', Date.now().toString());

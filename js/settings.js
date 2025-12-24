@@ -87,6 +87,7 @@ function loadSettingsSection() {
                             <th>اسم المستخدم</th>
                             <th>الاسم</th>
                             <th>الدور</th>
+                            <th>الفرع</th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
@@ -155,10 +156,18 @@ function loadSettingsSection() {
 
                     <div class="form-group">
                         <label for="userRole">الدور *</label>
-                        <select id="userRole" name="userRole" required>
+                        <select id="userRole" name="userRole" required onchange="toggleBranchField()">
                             <option value="employee">موظف</option>
+                            <option value="technician">فني صيانة</option>
                             <option value="manager">مدير</option>
                             <option value="admin">مالك</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="userBranchGroup">
+                        <label for="userBranch">الفرع *</label>
+                        <select id="userBranch" name="userBranch">
+                            <option value="">اختر الفرع...</option>
                         </select>
                     </div>
 
@@ -607,7 +616,7 @@ function displayUsers(users) {
     }
     
     if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">لا يوجد مستخدمين</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا يوجد مستخدمين</td></tr>';
         return;
     }
 
@@ -625,7 +634,7 @@ function displayUsers(users) {
     });
     
     if (validUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">لا توجد بيانات صحيحة للعرض</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">لا توجد بيانات صحيحة للعرض</td></tr>';
         return;
     }
 
@@ -634,6 +643,7 @@ function displayUsers(users) {
         const roles = {
             'admin': 'مالك',
             'manager': 'مدير',
+            'technician': 'فني صيانة',
             'employee': 'موظف'
         };
         return roles[role] || role || 'غير محدد';
@@ -645,14 +655,17 @@ function displayUsers(users) {
         const username = escapeHtml(String(user.username || ''));
         const name = escapeHtml(String(user.name || ''));
         const role = escapeHtml(String(user.role || 'employee'));
+        const branchName = escapeHtml(String(user.branch_name || ''));
+        const branchId = escapeHtml(String(user.branch_id || ''));
         
         return `
         <tr>
             <td>${username}</td>
             <td>${name}</td>
             <td>${getRoleTextFunc(role)}</td>
+            <td>${branchName || (role === 'admin' ? 'كل الفروع' : 'غير محدد')}</td>
             <td>
-                <button onclick="editUser('${userId}', '${username}', '${name}', '${role}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
+                <button onclick="editUser('${userId}', '${username}', '${name}', '${role}', '${branchId}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
                 <button onclick="deleteUser('${userId}')" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
             </td>
         </tr>
@@ -668,7 +681,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function showAddUserModal() {
+async function showAddUserModal() {
     try {
         console.log('showAddUserModal called'); // للتشخيص
         
@@ -685,8 +698,11 @@ function showAddUserModal() {
             return;
         }
 
+        // تحميل الفروع أولاً
+        await loadBranches();
+        
         // التحقق من وجود جميع العناصر المطلوبة
-        const requiredElements = ['userModalTitle', 'userForm', 'userId', 'userName', 'userUsername', 'userPassword', 'userRole'];
+        const requiredElements = ['userModalTitle', 'userForm', 'userId', 'userName', 'userUsername', 'userPassword', 'userRole', 'userBranch'];
         const missingElements = requiredElements.filter(id => !document.getElementById(id));
         
         if (missingElements.length > 0) {
@@ -704,6 +720,7 @@ function showAddUserModal() {
         const passwordHint = document.getElementById('passwordHint');
         const passwordField = document.getElementById('userPassword');
         const roleField = document.getElementById('userRole');
+        const branchField = document.getElementById('userBranch');
 
         if (titleElement) titleElement.textContent = 'إضافة مستخدم';
         if (formElement) formElement.reset();
@@ -729,6 +746,13 @@ function showAddUserModal() {
             roleField.value = 'employee'; // قيمة افتراضية
             roleField.style.borderColor = '';
         }
+        if (branchField) {
+            branchField.value = '';
+            branchField.style.borderColor = '';
+        }
+        
+        // إظهار/إخفاء حقل الفرع حسب الدور
+        toggleBranchField();
         
         if (passwordHint) passwordHint.style.display = 'none';
         
@@ -922,12 +946,26 @@ async function saveUser(event) {
             return;
         }
 
+        const branchId = document.getElementById('userBranch')?.value || null;
+        
         const userData = {
             name: name.trim(),
             username: username.trim(),
             password: password ? password.trim() : '',
-            role: role.trim() || 'employee'
+            role: role.trim() || 'employee',
+            branch_id: branchId || null
         };
+        
+        // التحقق من الفرع (مطلوب لجميع الأدوار عدا المالك)
+        if (role !== 'admin' && !branchId) {
+            showMessage('الفرع مطلوب لجميع الأدوار عدا المالك', 'error');
+            const branchField = document.getElementById('userBranch');
+            if (branchField) {
+                branchField.focus();
+                branchField.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
 
         let result;
 
@@ -937,6 +975,18 @@ async function saveUser(event) {
                 delete userData.password;
             }
             delete userData.username; // لا يمكن تعديل اسم المستخدم
+            
+            // التحقق من الفرع في حالة التحديث (مطلوب لجميع الأدوار عدا المالك)
+            if (userData.role !== 'admin' && !userData.branch_id) {
+                showMessage('الفرع مطلوب لجميع الأدوار عدا المالك', 'error');
+                const branchField = document.getElementById('userBranch');
+                if (branchField) {
+                    branchField.focus();
+                    branchField.style.borderColor = 'var(--danger-color)';
+                }
+                return;
+            }
+            
             console.log('📤 تحديث مستخدم:', userData);
             result = await API.updateUser(userData);
         } else {
@@ -968,7 +1018,7 @@ async function saveUser(event) {
     }
 }
 
-function editUser(id, username, name, role) {
+async function editUser(id, username, name, role, branchId) {
     try {
         // Error handling: التحقق من وجود id
         if (!id) {
@@ -982,6 +1032,9 @@ function editUser(id, username, name, role) {
             return;
         }
 
+        // تحميل الفروع أولاً
+        await loadBranches();
+
         // التحقق من وجود النموذج أولاً
         const userModal = document.getElementById('userModal');
         if (!userModal) {
@@ -991,7 +1044,7 @@ function editUser(id, username, name, role) {
         }
 
         // التحقق من وجود جميع العناصر المطلوبة
-        const requiredElements = ['userModalTitle', 'userId', 'userName', 'userUsername', 'userPassword', 'passwordHint', 'userRole'];
+        const requiredElements = ['userModalTitle', 'userId', 'userName', 'userUsername', 'userPassword', 'passwordHint', 'userRole', 'userBranch'];
         const missingElements = requiredElements.filter(elementId => !document.getElementById(elementId));
         
         if (missingElements.length > 0) {
@@ -1008,6 +1061,7 @@ function editUser(id, username, name, role) {
         const passwordElement = document.getElementById('userPassword');
         const passwordHintElement = document.getElementById('passwordHint');
         const roleElement = document.getElementById('userRole');
+        const branchElement = document.getElementById('userBranch');
 
         if (titleElement) titleElement.textContent = 'تعديل المستخدم';
         if (userIdElement) userIdElement.value = id || '';
@@ -1022,6 +1076,10 @@ function editUser(id, username, name, role) {
         }
         if (passwordHintElement) passwordHintElement.style.display = 'inline';
         if (roleElement) roleElement.value = role || 'employee';
+        if (branchElement) branchElement.value = branchId || '';
+        
+        // إظهار/إخفاء حقل الفرع حسب الدور
+        toggleBranchField();
         
         userModal.style.display = 'flex';
     } catch (error) {
@@ -1175,5 +1233,47 @@ if (typeof window !== 'undefined') {
     window.deleteUser = deleteUser;
     window.loadUsers = loadUsers;
     window.displayUsers = displayUsers;
+    
+    // دالة تحميل الفروع
+    async function loadBranches() {
+        try {
+            const result = await API.request('branches.php', 'GET');
+            if (result && result.success && result.data) {
+                const branchSelect = document.getElementById('userBranch');
+                if (branchSelect) {
+                    branchSelect.innerHTML = '<option value="">اختر الفرع...</option>';
+                    result.data.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch.id;
+                        option.textContent = branch.name;
+                        branchSelect.appendChild(option);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('خطأ في تحميل الفروع:', error);
+        }
+    }
+    
+    // دالة إظهار/إخفاء حقل الفرع
+    function toggleBranchField() {
+        const roleField = document.getElementById('userRole');
+        const branchGroup = document.getElementById('userBranchGroup');
+        const branchField = document.getElementById('userBranch');
+        
+        if (roleField && branchGroup && branchField) {
+            const role = roleField.value;
+            if (role === 'admin') {
+                branchGroup.style.display = 'none';
+                branchField.required = false;
+            } else {
+                branchGroup.style.display = 'block';
+                branchField.required = true;
+            }
+        }
+    }
+    
+    window.loadBranches = loadBranches;
+    window.toggleBranchField = toggleBranchField;
 }
 

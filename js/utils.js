@@ -1,5 +1,26 @@
 // دوال مساعدة
 
+/**
+ * التحقق من صلاحيات تعديل المخزون
+ * @returns {boolean}
+ */
+function canEditInventory() {
+    try {
+        const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const branchCode = localStorage.getItem('branch_code');
+        const isOwner = localStorage.getItem('is_owner') === 'true';
+        
+        // المالك له كامل الصلاحيات
+        if (isOwner) return true;
+        
+        // الفرع الأول فقط يمكنه التعديل
+        return branchCode === 'HANOVIL';
+    } catch (e) {
+        console.error('خطأ في التحقق من صلاحيات المخزون:', e);
+        return false;
+    }
+}
+
 // عرض رسالة
 function showMessage(message, type = 'success') {
     const messageDiv = document.createElement('div');

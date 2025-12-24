@@ -89,6 +89,8 @@
         
         // فحص دوري كل 5 ثواني
         checkInterval = setInterval(() => {
+            // تحديث lastReadMessageId من localStorage قبل كل فحص
+            loadLastReadMessageId();
             checkForUnreadMessages();
         }, 5000);
     }
@@ -107,6 +109,9 @@
             if (!currentUser || !currentUser.id) {
                 return;
             }
+            
+            // تحديث lastReadMessageId من localStorage قبل التحقق
+            loadLastReadMessageId();
             
             // جلب آخر رسالة
             const result = await API.request('get_messages.php?last_id=0', 'GET', null, { silent: true });
@@ -131,7 +136,13 @@
                     
                     // تحديث العداد
                     updateBadge(unreadCount);
+                } else {
+                    // لا توجد رسائل، تصفير العداد
+                    updateBadge(0);
                 }
+            } else {
+                // لا توجد رسائل، تصفير العداد
+                updateBadge(0);
             }
         } catch (error) {
             console.error('خطأ في التحقق من الرسائل غير المقروءة:', error);
@@ -172,7 +183,38 @@
     // دالة عامة لتحديث العداد من chat.js
     window.updateChatUnreadBadge = function(count) {
         updateBadge(count);
+        // تحديث lastReadMessageId المحلي أيضاً
+        if (count === 0) {
+            // إذا تم تصفير العداد، تحديث lastReadMessageId من localStorage
+            loadLastReadMessageId();
+            // إعادة التحقق من الرسائل غير المقروءة
+            checkForUnreadMessages();
+        }
     };
+    
+    // دالة لتحديث lastReadMessageId من chat.js
+    window.updateLastReadMessageId = function(messageId) {
+        if (messageId) {
+            lastReadMessageId = messageId;
+            try {
+                localStorage.setItem('lastReadMessageId', messageId);
+            } catch (e) {
+                console.error('خطأ في حفظ lastReadMessageId:', e);
+            }
+            // تحديث العداد بعد تحديث lastReadMessageId
+            checkForUnreadMessages();
+        }
+    };
+    
+    // الاستماع لتغييرات localStorage (عند فتح الشات من تبويب آخر)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'lastReadMessageId') {
+            // تحديث lastReadMessageId عند تغييره في تبويب آخر
+            loadLastReadMessageId();
+            // إعادة التحقق من الرسائل غير المقروءة
+            checkForUnreadMessages();
+        }
+    });
     
     // عند تحميل الصفحة
     if (document.readyState === 'loading') {

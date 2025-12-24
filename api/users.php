@@ -12,7 +12,10 @@ error_log('users.php - Data keys: ' . implode(', ', array_keys($data)));
 // قراءة جميع المستخدمين
 if ($method === 'GET') {
     checkPermission('admin');
-    $users = dbSelect("SELECT id, username, name, role, created_at, updated_at FROM users ORDER BY created_at DESC");
+    $users = dbSelect("SELECT u.id, u.username, u.name, u.role, u.branch_id, b.name as branch_name, u.created_at, u.updated_at 
+                       FROM users u 
+                       LEFT JOIN branches b ON u.branch_id = b.id 
+                       ORDER BY u.created_at DESC");
     
     if ($users === false) {
         response(false, 'خطأ في قراءة المستخدمين', null, 500);
@@ -58,9 +61,28 @@ if ($method === 'POST') {
     $password = isset($data['password']) ? $data['password'] : '';
     $name = isset($data['name']) ? trim($data['name']) : '';
     $role = isset($data['role']) ? $data['role'] : 'employee';
+    $branchId = isset($data['branch_id']) && !empty($data['branch_id']) ? trim($data['branch_id']) : null;
+    
+    // التحقق من صحة نوع الدور
+    if (!in_array($role, ['admin', 'manager', 'employee', 'technician'])) {
+        response(false, 'نوع الدور غير صحيح', null, 400);
+    }
+    
+    // التحقق من الفرع (مطلوب لجميع الأدوار عدا المالك)
+    if ($role !== 'admin' && !$branchId) {
+        response(false, 'الفرع مطلوب لجميع الأدوار عدا المالك', null, 400);
+    }
+    
+    // التحقق من وجود الفرع إذا كان محدداً
+    if ($branchId) {
+        $branch = dbSelectOne("SELECT id FROM branches WHERE id = ?", [$branchId]);
+        if (!$branch) {
+            response(false, 'الفرع المحدد غير موجود', null, 404);
+        }
+    }
     
     // تسجيل القيم بعد المعالجة
-    error_log('POST /users.php - القيم بعد المعالجة: username="' . $username . '", name="' . $name . '", password=' . (empty($password) ? '(empty)' : '(set)') . ', role="' . $role . '"');
+    error_log('POST /users.php - القيم بعد المعالجة: username="' . $username . '", name="' . $name . '", password=' . (empty($password) ? '(empty)' : '(set)') . ', role="' . $role . '", branch_id="' . ($branchId ?? 'NULL') . '"');
     
     // التحقق من الحقول المطلوبة
     if (empty($username) || empty($password) || empty($name)) {
@@ -78,8 +100,8 @@ if ($method === 'POST') {
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
     $result = dbExecute(
-        "INSERT INTO users (id, username, password, name, role, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-        [$userId, $username, $hashedPassword, $name, $role]
+        "INSERT INTO users (id, username, password, name, role, branch_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
+        [$userId, $username, $hashedPassword, $name, $role, $branchId]
     );
     
     if ($result === false) {
@@ -126,8 +148,27 @@ if ($method === 'PUT') {
     }
     
     if (isset($data['role'])) {
+        // التحقق من صحة نوع الدور
+        if (!in_array($data['role'], ['admin', 'manager', 'employee', 'technician'])) {
+            response(false, 'نوع الدور غير صحيح', null, 400);
+        }
         $updateFields[] = "role = ?";
         $updateParams[] = $data['role'];
+    }
+    
+    if (isset($data['branch_id'])) {
+        $branchId = !empty($data['branch_id']) ? trim($data['branch_id']) : null;
+        
+        // التحقق من وجود الفرع إذا كان محدداً
+        if ($branchId) {
+            $branch = dbSelectOne("SELECT id FROM branches WHERE id = ?", [$branchId]);
+            if (!$branch) {
+                response(false, 'الفرع المحدد غير موجود', null, 404);
+            }
+        }
+        
+        $updateFields[] = "branch_id = ?";
+        $updateParams[] = $branchId;
     }
     
     if (isset($data['password']) && !empty($data['password'])) {

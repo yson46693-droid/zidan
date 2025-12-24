@@ -99,19 +99,28 @@ if ($method === 'POST') {
         
         // البحث عن المستخدم في قاعدة البيانات
         try {
+            // محاولة جلب البيانات مع branch_id و avatar
             $user = dbSelectOne(
-                "SELECT id, username, password, name, role, avatar FROM users WHERE username = ?",
+                "SELECT id, username, password, name, role, branch_id, avatar FROM users WHERE username = ?",
                 [$username]
             );
         } catch (Exception $e) {
-            // إذا فشل بسبب عمود avatar غير موجود، جلب البيانات بدون avatar
-            error_log('محاولة جلب بيانات المستخدم بدون avatar: ' . $e->getMessage());
-            $user = dbSelectOne(
-                "SELECT id, username, password, name, role FROM users WHERE username = ?",
-                [$username]
-            );
+            // إذا فشل بسبب عمود غير موجود، جلب البيانات بدونها
+            error_log('محاولة جلب بيانات المستخدم: ' . $e->getMessage());
+            try {
+                $user = dbSelectOne(
+                    "SELECT id, username, password, name, role, branch_id FROM users WHERE username = ?",
+                    [$username]
+                );
+            } catch (Exception $e2) {
+                $user = dbSelectOne(
+                    "SELECT id, username, password, name, role FROM users WHERE username = ?",
+                    [$username]
+                );
+            }
             if ($user) {
-                $user['avatar'] = null;
+                if (!isset($user['avatar'])) $user['avatar'] = null;
+                if (!isset($user['branch_id'])) $user['branch_id'] = null;
             }
         }
         
@@ -143,6 +152,7 @@ if ($method === 'POST') {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
+                $_SESSION['branch_id'] = $user['branch_id'] ?? null;
                 
                 error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username);
                 
@@ -151,7 +161,9 @@ if ($method === 'POST') {
                     'id' => $user['id'],
                     'username' => $user['username'],
                     'name' => $user['name'],
-                    'role' => $user['role']
+                    'role' => $user['role'],
+                    'branch_id' => $user['branch_id'] ?? null,
+                    'is_owner' => ($user['role'] === 'admin')
                 ];
                 
                 // إضافة avatar إذا كان موجوداً
@@ -159,6 +171,27 @@ if ($method === 'POST') {
                     $userData['avatar'] = $user['avatar'];
                 } else {
                     $userData['avatar'] = null;
+                }
+                
+                // جلب معلومات الفرع إذا كان مرتبطاً بفرع
+                if (!empty($user['branch_id'])) {
+                    try {
+                        $branch = dbSelectOne(
+                            "SELECT id, name, code, has_pos FROM branches WHERE id = ?",
+                            [$user['branch_id']]
+                        );
+                        if ($branch) {
+                            $userData['branch_name'] = $branch['name'];
+                            $userData['branch_code'] = $branch['code'];
+                            $userData['has_pos'] = (bool)$branch['has_pos'];
+                        }
+                    } catch (Exception $e) {
+                        error_log('خطأ في جلب معلومات الفرع: ' . $e->getMessage());
+                    }
+                } else {
+                    $userData['branch_name'] = null;
+                    $userData['branch_code'] = null;
+                    $userData['has_pos'] = false;
                 }
                 
                 response(true, 'تم تسجيل الدخول بنجاح', $userData);
@@ -198,36 +231,73 @@ if ($method === 'GET') {
     }
     
     if (isset($_SESSION['user_id'])) {
-        // جلب بيانات المستخدم من قاعدة البيانات (بما في ذلك avatar)
+        // جلب بيانات المستخدم من قاعدة البيانات (بما في ذلك avatar و branch_id)
         $userId = $_SESSION['user_id'];
         try {
             $user = dbSelectOne(
-                "SELECT id, username, name, role, avatar FROM users WHERE id = ?",
+                "SELECT id, username, name, role, branch_id, avatar FROM users WHERE id = ?",
                 [$userId]
             );
             
             if ($user) {
-                response(true, 'الجلسة نشطة', $user);
+                $userData = [
+                    'id' => $user['id'],
+                    'username' => $user['username'],
+                    'name' => $user['name'],
+                    'role' => $user['role'],
+                    'branch_id' => $user['branch_id'] ?? null,
+                    'is_owner' => ($user['role'] === 'admin'),
+                    'avatar' => $user['avatar'] ?? null
+                ];
+                
+                // جلب معلومات الفرع إذا كان مرتبطاً بفرع
+                if (!empty($user['branch_id'])) {
+                    try {
+                        $branch = dbSelectOne(
+                            "SELECT id, name, code, has_pos FROM branches WHERE id = ?",
+                            [$user['branch_id']]
+                        );
+                        if ($branch) {
+                            $userData['branch_name'] = $branch['name'];
+                            $userData['branch_code'] = $branch['code'];
+                            $userData['has_pos'] = (bool)$branch['has_pos'];
+                        }
+                    } catch (Exception $e) {
+                        error_log('خطأ في جلب معلومات الفرع: ' . $e->getMessage());
+                    }
+                } else {
+                    $userData['branch_name'] = null;
+                    $userData['branch_code'] = null;
+                    $userData['has_pos'] = false;
+                }
+                
+                response(true, 'الجلسة نشطة', $userData);
             } else {
                 // إذا لم يتم العثور على المستخدم في قاعدة البيانات، استخدام بيانات الجلسة
-                response(true, 'الجلسة نشطة', [
+                $userData = [
                     'id' => $_SESSION['user_id'],
                     'username' => $_SESSION['username'] ?? '',
                     'name' => $_SESSION['name'] ?? '',
                     'role' => $_SESSION['role'] ?? 'employee',
+                    'branch_id' => $_SESSION['branch_id'] ?? null,
+                    'is_owner' => ($_SESSION['role'] ?? 'employee') === 'admin',
                     'avatar' => null
-                ]);
+                ];
+                response(true, 'الجلسة نشطة', $userData);
             }
         } catch (Exception $e) {
             error_log('خطأ في جلب بيانات المستخدم: ' . $e->getMessage());
             // في حالة الخطأ، استخدام بيانات الجلسة
-            response(true, 'الجلسة نشطة', [
+            $userData = [
                 'id' => $_SESSION['user_id'],
                 'username' => $_SESSION['username'] ?? '',
                 'name' => $_SESSION['name'] ?? '',
                 'role' => $_SESSION['role'] ?? 'employee',
+                'branch_id' => $_SESSION['branch_id'] ?? null,
+                'is_owner' => ($_SESSION['role'] ?? 'employee') === 'admin',
                 'avatar' => null
-            ]);
+            ];
+            response(true, 'الجلسة نشطة', $userData);
         }
     } else {
         response(false, 'لا توجد جلسة نشطة', null, 401);
