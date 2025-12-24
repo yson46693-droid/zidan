@@ -694,19 +694,23 @@ async function viewCustomerProfile(customerId) {
                 }
             }
             
-            // إضافة event listeners للبحث (لحظي بدون debounce)
+            // إضافة event listeners للبحث (لحظي مثل البحث برقم العميل)
             const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
             const dateSearchInput = document.getElementById('salesSearchDate');
             
             if (invoiceSearchInput) {
-                invoiceSearchInput.addEventListener('input', () => {
-                    filterAndDisplaySales(sales);
+                invoiceSearchInput.addEventListener('input', function() {
+                    // استخدام النسخة الأصلية من الفواتير للبحث
+                    const originalSales = window._originalCustomerSales || sales;
+                    filterAndDisplaySales(originalSales, true);
                 });
             }
             
             if (dateSearchInput) {
-                dateSearchInput.addEventListener('change', () => {
-                    filterAndDisplaySales(sales);
+                dateSearchInput.addEventListener('change', function() {
+                    // استخدام النسخة الأصلية من الفواتير للبحث
+                    const originalSales = window._originalCustomerSales || sales;
+                    filterAndDisplaySales(originalSales, true);
                 });
             }
         }
@@ -1825,19 +1829,32 @@ function displaySalesWithPagination(allSales) {
     }
 }
 
-// فلترة وعرض المبيعات
+// فلترة وعرض المبيعات (لحظي مثل البحث برقم العميل)
 function filterAndDisplaySales(allSales, resetPage = true) {
     const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
     const dateSearchInput = document.getElementById('salesSearchDate');
     
+    // التأكد من أن allSales هو array
+    if (!Array.isArray(allSales)) {
+        console.error('❌ allSales is not an array in filterAndDisplaySales:', allSales);
+        allSales = window._originalCustomerSales || [];
+    }
+    
     let filtered = [...allSales];
     
-    // فلترة برقم الفاتورة (البحث يبدأ بالأرقام المكتوبة)
+    // فلترة برقم الفاتورة (البحث في أي مكان في رقم الفاتورة - لحظي مثل البحث برقم العميل)
     if (invoiceSearchInput && invoiceSearchInput.value.trim()) {
         const searchTerm = invoiceSearchInput.value.trim().toLowerCase();
         filtered = filtered.filter(sale => {
             const saleNumber = String(sale.sale_number || sale.id || '').toLowerCase();
-            return saleNumber.startsWith(searchTerm);
+            // استخدام includes بدلاً من startsWith للبحث في أي مكان في رقم الفاتورة
+            // مثل البحث برقم العميل تماماً
+            return saleNumber.includes(searchTerm);
+        });
+        console.log('🔍 البحث برقم الفاتورة (لحظي):', {
+            searchTerm: searchTerm,
+            originalCount: allSales.length,
+            filteredCount: filtered.length
         });
     }
     
@@ -1848,6 +1865,11 @@ function filterAndDisplaySales(allSales, resetPage = true) {
             if (!sale.created_at) return false;
             const saleDate = new Date(sale.created_at).toISOString().split('T')[0];
             return saleDate === searchDate;
+        });
+        console.log('🔍 البحث بالتاريخ:', {
+            searchDate: searchDate,
+            originalCount: allSales.length,
+            filteredCount: filtered.length
         });
     }
     
@@ -1864,7 +1886,9 @@ function filterAndDisplaySales(allSales, resetPage = true) {
     console.log('🔍 بعد الفلترة:', {
         originalCount: window._originalCustomerSales?.length || 0,
         filteredCount: filtered.length,
-        currentPage: window.currentSalesPage
+        currentPage: window.currentSalesPage,
+        hasInvoiceSearch: invoiceSearchInput?.value.trim() || false,
+        hasDateSearch: dateSearchInput?.value || false
     });
     
     // عرض الفواتير المفلترة
