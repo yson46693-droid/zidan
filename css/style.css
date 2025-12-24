@@ -1563,74 +1563,10 @@ body {
         margin-bottom: 5px;
     }
     
-    /* زر المزامنة - مربع صغير مع border */
+    /* إخفاء مؤشر المزامنة بالكامل على الهاتف */
     .top-bar .header-actions .sync-indicator {
-        min-width: 36px;
-        min-height: 36px;
-        width: 36px;
-        height: 36px;
-        padding: 0;
-        border: 2px solid var(--primary-color);
-        border-radius: 6px;
-        background: var(--white);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        order: 0;
-        flex-shrink: 0;
-        position: relative;
-        font-size: 0;
-        text-indent: -9999px;
-        white-space: nowrap;
-        cursor: pointer;
-    }
-    
-    /* إخفاء جميع المحتويات على الهاتف */
-    .top-bar .header-actions .sync-indicator {
-        font-size: 0 !important;
-        line-height: 0 !important;
-    }
-    
-    /* إخفاء كل المحتويات الداخلية */
-    .top-bar .header-actions .sync-indicator > * {
         display: none !important;
         visibility: hidden !important;
-        opacity: 0 !important;
-    }
-    
-    /* إظهار أيقونة refresh دائماً على الهاتف باستخدام ::before */
-    .top-bar .header-actions .sync-indicator::before {
-        content: "\f21e" !important; /* Bootstrap Icons arrow-repeat */
-        font-family: "bootstrap-icons" !important;
-        font-size: 1.1em !important;
-        position: absolute;
-        left: 50% !important;
-        top: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        color: var(--primary-color);
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        z-index: 2;
-        font-style: normal !important;
-        font-weight: normal !important;
-    }
-    
-    /* تغيير لون الأيقونة حسب حالة المزامنة */
-    .top-bar .header-actions .sync-indicator[style*="color: rgb(76, 175, 80)"]::before,
-    .top-bar .header-actions .sync-indicator[style*="color: var(--success-color)"]::before {
-        color: var(--success-color) !important;
-    }
-    
-    .top-bar .header-actions .sync-indicator[style*="color: rgb(244, 67, 54)"]::before,
-    .top-bar .header-actions .sync-indicator[style*="color: var(--danger-color)"]::before {
-        color: var(--danger-color) !important;
-    }
-    
-    .top-bar .header-actions .sync-indicator[style*="color: rgb(255, 165, 0)"]::before,
-    .top-bar .header-actions .sync-indicator[style*="color: #FFA500"]::before {
-        color: #FFA500 !important;
     }
     
     /* زر الوضع الليلي - مربع صغير مع border */
@@ -1723,10 +1659,10 @@ body {
         border-radius: 6px !important;
     }
     
+    /* مؤشر المزامنة مخفي على الهاتف */
     .top-bar .header-actions .sync-indicator {
-        min-height: 36px !important;
-        padding: 0 !important;
-        font-size: 0 !important;
+        display: none !important;
+        visibility: hidden !important;
     }
     
     /* ضمان أن جميع الأزرار بنفس الحجم */
