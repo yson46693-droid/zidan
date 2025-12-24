@@ -2126,7 +2126,6 @@ function loadInventorySection() {
     
     section.innerHTML = `
         <div class="section-header">
-            <h2><i class="bi bi-box-seam"></i> المخزون</h2>
             <button onclick="showAddInventoryModal()" class="btn btn-primary" data-permission="manager">
                 <i class="bi bi-plus-circle"></i> إضافة
             </button>

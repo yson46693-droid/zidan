@@ -8,7 +8,6 @@ function loadExpensesSection() {
     const section = document.getElementById('expenses-section');
     section.innerHTML = `
         <div class="section-header">
-            <h2><i class="bi bi-cash-stack"></i> المصروفات</h2>
             <button onclick="showAddExpenseModal()" class="btn btn-primary"><i class="bi bi-plus-circle"></i> إضافة مصروف</button>
         </div>
 

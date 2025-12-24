@@ -11,7 +11,6 @@ function loadCustomersSection() {
     const section = document.getElementById('customers-section');
     section.innerHTML = `
         <div class="section-header">
-            <h2><i class="bi bi-people"></i> العملاء</h2>
             <div class="header-actions">
                 <button onclick="exportCustomersToCSV()" class="btn btn-success btn-sm">
                     <i class="bi bi-file-earmark-spreadsheet"></i> تصدير CSV
