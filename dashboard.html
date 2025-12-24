@@ -141,6 +141,19 @@
         })();
     </script>
     
+    <!-- 🔧 منع FOUC - إخفاء المحتوى حتى تحميل CSS -->
+    <style id="anti-fouc">
+        body {
+            visibility: hidden;
+            opacity: 0;
+        }
+        body.css-loaded {
+            visibility: visible;
+            opacity: 1;
+            transition: opacity 0.3s ease-in;
+        }
+    </style>
+    
     <!-- Critical CSS - تحميل فوري -->
     <link rel="stylesheet" href="css/style.css">
     
@@ -158,6 +171,94 @@
     
     <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="css/security.css"></noscript>
+    
+    <!-- 🔧 إظهار المحتوى بعد تحميل CSS -->
+    <script>
+        (function() {
+            'use strict';
+            
+            // التحقق من تحميل CSS
+            function checkCSSLoaded() {
+                try {
+                    // التحقق من تحميل style.css (الملف الأساسي)
+                    const styleSheet = document.querySelector('link[href*="style.css"]');
+                    if (styleSheet) {
+                        // إذا كان CSS محملاً بالفعل
+                        if (styleSheet.sheet || (styleSheet.styleSheet && styleSheet.styleSheet.cssText)) {
+                            showContent();
+                            return;
+                        }
+                        
+                        // انتظار تحميل CSS
+                        styleSheet.addEventListener('load', showContent, { once: true });
+                        styleSheet.addEventListener('error', showContent, { once: true }); // إظهار حتى لو فشل التحميل
+                    } else {
+                        // إذا لم يتم العثور على CSS، إظهار المحتوى بعد وقت قصير
+                        setTimeout(showContent, 100);
+                    }
+                } catch (error) {
+                    console.error('خطأ في التحقق من تحميل CSS:', error);
+                    // في حالة الخطأ، إظهار المحتوى
+                    showContent();
+                }
+            }
+            
+            function showContent() {
+                try {
+                    // إزالة style tag المضاد لـ FOUC
+                    const antiFouc = document.getElementById('anti-fouc');
+                    if (antiFouc) {
+                        antiFouc.remove();
+                    }
+                    
+                    // إضافة class لإظهار المحتوى
+                    if (document.body) {
+                        document.body.classList.add('css-loaded');
+                    } else {
+                        // انتظار body إذا لم يكن موجوداً
+                        const observer = new MutationObserver(function(mutations, obs) {
+                            if (document.body) {
+                                document.body.classList.add('css-loaded');
+                                obs.disconnect();
+                            }
+                        });
+                        observer.observe(document.documentElement, { childList: true });
+                        
+                        // Fallback: إزالة observer بعد 1 ثانية
+                        setTimeout(function() {
+                            observer.disconnect();
+                            if (document.body) {
+                                document.body.classList.add('css-loaded');
+                            }
+                        }, 1000);
+                    }
+                } catch (error) {
+                    console.error('خطأ في إظهار المحتوى:', error);
+                    // في حالة الخطأ، إزالة style tag على الأقل
+                    const antiFouc = document.getElementById('anti-fouc');
+                    if (antiFouc) {
+                        antiFouc.remove();
+                    }
+                }
+            }
+            
+            // التحقق عند DOMContentLoaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', checkCSSLoaded);
+            } else {
+                // إذا كانت الصفحة محملة بالفعل
+                checkCSSLoaded();
+            }
+            
+            // Fallback: إظهار المحتوى بعد 2 ثانية كحد أقصى (لضمان عدم بقاء الصفحة مخفية)
+            setTimeout(function() {
+                if (!document.body || !document.body.classList.contains('css-loaded')) {
+                    console.warn('⚠️ تم إظهار المحتوى بعد timeout - قد يكون هناك مشكلة في تحميل CSS');
+                    showContent();
+                }
+            }, 2000);
+        })();
+    </script>
     
     <!-- Quagga - تحميل فقط عند الحاجة (lazy load) -->
     <script>

@@ -253,8 +253,17 @@ function hideByPermission() {
     
     // إخفاء عناصر تحتاج صلاحية manager أو أعلى
     if (user.role === 'employee') {
+        // إخفاء عناصر data-permission="manager" مباشرة
         document.querySelectorAll('[data-permission="manager"]').forEach(el => {
             el.style.display = 'none';
+            el.style.visibility = 'hidden';
+            el.style.opacity = '0';
+            el.style.height = '0';
+            el.style.width = '0';
+            el.style.overflow = 'hidden';
+            el.style.position = 'absolute';
+            el.style.margin = '0';
+            el.style.padding = '0';
         });
         
         // للموظف: إخفاء جميع العناصر عدا (الصيانة، المخزون، نقاط البيع، الشات)
@@ -298,10 +307,19 @@ function hideByPermission() {
                 /* إخفاء العناصر المحظورة للموظف */
                 .sidebar-nav a[href="#dashboard"],
                 .mobile-nav-container a[href="#dashboard"],
+                .mobile-nav-item[href="#dashboard"],
                 .sidebar-nav a[href="#customers"],
                 .mobile-nav-container a[href="#customers"],
+                .mobile-nav-item[href="#customers"],
                 .sidebar-nav a[href="#expenses"],
-                .mobile-nav-container a[href="#expenses"] {
+                .mobile-nav-container a[href="#expenses"],
+                .mobile-nav-item[href="#expenses"],
+                /* إخفاء العناصر التي تحتاج صلاحية manager */
+                .sidebar-nav [data-permission="manager"],
+                .mobile-nav-container [data-permission="manager"],
+                .mobile-nav-item[data-permission="manager"],
+                .nav-link[data-permission="manager"],
+                a[data-permission="manager"] {
                     display: none !important;
                     visibility: hidden !important;
                     opacity: 0 !important;
@@ -309,13 +327,11 @@ function hideByPermission() {
                     width: 0 !important;
                     overflow: hidden !important;
                     position: absolute !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
                 }
             `;
         }
-        
-        // إخفاء التقارير (موجود بالفعل في data-permission="manager")
-        // إخفاء الإعدادات (موجود بالفعل في data-permission="manager")
-        // إخفاء سجلات الأخطاء (موجود بالفعل في data-permission="manager")
     } else {
         // إزالة CSS للموظف إذا لم يكن موظفاً
         const styleElement = document.getElementById('employee-permissions-style');

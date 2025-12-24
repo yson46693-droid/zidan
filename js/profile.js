@@ -158,10 +158,9 @@ async function loadProfileSection() {
         // تحميل البصمات المسجلة
         await loadCredentials();
 
-        // إنشاء SVG للصورة الافتراضية مع أيقونة شخص
-        const defaultAvatarSvg = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ccircle cx="75" cy="55" r="20" fill="white"/%3E%3Cpath d="M 75 80 Q 40 80 40 110 L 40 120 Q 40 130 50 130 L 100 130 Q 110 130 110 120 L 110 110 Q 110 80 75 80 Z" fill="white"/%3E%3C/svg%3E';
-        const avatarSrc = currentUser.avatar || defaultAvatarSvg;
-        const avatarDisabled = !currentUser.avatar ? 'disabled' : '';
+        // استخدام أيقونة Bootstrap الافتراضية للملف الشخصي
+        const hasAvatar = currentUser.avatar && currentUser.avatar.trim() !== '';
+        const avatarSrc = hasAvatar ? currentUser.avatar : '';
         
         // عرض واجهة الملف الشخصي
         section.innerHTML = `
@@ -171,10 +170,15 @@ async function loadProfileSection() {
                 <h3><i class="bi bi-image"></i> صورة الملف الشخصي</h3>
                 <div class="profile-avatar-section">
                     <div class="profile-avatar-container">
-                        <img id="profileAvatarImg" src="${avatarSrc}" 
-                             alt="صورة الملف الشخصي" 
-                             class="profile-avatar-preview"
-                             onerror="this.src='${defaultAvatarSvg}'">
+                        ${hasAvatar 
+                            ? `<img id="profileAvatarImg" src="${avatarSrc}" 
+                                     alt="صورة الملف الشخصي" 
+                                     class="profile-avatar-preview"
+                                     onerror="handleAvatarError()">`
+                            : `<div id="profileAvatarDefault" class="profile-avatar-default">
+                                   <i class="bi bi-person-circle"></i>
+                               </div>`
+                        }
                         <div class="profile-avatar-overlay">
                             <label for="profileAvatarInput" class="profile-avatar-upload-btn">
                                 <i class="bi bi-camera"></i>
@@ -184,7 +188,7 @@ async function loadProfileSection() {
                         </div>
                     </div>
                     <div class="profile-avatar-actions">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="removeAvatar()" ${avatarDisabled}>
+                        <button type="button" class="btn btn-secondary btn-sm" id="removeAvatarBtn" onclick="removeAvatar()" ${hasAvatar ? '' : 'disabled'}>
                             <i class="bi bi-trash"></i> حذف الصورة
                         </button>
                         <p class="profile-avatar-hint">
@@ -824,8 +828,24 @@ async function handleAvatarUpload(event) {
                     showMessage('تم تحديث صورة الملف الشخصي بنجاح', 'success');
                     
                     // تحديث الصورة في الواجهة
-                    const avatarImg = document.getElementById('profileAvatarImg');
-                    if (avatarImg && result.data && result.data.avatar) {
+                    const avatarContainer = document.querySelector('.profile-avatar-container');
+                    if (avatarContainer && result.data && result.data.avatar) {
+                        // إزالة الأيقونة الافتراضية إن وجدت
+                        const defaultAvatar = document.getElementById('profileAvatarDefault');
+                        if (defaultAvatar) {
+                            defaultAvatar.remove();
+                        }
+                        
+                        // إضافة الصورة
+                        let avatarImg = document.getElementById('profileAvatarImg');
+                        if (!avatarImg) {
+                            avatarImg = document.createElement('img');
+                            avatarImg.id = 'profileAvatarImg';
+                            avatarImg.className = 'profile-avatar-preview';
+                            avatarImg.alt = 'صورة الملف الشخصي';
+                            avatarImg.onerror = handleAvatarError;
+                            avatarContainer.insertBefore(avatarImg, avatarContainer.firstChild);
+                        }
                         avatarImg.src = result.data.avatar + '?t=' + Date.now();
                     }
                     
@@ -836,7 +856,7 @@ async function handleAvatarUpload(event) {
                     }
                     
                     // تفعيل زر حذف الصورة
-                    const removeBtn = document.querySelector('button[onclick="removeAvatar()"]');
+                    const removeBtn = document.getElementById('removeAvatarBtn');
                     if (removeBtn) {
                         removeBtn.disabled = false;
                     }
@@ -867,43 +887,143 @@ async function handleAvatarUpload(event) {
     }
 }
 
-// حذف صورة الملف الشخصي
-async function removeAvatar() {
-    if (!confirm('هل أنت متأكد من حذف صورة الملف الشخصي؟')) {
-        return;
-    }
-    
+// جعل الدالة متاحة عالمياً
+window.handleAvatarUpload = handleAvatarUpload;
+
+// معالجة خطأ تحميل الصورة
+function handleAvatarError() {
     try {
-        const result = await API.request('profile.php', 'POST', {
-            action: 'remove_avatar'
-        });
+        const avatarImg = document.getElementById('profileAvatarImg');
+        const avatarContainer = document.querySelector('.profile-avatar-container');
         
-        if (result && result.success) {
-            showMessage('تم حذف صورة الملف الشخصي بنجاح', 'success');
+        if (avatarImg && avatarContainer) {
+            // إزالة الصورة المعطلة
+            avatarImg.remove();
             
-            // تحديث الصورة في الواجهة
-            const avatarImg = document.getElementById('profileAvatarImg');
-            if (avatarImg && currentUser) {
-                // استخدام أيقونة افتراضية للملف الشخصي
-                avatarImg.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ccircle cx="75" cy="55" r="20" fill="white"/%3E%3Cpath d="M 75 80 Q 40 80 40 110 L 40 120 Q 40 130 50 130 L 100 130 Q 110 130 110 120 L 110 110 Q 110 80 75 80 Z" fill="white"/%3E%3C/svg%3E';
-            }
+            // إضافة الأيقونة الافتراضية
+            const defaultAvatar = document.createElement('div');
+            defaultAvatar.id = 'profileAvatarDefault';
+            defaultAvatar.className = 'profile-avatar-default';
+            defaultAvatar.innerHTML = '<i class="bi bi-person-circle"></i>';
+            avatarContainer.insertBefore(defaultAvatar, avatarContainer.firstChild);
             
-            // تحديث بيانات المستخدم
-            if (result.data) {
-                currentUser = { ...currentUser, ...result.data };
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            }
-            
-            // تعطيل زر حذف الصورة
-            const removeBtn = document.querySelector('button[onclick="removeAvatar()"]');
+            // تعطيل زر الحذف
+            const removeBtn = document.getElementById('removeAvatarBtn');
             if (removeBtn) {
                 removeBtn.disabled = true;
             }
+            
+            // تحديث بيانات المستخدم
+            if (currentUser) {
+                currentUser.avatar = null;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            }
+        }
+    } catch (error) {
+        console.error('خطأ في handleAvatarError:', error);
+    }
+}
+
+// جعل الدالة متاحة عالمياً
+window.handleAvatarError = handleAvatarError;
+
+// حذف صورة الملف الشخصي
+async function removeAvatar() {
+    try {
+        // التحقق من وجود زر الحذف
+        const removeBtn = document.getElementById('removeAvatarBtn');
+        if (removeBtn && removeBtn.disabled) {
+            showMessage('لا توجد صورة للحذف', 'info');
+            return;
+        }
+        
+        if (!confirm('هل أنت متأكد من حذف صورة الملف الشخصي؟')) {
+            return;
+        }
+        
+        // تعطيل الزر أثناء المعالجة
+        if (removeBtn) {
+            removeBtn.disabled = true;
+            const originalText = removeBtn.innerHTML;
+            removeBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري الحذف...';
+            
+            try {
+                const result = await API.request('profile.php', 'POST', {
+                    action: 'remove_avatar'
+                });
+                
+                if (result && result.success) {
+                    showMessage('تم حذف صورة الملف الشخصي بنجاح', 'success');
+                    
+                    // تحديث الصورة في الواجهة - استبدال الصورة بالأيقونة الافتراضية
+                    const avatarImg = document.getElementById('profileAvatarImg');
+                    const avatarContainer = document.querySelector('.profile-avatar-container');
+                    
+                    if (avatarContainer) {
+                        // إزالة الصورة إن وجدت
+                        if (avatarImg) {
+                            avatarImg.remove();
+                        }
+                        
+                        // التحقق من عدم وجود أيقونة افتراضية مسبقاً
+                        let defaultAvatar = document.getElementById('profileAvatarDefault');
+                        if (!defaultAvatar) {
+                            // إضافة الأيقونة الافتراضية من Bootstrap
+                            defaultAvatar = document.createElement('div');
+                            defaultAvatar.id = 'profileAvatarDefault';
+                            defaultAvatar.className = 'profile-avatar-default';
+                            defaultAvatar.innerHTML = '<i class="bi bi-person-circle"></i>';
+                            avatarContainer.insertBefore(defaultAvatar, avatarContainer.firstChild);
+                        }
+                    }
+                    
+                    // تحديث بيانات المستخدم
+                    if (result.data) {
+                        currentUser = { ...currentUser, ...result.data };
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    }
+                    
+                    // تحديث زر الحذف
+                    if (removeBtn) {
+                        removeBtn.disabled = true;
+                        removeBtn.innerHTML = '<i class="bi bi-trash"></i> حذف الصورة';
+                    }
+                } else {
+                    showMessage(result?.message || 'فشل حذف صورة الملف الشخصي', 'error');
+                    if (removeBtn) {
+                        removeBtn.disabled = false;
+                        removeBtn.innerHTML = originalText;
+                    }
+                }
+            } catch (error) {
+                console.error('خطأ في حذف صورة الملف الشخصي:', error);
+                showMessage('حدث خطأ أثناء حذف الصورة: ' + (error.message || 'خطأ غير معروف'), 'error');
+                if (removeBtn) {
+                    removeBtn.disabled = false;
+                    removeBtn.innerHTML = originalText;
+                }
+            }
         } else {
-            showMessage(result?.message || 'فشل حذف صورة الملف الشخصي', 'error');
+            // إذا لم يكن الزر موجوداً، تنفيذ العملية مباشرة
+            const result = await API.request('profile.php', 'POST', {
+                action: 'remove_avatar'
+            });
+            
+            if (result && result.success) {
+                showMessage('تم حذف صورة الملف الشخصي بنجاح', 'success');
+                // إعادة تحميل القسم لعرض التغييرات
+                setTimeout(() => {
+                    loadProfileSection();
+                }, 500);
+            } else {
+                showMessage(result?.message || 'فشل حذف صورة الملف الشخصي', 'error');
+            }
         }
     } catch (error) {
         console.error('خطأ في حذف صورة الملف الشخصي:', error);
-        showMessage('حدث خطأ أثناء حذف الصورة', 'error');
+        showMessage('حدث خطأ أثناء حذف الصورة: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
 }
+
+// جعل الدالة متاحة عالمياً
+window.removeAvatar = removeAvatar;
