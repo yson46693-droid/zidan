@@ -6,6 +6,41 @@ require_once 'invoices.php';
 $data = getRequestData();
 $method = $data['_method'] ?? getRequestMethod();
 
+/**
+ * معالج أخطاء قاعدة البيانات - التحقق من الجداول الناقصة تلقائياً
+ */
+function handleDatabaseError($error, $query = '') {
+    // التحقق من وجود خطأ متعلق بجدول غير موجود
+    if (strpos($error, "doesn't exist") !== false || strpos($error, 'Table') !== false) {
+        error_log("⚠️ تم اكتشاف جدول ناقص: $error");
+        
+        // استدعاء ملف التحقق من قاعدة البيانات
+        if (file_exists(__DIR__ . '/check-database.php')) {
+            require_once __DIR__ . '/check-database.php';
+            $checkResult = checkAndCreateMissingTables();
+            
+            if ($checkResult['success'] && !empty($checkResult['tables_created'])) {
+                error_log("✅ تم إنشاء الجداول الناقصة تلقائياً: " . implode(', ', $checkResult['tables_created']));
+                // إعادة المحاولة بعد إنشاء الجداول
+                return true;
+            }
+        }
+        
+        // محاولة استدعاء setupDatabase مباشرة
+        if (file_exists(__DIR__ . '/setup.php')) {
+            require_once __DIR__ . '/setup.php';
+            $setupResult = setupDatabase();
+            
+            if ($setupResult['success'] && !empty($setupResult['tables_created'])) {
+                error_log("✅ تم إنشاء الجداول الناقصة تلقائياً: " . implode(', ', $setupResult['tables_created']));
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
 // الحصول على مبيعات العميل - يجب أن يكون قبل الشرط العام GET
 if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') {
     checkAuth();
@@ -255,8 +290,20 @@ if ($method === 'GET') {
     $customers = dbSelect($query, $params);
     
     if ($customers === false) {
-        error_log("خطأ في جلب العملاء: " . (isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف'));
-        response(false, 'خطأ في قراءة العملاء', null, 500);
+        $error = isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف';
+        error_log("خطأ في جلب العملاء: $error");
+        
+        // محاولة إصلاح قاعدة البيانات تلقائياً
+        if (handleDatabaseError($error, $query)) {
+            // إعادة المحاولة بعد إصلاح قاعدة البيانات
+            $customers = dbSelect($query, $params);
+            if ($customers === false) {
+                error_log("فشل إصلاح قاعدة البيانات أو إعادة المحاولة");
+                response(false, 'خطأ في قراءة العملاء بعد محاولة الإصلاح', null, 500);
+            }
+        } else {
+            response(false, 'خطأ في قراءة العملاء', null, 500);
+        }
     }
     
     // التأكد من أن $customers هو array (قد يكون null أو false)

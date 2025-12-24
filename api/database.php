@@ -52,14 +52,17 @@ function getDBConnection() {
  * @return array|false
  */
 function dbSelect($query, $params = []) {
+    global $lastDbError;
     $conn = getDBConnection();
     if (!$conn) {
+        $lastDbError = 'فشل الاتصال بقاعدة البيانات';
         return false;
     }
     
     $stmt = $conn->prepare($query);
     if (!$stmt) {
-        error_log('خطأ في إعداد الاستعلام: ' . $conn->error);
+        $lastDbError = $conn->error;
+        error_log('خطأ في إعداد الاستعلام: ' . $conn->error . ' | الاستعلام: ' . substr($query, 0, 200));
         return false;
     }
     
@@ -82,7 +85,8 @@ function dbSelect($query, $params = []) {
     }
     
     if (!$stmt->execute()) {
-        error_log('خطأ في تنفيذ الاستعلام: ' . $stmt->error);
+        $lastDbError = $stmt->error;
+        error_log('خطأ في تنفيذ الاستعلام: ' . $stmt->error . ' | الاستعلام: ' . substr($query, 0, 200));
         $stmt->close();
         return false;
     }
@@ -95,6 +99,7 @@ function dbSelect($query, $params = []) {
     }
     
     $stmt->close();
+    $lastDbError = null; // مسح الخطأ عند النجاح
     return $data;
 }
 

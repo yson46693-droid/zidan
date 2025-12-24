@@ -428,6 +428,7 @@ function setupDatabase() {
         'loss_operations',
         'sales',
         'sale_items',
+        'customer_ratings',
         'webauthn_credentials',
         'chat_rooms',
         'chat_participants',
