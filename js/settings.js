@@ -669,69 +669,98 @@ function escapeHtml(text) {
 }
 
 function showAddUserModal() {
-    console.log('showAddUserModal called'); // للتشخيص
-    
-    if (!hasPermission('admin')) {
-        showMessage('ليس لديك صلاحية لإضافة مستخدمين. يجب أن تكون مالك (admin) للوصول إلى هذه الميزة.', 'error');
-        return;
-    }
-    
-    const userModal = document.getElementById('userModal');
-    if (!userModal) {
-        console.error('userModal not found');
-        showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-        return;
-    }
+    try {
+        console.log('showAddUserModal called'); // للتشخيص
+        
+        // Error handling: التحقق من الصلاحية
+        if (!hasPermission('admin')) {
+            showMessage('ليس لديك صلاحية لإضافة مستخدمين. يجب أن تكون مالك (admin) للوصول إلى هذه الميزة.', 'error');
+            return;
+        }
+        
+        const userModal = document.getElementById('userModal');
+        if (!userModal) {
+            console.error('userModal not found');
+            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
 
-    // التحقق من وجود جميع العناصر المطلوبة
-    const requiredElements = ['userModalTitle', 'userForm', 'userId', 'userName', 'userUsername', 'userPassword', 'userRole'];
-    const missingElements = requiredElements.filter(id => !document.getElementById(id));
-    
-    if (missingElements.length > 0) {
-        console.error('Missing required elements:', missingElements);
-        showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-        return;
-    }
-    
-    // إعداد النموذج بطريقة آمنة
-    const titleElement = document.getElementById('userModalTitle');
-    const formElement = document.getElementById('userForm');
-    const userIdElement = document.getElementById('userId');
-    const nameField = document.getElementById('userName');
-    const usernameField = document.getElementById('userUsername');
-    const passwordHint = document.getElementById('passwordHint');
-    const passwordField = document.getElementById('userPassword');
-    const roleField = document.getElementById('userRole');
+        // التحقق من وجود جميع العناصر المطلوبة
+        const requiredElements = ['userModalTitle', 'userForm', 'userId', 'userName', 'userUsername', 'userPassword', 'userRole'];
+        const missingElements = requiredElements.filter(id => !document.getElementById(id));
+        
+        if (missingElements.length > 0) {
+            console.error('Missing required elements:', missingElements);
+            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
+        
+        // إعداد النموذج بطريقة آمنة
+        const titleElement = document.getElementById('userModalTitle');
+        const formElement = document.getElementById('userForm');
+        const userIdElement = document.getElementById('userId');
+        const nameField = document.getElementById('userName');
+        const usernameField = document.getElementById('userUsername');
+        const passwordHint = document.getElementById('passwordHint');
+        const passwordField = document.getElementById('userPassword');
+        const roleField = document.getElementById('userRole');
 
-    if (titleElement) titleElement.textContent = 'إضافة مستخدم';
-    if (formElement) formElement.reset();
-    
-    // إعادة تعيين جميع الحقول بشكل صريح
-    if (userIdElement) userIdElement.value = '';
-    if (nameField) nameField.value = '';
-    if (usernameField) {
-        usernameField.value = '';
-        usernameField.disabled = false;
-    }
-    if (passwordField) {
-        passwordField.value = '';
-        passwordField.required = true;
-        passwordField.placeholder = '';
-    }
-    if (roleField) roleField.value = 'employee'; // قيمة افتراضية
-    
-    if (passwordHint) passwordHint.style.display = 'none';
-    
-    userModal.style.display = 'flex';
-    
-    // التركيز على أول حقل
-    if (nameField) {
-        setTimeout(() => nameField.focus(), 100);
+        if (titleElement) titleElement.textContent = 'إضافة مستخدم';
+        if (formElement) formElement.reset();
+        
+        // إعادة تعيين جميع الحقول بشكل صريح
+        if (userIdElement) userIdElement.value = '';
+        if (nameField) {
+            nameField.value = '';
+            nameField.style.borderColor = '';
+        }
+        if (usernameField) {
+            usernameField.value = '';
+            usernameField.disabled = false;
+            usernameField.style.borderColor = '';
+        }
+        if (passwordField) {
+            passwordField.value = '';
+            passwordField.required = true;
+            passwordField.placeholder = '';
+            passwordField.style.borderColor = '';
+        }
+        if (roleField) {
+            roleField.value = 'employee'; // قيمة افتراضية
+            roleField.style.borderColor = '';
+        }
+        
+        if (passwordHint) passwordHint.style.display = 'none';
+        
+        userModal.style.display = 'flex';
+        
+        // التركيز على أول حقل
+        if (nameField) {
+            setTimeout(() => {
+                try {
+                    nameField.focus();
+                } catch (e) {
+                    console.warn('Could not focus on nameField:', e);
+                }
+            }, 100);
+        }
+    } catch (error) {
+        console.error('خطأ في showAddUserModal:', error);
+        showMessage('حدث خطأ أثناء فتح نموذج إضافة المستخدم: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
 }
 
 function closeUserModal() {
-    document.getElementById('userModal').style.display = 'none';
+    try {
+        const userModal = document.getElementById('userModal');
+        if (userModal) {
+            userModal.style.display = 'none';
+        } else {
+            console.warn('userModal not found in closeUserModal');
+        }
+    } catch (error) {
+        console.error('خطأ في closeUserModal:', error);
+    }
 }
 
 async function saveUser(event) {
@@ -873,59 +902,93 @@ async function saveUser(event) {
 }
 
 function editUser(id, username, name, role) {
-    // التحقق من وجود النموذج أولاً
-    const userModal = document.getElementById('userModal');
-    if (!userModal) {
-        showMessage('خطأ: نموذج المستخدم غير موجود. يرجى الانتقال إلى قسم الإعدادات أولاً.', 'error');
-        console.error('userModal not found in editUser');
-        return;
-    }
+    try {
+        // Error handling: التحقق من وجود id
+        if (!id) {
+            showMessage('معرف المستخدم غير صحيح', 'error');
+            return;
+        }
 
-    // التحقق من وجود جميع العناصر المطلوبة
-    const requiredElements = ['userModalTitle', 'userId', 'userName', 'userUsername', 'userPassword', 'passwordHint', 'userRole'];
-    const missingElements = requiredElements.filter(elementId => !document.getElementById(elementId));
-    
-    if (missingElements.length > 0) {
-        console.error('Missing required elements in editUser:', missingElements);
-        showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-        return;
-    }
+        // Error handling: التحقق من الصلاحية
+        if (!hasPermission('admin')) {
+            showMessage('ليس لديك صلاحية لتعديل المستخدمين', 'error');
+            return;
+        }
 
-    // ملء النموذج بطريقة آمنة
-    const titleElement = document.getElementById('userModalTitle');
-    const userIdElement = document.getElementById('userId');
-    const nameElement = document.getElementById('userName');
-    const usernameElement = document.getElementById('userUsername');
-    const passwordElement = document.getElementById('userPassword');
-    const passwordHintElement = document.getElementById('passwordHint');
-    const roleElement = document.getElementById('userRole');
+        // التحقق من وجود النموذج أولاً
+        const userModal = document.getElementById('userModal');
+        if (!userModal) {
+            showMessage('خطأ: نموذج المستخدم غير موجود. يرجى الانتقال إلى قسم الإعدادات أولاً.', 'error');
+            console.error('userModal not found in editUser');
+            return;
+        }
 
-    if (titleElement) titleElement.textContent = 'تعديل المستخدم';
-    if (userIdElement) userIdElement.value = id;
-    if (nameElement) nameElement.value = name;
-    if (usernameElement) {
-        usernameElement.value = username;
-        usernameElement.disabled = true;
+        // التحقق من وجود جميع العناصر المطلوبة
+        const requiredElements = ['userModalTitle', 'userId', 'userName', 'userUsername', 'userPassword', 'passwordHint', 'userRole'];
+        const missingElements = requiredElements.filter(elementId => !document.getElementById(elementId));
+        
+        if (missingElements.length > 0) {
+            console.error('Missing required elements in editUser:', missingElements);
+            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
+
+        // ملء النموذج بطريقة آمنة
+        const titleElement = document.getElementById('userModalTitle');
+        const userIdElement = document.getElementById('userId');
+        const nameElement = document.getElementById('userName');
+        const usernameElement = document.getElementById('userUsername');
+        const passwordElement = document.getElementById('userPassword');
+        const passwordHintElement = document.getElementById('passwordHint');
+        const roleElement = document.getElementById('userRole');
+
+        if (titleElement) titleElement.textContent = 'تعديل المستخدم';
+        if (userIdElement) userIdElement.value = id || '';
+        if (nameElement) nameElement.value = name || '';
+        if (usernameElement) {
+            usernameElement.value = username || '';
+            usernameElement.disabled = true;
+        }
+        if (passwordElement) {
+            passwordElement.value = '';
+            passwordElement.required = false;
+        }
+        if (passwordHintElement) passwordHintElement.style.display = 'inline';
+        if (roleElement) roleElement.value = role || 'employee';
+        
+        userModal.style.display = 'flex';
+    } catch (error) {
+        console.error('خطأ في editUser:', error);
+        showMessage('حدث خطأ أثناء فتح نموذج التعديل: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
-    if (passwordElement) {
-        passwordElement.value = '';
-        passwordElement.required = false;
-    }
-    if (passwordHintElement) passwordHintElement.style.display = 'inline';
-    if (roleElement) roleElement.value = role;
-    
-    document.getElementById('userModal').style.display = 'flex';
 }
 
 async function deleteUser(id) {
-    if (!confirmAction('هل أنت متأكد من حذف هذا المستخدم؟')) return;
+    try {
+        // Error handling: التحقق من وجود id
+        if (!id) {
+            showMessage('معرف المستخدم غير صحيح', 'error');
+            return;
+        }
 
-    const result = await API.deleteUser(id);
-    if (result.success) {
-        showMessage(result.message);
-        loadUsers();
-    } else {
-        showMessage(result.message, 'error');
+        // Error handling: التحقق من الصلاحية
+        if (!hasPermission('admin')) {
+            showMessage('ليس لديك صلاحية لحذف المستخدمين', 'error');
+            return;
+        }
+
+        if (!confirmAction('هل أنت متأكد من حذف هذا المستخدم؟')) return;
+
+        const result = await API.deleteUser(id);
+        if (result && result.success) {
+            showMessage(result.message || 'تم حذف المستخدم بنجاح');
+            await loadUsers();
+        } else {
+            showMessage(result?.message || 'فشل حذف المستخدم', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في deleteUser:', error);
+        showMessage('حدث خطأ أثناء حذف المستخدم: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
 }
 
@@ -1034,5 +1097,16 @@ async function loadImageManagementSection() {
     } else {
         showMessage('خطأ في تحميل نظام إدارة الصور', 'error');
     }
+}
+
+// جعل جميع دوال إدارة المستخدمين متاحة في النطاق العام
+if (typeof window !== 'undefined') {
+    window.showAddUserModal = showAddUserModal;
+    window.closeUserModal = closeUserModal;
+    window.saveUser = saveUser;
+    window.editUser = editUser;
+    window.deleteUser = deleteUser;
+    window.loadUsers = loadUsers;
+    window.displayUsers = displayUsers;
 }
 
