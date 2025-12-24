@@ -232,6 +232,7 @@ body {
     align-items: center;
     gap: 12px;
     flex-wrap: nowrap;
+    position: relative;
 }
 
 .header-actions .btn-icon {

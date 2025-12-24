@@ -90,6 +90,10 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     // جلب مبيعات العميل - البحث باستخدام customer_id أولاً، ثم رقم الهاتف كـ fallback
     // هذا يضمن جلب جميع الفواتير (القديمة والجديدة)
     // استخدام OR للبحث في كلا الحالتين
+    // تنظيف رقم الهاتف من المسافات والأحرف الخاصة للمقارنة
+    $customerPhone = trim($customer['phone'] ?? '');
+    $customerPhoneClean = preg_replace('/[^0-9]/', '', $customerPhone); // إزالة كل شيء ما عدا الأرقام
+    
     $sales = dbSelect(
         "SELECT s.*, u.name as created_by_name 
          FROM sales s 
@@ -97,10 +101,13 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
          WHERE (
              s.customer_id = ?
              OR 
-             (s.customer_phone = ? AND (s.customer_id IS NULL OR s.customer_id = ''))
+             (TRIM(s.customer_phone) = ? AND (s.customer_id IS NULL OR s.customer_id = ''))
+             OR
+             (REPLACE(REPLACE(REPLACE(REPLACE(s.customer_phone, ' ', ''), '-', ''), '(', ''), ')', '') = ? 
+              AND (s.customer_id IS NULL OR s.customer_id = ''))
          )
          ORDER BY s.created_at DESC",
-        [$customerId, $customer['phone']]
+        [$customerId, $customerPhone, $customerPhoneClean]
     );
     
     if ($sales === false) {
@@ -113,24 +120,34 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
         $sales = [];
     }
     
-    error_log("تم جلب " . count($sales) . " فاتورة للعميل $customerId (رقم الهاتف: " . ($customer['phone'] ?? 'غير محدد') . ")");
+    error_log("تم جلب " . count($sales) . " فاتورة للعميل $customerId (رقم الهاتف: " . ($customerPhone ?? 'غير محدد') . ")");
     
     // فلترة إضافية للمبيعات والتأكد من ربطها بالعميل
     $filteredSales = [];
     foreach ($sales as $sale) {
         // التأكد من وجود sale id
         if (empty($sale['id'])) {
+            error_log("⚠️ تخطي فاتورة بدون id");
             continue;
         }
         
-        // التحقق من ربط الفاتورة بالعميل
+        // تنظيف رقم الهاتف من الفاتورة للمقارنة
+        $salePhone = trim($sale['customer_phone'] ?? '');
+        $salePhoneClean = preg_replace('/[^0-9]/', '', $salePhone);
+        
+        // التحقق من ربط الفاتورة بالعميل (مقارنة مرنة)
         $isCustomerMatch = (
             (!empty($sale['customer_id']) && $sale['customer_id'] === $customerId) ||
-            (!empty($sale['customer_phone']) && $sale['customer_phone'] === $customer['phone'])
+            (!empty($salePhone) && (
+                $salePhone === $customerPhone ||
+                $salePhoneClean === $customerPhoneClean ||
+                trim($salePhone) === trim($customerPhone)
+            ))
         );
         
         if (!$isCustomerMatch) {
             // إذا لم تكن الفاتورة مرتبطة بالعميل، تخطيها
+            error_log("⚠️ تخطي فاتورة " . ($sale['sale_number'] ?? $sale['id']) . " - لا تطابق العميل (customer_id: " . ($sale['customer_id'] ?? 'NULL') . ", phone: " . ($salePhone ?? 'NULL') . ")");
             continue;
         }
         
@@ -238,6 +255,14 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     }
     
     $sales = $filteredSales;
+    
+    error_log("✅ بعد الفلترة: " . count($sales) . " فاتورة للعميل $customerId");
+    
+    // التأكد من أن الاستجابة تحتوي على array
+    if (!is_array($sales)) {
+        error_log("⚠️ تحذير: $sales ليس array، تحويله إلى array فارغ");
+        $sales = [];
+    }
     
     response(true, '', $sales);
 }

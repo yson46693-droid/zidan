@@ -276,7 +276,19 @@
                     <i class="bi bi-download"></i> <span class="d-none d-md-inline">تثبيت</span>
                 </button>
                 <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
-                <button id="notificationsBtn" onclick="showNotifications()" class="btn btn-icon" title="الإشعارات"><i class="bi bi-bell"></i></button>
+                <button id="notificationsBtn" onclick="toggleNotificationsList()" class="btn btn-icon" title="الإشعارات" style="position: relative;">
+                    <i class="bi bi-bell"></i>
+                    <span class="notification-badge" id="notificationBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--danger-color); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;">0</span>
+                </button>
+                
+                <!-- قائمة الإشعارات -->
+                <div class="notifications-list" id="notificationsList" style="display: none; position: absolute; top: 100%; right: 0; background: var(--white); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow); max-height: 400px; overflow-y: auto; z-index: 1000; margin-top: 10px; min-width: 300px;">
+                    <div class="notifications-header" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid var(--border-color);">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text-dark);">الإشعارات</h3>
+                        <button class="notifications-close" onclick="toggleNotificationsList()" style="background: none; border: none; font-size: 24px; color: var(--text-light); cursor: pointer; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s;">×</button>
+                    </div>
+                    <div class="notifications-items" style="max-height: 350px; overflow-y: auto;"></div>
+                </div>
                 <button onclick="showSection('profile')" class="btn btn-icon" title="الملف الشخصي"><i class="bi bi-person-circle"></i></button>
                 <button onclick="logout()" class="btn btn-icon btn-logout" title="تسجيل الخروج"><i class="bi bi-box-arrow-right"></i></button>
             </div>
@@ -2233,6 +2245,148 @@
             }
         });
 
+        // دالة عرض/إخفاء الإشعارات (مثل الشات)
+        let notifications = [];
+        
+        // تحميل الإشعارات من localStorage
+        function loadNotifications() {
+            try {
+                const stored = localStorage.getItem('chat_notifications');
+                if (stored) {
+                    notifications = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.error('خطأ في تحميل الإشعارات:', e);
+                notifications = [];
+            }
+            updateNotificationBadge();
+        }
+        
+        function toggleNotificationsList() {
+            const notificationsList = document.getElementById('notificationsList');
+            if (!notificationsList) return;
+            
+            const isVisible = notificationsList.style.display !== 'none';
+            notificationsList.style.display = isVisible ? 'none' : 'block';
+            
+            if (!isVisible) {
+                renderNotificationsList();
+            }
+        }
+        
+        function renderNotificationsList() {
+            const notificationsList = document.getElementById('notificationsList');
+            if (!notificationsList) return;
+            
+            const list = notificationsList.querySelector('.notifications-items');
+            if (!list) return;
+            
+            list.innerHTML = '';
+            
+            if (notifications.length === 0) {
+                list.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 40px 20px; font-size: 16px;">لا توجد إشعارات</div>';
+                return;
+            }
+            
+            const fragment = document.createDocumentFragment();
+            
+            notifications.forEach(notification => {
+                const item = document.createElement('div');
+                item.className = 'notification-item';
+                item.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 12px 15px; border-bottom: 1px solid var(--border-color); transition: background 0.2s;';
+                
+                const content = document.createElement('div');
+                content.className = 'notification-content';
+                content.style.cssText = 'flex: 1; min-width: 0;';
+                
+                const username = document.createElement('div');
+                username.className = 'notification-username';
+                username.style.cssText = 'font-size: 13px; font-weight: 600; color: var(--text-dark); margin-bottom: 4px;';
+                username.textContent = notification.username || 'مستخدم';
+                
+                const message = document.createElement('div');
+                message.className = 'notification-message';
+                message.style.cssText = 'font-size: 12px; color: var(--text-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px;';
+                message.textContent = notification.message || '';
+                
+                const time = document.createElement('div');
+                time.className = 'notification-time';
+                time.style.cssText = 'font-size: 11px; color: var(--text-light); opacity: 0.7;';
+                
+                // استخدام formatTime من chat.js أو formatDateTime من utils.js
+                if (typeof formatTime === 'function') {
+                    time.textContent = formatTime(notification.timestamp);
+                } else if (typeof formatDateTime === 'function') {
+                    time.textContent = formatDateTime(notification.timestamp);
+                } else {
+                    time.textContent = new Date(notification.timestamp).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' });
+                }
+                
+                content.appendChild(username);
+                content.appendChild(message);
+                content.appendChild(time);
+                
+                item.appendChild(content);
+                
+                // زر الحذف
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'notification-delete';
+                deleteBtn.style.cssText = 'background: none; border: none; color: var(--text-light); cursor: pointer; padding: 5px; font-size: 16px; opacity: 0.5; transition: opacity 0.2s;';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.onclick = () => deleteNotification(notification.id);
+                deleteBtn.onmouseenter = () => deleteBtn.style.opacity = '1';
+                deleteBtn.onmouseleave = () => deleteBtn.style.opacity = '0.5';
+                
+                item.appendChild(deleteBtn);
+                fragment.appendChild(item);
+            });
+            
+            list.appendChild(fragment);
+            updateNotificationBadge();
+        }
+        
+        function deleteNotification(notificationId) {
+            notifications = notifications.filter(n => n.id !== notificationId);
+            
+            try {
+                localStorage.setItem('chat_notifications', JSON.stringify(notifications));
+            } catch (e) {
+                console.error('خطأ في حفظ الإشعارات:', e);
+            }
+            
+            renderNotificationsList();
+        }
+        
+        function updateNotificationBadge() {
+            const badge = document.getElementById('notificationBadge');
+            if (badge) {
+                if (notifications.length > 0) {
+                    badge.textContent = notifications.length > 99 ? '99+' : notifications.length;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+        
+        // تحميل الإشعارات عند تحميل الصفحة
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadNotifications);
+        } else {
+            loadNotifications();
+        }
+        
+        // إغلاق قائمة الإشعارات عند النقر خارجها
+        document.addEventListener('click', function(event) {
+            const notificationsList = document.getElementById('notificationsList');
+            const notificationsBtn = document.getElementById('notificationsBtn');
+            
+            if (!notificationsList || !notificationsBtn) return;
+            
+            if (!notificationsList.contains(event.target) && !notificationsBtn.contains(event.target)) {
+                notificationsList.style.display = 'none';
+            }
+        });
 
     </script>
 </body>

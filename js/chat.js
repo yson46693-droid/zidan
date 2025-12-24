@@ -283,6 +283,14 @@ function setupEventListeners() {
         notificationIcon.addEventListener('click', toggleNotificationsList);
     }
     
+    // زر التنقل إلى لوحة التحكم
+    const dashboardBtn = document.getElementById('dashboardBtn');
+    if (dashboardBtn) {
+        dashboardBtn.addEventListener('click', () => {
+            window.location.href = 'dashboard.html';
+        });
+    }
+    
     // كشف حالة التاب (visible/hidden)
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
