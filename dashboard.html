@@ -143,13 +143,13 @@
     <!-- 🔧 منع FOUC - إخفاء المحتوى حتى تحميل CSS -->
     <style id="anti-fouc">
         html:not(.css-loaded) {
-            visibility: hidden !important;
+            visibility: hidden;
         }
         html.css-loaded {
-            visibility: visible !important;
+            visibility: visible;
         }
         body:not(.css-loaded) {
-            opacity: 0 !important;
+            opacity: 0;
         }
         body.css-loaded {
             opacity: 1;
@@ -175,66 +175,21 @@
     <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="css/security.css"></noscript>
     
-    <!-- 🔧 إظهار المحتوى بعد تحميل CSS -->
+    <!-- 🔧 إظهار المحتوى بعد تحميل CSS - نسخة مبسطة وموثوقة -->
     <script>
         (function() {
             'use strict';
-            
-            let cssLoaded = false;
-            let criticalCSSLoaded = false;
-            let overlayCSSLoaded = false;
-            
-            // التحقق من تحميل CSS بشكل موثوق
-            function checkCSSLoaded(linkElement, type) {
-                try {
-                    // طريقة 1: التحقق من sheet property
-                    if (linkElement.sheet) {
-                        return true;
-                    }
-                    
-                    // طريقة 2: التحقق من styleSheet (IE)
-                    if (linkElement.styleSheet && linkElement.styleSheet.cssText) {
-                        return true;
-                    }
-                    
-                    // طريقة 3: التحقق من وجود القواعد
-                    try {
-                        if (linkElement.sheet && linkElement.sheet.cssRules && linkElement.sheet.cssRules.length > 0) {
-                            return true;
-                        }
-                    } catch (e) {
-                        // قد يحدث خطأ CORS، لكن هذا يعني أن CSS محمّل
-                        return true;
-                    }
-                    
-                    return false;
-                } catch (error) {
-                    return false;
-                }
-            }
-            
-            function markCSSLoaded(type) {
-                if (type === 'style') {
-                    criticalCSSLoaded = true;
-                } else if (type === 'overlay') {
-                    overlayCSSLoaded = true;
-                }
-                
-                // إذا تم تحميل جميع ملفات CSS المهمة
-                if (criticalCSSLoaded && overlayCSSLoaded && !cssLoaded) {
-                    showContent();
-                }
-            }
+            let contentShown = false;
             
             function showContent() {
-                if (cssLoaded) return; // منع التكرار
-                cssLoaded = true;
+                if (contentShown) return; // منع التكرار
+                contentShown = true;
                 
                 try {
                     // إزالة style tag المضاد لـ FOUC
                     const antiFouc = document.getElementById('anti-fouc');
-                    if (antiFouc) {
-                        antiFouc.remove();
+                    if (antiFouc && antiFouc.parentNode) {
+                        antiFouc.parentNode.removeChild(antiFouc);
                     }
                     
                     // إضافة class لإظهار المحتوى
@@ -244,111 +199,50 @@
                     if (document.body) {
                         document.body.classList.add('css-loaded');
                     } else {
-                        // انتظار body إذا لم يكن موجوداً
-                        const observer = new MutationObserver(function(mutations, obs) {
+                        // إذا لم يكن body موجوداً بعد، الانتظار
+                        const checkBody = setInterval(function() {
                             if (document.body) {
                                 document.body.classList.add('css-loaded');
-                                obs.disconnect();
+                                clearInterval(checkBody);
                             }
-                        });
-                        observer.observe(document.documentElement, { childList: true });
+                        }, 10);
                         
-                        // Fallback: إزالة observer بعد 500ms
+                        // إيقاف بعد 500ms
                         setTimeout(function() {
-                            observer.disconnect();
-                            if (document.body) {
-                                document.body.classList.add('css-loaded');
-                            }
+                            clearInterval(checkBody);
                         }, 500);
                     }
                 } catch (error) {
                     console.error('خطأ في إظهار المحتوى:', error);
-                    // في حالة الخطأ، إزالة style tag على الأقل
-                    const antiFouc = document.getElementById('anti-fouc');
-                    if (antiFouc) {
-                        antiFouc.remove();
-                    }
-                    if (document.documentElement) {
-                        document.documentElement.classList.add('css-loaded');
-                    }
-                    if (document.body) {
-                        document.body.classList.add('css-loaded');
+                    // في حالة الخطأ، محاولة مباشرة
+                    try {
+                        const antiFouc = document.getElementById('anti-fouc');
+                        if (antiFouc && antiFouc.parentNode) {
+                            antiFouc.parentNode.removeChild(antiFouc);
+                        }
+                        if (document.documentElement) document.documentElement.classList.add('css-loaded');
+                        if (document.body) document.body.classList.add('css-loaded');
+                    } catch (e) {
+                        console.error('فشل في إظهار المحتوى:', e);
                     }
                 }
             }
             
-            // التحقق من ملفات CSS المهمة (CSS محمّل متزامناً الآن، لذا يجب أن يكون جاهزاً)
-            function initCSSCheck() {
-                // التحقق من style.css - يجب أن يكون محمّلاً بالفعل (متزامن)
-                const styleSheet = document.querySelector('link[href*="style.css"]');
-                if (styleSheet) {
-                    if (checkCSSLoaded(styleSheet, 'style')) {
-                        markCSSLoaded('style');
-                    } else {
-                        // إذا لم يكن محمّلاً بعد، الانتظار قليلاً (نادراً ما يحدث مع CSS متزامن)
-                        styleSheet.addEventListener('load', function() {
-                            markCSSLoaded('style');
-                        }, { once: true });
-                        styleSheet.addEventListener('error', function() {
-                            markCSSLoaded('style'); // إظهار حتى لو فشل
-                        }, { once: true });
-                    }
-                } else {
-                    criticalCSSLoaded = true; // إذا لم يوجد، نعتبره محمّلاً
-                }
-                
-                // التحقق من loading-overlay.css - يجب أن يكون محمّلاً بالفعل (متزامن)
-                const overlaySheet = document.querySelector('link[href*="loading-overlay.css"]');
-                if (overlaySheet) {
-                    if (checkCSSLoaded(overlaySheet, 'overlay')) {
-                        markCSSLoaded('overlay');
-                    } else {
-                        overlaySheet.addEventListener('load', function() {
-                            markCSSLoaded('overlay');
-                        }, { once: true });
-                        overlaySheet.addEventListener('error', function() {
-                            markCSSLoaded('overlay'); // إظهار حتى لو فشل
-                        }, { once: true });
-                    }
-                } else {
-                    overlayCSSLoaded = true; // إذا لم يوجد، نعتبره محمّلاً
-                }
-                
-                // إذا تم تحميل كل شيء بالفعل، إظهار المحتوى فوراً
-                if (criticalCSSLoaded && overlayCSSLoaded) {
-                    showContent();
-                }
-            }
-            
-            // بدء التحقق فوراً - مع تحسين للأداء
+            // إظهار المحتوى عند DOMContentLoaded (CSS محمّل متزامناً لذا يجب أن يكون جاهزاً)
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() {
-                    initCSSCheck();
-                    // Fallback: إظهار المحتوى بعد 100ms على الأكثر (CSS محمّل متزامناً)
-                    setTimeout(function() {
-                        if (!cssLoaded) {
-                            showContent();
-                        }
-                    }, 100);
+                    // CSS محمّل متزامناً، لذا نعرض المحتوى فوراً
+                    showContent();
                 });
             } else {
-                // إذا كانت الصفحة محملة بالفعل، التحقق فوراً
-                initCSSCheck();
-                // Fallback فوري أيضاً
-                setTimeout(function() {
-                    if (!cssLoaded) {
-                        showContent();
-                    }
-                }, 50);
+                // الصفحة محمّلة بالفعل
+                showContent();
             }
             
-            // Fallback: إظهار المحتوى بعد 500ms كحد أقصى (CSS محمّل متزامناً الآن)
+            // Fallback قوي: إظهار المحتوى بعد 150ms كحد أقصى (لضمان إظهار المحتوى دائماً)
             setTimeout(function() {
-                if (!cssLoaded) {
-                    console.warn('⚠️ تم إظهار المحتوى بعد timeout - قد يكون هناك مشكلة في تحميل CSS');
-                    showContent();
-                }
-            }, 500);
+                showContent();
+            }, 150);
         })();
     </script>
     
