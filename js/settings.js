@@ -775,12 +775,21 @@ async function saveUser(event) {
             return;
         }
 
-        // التحقق من وجود العناصر أولاً
-        const nameElement = document.getElementById('userName');
-        const usernameElement = document.getElementById('userUsername');
-        const passwordElement = document.getElementById('userPassword');
-        const roleElement = document.getElementById('userRole');
-        const userIdElement = document.getElementById('userId');
+        // استخدام form.elements للوصول إلى الحقول مباشرة - هذا يتجنب تضارب IDs
+        const userForm = document.getElementById('userForm');
+        if (!userForm) {
+            showMessage('خطأ: نموذج المستخدم غير موجود. يرجى إعادة تحميل الصفحة.', 'error');
+            console.error('userForm not found');
+            return;
+        }
+
+        // قراءة القيم من النموذج مباشرة باستخدام form.elements أو querySelector داخل النموذج
+        // هذا يتجنب تضارب IDs مع العناصر الأخرى في الصفحة
+        const nameElement = userForm.querySelector('#userName');
+        const usernameElement = userForm.querySelector('#userUsername');
+        const passwordElement = userForm.querySelector('#userPassword');
+        const roleElement = userForm.querySelector('#userRole');
+        const userIdElement = userForm.querySelector('#userId');
 
         if (!nameElement || !usernameElement || !roleElement || !userIdElement) {
             showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
@@ -794,8 +803,14 @@ async function saveUser(event) {
             return;
         }
 
+        // التحقق من أن العناصر هي حقول إدخال صحيحة
+        if (nameElement.tagName !== 'INPUT' && nameElement.tagName !== 'TEXTAREA') {
+            console.error('nameElement is not an input field:', nameElement.tagName);
+            showMessage('خطأ في نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
+
         // قراءة القيم مباشرة من الحقول - استخدام طريقة موثوقة
-        // التحقق من أن العناصر موجودة في DOM وأنها حقول إدخال صحيحة
         const name = nameElement && nameElement.value !== undefined ? String(nameElement.value).trim() : '';
         const username = usernameElement && usernameElement.value !== undefined ? String(usernameElement.value).trim() : '';
         const password = passwordElement && passwordElement.value !== undefined ? String(passwordElement.value) : '';
