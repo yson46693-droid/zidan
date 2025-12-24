@@ -1509,6 +1509,13 @@ async function saveCustomerRatingUpdate(customerId) {
     }
     
     try {
+        // التحقق من أن customerId موجود وصحيح
+        if (!customerId) {
+            showMessage('معرف العميل غير صحيح', 'error');
+            return;
+        }
+        
+        console.log('🔄 تحديث التقييم:', { customerId, rating });
         const result = await API.updateCustomerRating(customerId, rating);
         
         if (result && result.success) {

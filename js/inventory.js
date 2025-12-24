@@ -2062,36 +2062,194 @@ function handlePhoneImageError(imgElement, phoneId) {
     }
 }
 
-// دالة ضغط الصور (مستعارة من repairs.js)
-function compressImage(file, maxWidth = 800, quality = 0.8) {
-    return new Promise((resolve, reject) => {
+// دالة قراءة اتجاه EXIF من الصورة
+function getImageOrientation(file) {
+    return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                
-                if (width > maxWidth) {
-                    height = (height * maxWidth) / width;
-                    width = maxWidth;
+            const view = new DataView(e.target.result);
+            if (view.getUint16(0, false) !== 0xFFD8) {
+                resolve(-1); // ليس صورة JPEG
+                return;
+            }
+            
+            const length = view.byteLength;
+            let offset = 2;
+            
+            while (offset < length) {
+                if (view.getUint16(offset, false) !== 0xFFE1) {
+                    offset += 2;
+                    continue;
                 }
                 
-                canvas.width = width;
-                canvas.height = height;
+                // قراءة طول القطعة (2 bytes بعد 0xFFE1)
+                const segmentLength = view.getUint16(offset + 2, false);
                 
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
+                // التحقق من وجود "Exif\0\0" (تبدأ بعد 4 bytes من offset)
+                if (offset + 10 >= length) {
+                    offset += 2;
+                    continue;
+                }
                 
-                const compressed = canvas.toDataURL('image/jpeg', quality);
-                resolve(compressed);
-            };
-            img.onerror = reject;
-            img.src = e.target.result;
+                const exifString = String.fromCharCode(
+                    view.getUint8(offset + 4),
+                    view.getUint8(offset + 5),
+                    view.getUint8(offset + 6),
+                    view.getUint8(offset + 7)
+                );
+                if (exifString !== 'Exif') {
+                    offset += 2;
+                    continue;
+                }
+                
+                // البحث عن IFD (Image File Directory)
+                // بعد "Exif\0\0" (6 bytes من offset + 4) = offset + 10
+                const tiffOffset = offset + 10;
+                if (view.getUint16(tiffOffset, false) === 0x4949) { // "II" - Intel byte order
+                    const isLittleEndian = true;
+                    offset = tiffOffset + 4;
+                } else if (view.getUint16(tiffOffset, false) === 0x4D4D) { // "MM" - Motorola byte order
+                    const isLittleEndian = false;
+                    offset = tiffOffset + 4;
+                } else {
+                    resolve(-1);
+                    return;
+                }
+                
+                const ifdOffset = view.getUint32(offset, !isLittleEndian);
+                offset = tiffOffset + ifdOffset;
+                
+                const entryCount = view.getUint16(offset, !isLittleEndian);
+                offset += 2;
+                
+                for (let i = 0; i < entryCount; i++) {
+                    const tag = view.getUint16(offset + (i * 12), !isLittleEndian);
+                    if (tag === 0x0112) { // Orientation tag
+                        const orientation = view.getUint16(offset + (i * 12) + 8, !isLittleEndian);
+                        resolve(orientation);
+                        return;
+                    }
+                }
+                
+                resolve(-1);
+                return;
+            }
+            
+            resolve(-1);
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+        reader.onerror = () => resolve(-1);
+        reader.readAsArrayBuffer(file.slice(0, 65536)); // قراءة أول 64KB فقط
+    });
+}
+
+// دالة ضغط الصور مع معالجة اتجاه EXIF
+function compressImage(file, maxWidth = 800, quality = 0.8) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            // قراءة اتجاه EXIF
+            const orientation = await getImageOrientation(file);
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // تحديد الأبعاد النهائية بناءً على الاتجاه
+                    // إذا كان الاتجاه يتطلب تدوير الصورة (5-8)، نبدل الأبعاد
+                    const needsRotation = orientation >= 5 && orientation <= 8;
+                    let outputWidth = needsRotation ? height : width;
+                    let outputHeight = needsRotation ? width : height;
+                    
+                    // حساب الأبعاد بعد الضغط
+                    if (outputWidth > maxWidth) {
+                        const ratio = maxWidth / outputWidth;
+                        outputWidth = maxWidth;
+                        outputHeight = Math.round(outputHeight * ratio);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+                    
+                    canvas.width = outputWidth;
+                    canvas.height = outputHeight;
+                    
+                    const ctx = canvas.getContext('2d');
+                    
+                    // تحسين جودة الرسم
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    
+                    // تطبيق التحويلات بناءً على اتجاه EXIF
+                    ctx.save();
+                    
+                    // تطبيق التحويلات قبل الرسم باستخدام المصفوفات
+                    switch (orientation) {
+                        case 2:
+                            // Flip horizontal
+                            ctx.translate(outputWidth, 0);
+                            ctx.scale(-1, 1);
+                            break;
+                        case 3:
+                            // Rotate 180
+                            ctx.translate(outputWidth, outputHeight);
+                            ctx.rotate(Math.PI);
+                            break;
+                        case 4:
+                            // Flip vertical
+                            ctx.translate(0, outputHeight);
+                            ctx.scale(1, -1);
+                            break;
+                        case 5:
+                            // Rotate 90 clockwise and flip horizontal
+                            ctx.translate(outputWidth, 0);
+                            ctx.rotate(Math.PI / 2);
+                            ctx.scale(-1, 1);
+                            break;
+                        case 6:
+                            // Rotate 90 clockwise (الشائع في الصور الملتقطة من الهواتف)
+                            ctx.translate(outputWidth, 0);
+                            ctx.rotate(Math.PI / 2);
+                            break;
+                        case 7:
+                            // Rotate 90 counter-clockwise and flip horizontal
+                            ctx.translate(0, outputHeight);
+                            ctx.rotate(-Math.PI / 2);
+                            ctx.scale(-1, 1);
+                            break;
+                        case 8:
+                            // Rotate 90 counter-clockwise
+                            ctx.translate(0, outputHeight);
+                            ctx.rotate(-Math.PI / 2);
+                            break;
+                        default:
+                            // Orientation 1 - لا تحويل
+                            break;
+                    }
+                    
+                    // رسم الصورة بالأبعاد الأصلية (قبل التدوير)
+                    ctx.drawImage(img, 0, 0, width, height);
+                    ctx.restore();
+                    
+                    const compressed = canvas.toDataURL('image/jpeg', quality);
+                    resolve(compressed);
+                };
+                img.onerror = (error) => {
+                    console.error('خطأ في تحميل الصورة:', error);
+                    reject(new Error('فشل تحميل الصورة'));
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = (error) => {
+                console.error('خطأ في قراءة الملف:', error);
+                reject(new Error('فشل قراءة الملف'));
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('خطأ في معالجة الصورة:', error);
+            reject(error);
+        }
     });
 }
 

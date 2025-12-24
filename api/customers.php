@@ -9,6 +9,8 @@ $method = $data['_method'] ?? getRequestMethod();
 // تسجيل للتحقق من البيانات المستلمة (للتطوير فقط)
 if (isset($data['action']) && $data['action'] === 'update_rating') {
     error_log('update_rating request - method: ' . $method . ', data: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
+    error_log('update_rating - customer_id in data: ' . ($data['customer_id'] ?? 'NOT FOUND'));
+    error_log('update_rating - all keys: ' . implode(', ', array_keys($data)));
 }
 
 /**
@@ -509,19 +511,19 @@ $isPutMethod = ($method === 'PUT' || ($method === 'POST' && isset($data['_method
 if ($isPutMethod && isset($data['action']) && $data['action'] === 'update_rating') {
     checkPermission('admin'); // المالك فقط
     
-    // إعادة قراءة البيانات للتأكد من الحصول على أحدث البيانات
-    $requestData = getRequestData();
-    $data = array_merge($data, $requestData);
-    
+    // استخدام $data الذي تم قراءته في بداية الملف (php://input يمكن قراءته مرة واحدة فقط)
     // محاولة قراءة customer_id من مصادر مختلفة
     $customerId = trim($data['customer_id'] ?? $data['id'] ?? '');
     $rating = intval($data['rating'] ?? 0);
     
     // تسجيل البيانات للتحقق
     error_log('update_rating request data: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
+    error_log('update_rating customer_id: ' . $customerId);
+    error_log('update_rating rating: ' . $rating);
     
     if (empty($customerId)) {
         error_log('update_rating error: customer_id is empty. Data received: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
+        error_log('update_rating error: All data keys: ' . implode(', ', array_keys($data ?? [])));
         response(false, 'معرف العميل مطلوب', null, 400);
     }
     
