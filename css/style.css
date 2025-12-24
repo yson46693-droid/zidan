@@ -1519,12 +1519,41 @@ body {
         margin: 0;
         width: 100%;
         margin-bottom: 8px;
+        padding: 10px 15px;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        background: var(--white);
+        color: var(--text-dark);
+        text-align: center;
+        font-weight: bold;
     }
     
     .header-actions {
         gap: 6px !important;
         width: 100%;
         justify-content: flex-start;
+    }
+    
+    /* أزرار البروفايل والوضع الليلي في grid 2 أعمدة */
+    .top-bar .header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        width: 100%;
+    }
+    
+    .top-bar .header-actions .sync-indicator,
+    .top-bar .header-actions #installButton {
+        width: 100%;
+        flex-basis: 100%;
+    }
+    
+    /* أزرار البروفايل والوضع الليلي في grid 2 أعمدة - آخر عنصرين من btn-icon */
+    .top-bar .header-actions .btn-icon:nth-last-child(2),
+    .top-bar .header-actions .btn-icon:nth-last-child(1) {
+        flex: 1 1 calc(50% - 5px);
+        min-width: calc(50% - 5px);
+        max-width: calc(50% - 5px);
     }
     
     .header-actions .btn-icon {
@@ -1697,6 +1726,23 @@ body {
         flex-direction: column;
         gap: 10px;
         width: 100%;
+    }
+    
+    /* أزرار قسم الصيانة - grid 2 أعمدة */
+    #repairs-section .header-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+    }
+    
+    #repairs-section .header-actions .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 10px;
+        font-size: 0.9em;
+        border-radius: 8px;
+        font-weight: 500;
     }
     
     .header-actions .btn {
@@ -3781,14 +3827,16 @@ body {
 /* تصميم متجاوب لأزرار أنواع الصيانة */
 @media (max-width: 768px) {
     .repair-type-tabs {
-        flex-direction: column;
+        flex-direction: row;
         gap: 5px;
+        border-bottom: none;
+        padding-bottom: 0;
     }
     
     .repair-type-tab {
         border-radius: 8px;
-        padding: 10px 15px;
-        font-size: 14px;
+        padding: 10px 8px;
+        font-size: 13px;
     }
 }
 

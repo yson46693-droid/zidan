@@ -2339,6 +2339,7 @@ function printAccessoryBarcode(id) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>طباعة باركود - ${accessory.name}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
                 * {
                     margin: 0;
@@ -2444,9 +2445,12 @@ function printAccessoryBarcode(id) {
         </head>
         <body>
             ${printContent}
-            <div class="no-print" style="text-align: center; margin-top: 20px;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
                     <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
             <script>
@@ -2562,6 +2566,7 @@ function printSparePartBarcode(partId) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>طباعة باركود - ${part.brand} ${part.model}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
                 * {
                     margin: 0;
@@ -2640,9 +2645,12 @@ function printSparePartBarcode(partId) {
         </head>
         <body>
             ${printContent}
-            <div class="no-print" style="text-align: center; margin-top: 20px;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
                     <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
             <script>
@@ -2708,6 +2716,7 @@ function printPhoneLabel(id) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>ملصق جهاز - ${phone.brand} ${phone.model}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
                 * {
                     margin: 0;
@@ -2906,6 +2915,20 @@ function printPhoneLabel(id) {
                     </div>
                 </div>
             </div>
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
+                </button>
+            </div>
+            <style>
+                .no-print { display: block !important; }
+                @media print {
+                    .no-print { display: none !important; }
+                }
+            </style>
             <script>
                 window.onload = function() {
                     window.print();
@@ -2994,6 +3017,7 @@ function printSparePartBarcode(partId, barcode, barcodeImage) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>طباعة باركود - ${part.brand} ${part.model}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
                 * {
                     margin: 0;
@@ -3072,9 +3096,12 @@ function printSparePartBarcode(partId, barcode, barcodeImage) {
         </head>
         <body>
             ${printContent}
-            <div class="no-print" style="text-align: center; margin-top: 20px;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
                     <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
             <script>

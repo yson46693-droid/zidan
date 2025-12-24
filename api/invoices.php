@@ -1025,6 +1025,22 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             <img src="' . $qrCodeImage . '" alt="QR Code">
         </div>
     </div>
+    
+    <!-- Print and Back Buttons -->
+    <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-family: inherit;">
+            <i class="bi bi-printer"></i> طباعة
+        </button>
+        <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-family: inherit;">
+            <i class="bi bi-arrow-right"></i> رجوع
+        </button>
+    </div>
+    <style>
+        .no-print { display: block !important; }
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
 </body>
 </html>';
     

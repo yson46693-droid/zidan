@@ -252,6 +252,7 @@ function printReport() {
         <head>
             <meta charset="UTF-8">
             <title>${reportTitle}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <link rel="stylesheet" href="css/print.css">
         </head>
         <body>
@@ -339,6 +340,20 @@ function printReport() {
                     <p>تاريخ الطباعة: ${formatDateTime(new Date().toISOString())}</p>
                 </div>
             </div>
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
+                </button>
+            </div>
+            <style>
+                .no-print { display: block !important; }
+                @media print {
+                    .no-print { display: none !important; }
+                }
+            </style>
             <script>
                 window.onload = function() {
                     window.print();

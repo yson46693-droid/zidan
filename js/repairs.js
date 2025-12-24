@@ -880,10 +880,23 @@ async function printRepairReceipt(id) {
                     ${repair.status === 'delivered' && repair.delivered_at ? `<p><small>تاريخ التسليم: ${formatDateTime(repair.delivered_at)}</small></p>` : ''}
                 </div>
             </div>
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
+                </button>
+            </div>
+            <style>
+                .no-print { display: block !important; }
+                @media print {
+                    .no-print { display: none !important; }
+                }
+            </style>
             <script>
                 window.onload = function() {
                     window.print();
-                    setTimeout(() => window.close(), 500);
                 }
             </script>
         </body>
@@ -1009,6 +1022,7 @@ function printBarcode(barcodeImage, repairNumber) {
         <head>
             <meta charset="UTF-8">
             <title>طباعة الباركود - ${repairNumber}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
                 body { margin: 0; padding: 20px; text-align: center; font-family: Arial, sans-serif; }
                 .barcode-container { margin: 20px 0; }
@@ -1025,9 +1039,12 @@ function printBarcode(barcodeImage, repairNumber) {
                 <img src="${barcodeImage}" alt="باركود ${repairNumber}">
                 <p>رقم العملية: ${repairNumber}</p>
             </div>
-            <div class="no-print">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    طباعة
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
             <script>
@@ -1049,6 +1066,7 @@ function printLabel(labelImage, repairNumber) {
         <head>
             <meta charset="UTF-8">
             <title>طباعة الملصق - ${repairNumber}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
                 body { margin: 0; padding: 20px; text-align: center; font-family: Arial, sans-serif; }
                 .label-container { margin: 20px 0; }
@@ -1064,9 +1082,12 @@ function printLabel(labelImage, repairNumber) {
                 <h3>ملصق العملية: ${repairNumber}</h3>
                 <img src="${labelImage}" alt="ملصق ${repairNumber}">
             </div>
-            <div class="no-print">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    طباعة
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
             <script>
@@ -1088,6 +1109,7 @@ function printAdvancedLabel(advancedLabelImage, repairNumber) {
         <head>
             <meta charset="UTF-8">
             <title>طباعة الملصق المتقدم - ${repairNumber}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
                 body { margin: 0; padding: 20px; text-align: center; font-family: Arial, sans-serif; }
                 .advanced-label-container { margin: 20px 0; }
@@ -1103,9 +1125,12 @@ function printAdvancedLabel(advancedLabelImage, repairNumber) {
                 <h3>الملصق المتقدم - ${repairNumber}</h3>
                 <img src="${advancedLabelImage}" alt="ملصق متقدم ${repairNumber}">
             </div>
-            <div class="no-print">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    طباعة
+            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
             <script>
