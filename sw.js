@@ -416,18 +416,34 @@ self.addEventListener('fetch', event => {
     }
 });
 
-// الإشعارات Push (جاهز للتفعيل لاحقاً)
+// الإشعارات Push
 self.addEventListener('push', event => {
-    const data = event.data ? event.data.json() : {};
-    const title = data.title || 'إشعار جديد';
+    let data = {};
+    
+    if (event.data) {
+        try {
+            data = event.data.json();
+        } catch (e) {
+            data = { body: event.data.text() };
+        }
+    }
+    
+    const title = data.title || data.username || 'إشعار جديد';
+    const body = data.body || data.message || 'لديك إشعار جديد';
+    const icon = data.icon || '/vertopal.com_photo_5922357566287580087_y.png';
+    const badge = '/icons/icon-72x72.png';
+    
     const options = {
-        body: data.body || 'لديك إشعار جديد',
-        icon: '/vertopal.com_photo_5922357566287580087_y.png?v=2.0.1',
-        badge: '/icons/icon-72x72.png?v=2.0.1',
+        body: body,
+        icon: icon,
+        badge: badge,
         vibrate: [200, 100, 200],
         dir: 'rtl',
         lang: 'ar',
-        data: data
+        tag: data.messageId || 'chat-message',
+        data: data,
+        requireInteraction: false,
+        silent: false
     };
 
     event.waitUntil(
@@ -439,8 +455,27 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     
+    const data = event.notification.data || {};
+    const urlToOpen = data.url || '/chat.html';
+    
     event.waitUntil(
-        clients.openWindow('/')
+        clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true
+        }).then(clientList => {
+            // البحث عن نافذة مفتوحة للشات
+            for (let i = 0; i < clientList.length; i++) {
+                const client = clientList[i];
+                if (client.url.includes('chat.html') && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            
+            // إذا لم توجد نافذة مفتوحة، فتح نافذة جديدة
+            if (clients.openWindow) {
+                return clients.openWindow(urlToOpen);
+            }
+        })
     );
 });
 

@@ -45,22 +45,41 @@ function createChatTables() {
         'chat_messages' => "
             CREATE TABLE IF NOT EXISTS `chat_messages` (
               `id` varchar(50) NOT NULL,
-              `room_id` varchar(50) NOT NULL,
               `user_id` varchar(50) NOT NULL,
+              `username` varchar(100) NOT NULL,
               `message` text NOT NULL,
-              `message_type` enum('text','image','file','voice','audio','location') NOT NULL DEFAULT 'text',
-              `file_url` text DEFAULT NULL,
               `reply_to` varchar(50) DEFAULT NULL,
-              `edited_at` datetime DEFAULT NULL,
               `created_at` datetime NOT NULL,
-              `updated_at` datetime DEFAULT NULL,
-              `deleted_at` datetime DEFAULT NULL,
               PRIMARY KEY (`id`),
-              KEY `idx_room_id` (`room_id`),
               KEY `idx_user_id` (`user_id`),
               KEY `idx_created_at` (`created_at`),
-              KEY `idx_deleted_at` (`deleted_at`),
               KEY `idx_reply_to` (`reply_to`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'push_subscriptions' => "
+            CREATE TABLE IF NOT EXISTS `push_subscriptions` (
+              `id` varchar(50) NOT NULL,
+              `user_id` varchar(50) NOT NULL,
+              `endpoint` text NOT NULL,
+              `p256dh` text NOT NULL,
+              `auth` text NOT NULL,
+              `created_at` datetime NOT NULL,
+              `updated_at` datetime DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              UNIQUE KEY `unique_user_endpoint` (`user_id`, `endpoint`(255)),
+              KEY `idx_user_id` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'active_users' => "
+            CREATE TABLE IF NOT EXISTS `active_users` (
+              `user_id` varchar(50) NOT NULL,
+              `last_activity` datetime NOT NULL,
+              `is_online` tinyint(1) DEFAULT 1,
+              PRIMARY KEY (`user_id`),
+              KEY `idx_last_activity` (`last_activity`),
+              KEY `idx_is_online` (`is_online`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
@@ -89,42 +108,87 @@ function createChatTables() {
         }
     }
     
-    // تحديث جدول chat_messages لإضافة الأعمدة الجديدة
+    // تحديث جدول chat_messages الموجود (إذا كان موجوداً)
     updateChatMessagesTable($conn);
+    
+    // إنشاء الجداول الجديدة
+    createNewChatTables($conn);
     
     return $created;
 }
 
-// تحديث جدول chat_messages لإضافة الأعمدة الجديدة
+// إنشاء الجداول الجديدة
+function createNewChatTables($conn) {
+    if (!$conn) return;
+    
+    // إنشاء جدول push_subscriptions
+    $pushSubscriptionsSQL = "
+        CREATE TABLE IF NOT EXISTS `push_subscriptions` (
+          `id` varchar(50) NOT NULL,
+          `user_id` varchar(50) NOT NULL,
+          `endpoint` text NOT NULL,
+          `p256dh` text NOT NULL,
+          `auth` text NOT NULL,
+          `created_at` datetime NOT NULL,
+          `updated_at` datetime DEFAULT NULL,
+          PRIMARY KEY (`id`),
+          UNIQUE KEY `unique_user_endpoint` (`user_id`, `endpoint`(255)),
+          KEY `idx_user_id` (`user_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+    
+    if (!$conn->query($pushSubscriptionsSQL)) {
+        error_log("خطأ في إنشاء جدول push_subscriptions: " . $conn->error);
+    }
+    
+    // إنشاء جدول active_users
+    $activeUsersSQL = "
+        CREATE TABLE IF NOT EXISTS `active_users` (
+          `user_id` varchar(50) NOT NULL,
+          `last_activity` datetime NOT NULL,
+          `is_online` tinyint(1) DEFAULT 1,
+          PRIMARY KEY (`user_id`),
+          KEY `idx_last_activity` (`last_activity`),
+          KEY `idx_is_online` (`is_online`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+    
+    if (!$conn->query($activeUsersSQL)) {
+        error_log("خطأ في إنشاء جدول active_users: " . $conn->error);
+    }
+}
+
+// تحديث جدول chat_messages الموجود (للترقية من النسخة القديمة)
 function updateChatMessagesTable($conn) {
     if (!$conn) return;
     
-    // التحقق من وجود الأعمدة وإضافتها إذا لم تكن موجودة
-    $columns = [
-        'reply_to' => "ALTER TABLE `chat_messages` ADD COLUMN IF NOT EXISTS `reply_to` varchar(50) DEFAULT NULL AFTER `file_url`, ADD KEY IF NOT EXISTS `idx_reply_to` (`reply_to`)",
-        'edited_at' => "ALTER TABLE `chat_messages` ADD COLUMN IF NOT EXISTS `edited_at` datetime DEFAULT NULL AFTER `reply_to`"
-    ];
+    // التحقق من وجود الجدول
+    $result = $conn->query("SHOW TABLES LIKE 'chat_messages'");
+    if ($result->num_rows == 0) {
+        return; // الجدول غير موجود، سيتم إنشاؤه بالشكل الجديد
+    }
     
-    // التحقق من وجود العمود reply_to
+    // التحقق من وجود عمود username
+    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'username'");
+    if ($result->num_rows == 0) {
+        // إضافة عمود username
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `username` varchar(100) NOT NULL AFTER `user_id`");
+    }
+    
+    // التحقق من وجود عمود reply_to
     $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'reply_to'");
     if ($result->num_rows == 0) {
-        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `reply_to` varchar(50) DEFAULT NULL AFTER `file_url`, ADD KEY `idx_reply_to` (`reply_to`)");
-    }
-    
-    // التحقق من وجود العمود edited_at
-    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'edited_at'");
-    if ($result->num_rows == 0) {
-        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `edited_at` datetime DEFAULT NULL AFTER `reply_to`");
-    }
-    
-    // تحديث message_type لدعم 'audio' و 'image' و 'location'
-    $result = $conn->query("SHOW COLUMNS FROM `chat_messages` WHERE Field = 'message_type'");
-    if ($result && $result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        if (strpos($row['Type'], 'audio') === false || strpos($row['Type'], 'image') === false || strpos($row['Type'], 'location') === false) {
-            $conn->query("ALTER TABLE `chat_messages` MODIFY COLUMN `message_type` enum('text','image','file','voice','audio','location') NOT NULL DEFAULT 'text'");
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `reply_to` varchar(50) DEFAULT NULL AFTER `message`, ADD KEY `idx_reply_to` (`reply_to`)");
+    } else {
+        // التأكد من وجود الفهرس
+        $indexResult = $conn->query("SHOW INDEX FROM `chat_messages` WHERE Key_name = 'idx_reply_to'");
+        if ($indexResult->num_rows == 0) {
+            $conn->query("ALTER TABLE `chat_messages` ADD KEY `idx_reply_to` (`reply_to`)");
         }
     }
+    
+    // ملاحظة: لا نحذف الأعمدة القديمة (room_id, message_type, etc.) لتجنب فقدان البيانات
+    // لكن الجدول الجديد لن يستخدمها
 }
 
 // تنفيذ إنشاء الجداول (سيتم استدعاؤها من chat.php)

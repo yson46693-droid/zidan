@@ -1641,3 +1641,330 @@ body {
     }
 }
 
+/* ============================================
+   أنماط الرسائل المردود عليها
+   ============================================ */
+
+.message-reply-preview {
+    background: rgba(0, 0, 0, 0.05);
+    border-right: 3px solid var(--primary-color);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.message-reply-preview:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.reply-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.reply-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.reply-user {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.reply-text {
+    font-size: 11px;
+    color: var(--text-light);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-message .message-reply-preview {
+    background: rgba(255, 255, 255, 0.2);
+    border-right-color: var(--white);
+}
+
+.user-message .message-reply-preview:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* معاينة الرد في شريط الإدخال */
+.reply-preview {
+    background: var(--light-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.reply-preview-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.reply-preview-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.reply-preview-user {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.reply-preview-text {
+    font-size: 11px;
+    color: var(--text-light);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reply-preview-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.reply-preview-close:hover {
+    background: var(--border-color);
+}
+
+/* ============================================
+   أنماط قائمة الإشعارات
+   ============================================ */
+
+.notification-icon-btn {
+    position: relative;
+    background: none;
+    border: none;
+    color: var(--text-dark);
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.notification-icon-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: var(--danger-color);
+    color: var(--white);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.notifications-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 10px;
+}
+
+.notifications-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notifications-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.notifications-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.notifications-close:hover {
+    background: var(--border-color);
+}
+
+.notifications-items {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s;
+}
+
+.notification-item:hover {
+    background: var(--light-bg);
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-username {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+}
+
+.notification-message {
+    font-size: 12px;
+    color: var(--text-light);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.notification-time {
+    font-size: 11px;
+    color: var(--text-light);
+    opacity: 0.7;
+}
+
+.notification-delete {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 5px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s, color 0.2s;
+}
+
+.notification-delete:hover {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+.empty-notifications {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+/* ============================================
+   أنماط حالة النشاط
+   ============================================ */
+
+.activity-badge {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.activity-badge.online::before {
+    content: '●';
+    color: var(--success-color);
+    font-size: 8px;
+}
+
+.activity-badge.offline::before {
+    content: '○';
+    color: var(--text-light);
+    font-size: 8px;
+}
+
+.participant-item {
+    position: relative;
+}
+
+.participant-item[data-user-id] {
+    padding-bottom: 8px;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+    .notifications-list {
+        position: fixed;
+        top: 60px;
+        left: 10px;
+        right: 10px;
+        max-height: calc(100vh - 80px);
+    }
+    
+    .notification-item {
+        padding: 10px 12px;
+    }
+}
+
