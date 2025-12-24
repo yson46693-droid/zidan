@@ -171,6 +171,7 @@ try {
     }
     
     // إشعار جميع المستخدمين النشطين في الشات بوجود رسالة جديدة
+    // يتم استدعاء تحديث الشات لكل مستخدم نشط مرة واحدة في الخلفية
     notifyActiveChatUsers($messageId, $userId);
     
     // إعداد بيانات الرسالة المرسلة
@@ -357,7 +358,8 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
 
 /**
  * إشعار جميع المستخدمين النشطين في الشات بوجود رسالة جديدة
- * هذا يحل مشكلة الضغط على السيرفر من long polling
+ * يتم استدعاؤه بعد إرسال رسالة جديدة مباشرة
+ * يضيف إشعارات معلقة لكل مستخدم نشط - يتم فحصها من JavaScript
  */
 function notifyActiveChatUsers($messageId, $senderId) {
     try {

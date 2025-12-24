@@ -608,18 +608,13 @@ async function sendMessage() {
                 }
                 renderMessages();
                 
-                // إعادة تشغيل Long Polling للتأكد من تحديث الرسائل للمستخدمين الآخرين
+                // إرسال حدث لإشعار النظام بوجود رسالة جديدة
+                // هذا سيؤدي إلى فحص فوري للرسائل الجديدة للمستخدمين الآخرين
+                window.dispatchEvent(new CustomEvent('messageSent'));
+                
+                // فحص فوري للرسائل الجديدة (للمستخدمين الآخرين)
                 if (longPollingActive) {
-                    // إلغاء الطلب الحالي وإعادة التشغيل
-                    if (longPollingAbortController) {
-                        longPollingAbortController.abort();
-                    }
-                    // إعادة التشغيل بعد فترة قصيرة
-                    setTimeout(() => {
-                        if (longPollingActive) {
-                            performLongPoll();
-                        }
-                    }, 500);
+                    setTimeout(() => checkForNewMessages(), 500);
                 }
             }
         } else {
@@ -654,24 +649,46 @@ function startLongPolling() {
 }
 
 /**
- * فحص دوري للإشعارات المعلقة (كل 10 ثواني)
- * عند وجود إشعار معلق، يتم فتح اتصال SSE مؤقت لجلب الرسائل
+ * فحص للإشعارات المعلقة فقط عند الحاجة
+ * لا فحص دوري - فقط عند وجود إشعار معلق أو حدث إرسال رسالة
+ * النظام مقترن تماماً بإرسال الرسائل - لا ضغط على الخادم
  */
 function startPeriodicCheck() {
     if (!longPollingActive) return;
     
-    // فحص فوري أولاً
+    // فحص فوري أولاً عند فتح الشات
     checkForNewMessages();
     
-    // ثم فحص دوري كل 10 ثواني
-    checkInterval = setInterval(() => {
+    // لا فحص دوري - النظام يعتمد على الإشعارات المعلقة فقط
+    // الفحص يتم فقط عند:
+    // 1. إرسال رسالة جديدة (للمستخدمين الآخرين)
+    // 2. عودة المستخدم للصفحة
+    // 3. فتح الشات
+    
+    // الاستماع لحدث إرسال رسالة جديدة من نفس الصفحة
+    // عند إرسال رسالة جديدة، نفحص فوراً للمستخدمين الآخرين
+    window.addEventListener('messageSent', () => {
+        if (longPollingActive) {
+            // فحص فوري بعد إرسال رسالة (للمستخدمين الآخرين)
+            // السيرفر أضاف إشعارات معلقة لكل مستخدم نشط
+            setTimeout(() => checkForNewMessages(), 1000);
+        }
+    });
+    
+    // فحص عند عودة المستخدم للصفحة
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && longPollingActive) {
+            // فحص فوري عند عودة المستخدم للصفحة
+            checkForNewMessages();
+        }
+    });
+    
+    // فحص عند التركيز على النافذة
+    window.addEventListener('focus', () => {
         if (longPollingActive) {
             checkForNewMessages();
-        } else {
-            clearInterval(checkInterval);
-            checkInterval = null;
         }
-    }, 10000); // كل 10 ثواني
+    });
 }
 
 /**
@@ -1704,6 +1721,14 @@ async function sendFileMessage(fileData, fileType, fileName) {
                 messages[tempIndex] = result.data;
                 lastMessageId = result.data.id;
                 renderMessages();
+                
+                // إرسال حدث لإشعار النظام بوجود رسالة جديدة
+                window.dispatchEvent(new CustomEvent('messageSent'));
+                
+                // فحص فوري للرسائل الجديدة (للمستخدمين الآخرين)
+                if (longPollingActive) {
+                    setTimeout(() => checkForNewMessages(), 500);
+                }
             }
         } else {
             // إزالة الرسالة المؤقتة في حالة الفشل

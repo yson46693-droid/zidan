@@ -316,6 +316,54 @@ CREATE TABLE IF NOT EXISTS `customer_ratings` (
   CONSTRAINT `customer_ratings_ibfk_2` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- جدول عمليات استرجاع المنتجات
+CREATE TABLE IF NOT EXISTS `product_returns` (
+  `id` varchar(50) NOT NULL,
+  `return_number` varchar(50) NOT NULL,
+  `sale_id` varchar(50) NOT NULL,
+  `sale_number` varchar(50) NOT NULL,
+  `customer_id` varchar(50) DEFAULT NULL,
+  `customer_name` varchar(255) DEFAULT NULL,
+  `total_returned_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `status` enum('completed','cancelled') NOT NULL DEFAULT 'completed',
+  `notes` text DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `return_number` (`return_number`),
+  KEY `idx_sale_id` (`sale_id`),
+  KEY `idx_sale_number` (`sale_number`),
+  KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_created_by` (`created_by`),
+  CONSTRAINT `product_returns_ibfk_1` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `product_returns_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- جدول عناصر المنتجات المرتجعة
+CREATE TABLE IF NOT EXISTS `product_return_items` (
+  `id` varchar(50) NOT NULL,
+  `return_id` varchar(50) NOT NULL,
+  `sale_item_id` varchar(50) NOT NULL,
+  `item_type` enum('spare_part','accessory','phone','inventory') NOT NULL,
+  `item_id` varchar(50) NOT NULL,
+  `item_name` varchar(255) NOT NULL,
+  `original_quantity` int(11) NOT NULL DEFAULT 1,
+  `returned_quantity` int(11) NOT NULL DEFAULT 1,
+  `unit_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `total_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `is_damaged` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_return_id` (`return_id`),
+  KEY `idx_sale_item_id` (`sale_item_id`),
+  KEY `idx_item_type` (`item_type`),
+  KEY `idx_item_id` (`item_id`),
+  KEY `idx_is_damaged` (`is_damaged`),
+  CONSTRAINT `product_return_items_ibfk_1` FOREIGN KEY (`return_id`) REFERENCES `product_returns` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `product_return_items_ibfk_2` FOREIGN KEY (`sale_item_id`) REFERENCES `sale_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ============================================
 -- 2. إدراج البيانات الافتراضية
 -- ============================================
@@ -323,7 +371,7 @@ CREATE TABLE IF NOT EXISTS `customer_ratings` (
 -- إدراج الإعدادات الافتراضية (فقط إذا لم تكن موجودة)
 INSERT IGNORE INTO `settings` (`id`, `key`, `value`, `updated_at`) VALUES
 (1, 'shop_name', 'ALAA ZIDAN', '2025-12-18 00:01:53'),
-(2, 'shop_phone', '01276855966', '2025-12-18 00:01:53'),
+(2, 'shop_phone', '01287889000', '2025-12-18 00:01:53'),
 (3, 'shop_address', 'الاسكندريه,العجمي', '2025-12-18 00:01:53'),
 (4, 'shop_logo', '', '2025-12-18 00:01:53'),
 (5, 'low_stock_alert', '0', '2025-12-18 00:01:53'),
