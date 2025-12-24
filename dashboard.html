@@ -144,6 +144,11 @@
     <!-- Critical CSS - تحميل فوري -->
     <link rel="stylesheet" href="css/style.css">
     
+    <!-- CSS للصلاحيات - إخفاء العناصر المحظورة للموظف -->
+    <style id="employee-permissions-style">
+        /* سيتم تحديثه ديناميكياً */
+    </style>
+    
     <!-- Loading Overlay CSS - Splash Screen للتحميل -->
     <link rel="stylesheet" href="css/loading-overlay.css">
     
@@ -862,6 +867,21 @@
             
             displayUserInfo();
             hideByPermission();
+            
+            // إعداد مراقب الصلاحيات للموظف
+            if (typeof setupPermissionObserver === 'function') {
+                setupPermissionObserver();
+            }
+            
+            // إعادة استدعاء hideByPermission بعد تحميل الصفحة بالكامل للتأكد من إخفاء العناصر
+            setTimeout(() => {
+                hideByPermission();
+            }, 500);
+            
+            // إعادة استدعاء hideByPermission بعد تحميل جميع الأقسام
+            setTimeout(() => {
+                hideByPermission();
+            }, 2000);
             loadDarkMode();
             setupModalCloseOnClickOutside();
             
@@ -1017,7 +1037,8 @@
             
             if (isEmployee) {
                 // إذا كان القسم المحفوظ محظوراً للموظف، نوجهه إلى الصيانة
-                const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings', 'profile'];
+                // ملاحظة: profile مسموح للموظف
+                const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings'];
                 if (!savedSection || forbiddenSections.includes(savedSection)) {
                     savedSection = 'repairs';
                     saveCurrentPage('repairs');
@@ -1390,10 +1411,9 @@
             const isEmployee = user && user.role === 'employee';
             
             if (isEmployee) {
-                // الأقسام المسموحة للموظف
-                const allowedSections = ['repairs', 'inventory'];
+                // الأقسام المسموحة للموظف: repairs, inventory, profile
                 // الأقسام المحظورة للموظف
-                const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings', 'profile'];
+                const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings'];
                 
                 if (forbiddenSections.includes(section)) {
                     console.warn('🚫 محاولة الوصول إلى قسم محظور للموظف:', section);

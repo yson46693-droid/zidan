@@ -258,33 +258,100 @@ function hideByPermission() {
         });
         
         // للموظف: إخفاء جميع العناصر عدا (الصيانة، المخزون، نقاط البيع، الشات)
-        // إخفاء لوحة التحكم
-        const dashboardLinks = document.querySelectorAll('a[href="#dashboard"]');
-        dashboardLinks.forEach(link => {
-            if (link.closest('.sidebar-nav') || link.closest('.mobile-nav-container')) {
-                link.style.display = 'none';
-            }
+        // إخفاء لوحة التحكم من الشريط الجانبي والموبايل
+        document.querySelectorAll('a[href="#dashboard"]').forEach(link => {
+            link.style.display = 'none';
+            link.style.visibility = 'hidden';
+            link.style.position = 'absolute';
+            link.style.opacity = '0';
+            link.style.width = '0';
+            link.style.height = '0';
+            link.style.overflow = 'hidden';
         });
         
-        // إخفاء العملاء
-        const customersLinks = document.querySelectorAll('a[href="#customers"]');
-        customersLinks.forEach(link => {
-            if (link.closest('.sidebar-nav') || link.closest('.mobile-nav-container')) {
-                link.style.display = 'none';
-            }
+        // إخفاء العملاء من الشريط الجانبي والموبايل
+        document.querySelectorAll('a[href="#customers"]').forEach(link => {
+            link.style.display = 'none';
+            link.style.visibility = 'hidden';
+            link.style.position = 'absolute';
+            link.style.opacity = '0';
+            link.style.width = '0';
+            link.style.height = '0';
+            link.style.overflow = 'hidden';
         });
         
-        // إخفاء المصروفات
-        const expensesLinks = document.querySelectorAll('a[href="#expenses"]');
-        expensesLinks.forEach(link => {
-            if (link.closest('.sidebar-nav') || link.closest('.mobile-nav-container')) {
-                link.style.display = 'none';
-            }
+        // إخفاء المصروفات من الشريط الجانبي والموبايل
+        document.querySelectorAll('a[href="#expenses"]').forEach(link => {
+            link.style.display = 'none';
+            link.style.visibility = 'hidden';
+            link.style.position = 'absolute';
+            link.style.opacity = '0';
+            link.style.width = '0';
+            link.style.height = '0';
+            link.style.overflow = 'hidden';
         });
+        
+        // إضافة CSS مباشرة لإخفاء العناصر
+        const styleElement = document.getElementById('employee-permissions-style');
+        if (styleElement) {
+            styleElement.textContent = `
+                /* إخفاء العناصر المحظورة للموظف */
+                .sidebar-nav a[href="#dashboard"],
+                .mobile-nav-container a[href="#dashboard"],
+                .sidebar-nav a[href="#customers"],
+                .mobile-nav-container a[href="#customers"],
+                .sidebar-nav a[href="#expenses"],
+                .mobile-nav-container a[href="#expenses"] {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    height: 0 !important;
+                    width: 0 !important;
+                    overflow: hidden !important;
+                    position: absolute !important;
+                }
+            `;
+        }
         
         // إخفاء التقارير (موجود بالفعل في data-permission="manager")
         // إخفاء الإعدادات (موجود بالفعل في data-permission="manager")
         // إخفاء سجلات الأخطاء (موجود بالفعل في data-permission="manager")
+    } else {
+        // إزالة CSS للموظف إذا لم يكن موظفاً
+        const styleElement = document.getElementById('employee-permissions-style');
+        if (styleElement) {
+            styleElement.textContent = '';
+        }
+    }
+}
+
+// إعداد MutationObserver لمراقبة التغييرات في DOM وإخفاء العناصر المحظورة
+function setupPermissionObserver() {
+    const user = getCurrentUser();
+    if (!user || user.role !== 'employee') return;
+    
+    // مراقبة التغييرات في الشريط الجانبي
+    const sidebar = document.getElementById('sidebar');
+    const mobileNav = document.getElementById('mobileNavbar');
+    
+    if (sidebar || mobileNav) {
+        const observer = new MutationObserver(() => {
+            hideByPermission();
+        });
+        
+        if (sidebar) {
+            observer.observe(sidebar, {
+                childList: true,
+                subtree: true
+            });
+        }
+        
+        if (mobileNav) {
+            observer.observe(mobileNav, {
+                childList: true,
+                subtree: true
+            });
+        }
     }
 }
 
