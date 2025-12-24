@@ -20,22 +20,49 @@ try {
     // تحديث حالة النشاط للمستخدم
     updateUserActivity($userId);
     
+    // التحقق من وجود إشعارات معلقة أولاً (نظام محسّن)
+    $pendingNotification = checkPendingNotification($userId);
+    if ($pendingNotification) {
+        // يوجد إشعار معلق - جلب الرسائل الجديدة فوراً
+        $newMessages = getNewMessages($lastId);
+        if (!empty($newMessages)) {
+            // مسح الإشعارات المعلقة بعد قراءتها
+            clearPendingNotifications($userId, $pendingNotification['message_id']);
+            response(true, 'تم جلب الرسائل بنجاح', $newMessages);
+            return;
+        }
+    }
+    
     // إعداد timeout 20 ثانية
     set_time_limit(25); // 20 ثانية + 5 ثواني buffer
     ignore_user_abort(false);
     
-    // Long Polling loop
+    // Long Polling loop محسّن - فحص أقل تكراراً
     $maxIterations = 20; // 20 ثانية = 20 * sleep(1)
     $iteration = 0;
     
     while ($iteration < $maxIterations) {
-        // البحث عن رسائل جديدة بعد last_id
-        $newMessages = getNewMessages($lastId);
+        // التحقق من الإشعارات المعلقة أولاً (أسرع)
+        $pendingNotification = checkPendingNotification($userId);
+        if ($pendingNotification) {
+            // يوجد إشعار معلق - جلب الرسائل فوراً
+            $newMessages = getNewMessages($lastId);
+            if (!empty($newMessages)) {
+                clearPendingNotifications($userId, $pendingNotification['message_id']);
+                response(true, 'تم جلب الرسائل بنجاح', $newMessages);
+                return;
+            }
+        }
         
-        if (!empty($newMessages)) {
-            // تم العثور على رسائل جديدة - إرجاعها فوراً
-            response(true, 'تم جلب الرسائل بنجاح', $newMessages);
-            return; // إنهاء التنفيذ بعد إرجاع الرسائل
+        // البحث عن رسائل جديدة بعد last_id (فحص أقل تكراراً)
+        if ($iteration % 2 === 0) { // فحص كل ثانيتين بدلاً من كل ثانية
+            $newMessages = getNewMessages($lastId);
+            
+            if (!empty($newMessages)) {
+                // تم العثور على رسائل جديدة - إرجاعها فوراً
+                response(true, 'تم جلب الرسائل بنجاح', $newMessages);
+                return; // إنهاء التنفيذ بعد إرجاع الرسائل
+            }
         }
         
         // انتظار ثانية واحدة قبل المحاولة التالية
@@ -222,6 +249,56 @@ function updateUserActivity($userId) {
     } catch (Exception $e) {
         error_log('خطأ في updateUserActivity: ' . $e->getMessage());
         // لا نوقف التنفيذ، فقط نسجل الخطأ
+    }
+}
+
+/**
+ * التحقق من وجود إشعار معلق للمستخدم
+ */
+function checkPendingNotification($userId) {
+    try {
+        if (!dbTableExists('chat_pending_notifications')) {
+            return null;
+        }
+        
+        $notification = dbSelectOne("
+            SELECT * FROM chat_pending_notifications 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        ", [$userId]);
+        
+        return $notification;
+    } catch (Exception $e) {
+        error_log('خطأ في checkPendingNotification: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * مسح الإشعارات المعلقة بعد قراءتها
+ */
+function clearPendingNotifications($userId, $messageId = null) {
+    try {
+        if (!dbTableExists('chat_pending_notifications')) {
+            return;
+        }
+        
+        if ($messageId) {
+            // مسح إشعار محدد
+            dbExecute("
+                DELETE FROM chat_pending_notifications 
+                WHERE user_id = ? AND message_id = ?
+            ", [$userId, $messageId]);
+        } else {
+            // مسح جميع الإشعارات المعلقة للمستخدم
+            dbExecute("
+                DELETE FROM chat_pending_notifications 
+                WHERE user_id = ?
+            ", [$userId]);
+        }
+    } catch (Exception $e) {
+        error_log('خطأ في clearPendingNotifications: ' . $e->getMessage());
     }
 }
 ?>
