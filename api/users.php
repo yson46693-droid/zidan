@@ -5,6 +5,10 @@ require_once 'config.php';
 $data = getRequestData();
 $method = $data['_method'] ?? getRequestMethod();
 
+// تسجيل المعلومات الأساسية للتشخيص
+error_log('users.php - Method: ' . $method . ', Request Method: ' . getRequestMethod());
+error_log('users.php - Data keys: ' . implode(', ', array_keys($data)));
+
 // قراءة جميع المستخدمين
 if ($method === 'GET') {
     checkPermission('admin');
@@ -33,17 +37,35 @@ if ($method === 'GET') {
 // إضافة مستخدم جديد
 if ($method === 'POST') {
     checkPermission('admin');
-    if (!isset($data['username'])) {
+    
+    // قراءة البيانات - إذا كانت الطريقة POST عادية (ليست PUT/DELETE محولة)،
+    // يجب أن تكون البيانات في $data بالفعل من getRequestData() في السطر 5
+    // لكن إذا كانت الطريقة POST محولة من PUT/DELETE، قد تحتوي على _method فقط
+    if (empty($data) || (!isset($data['username']) && !isset($data['name']) && !isset($data['_method']))) {
+        // محاولة قراءة البيانات مرة أخرى
         $data = getRequestData();
     }
     
-    $username = trim($data['username'] ?? '');
-    $password = $data['password'] ?? '';
-    $name = trim($data['name'] ?? '');
-    $role = $data['role'] ?? 'employee';
+    // تسجيل البيانات المستلمة للتشخيص
+    error_log('POST /users.php - البيانات المستلمة: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
+    error_log('POST /users.php - $_POST: ' . json_encode($_POST, JSON_UNESCAPED_UNICODE));
+    if (isset($GLOBALS['_cached_request_data'])) {
+        error_log('POST /users.php - _cached_request_data: ' . json_encode($GLOBALS['_cached_request_data'], JSON_UNESCAPED_UNICODE));
+    }
     
+    // قراءة القيم من البيانات
+    $username = isset($data['username']) ? trim($data['username']) : '';
+    $password = isset($data['password']) ? $data['password'] : '';
+    $name = isset($data['name']) ? trim($data['name']) : '';
+    $role = isset($data['role']) ? $data['role'] : 'employee';
+    
+    // تسجيل القيم بعد المعالجة
+    error_log('POST /users.php - القيم بعد المعالجة: username="' . $username . '", name="' . $name . '", password=' . (empty($password) ? '(empty)' : '(set)') . ', role="' . $role . '"');
+    
+    // التحقق من الحقول المطلوبة
     if (empty($username) || empty($password) || empty($name)) {
-        response(false, 'جميع الحقول مطلوبة', null, 400);
+        error_log('POST /users.php - خطأ: الحقول المطلوبة فارغة - username: ' . (empty($username) ? 'empty' : 'ok') . ', password: ' . (empty($password) ? 'empty' : 'ok') . ', name: ' . (empty($name) ? 'empty' : 'ok'));
+        response(false, 'جميع الحقول مطلوبة (username, password, name)', null, 400);
     }
     
     // التحقق من عدم تكرار اسم المستخدم

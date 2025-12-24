@@ -881,23 +881,75 @@ async function saveUser(event) {
             return;
         }
 
-        const userData = {
+        // التحقق من أن جميع القيم موجودة قبل الإرسال
+        console.log('📤 البيانات قبل الإرسال:', {
             name: name,
+            nameLength: name.length,
             username: username,
-            password: password,
-            role: role
+            usernameLength: username.length,
+            password: password ? '***' : '(empty)',
+            passwordLength: password ? password.length : 0,
+            role: role,
+            roleLength: role.length,
+            userId: userId
+        });
+
+        // التحقق مرة أخرى من أن الحقول المطلوبة موجودة
+        if (!name || name.trim().length === 0) {
+            showMessage('الاسم مطلوب', 'error');
+            if (nameElement) {
+                nameElement.focus();
+                nameElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
+
+        if (!username || username.trim().length === 0) {
+            showMessage('اسم المستخدم مطلوب', 'error');
+            if (usernameElement) {
+                usernameElement.focus();
+                usernameElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
+
+        if (!userId && (!password || password.trim().length === 0)) {
+            showMessage('كلمة المرور مطلوبة للمستخدم الجديد', 'error');
+            if (passwordElement) {
+                passwordElement.focus();
+                passwordElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
+
+        const userData = {
+            name: name.trim(),
+            username: username.trim(),
+            password: password ? password.trim() : '',
+            role: role.trim() || 'employee'
         };
 
         let result;
 
         if (userId) {
             userData.id = userId;
-            if (!userData.password) {
+            if (!userData.password || userData.password.length === 0) {
                 delete userData.password;
             }
             delete userData.username; // لا يمكن تعديل اسم المستخدم
+            console.log('📤 تحديث مستخدم:', userData);
             result = await API.updateUser(userData);
         } else {
+            // التأكد من أن كلمة المرور موجودة للمستخدم الجديد
+            if (!userData.password || userData.password.length === 0) {
+                showMessage('كلمة المرور مطلوبة للمستخدم الجديد', 'error');
+                if (passwordElement) {
+                    passwordElement.focus();
+                    passwordElement.style.borderColor = 'var(--danger-color)';
+                }
+                return;
+            }
+            console.log('📤 إضافة مستخدم جديد:', { ...userData, password: '***' });
             result = await API.addUser(userData);
         }
 
