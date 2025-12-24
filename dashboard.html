@@ -907,14 +907,27 @@
         async function performAuthCheck() {
             // 🔧 الحل 5: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
             const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-            if (justLoggedInTime) {
-                const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
-                // إذا كان تسجيل الدخول حديث (أقل من 15 ثانية)، انتظر قليلاً قبل التحقق
-                if (timeSinceLogin < 15000) {
-                    console.log('⏳ تسجيل دخول حديث في dashboard - انتظار قليل...');
-                    // انتظار إضافي للجلسة
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+            const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 15000;
+            
+            if (isRecentLogin) {
+                console.log('⏳ تسجيل دخول حديث في dashboard - استخدام البيانات المحفوظة أولاً...');
+                // محاولة استخدام البيانات المحفوظة أولاً
+                try {
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        const user = JSON.parse(savedUser);
+                        console.log('✅ استخدام بيانات المستخدم المحفوظة بعد تسجيل الدخول');
+                        cachedUser = user;
+                        authChecked = true;
+                        // مسح العلامة بعد النجاح
+                        sessionStorage.removeItem('just_logged_in_time');
+                        return user;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ خطأ في قراءة البيانات المحفوظة:', e);
                 }
+                // انتظار إضافي للجلسة قبل التحقق من الخادم
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             // منع الطلبات المتكررة - إذا كان هناك طلب قيد التنفيذ، انتظر
