@@ -6,6 +6,11 @@ require_once 'invoices.php';
 $data = getRequestData();
 $method = $data['_method'] ?? getRequestMethod();
 
+// تسجيل للتحقق من البيانات المستلمة (للتطوير فقط)
+if (isset($data['action']) && $data['action'] === 'update_rating') {
+    error_log('update_rating request - method: ' . $method . ', data: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
+}
+
 /**
  * معالج أخطاء قاعدة البيانات - التحقق من الجداول الناقصة تلقائياً
  */
@@ -499,13 +504,23 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'rating'
 }
 
 // تعديل التقييم التراكمي (للمالك فقط)
-if ($method === 'PUT' && isset($data['action']) && $data['action'] === 'update_rating') {
+// التحقق من PUT method (مباشرة أو عبر _method)
+$isPutMethod = ($method === 'PUT' || ($method === 'POST' && isset($data['_method']) && $data['_method'] === 'PUT'));
+if ($isPutMethod && isset($data['action']) && $data['action'] === 'update_rating') {
     checkPermission('admin'); // المالك فقط
+    
+    // إعادة قراءة البيانات للتأكد من الحصول على أحدث البيانات
+    $requestData = getRequestData();
+    $data = array_merge($data, $requestData);
     
     $customerId = trim($data['customer_id'] ?? '');
     $rating = intval($data['rating'] ?? 0);
     
+    // تسجيل البيانات للتحقق
+    error_log('update_rating request data: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
+    
     if (empty($customerId)) {
+        error_log('update_rating error: customer_id is empty. Data received: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
         response(false, 'معرف العميل مطلوب', null, 400);
     }
     

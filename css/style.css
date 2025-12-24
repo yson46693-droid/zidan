@@ -592,6 +592,8 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 1;
 }
 
 .modal-content.modal-sm {
@@ -3137,7 +3139,8 @@ body {
 
 .inventory-card-image {
     width: 100%;
-    height: 250px;
+    min-height: 250px;
+    max-height: 350px;
     border-radius: 8px;
     margin-bottom: 10px;
     background: var(--light-bg);
@@ -3145,12 +3148,16 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--text-light);
-    overflow: hidden;
+    overflow: visible;
+    padding: 15px;
+    box-sizing: border-box;
 }
 
 .inventory-card-image img {
-    width: 100%;
-    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
     object-fit: contain;
     object-position: center;
     border-radius: 10px;
@@ -3162,10 +3169,12 @@ body {
     transform: translateZ(0);
     will-change: transform;
     transition: transform 0.3s ease, opacity 0.3s ease;
+    display: block;
+    margin: 0 auto;
 }
 
 .inventory-card:hover .inventory-card-image img {
-    transform: scale(1.05) translateZ(0);
+    transform: scale(1.02) translateZ(0);
 }
 
 .inventory-card-image img[loading="lazy"] {
@@ -3175,6 +3184,12 @@ body {
 
 .inventory-card-image img[loading="lazy"].loaded {
     opacity: 1;
+}
+
+/* ضمان عرض الصورة كاملة بدون قطع */
+.inventory-card-image img {
+    object-fit: contain !important;
+    object-position: center !important;
 }
 
 .inventory-card-price {

@@ -1414,6 +1414,8 @@ function showEditRatingModal(customerId, currentRating) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
+    // إضافة z-index أعلى من customer-profile-modal لضمان ظهوره فوقه
+    modal.style.zIndex = '20000';
     modal.innerHTML = `
         <div class="modal-content modal-sm">
             <div class="modal-header">
