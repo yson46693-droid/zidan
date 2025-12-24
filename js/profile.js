@@ -158,9 +158,8 @@ async function loadProfileSection() {
         // تحميل البصمات المسجلة
         await loadCredentials();
 
-        // إنشاء SVG للصورة الافتراضية
-        const userInitials = getInitials(currentUser.name || currentUser.username || 'U');
-        const defaultAvatarSvg = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="white" font-size="60" font-weight="bold"%3E' + userInitials + '%3C/text%3E%3C/svg%3E';
+        // إنشاء SVG للصورة الافتراضية مع أيقونة شخص
+        const defaultAvatarSvg = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ccircle cx="75" cy="55" r="20" fill="white"/%3E%3Cpath d="M 75 80 Q 40 80 40 110 L 40 120 Q 40 130 50 130 L 100 130 Q 110 130 110 120 L 110 110 Q 110 80 75 80 Z" fill="white"/%3E%3C/svg%3E';
         const avatarSrc = currentUser.avatar || defaultAvatarSvg;
         const avatarDisabled = !currentUser.avatar ? 'disabled' : '';
         
@@ -885,8 +884,8 @@ async function removeAvatar() {
             // تحديث الصورة في الواجهة
             const avatarImg = document.getElementById('profileAvatarImg');
             if (avatarImg && currentUser) {
-                const initials = getInitials(currentUser.name || currentUser.username || 'U');
-                avatarImg.src = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="white" font-size="60" font-weight="bold"%3E${initials}%3C/text%3E%3C/svg%3E`;
+                // استخدام أيقونة افتراضية للملف الشخصي
+                avatarImg.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150"%3E%3Ccircle cx="75" cy="75" r="75" fill="%232196F3"/%3E%3Ccircle cx="75" cy="55" r="20" fill="white"/%3E%3Cpath d="M 75 80 Q 40 80 40 110 L 40 120 Q 40 130 50 130 L 100 130 Q 110 130 110 120 L 110 110 Q 110 80 75 80 Z" fill="white"/%3E%3C/svg%3E';
             }
             
             // تحديث بيانات المستخدم

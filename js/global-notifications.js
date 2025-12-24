@@ -16,10 +16,25 @@ class GlobalNotificationManager {
     // تهيئة النظام
     async init() {
         try {
+            // الانتظار قليلاً لضمان تحميل API
+            let retries = 0;
+            while ((typeof API === 'undefined' || !API.request) && retries < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retries++;
+            }
+
+            if (typeof API === 'undefined' || !API.request) {
+                console.warn('⚠️ API غير متاح - سيتم المحاولة لاحقاً');
+                // إعادة المحاولة بعد 2 ثانية
+                setTimeout(() => this.init(), 2000);
+                return;
+            }
+
             // التحقق من تسجيل الدخول
             if (typeof checkLogin === 'function') {
                 const user = await checkLogin();
                 if (!user) {
+                    console.log('📋 المستخدم غير مسجل دخول - إيقاف نظام الإشعارات');
                     return; // المستخدم غير مسجل دخول
                 }
                 this.currentUser = user;
@@ -27,10 +42,21 @@ class GlobalNotificationManager {
                 // محاولة الحصول من localStorage
                 const userStr = localStorage.getItem('currentUser');
                 if (userStr) {
-                    this.currentUser = JSON.parse(userStr);
+                    try {
+                        this.currentUser = JSON.parse(userStr);
+                    } catch (e) {
+                        console.error('خطأ في تحليل بيانات المستخدم:', e);
+                        return;
+                    }
                 } else {
+                    console.log('📋 لا يوجد مستخدم في localStorage - إيقاف نظام الإشعارات');
                     return; // لا يوجد مستخدم
                 }
+            }
+
+            if (!this.currentUser || !this.currentUser.id) {
+                console.warn('⚠️ بيانات المستخدم غير صحيحة');
+                return;
             }
 
             // طلب صلاحيات الإشعارات
@@ -41,11 +67,14 @@ class GlobalNotificationManager {
 
             // بدء النظام (إلا إذا كنا في صفحة الشات - لديها نظامها الخاص)
             if (!this.isChatPage) {
-                this.start();
+                // تأخير صغير قبل البدء
+                setTimeout(() => {
+                    this.start();
+                }, 500);
             }
 
         } catch (error) {
-            console.error('خطأ في تهيئة نظام الإشعارات:', error);
+            console.error('❌ خطأ في تهيئة نظام الإشعارات:', error);
         }
     }
 
@@ -93,13 +122,27 @@ class GlobalNotificationManager {
     // بدء النظام
     start() {
         if (this.isRunning) {
+            console.log('⚠️ نظام الإشعارات يعمل بالفعل');
+            return;
+        }
+
+        if (!this.currentUser) {
+            console.warn('⚠️ لا يمكن بدء النظام - لا يوجد مستخدم');
             return;
         }
 
         this.isRunning = true;
         
-        // فحص فوري
-        this.checkForNewMessages();
+        console.log('🚀 بدء نظام الإشعارات المركزي', {
+            userId: this.currentUser.id,
+            lastMessageId: this.lastMessageId,
+            interval: this.checkIntervalMs
+        });
+        
+        // فحص فوري بعد تأخير صغير
+        setTimeout(() => {
+            this.checkForNewMessages();
+        }, 1000);
 
         // فحص دوري
         this.checkInterval = setInterval(() => {
@@ -134,33 +177,59 @@ class GlobalNotificationManager {
         try {
             // استخدام API الموجود
             if (typeof API === 'undefined' || !API.request) {
+                console.warn('⚠️ API غير متاح في checkForNewMessages');
                 return;
             }
 
             const url = `get_messages.php${this.lastMessageId && this.lastMessageId !== '0' ? '?last_id=' + encodeURIComponent(this.lastMessageId) : ''}`;
+            
             const result = await API.request(url);
 
             if (result && result.success && result.data && Array.isArray(result.data)) {
                 // فلترة الرسائل الجديدة فقط
                 const newMessages = result.data.filter(msg => {
+                    if (!msg || !msg.id) {
+                        return false;
+                    }
+                    
                     // تجنب الرسائل الخاصة بالمستخدم الحالي
                     if (msg.user_id === this.currentUser.id) {
+                        // تحديث lastMessageId حتى لو كانت رسالة المستخدم
+                        if (!this.lastMessageId || String(msg.id).localeCompare(String(this.lastMessageId)) > 0) {
+                            this.saveLastMessageId(msg.id);
+                        }
                         return false;
                     }
-                    // تجنب الرسائل القديمة
-                    if (this.lastMessageId && msg.id <= this.lastMessageId) {
-                        return false;
+                    
+                    // تجنب الرسائل القديمة - استخدام مقارنة strings للـ IDs
+                    if (this.lastMessageId && this.lastMessageId !== '0') {
+                        // مقارنة IDs كـ strings
+                        const msgIdStr = String(msg.id);
+                        const lastIdStr = String(this.lastMessageId);
+                        
+                        // إذا كان ID الرسالة أصغر من أو يساوي آخر ID، تجاهلها
+                        if (msgIdStr.localeCompare(lastIdStr) <= 0) {
+                            return false;
+                        }
                     }
+                    
                     return true;
                 });
 
                 if (newMessages.length > 0) {
-                    // تحديث آخر معرف رسالة
+                    console.log(`🔔 تم العثور على ${newMessages.length} رسالة جديدة`);
+                    
+                    // تحديث آخر معرف رسالة لأكبر ID
+                    let maxId = this.lastMessageId || '0';
                     newMessages.forEach(msg => {
-                        if (!this.lastMessageId || msg.id > this.lastMessageId) {
-                            this.saveLastMessageId(msg.id);
+                        const msgIdStr = String(msg.id);
+                        if (msgIdStr.localeCompare(String(maxId)) > 0) {
+                            maxId = msg.id;
                         }
                     });
+                    if (maxId !== this.lastMessageId) {
+                        this.saveLastMessageId(maxId);
+                    }
 
                     // إرسال إشعارات للرسائل الجديدة
                     newMessages.forEach(message => {
@@ -170,40 +239,58 @@ class GlobalNotificationManager {
             }
 
         } catch (error) {
-            console.error('خطأ في التحقق من الرسائل الجديدة:', error);
+            console.error('❌ خطأ في التحقق من الرسائل الجديدة:', error);
         }
     }
 
     // عرض إشعار للمستخدم
     showNotification(message) {
         // التحقق من صلاحيات الإشعارات
-        if (!('Notification' in window) || Notification.permission !== 'granted') {
+        if (!('Notification' in window)) {
+            console.warn('⚠️ المتصفح لا يدعم الإشعارات');
+            return;
+        }
+
+        if (Notification.permission !== 'granted') {
+            console.log('⚠️ صلاحيات الإشعارات غير مُعطاة:', Notification.permission);
             return;
         }
 
         // التحقق من أن المستخدم ليس في صفحة الشات النشطة
         if (this.isChatPage && document.hasFocus()) {
+            console.log('📱 المستخدم في صفحة الشات النشطة - لا حاجة لإشعار');
             return; // المستخدم في صفحة الشات، لا حاجة لإشعار
         }
 
         // إعداد بيانات الإشعار
         const title = message.username || 'مستخدم';
         const body = this.formatMessageBody(message);
-        const icon = '/icons/icon-192x192.png';
-        const badge = '/icons/icon-72x72.png';
+        
+        // استخدام مسارات نسبية للأيقونات
+        let icon = '/icons/icon-192x192.png';
+        let badge = '/icons/icon-72x72.png';
+        
+        // التحقق من المسار الحالي
+        const basePath = window.location.pathname.includes('/zidan/') ? '/zidan' : '';
+        if (basePath) {
+            icon = basePath + icon;
+            badge = basePath + badge;
+        }
 
         try {
+            console.log('🔔 عرض إشعار:', { title, body, messageId: message.id });
+            
             const notification = new Notification(title, {
                 body: body,
                 icon: icon,
                 badge: badge,
                 dir: 'rtl',
                 lang: 'ar',
-                tag: message.id,
+                tag: 'chat-' + (message.id || Date.now()),
                 data: {
                     messageId: message.id,
                     userId: message.user_id,
-                    url: '/chat.html'
+                    url: basePath + '/chat.html'
                 },
                 requireInteraction: false,
                 silent: false
@@ -215,18 +302,22 @@ class GlobalNotificationManager {
                 notification.close();
                 
                 // الانتقال إلى صفحة الشات
-                if (window.location.pathname !== '/chat.html' && window.location.pathname !== '/zidan/chat.html') {
-                    window.location.href = '/chat.html';
+                const currentPath = window.location.pathname;
+                const chatPath = basePath + '/chat.html';
+                if (currentPath !== chatPath && !currentPath.includes('chat.html')) {
+                    window.location.href = chatPath;
                 }
             };
 
-            // إغلاق الإشعار تلقائياً بعد 5 ثواني
+            // إغلاق الإشعار تلقائياً بعد 10 ثواني
             setTimeout(() => {
                 notification.close();
-            }, 5000);
+            }, 10000);
+
+            console.log('✅ تم عرض الإشعار بنجاح');
 
         } catch (error) {
-            console.error('خطأ في عرض الإشعار:', error);
+            console.error('❌ خطأ في عرض الإشعار:', error);
         }
     }
 
