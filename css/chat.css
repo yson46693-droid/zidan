@@ -115,13 +115,68 @@ body {
     z-index: 100;
 }
 
+.chat-title-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0; /* للسماح بالتقصير عند الحاجة */
+}
+
 .chat-title {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
-    flex: 1;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-title-icon {
+    font-size: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+.chat-title-text {
+    font-size: 20px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+}
+
+.chat-subtitle {
+    font-size: 11px;
+    color: var(--text-light);
+    font-weight: 400;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
 }
 
 .menu-btn,
@@ -795,8 +850,26 @@ body {
         padding: 12px 15px;
     }
     
+    .chat-title-wrapper {
+        gap: 1px;
+    }
+    
     .chat-title {
+        font-size: 18px;
+        gap: 6px;
+    }
+    
+    .chat-title-icon {
         font-size: 20px;
+    }
+    
+    .chat-title-text {
+        font-size: 18px;
+    }
+    
+    .chat-subtitle {
+        font-size: 10px;
+        max-width: 150px;
     }
     
     .chat-input-container {

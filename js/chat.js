@@ -284,10 +284,16 @@ function setupEventListeners() {
     }
     
     // زر التنقل إلى لوحة التحكم
-    const dashboardBtn = document.getElementById('dashboardBtn');
-    if (dashboardBtn) {
-        dashboardBtn.addEventListener('click', () => {
-            window.location.href = 'dashboard.html';
+    const backToDashboardBtn = document.getElementById('backToDashboardBtn');
+    if (backToDashboardBtn) {
+        backToDashboardBtn.addEventListener('click', () => {
+            // الرجوع إلى الصفحة السابقة
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                // إذا لم تكن هناك صفحة سابقة، الانتقال إلى لوحة التحكم
+                window.location.href = 'dashboard.html';
+            }
         });
     }
     

@@ -694,24 +694,106 @@ async function viewCustomerProfile(customerId) {
                 }
             }
             
-            // إضافة event listeners للبحث (لحظي مثل البحث برقم العميل)
+            // إضافة event listeners للبحث (لحظي مثل البحث برقم العميل - مباشر بدون filterAndDisplaySales)
             const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
             const dateSearchInput = document.getElementById('salesSearchDate');
             
             if (invoiceSearchInput) {
-                invoiceSearchInput.addEventListener('input', function() {
-                    // استخدام النسخة الأصلية من الفواتير للبحث
-                    const originalSales = window._originalCustomerSales || sales;
-                    filterAndDisplaySales(originalSales, true);
-                });
+                // إزالة event listeners السابقة لتجنب التكرار
+                if (invoiceSearchInput._searchHandler) {
+                    invoiceSearchInput.removeEventListener('input', invoiceSearchInput._searchHandler);
+                }
+                
+                // إنشاء handler جديد - يعمل مباشرة مثل البحث برقم العميل
+                invoiceSearchInput._searchHandler = function() {
+                    const query = this.value.toLowerCase().trim();
+                    // استخدام النسخة الأصلية من الفواتير دائماً
+                    const originalSales = window._originalCustomerSales || [];
+                    
+                    console.log('🔍 البحث برقم الفاتورة (لحظي):', {
+                        query: query,
+                        originalCount: originalSales.length
+                    });
+                    
+                    // فلترة مباشرة مثل البحث برقم العميل - البحث في أي مكان
+                    let filtered = originalSales.filter(sale => {
+                        const saleNumber = String(sale.sale_number || sale.id || '').toLowerCase();
+                        return saleNumber.includes(query);
+                    });
+                    
+                    // تطبيق فلترة التاريخ أيضاً إذا كان موجوداً
+                    if (dateSearchInput && dateSearchInput.value) {
+                        const searchDate = dateSearchInput.value;
+                        filtered = filtered.filter(sale => {
+                            if (!sale.created_at) return false;
+                            const saleDate = new Date(sale.created_at).toISOString().split('T')[0];
+                            return saleDate === searchDate;
+                        });
+                    }
+                    
+                    console.log('✅ بعد البحث:', {
+                        filteredCount: filtered.length,
+                        query: query
+                    });
+                    
+                    // إعادة تعيين الصفحة إلى 1 عند البحث
+                    window.currentSalesPage = 1;
+                    window.currentCustomerSales = filtered;
+                    
+                    // عرض النتائج مباشرة - مثل displayCustomers في البحث برقم العميل
+                    displaySalesWithPagination(filtered);
+                };
+                
+                invoiceSearchInput.addEventListener('input', invoiceSearchInput._searchHandler);
             }
             
             if (dateSearchInput) {
-                dateSearchInput.addEventListener('change', function() {
-                    // استخدام النسخة الأصلية من الفواتير للبحث
-                    const originalSales = window._originalCustomerSales || sales;
-                    filterAndDisplaySales(originalSales, true);
-                });
+                // إزالة event listeners السابقة لتجنب التكرار
+                if (dateSearchInput._searchHandler) {
+                    dateSearchInput.removeEventListener('change', dateSearchInput._searchHandler);
+                }
+                
+                // إنشاء handler جديد - يعمل مباشرة مثل البحث برقم العميل
+                dateSearchInput._searchHandler = function() {
+                    const searchDate = this.value;
+                    // استخدام النسخة الأصلية من الفواتير دائماً
+                    const originalSales = window._originalCustomerSales || [];
+                    
+                    console.log('🔍 البحث بالتاريخ (لحظي):', {
+                        searchDate: searchDate,
+                        originalCount: originalSales.length
+                    });
+                    
+                    // فلترة مباشرة
+                    let filtered = originalSales.filter(sale => {
+                        if (!sale.created_at) return false;
+                        const saleDate = new Date(sale.created_at).toISOString().split('T')[0];
+                        return saleDate === searchDate;
+                    });
+                    
+                    // تطبيق فلترة رقم الفاتورة أيضاً إذا كان موجوداً
+                    if (invoiceSearchInput && invoiceSearchInput.value.trim()) {
+                        const query = invoiceSearchInput.value.toLowerCase().trim();
+                        filtered = filtered.filter(sale => {
+                            const saleNumber = String(sale.sale_number || sale.id || '').toLowerCase();
+                            return saleNumber.includes(query);
+                        });
+                    }
+                    
+                    console.log('✅ بعد البحث بالتاريخ:', {
+                        filteredCount: filtered.length,
+                        searchDate: searchDate
+                    });
+                    
+                    // إعادة تعيين الصفحة إلى 1 عند البحث
+                    window.currentSalesPage = 1;
+                    window.currentCustomerSales = filtered;
+                    
+                    // عرض النتائج مباشرة - مثل displayCustomers في البحث برقم العميل
+                    displaySalesWithPagination(filtered);
+                };
+                
+                dateSearchInput.addEventListener('change', dateSearchInput._searchHandler);
             }
         }
         
