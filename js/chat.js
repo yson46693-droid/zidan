@@ -808,7 +808,8 @@ function showBrowserNotification(message) {
             id: message.id,
             username: message.username,
             message: message.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            read: false
         });
     }
 }
@@ -1005,7 +1006,22 @@ function updateMessagesActivity() {
 
 // قائمة الإشعارات
 function addNotification(notification) {
-    notifications.unshift(notification);
+    // التحقق من عدم تكرار الإشعار (نفس id)
+    const existingIndex = notifications.findIndex(n => n.id === notification.id);
+    if (existingIndex !== -1) {
+        // تحديث الإشعار الموجود بدلاً من إضافة واحد جديد
+        notifications[existingIndex] = {
+            ...notifications[existingIndex],
+            ...notification,
+            read: notification.read !== undefined ? notification.read : notifications[existingIndex].read
+        };
+    } else {
+        // إضافة إشعار جديد
+        notifications.unshift({
+            ...notification,
+            read: notification.read !== undefined ? notification.read : false
+        });
+    }
     
     // حفظ في localStorage
     try {
@@ -1015,6 +1031,31 @@ function addNotification(notification) {
     }
     
     updateNotificationBadge();
+}
+
+// دالة لتحديد الإشعار كمقروء
+function markNotificationAsRead(notificationId) {
+    const notification = notifications.find(n => n.id === notificationId);
+    if (notification) {
+        notification.read = true;
+        try {
+            localStorage.setItem('chat_notifications', JSON.stringify(notifications.slice(0, 50)));
+            renderNotificationsList();
+        } catch (e) {
+            console.error('خطأ في حفظ الإشعارات:', e);
+        }
+    }
+}
+
+// دالة لتحديد جميع الإشعارات كمقروءة
+function markAllNotificationsAsRead() {
+    notifications.forEach(n => n.read = true);
+    try {
+        localStorage.setItem('chat_notifications', JSON.stringify(notifications.slice(0, 50)));
+        renderNotificationsList();
+    } catch (e) {
+        console.error('خطأ في حفظ الإشعارات:', e);
+    }
 }
 
 function toggleNotificationsList() {
@@ -1045,12 +1086,27 @@ function renderNotificationsList() {
     
     const fragment = document.createDocumentFragment();
     
+    // زر "تحديد الكل كمقروء"
+    const markAllReadBtn = document.createElement('button');
+    markAllReadBtn.className = 'mark-all-read-btn';
+    markAllReadBtn.textContent = 'تحديد الكل كمقروء';
+    markAllReadBtn.onclick = () => {
+        markAllNotificationsAsRead();
+    };
+    fragment.appendChild(markAllReadBtn);
+    
     notifications.forEach(notification => {
         const item = document.createElement('div');
-        item.className = 'notification-item';
+        item.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
         
         const content = document.createElement('div');
         content.className = 'notification-content';
+        content.onclick = () => {
+            // عند النقر على الإشعار، تحديده كمقروء
+            if (!notification.read) {
+                markNotificationAsRead(notification.id);
+            }
+        };
         
         const username = document.createElement('div');
         username.className = 'notification-username';
@@ -1064,17 +1120,46 @@ function renderNotificationsList() {
         time.className = 'notification-time';
         time.textContent = formatTime(notification.timestamp);
         
+        // مؤشر "غير مقروء"
+        if (!notification.read) {
+            const unreadIndicator = document.createElement('div');
+            unreadIndicator.className = 'unread-indicator';
+            unreadIndicator.title = 'غير مقروء';
+            content.appendChild(unreadIndicator);
+        }
+        
         content.appendChild(username);
         content.appendChild(message);
         content.appendChild(time);
         
+        const actions = document.createElement('div');
+        actions.className = 'notification-actions';
+        
+        // زر "تم الرؤية" إذا لم يكن مقروءاً
+        if (!notification.read) {
+            const markReadBtn = document.createElement('button');
+            markReadBtn.className = 'mark-read-btn';
+            markReadBtn.innerHTML = '✓';
+            markReadBtn.title = 'تم الرؤية';
+            markReadBtn.onclick = (e) => {
+                e.stopPropagation();
+                markNotificationAsRead(notification.id);
+            };
+            actions.appendChild(markReadBtn);
+        }
+        
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'notification-delete';
         deleteBtn.innerHTML = '×';
-        deleteBtn.onclick = () => deleteNotification(notification.id);
+        deleteBtn.title = 'حذف';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteNotification(notification.id);
+        };
+        actions.appendChild(deleteBtn);
         
         item.appendChild(content);
-        item.appendChild(deleteBtn);
+        item.appendChild(actions);
         fragment.appendChild(item);
     });
     
@@ -1097,14 +1182,21 @@ function deleteNotification(notificationId) {
 function updateNotificationBadge() {
     const badge = document.getElementById('notificationBadge');
     if (badge) {
-        if (notifications.length > 0) {
-            badge.textContent = notifications.length > 99 ? '99+' : notifications.length;
+        // حساب عدد الإشعارات غير المقروءة فقط
+        const unreadCount = notifications.filter(n => !n.read).length;
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
             badge.style.display = 'flex';
         } else {
             badge.style.display = 'none';
         }
     }
 }
+
+// تصدير الدوال للاستخدام من ملفات أخرى
+window.addChatNotification = addNotification;
+window.markNotificationAsRead = markNotificationAsRead;
+window.markAllNotificationsAsRead = markAllNotificationsAsRead;
 
 // تحميل قائمة المستخدمين
 async function loadUsers() {
@@ -1617,6 +1709,11 @@ function loadSavedNotifications() {
         const saved = localStorage.getItem('chat_notifications');
         if (saved) {
             notifications = JSON.parse(saved);
+            // إضافة خاصية read للإشعارات القديمة التي لا تحتوي عليها
+            notifications = notifications.map(n => ({
+                ...n,
+                read: n.read !== undefined ? n.read : false
+            }));
             updateNotificationBadge();
         }
     } catch (e) {

@@ -1,6 +1,7 @@
 /**
  * نظام الإشعارات المركزي - يعمل في جميع الصفحات
  * يستخدم Browser Notifications API بدون الحاجة لـ VAPID keys
+ * محسّن لتقليل عدد الطلبات
  */
 
 class GlobalNotificationManager {
@@ -9,9 +10,15 @@ class GlobalNotificationManager {
         this.lastMessageId = null;
         this.currentUser = null;
         this.isRunning = false;
-        this.checkIntervalMs = 5000; // التحقق كل 5 ثواني
+        this.checkIntervalMs = 15000; // 15 ثانية بدلاً من 5
         this.isChatPage = window.location.pathname.includes('chat.html');
         this.activeNotifications = new Map(); // حفظ مراجع للإشعارات المفتوحة
+        this.lastCheckTime = 0;
+        this.cachedResult = null;
+        this.cacheExpiry = 0;
+        this.CACHE_DURATION = 5000; // 5 ثواني cache
+        this.pendingCheck = false;
+        this.isPageVisible = true;
     }
 
     // تهيئة النظام
@@ -60,6 +67,9 @@ class GlobalNotificationManager {
             // تحميل آخر معرف رسالة
             this.loadLastMessageId();
 
+            // إعداد مراقبة حالة الصفحة
+            this.setupVisibilityListener();
+
             // بدء النظام للتحقق من الرسائل الجديدة في جميع الصفحات
             if (!this.isChatPage) {
                 // في صفحات أخرى، نبدأ النظام للتحقق من الرسائل الجديدة
@@ -72,6 +82,48 @@ class GlobalNotificationManager {
         } catch (error) {
             console.error('❌ خطأ في تهيئة نظام الإشعارات:', error);
         }
+    }
+
+    // إعداد مراقبة حالة الصفحة
+    setupVisibilityListener() {
+        document.addEventListener('visibilitychange', () => {
+            this.isPageVisible = !document.hidden;
+            
+            // إذا أصبحت الصفحة مرئية، فحص فوري
+            if (this.isPageVisible && !this.isChatPage && this.isRunning) {
+                const now = Date.now();
+                // فحص فوري فقط إذا مر أكثر من 5 ثواني منذ آخر فحص
+                if (now - this.lastCheckTime > 5000) {
+                    this.debouncedCheck();
+                }
+            }
+        });
+        
+        // مراقبة focus/blur
+        window.addEventListener('focus', () => {
+            this.isPageVisible = true;
+            if (!this.isChatPage && this.isRunning) {
+                const now = Date.now();
+                if (now - this.lastCheckTime > 5000) {
+                    this.debouncedCheck();
+                }
+            }
+        });
+        
+        window.addEventListener('blur', () => {
+            this.isPageVisible = false;
+        });
+    }
+
+    // Debounce للفحص
+    debounceTimer = null;
+    debouncedCheck() {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+        this.debounceTimer = setTimeout(() => {
+            this.checkForNewMessages();
+        }, 500); // انتظار 500ms قبل الفحص
     }
 
     // طلب صلاحيات الإشعارات
@@ -140,9 +192,12 @@ class GlobalNotificationManager {
             this.checkForNewMessages();
         }, 1000);
 
-        // فحص دوري
+        // فحص دوري كل 15 ثانية (بدلاً من 5)
         this.checkInterval = setInterval(() => {
-            this.checkForNewMessages();
+            // فحص فقط إذا كانت الصفحة مرئية
+            if (this.isPageVisible) {
+                this.checkForNewMessages();
+            }
         }, this.checkIntervalMs);
 
         console.log('✅ تم بدء نظام الإشعارات المركزي');
@@ -175,19 +230,41 @@ class GlobalNotificationManager {
             return;
         }
 
+        // التحقق من cache
+        const now = Date.now();
+        if (this.cachedResult && this.cacheExpiry > now) {
+            // استخدام النتيجة المخزنة
+            return;
+        }
+
+        // منع الطلبات المتكررة
+        if (this.pendingCheck) {
+            return;
+        }
+
+        this.pendingCheck = true;
+        this.lastCheckTime = now;
+
         try {
             // استخدام get_messages.php لجلب الرسائل الجديدة
             // مع silent flag لمنع عرض loading overlay
             const result = await API.request(`get_messages.php?last_id=${this.lastMessageId}`, 'GET', null, { silent: true });
             
+            this.pendingCheck = false;
+            
             if (result && result.success && result.data && result.data.length > 0) {
                 let maxMessageId = this.lastMessageId;
+                let hasNewMessages = false;
                 
                 // معالجة الرسائل الجديدة
                 result.data.forEach(message => {
                     // عرض إشعار فقط للرسائل التي ليست من المستخدم الحالي
                     if (message.user_id !== this.currentUser.id) {
-                        this.showNotification(message);
+                        // التحقق من أن الرسالة جديدة (بعد lastMessageId)
+                        if (this.lastMessageId === '0' || (message.id && message.id > this.lastMessageId)) {
+                            this.showNotification(message);
+                            hasNewMessages = true;
+                        }
                     }
                     
                     // تحديث maxMessageId
@@ -200,14 +277,37 @@ class GlobalNotificationManager {
                 if (maxMessageId !== this.lastMessageId && maxMessageId !== '0') {
                     this.saveLastMessageId(maxMessageId);
                 }
+                
+                // حفظ في cache
+                this.cachedResult = { hasNewMessages };
+                this.cacheExpiry = now + this.CACHE_DURATION;
+            } else {
+                // حفظ في cache
+                this.cachedResult = { hasNewMessages: false };
+                this.cacheExpiry = now + this.CACHE_DURATION;
             }
         } catch (error) {
+            this.pendingCheck = false;
             console.error('خطأ في التحقق من الرسائل الجديدة:', error);
         }
     }
 
     // عرض إشعار للمستخدم
     showNotification(message) {
+        // التحقق من عدم تكرار الإشعار (نفس message.id)
+        const notificationKey = `notification_${message.id}`;
+        const lastShownTime = localStorage.getItem(notificationKey);
+        const now = Date.now();
+        
+        // إذا تم عرض الإشعار خلال آخر 5 دقائق، تخطيه
+        if (lastShownTime && (now - parseInt(lastShownTime)) < 300000) {
+            console.log('⚠️ تم عرض هذا الإشعار مؤخراً - تخطي');
+            return;
+        }
+        
+        // حفظ وقت عرض الإشعار
+        localStorage.setItem(notificationKey, now.toString());
+        
         // التحقق من صلاحيات الإشعارات
         if (!('Notification' in window)) {
             console.warn('⚠️ المتصفح لا يدعم الإشعارات');
@@ -222,7 +322,9 @@ class GlobalNotificationManager {
         // التحقق من أن المستخدم ليس في صفحة الشات النشطة
         if (this.isChatPage && document.hasFocus()) {
             console.log('📱 المستخدم في صفحة الشات النشطة - لا حاجة لإشعار');
-            return; // المستخدم في صفحة الشات، لا حاجة لإشعار
+            // لكن نضيفه إلى قائمة الإشعارات في chat.js
+            this.addToChatNotificationsList(message);
+            return;
         }
 
         // إعداد بيانات الإشعار
@@ -310,9 +412,64 @@ class GlobalNotificationManager {
             }, 10000);
 
             console.log('✅ تم عرض الإشعار بنجاح');
+            
+            // إضافة الإشعار إلى قائمة الإشعارات في chat.js
+            this.addToChatNotificationsList(message);
 
         } catch (error) {
             console.error('❌ خطأ في عرض الإشعار:', error);
+        }
+    }
+    
+    // إضافة الإشعار إلى قائمة الإشعارات في chat.js
+    addToChatNotificationsList(message) {
+        try {
+            // التحقق من وجود دالة addChatNotification من chat.js
+            if (typeof window.addChatNotification === 'function') {
+                window.addChatNotification({
+                    id: message.id,
+                    username: message.username || 'مستخدم',
+                    message: this.formatMessageBody(message),
+                    timestamp: message.created_at || new Date().toISOString(),
+                    read: false
+                });
+                console.log('✅ تم إضافة الإشعار إلى قائمة الإشعارات');
+            } else {
+                // إذا لم تكن الدالة متاحة، حفظ في localStorage مباشرة
+                // سيتم تحميلها عند فتح صفحة الشات
+                this.saveNotificationToLocalStorage(message);
+            }
+        } catch (error) {
+            console.error('❌ خطأ في إضافة الإشعار إلى القائمة:', error);
+            // محاولة الحفظ في localStorage كبديل
+            this.saveNotificationToLocalStorage(message);
+        }
+    }
+    
+    // حفظ الإشعار في localStorage للتحميل لاحقاً
+    saveNotificationToLocalStorage(message) {
+        try {
+            const saved = localStorage.getItem('chat_notifications');
+            let notifications = saved ? JSON.parse(saved) : [];
+            
+            // التحقق من عدم التكرار
+            const existingIndex = notifications.findIndex(n => n.id === message.id);
+            if (existingIndex === -1) {
+                notifications.unshift({
+                    id: message.id,
+                    username: message.username || 'مستخدم',
+                    message: this.formatMessageBody(message),
+                    timestamp: message.created_at || new Date().toISOString(),
+                    read: false
+                });
+                
+                // حفظ فقط آخر 50 إشعار
+                notifications = notifications.slice(0, 50);
+                localStorage.setItem('chat_notifications', JSON.stringify(notifications));
+                console.log('✅ تم حفظ الإشعار في localStorage');
+            }
+        } catch (error) {
+            console.error('❌ خطأ في حفظ الإشعار في localStorage:', error);
         }
     }
 
@@ -386,6 +543,14 @@ class GlobalNotificationManager {
             // حذف آخر معرف رسالة من localStorage لإجبار النظام على إعادة الجلب
             localStorage.removeItem('lastChatMessageId');
             this.lastMessageId = '0';
+            
+            // إلغاء cache
+            this.cachedResult = null;
+            this.cacheExpiry = 0;
+            
+            // حذف جميع مفاتيح الإشعارات المعروضة (لإعادة عرضها عند الحاجة)
+            // لكن نتركها لتجنب التكرار
+            // يمكن حذفها يدوياً إذا لزم الأمر
             
             console.log(`✅ تم حذف إشعارات الرسائل (تم إغلاق ${closedCount} إشعار)`);
         } catch (error) {

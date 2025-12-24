@@ -2126,6 +2126,7 @@ body {
     padding: 12px 15px;
     border-bottom: 1px solid var(--border-color);
     transition: background 0.2s;
+    position: relative;
 }
 
 .notification-item:hover {
@@ -2134,6 +2135,91 @@ body {
 
 .notification-item:last-child {
     border-bottom: none;
+}
+
+/* حالة الإشعار - مقروء/غير مقروء */
+.notification-item.unread {
+    background: rgba(33, 150, 243, 0.05);
+    border-right: 3px solid var(--primary-color);
+}
+
+.notification-item.read {
+    opacity: 0.8;
+}
+
+.notification-item.unread:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
+/* مؤشر غير مقروء */
+.unread-indicator {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 8px;
+    height: 8px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    animation: pulse-indicator 2s ease-in-out infinite;
+}
+
+@keyframes pulse-indicator {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.2);
+    }
+}
+
+/* أزرار الإشعارات */
+.notification-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.mark-read-btn {
+    background: var(--success-color);
+    border: none;
+    font-size: 16px;
+    color: var(--white);
+    cursor: pointer;
+    padding: 5px 10px;
+    min-width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.mark-read-btn:hover {
+    background: #388E3C;
+    transform: scale(1.1);
+}
+
+.mark-all-read-btn {
+    width: 100%;
+    padding: 10px 15px;
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+}
+
+.mark-all-read-btn:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
 }
 
 .notification-content {

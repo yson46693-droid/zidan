@@ -1,6 +1,7 @@
 /**
  * نظام عداد الرسائل غير المقروءة في الشريط الجانبي
  * يعمل في جميع الصفحات (dashboard.html وغيرها)
+ * محسّن لتقليل عدد الطلبات
  */
 
 (function() {
@@ -10,6 +11,13 @@
     let currentUser = null;
     let lastReadMessageId = '';
     let isChatPage = window.location.pathname.includes('chat.html');
+    let lastCheckTime = 0;
+    let cachedResult = null;
+    let cacheExpiry = 0;
+    const CACHE_DURATION = 5000; // 5 ثواني cache
+    const CHECK_INTERVAL = 15000; // 15 ثانية بدلاً من 5
+    let isPageVisible = true;
+    let pendingCheck = false;
     
     // تهيئة النظام
     async function init() {
@@ -53,6 +61,9 @@
             // تحميل آخر رسالة مقروءة
             loadLastReadMessageId();
             
+            // إعداد مراقبة حالة الصفحة
+            setupVisibilityListener();
+            
             // إذا لم نكن في صفحة الشات، نبدأ التحقق من الرسائل الجديدة
             if (!isChatPage) {
                 startChecking();
@@ -64,6 +75,48 @@
         } catch (error) {
             console.error('❌ خطأ في تهيئة عداد الرسائل غير المقروءة:', error);
         }
+    }
+    
+    // إعداد مراقبة حالة الصفحة
+    function setupVisibilityListener() {
+        document.addEventListener('visibilitychange', () => {
+            isPageVisible = !document.hidden;
+            
+            // إذا أصبحت الصفحة مرئية، فحص فوري
+            if (isPageVisible && !isChatPage) {
+                const now = Date.now();
+                // فحص فوري فقط إذا مر أكثر من 5 ثواني منذ آخر فحص
+                if (now - lastCheckTime > 5000) {
+                    debouncedCheck();
+                }
+            }
+        });
+        
+        // مراقبة focus/blur
+        window.addEventListener('focus', () => {
+            isPageVisible = true;
+            if (!isChatPage) {
+                const now = Date.now();
+                if (now - lastCheckTime > 5000) {
+                    debouncedCheck();
+                }
+            }
+        });
+        
+        window.addEventListener('blur', () => {
+            isPageVisible = false;
+        });
+    }
+    
+    // Debounce للفحص
+    let debounceTimer = null;
+    function debouncedCheck() {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
+        debounceTimer = setTimeout(() => {
+            checkForUnreadMessages();
+        }, 500); // انتظار 500ms قبل الفحص
     }
     
     // تحميل آخر رسالة مقروءة
@@ -87,12 +140,16 @@
         // فحص فوري
         checkForUnreadMessages();
         
-        // فحص دوري كل 5 ثواني
+        // فحص دوري كل 15 ثانية (بدلاً من 5)
         checkInterval = setInterval(() => {
             // تحديث lastReadMessageId من localStorage قبل كل فحص
             loadLastReadMessageId();
-            checkForUnreadMessages();
-        }, 5000);
+            
+            // فحص فقط إذا كانت الصفحة مرئية
+            if (isPageVisible) {
+                checkForUnreadMessages();
+            }
+        }, CHECK_INTERVAL);
     }
     
     // إيقاف التحقق
@@ -110,11 +167,29 @@
                 return;
             }
             
+            // التحقق من cache
+            const now = Date.now();
+            if (cachedResult && cacheExpiry > now) {
+                // استخدام النتيجة المخزنة
+                updateBadge(cachedResult.count);
+                return;
+            }
+            
+            // منع الطلبات المتكررة
+            if (pendingCheck) {
+                return;
+            }
+            
+            pendingCheck = true;
+            lastCheckTime = now;
+            
             // تحديث lastReadMessageId من localStorage قبل التحقق
             loadLastReadMessageId();
             
             // جلب آخر رسالة
             const result = await API.request('get_messages.php?last_id=0', 'GET', null, { silent: true });
+            
+            pendingCheck = false;
             
             if (result && result.success && result.data && result.data.length > 0) {
                 // العثور على آخر رسالة
@@ -134,17 +209,26 @@
                         }
                     });
                     
+                    // حفظ في cache
+                    cachedResult = { count: unreadCount };
+                    cacheExpiry = now + CACHE_DURATION;
+                    
                     // تحديث العداد
                     updateBadge(unreadCount);
                 } else {
                     // لا توجد رسائل، تصفير العداد
+                    cachedResult = { count: 0 };
+                    cacheExpiry = now + CACHE_DURATION;
                     updateBadge(0);
                 }
             } else {
                 // لا توجد رسائل، تصفير العداد
+                cachedResult = { count: 0 };
+                cacheExpiry = now + CACHE_DURATION;
                 updateBadge(0);
             }
         } catch (error) {
+            pendingCheck = false;
             console.error('خطأ في التحقق من الرسائل غير المقروءة:', error);
         }
     }
@@ -188,8 +272,11 @@
             // إذا تم تصفير العداد، تحديث lastReadMessageId من localStorage
             loadLastReadMessageId();
             // إعادة التحقق من الرسائل غير المقروءة
-            checkForUnreadMessages();
+            debouncedCheck();
         }
+        // إلغاء cache عند التحديث اليدوي
+        cachedResult = null;
+        cacheExpiry = 0;
     };
     
     // دالة لتحديث lastReadMessageId من chat.js
@@ -201,8 +288,11 @@
             } catch (e) {
                 console.error('خطأ في حفظ lastReadMessageId:', e);
             }
+            // إلغاء cache
+            cachedResult = null;
+            cacheExpiry = 0;
             // تحديث العداد بعد تحديث lastReadMessageId
-            checkForUnreadMessages();
+            debouncedCheck();
         }
     };
     
@@ -211,8 +301,11 @@
         if (e.key === 'lastReadMessageId') {
             // تحديث lastReadMessageId عند تغييره في تبويب آخر
             loadLastReadMessageId();
+            // إلغاء cache
+            cachedResult = null;
+            cacheExpiry = 0;
             // إعادة التحقق من الرسائل غير المقروءة
-            checkForUnreadMessages();
+            debouncedCheck();
         }
     });
     
