@@ -141,22 +141,22 @@ function loadSettingsSection() {
                     
                     <div class="form-group">
                         <label for="userName">الاسم *</label>
-                        <input type="text" id="userName" required>
+                        <input type="text" id="userName" name="userName" required>
                     </div>
 
                     <div class="form-group">
                         <label for="userUsername">اسم المستخدم *</label>
-                        <input type="text" id="userUsername" required>
+                        <input type="text" id="userUsername" name="userUsername" required>
                     </div>
 
                     <div class="form-group">
                         <label for="userPassword">كلمة المرور <span id="passwordHint">(اتركه فارغاً للاحتفاظ بالقديمة)</span></label>
-                        <input type="password" id="userPassword">
+                        <input type="password" id="userPassword" name="userPassword">
                     </div>
 
                     <div class="form-group">
                         <label for="userRole">الدور *</label>
-                        <select id="userRole" required>
+                        <select id="userRole" name="userRole" required>
                             <option value="employee">موظف</option>
                             <option value="manager">مدير</option>
                             <option value="admin">مالك</option>
@@ -190,19 +190,19 @@ function loadSettingsSection() {
                                     <input type="hidden" id="userId">
                                     <div class="form-group">
                                         <label for="userName">الاسم *</label>
-                                        <input type="text" id="userName" required>
+                                        <input type="text" id="userName" name="userName" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="userUsername">اسم المستخدم *</label>
-                                        <input type="text" id="userUsername" required>
+                                        <input type="text" id="userUsername" name="userUsername" required>
                                     </div>
                                     <div class="form-group">
                                         <label for="userPassword">كلمة المرور <span id="passwordHint">(اتركه فارغاً للاحتفاظ بالقديمة)</span></label>
-                                        <input type="password" id="userPassword">
+                                        <input type="password" id="userPassword" name="userPassword">
                                     </div>
                                     <div class="form-group">
                                         <label for="userRole">الدور *</label>
-                                        <select id="userRole" required>
+                                        <select id="userRole" name="userRole" required>
                                             <option value="employee">موظف</option>
                                             <option value="manager">مدير</option>
                                             <option value="admin">مالك</option>
@@ -766,12 +766,13 @@ async function saveUser(event) {
             return;
         }
 
-        // قراءة القيم من الحقول مباشرة
-        const name = (nameElement && nameElement.value) ? nameElement.value.trim() : '';
-        const username = (usernameElement && usernameElement.value) ? usernameElement.value.trim() : '';
-        const password = (passwordElement && passwordElement.value) ? passwordElement.value : '';
-        const role = (roleElement && roleElement.value) ? roleElement.value : 'employee';
-        const userId = (userIdElement && userIdElement.value) ? userIdElement.value.trim() : '';
+        // قراءة القيم مباشرة من الحقول - استخدام طريقة موثوقة
+        // التحقق من أن العناصر موجودة في DOM وأنها حقول إدخال صحيحة
+        const name = nameElement && nameElement.value !== undefined ? String(nameElement.value).trim() : '';
+        const username = usernameElement && usernameElement.value !== undefined ? String(usernameElement.value).trim() : '';
+        const password = passwordElement && passwordElement.value !== undefined ? String(passwordElement.value) : '';
+        const role = roleElement && roleElement.value !== undefined ? String(roleElement.value) : 'employee';
+        const userId = userIdElement && userIdElement.value !== undefined ? String(userIdElement.value).trim() : '';
 
         // تسجيل القيم للتشخيص
         console.log('User form values:', { 
@@ -780,13 +781,22 @@ async function saveUser(event) {
             password: password ? '***' : '(empty)', 
             role, 
             userId,
+            nameElementType: nameElement?.tagName,
+            nameElementValue: nameElement?.value,
             nameElementExists: !!nameElement,
-            usernameElementExists: !!usernameElement,
-            roleElementExists: !!roleElement
+            usernameElementValue: usernameElement?.value,
+            roleElementValue: roleElement?.value
         });
 
         // التحقق من الحقول المطلوبة مع رسائل خطأ محددة
         if (!name || name.length === 0) {
+            console.error('Name validation failed:', { 
+                name, 
+                nameLength: name.length, 
+                nameElementValue: nameElement?.value,
+                nameElementType: nameElement?.tagName,
+                nameElementExists: !!nameElement
+            });
             showMessage('الاسم مطلوب', 'error');
             if (nameElement) {
                 nameElement.focus();
@@ -821,6 +831,10 @@ async function saveUser(event) {
         // إذا كان مستخدم جديد، كلمة المرور مطلوبة
         if (!userId && !password) {
             showMessage('كلمة المرور مطلوبة للمستخدم الجديد', 'error');
+            if (passwordElement) {
+                passwordElement.focus();
+                passwordElement.style.borderColor = 'var(--danger-color)';
+            }
             return;
         }
 
