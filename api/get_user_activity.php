@@ -122,8 +122,9 @@ function calculateTimeAgo($lastActivity) {
     }
     
     try {
-        $lastActivityTime = new DateTime($lastActivity);
-        $now = new DateTime();
+        $timezone = new DateTimeZone('Africa/Cairo');
+        $lastActivityTime = new DateTime($lastActivity, $timezone);
+        $now = new DateTime('now', $timezone);
         $diff = $now->getTimestamp() - $lastActivityTime->getTimestamp();
         
         return $diff;

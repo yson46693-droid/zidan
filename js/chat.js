@@ -927,14 +927,14 @@ function formatTime(dateString) {
     const diff = now - date;
     
     if (diff < 86400000 && date.getDate() === now.getDate()) {
-        return date.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Cairo' });
     }
     
     if (diff < 172800000) {
         return 'أمس';
     }
     
-    return date.toLocaleDateString('ar');
+    return date.toLocaleDateString('ar-EG', { timeZone: 'Africa/Cairo' });
 }
 
 function scrollToBottom() {

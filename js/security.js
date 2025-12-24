@@ -101,7 +101,7 @@ class SecurityManager {
         // إرسال إشعار فوري فقط (بدون إعادة توجيه)
         this.sendTelegramAlert('🚨 تنبيه أمني', 
             `تم فتح شريط المطور في الموقع!\n` +
-            `الوقت: ${new Date().toLocaleString('ar-SA')}\n` +
+            `الوقت: ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}\n` +
             `المتصفح: ${navigator.userAgent}\n` +
             `IP: ${this.getClientIP()}`);
 
@@ -134,7 +134,7 @@ class SecurityManager {
                 `تم حظر IP بسبب محاولات تسجيل دخول فاشلة!\n` +
                 `IP: ${clientIP}\n` +
                 `عدد المحاولات: ${attemptCount}\n` +
-                `الوقت: ${new Date().toLocaleString('ar-SA')}\n` +
+                `الوقت: ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}\n` +
                 `مدة الحظر: 15 دقيقة`);
             
             // عرض رسالة الحظر فقط إذا كان المستخدم محظور
@@ -320,7 +320,7 @@ class SecurityManager {
             this.sendTelegramAlert('🚨 تنبيه أمني حرج', 
                 `نشاط مشبوه حرج تم اكتشافه!\n` +
                 `النشاط: ${activity}\n` +
-                `الوقت: ${new Date().toLocaleString('ar-SA')}\n` +
+                `الوقت: ${new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}\n` +
                 `IP: ${this.getClientIP()}`);
         }
     }

@@ -379,6 +379,7 @@
     <!-- Preload Critical JS Files -->
     <link rel="preload" href="js/api.js" as="script">
     <link rel="preload" href="js/utils.js" as="script">
+    <link rel="preload" href="js/loading-page.js" as="script">
     <link rel="preload" href="js/auth.js" as="script">
     
     <!-- Critical Scripts - تحميل فوري (مطلوبة للتشغيل الأساسي) -->
@@ -2030,7 +2031,7 @@
                         setTimeout(() => {
                             if (syncIndicator) {
                                 const now = new Date();
-                                const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+                                const timeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Cairo' });
                                 // على الهاتف، نستخدم أيقونة refresh دائماً
                                 const isMobile = window.innerWidth <= 575.98;
                                 const iconClass = isMobile ? 'bi-arrow-repeat' : 'bi-check-circle';
@@ -2102,7 +2103,7 @@
                 const formatDateFunc = typeof formatDate === 'function' ? formatDate : (date) => {
                     if (!date) return '-';
                     try {
-                        return new Date(date).toLocaleDateString('ar-SA');
+                        return new Date(date).toLocaleDateString('ar-EG', { timeZone: 'Africa/Cairo' });
                     } catch (e) {
                         return '-';
                     }

@@ -36,6 +36,9 @@ function getDBConnection() {
             // تعيين الترميز
             $connection->set_charset(DB_CHARSET);
             
+            // تعيين التوقيت لمصر - الإسكندرية
+            $connection->query("SET time_zone = '+02:00'");
+            
         } catch (Exception $e) {
             error_log('خطأ في الاتصال بقاعدة البيانات: ' . $e->getMessage());
             return null;

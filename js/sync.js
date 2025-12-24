@@ -404,9 +404,10 @@ class SyncManager {
 
         // إضافة وقت آخر مزامنة
         if (status === 'synced' && this.lastSyncTime) {
-            const timeStr = this.lastSyncTime.toLocaleTimeString('ar-SA', { 
+            const timeStr = this.lastSyncTime.toLocaleTimeString('ar-EG', { 
                 hour: '2-digit', 
-                minute: '2-digit' 
+                minute: '2-digit',
+                timeZone: 'Africa/Cairo' 
             });
             indicator.innerHTML = `<i class="bi bi-check-circle"></i> آخر تحديث: ${timeStr}`;
         }

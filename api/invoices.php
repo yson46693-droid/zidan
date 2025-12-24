@@ -1058,7 +1058,7 @@ function formatDateTime12Hour($dateString) {
     }
     
     try {
-        $date = new DateTime($dateString);
+        $date = new DateTime($dateString, new DateTimeZone('Africa/Cairo'));
         $year = $date->format('Y');
         $month = $date->format('m');
         $day = $date->format('d');

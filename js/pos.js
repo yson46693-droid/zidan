@@ -1756,12 +1756,13 @@ function formatDateTime(dateString) {
     if (!dateString) return '-';
     try {
         const date = new Date(dateString);
-        return date.toLocaleDateString('ar-SA', {
+        return date.toLocaleDateString('ar-EG', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: 'Africa/Cairo'
         });
     } catch (error) {
         return dateString;

@@ -990,7 +990,8 @@ function loadSyncFrequency() {
 setInterval(() => {
     const lastSyncElement = document.getElementById('lastSyncTime');
     if (lastSyncElement && syncManager.lastSyncTime) {
-        const timeStr = syncManager.lastSyncTime.toLocaleTimeString('ar-SA', {
+        const timeStr = syncManager.lastSyncTime.toLocaleTimeString('ar-EG', {
+            timeZone: 'Africa/Cairo',
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'

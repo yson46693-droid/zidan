@@ -358,7 +358,7 @@ async function showBackupsList() {
         backupsList.innerHTML = backups.map(backup => `
             <div class="backup-item">
                 <p><strong>الملف:</strong> ${backup.file}</p>
-                <p><strong>التاريخ:</strong> ${new Date(backup.date * 1000).toLocaleString('ar-SA')}</p>
+                <p><strong>التاريخ:</strong> ${new Date(backup.date * 1000).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })}</p>
                 <p><strong>الحجم:</strong> ${backup.size} بايت</p>
                 <button onclick="restoreFromBackup('${backup.file}')" class="btn btn-warning btn-sm">
                     <i class="bi bi-arrow-clockwise"></i> استعادة
