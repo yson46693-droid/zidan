@@ -459,8 +459,25 @@ async function sendMessage() {
             const tempIndex = messages.findIndex(m => m.id === tempMessage.id);
             if (tempIndex !== -1) {
                 messages[tempIndex] = result.data;
-                lastMessageId = result.data.id;
+                // تحديث lastMessageId إلى آخر رسالة
+                if (result.data.id > lastMessageId || lastMessageId === '') {
+                    lastMessageId = result.data.id;
+                }
                 renderMessages();
+                
+                // إعادة تشغيل Long Polling للتأكد من تحديث الرسائل للمستخدمين الآخرين
+                if (longPollingActive) {
+                    // إلغاء الطلب الحالي وإعادة التشغيل
+                    if (longPollingAbortController) {
+                        longPollingAbortController.abort();
+                    }
+                    // إعادة التشغيل بعد فترة قصيرة
+                    setTimeout(() => {
+                        if (longPollingActive) {
+                            performLongPoll();
+                        }
+                    }, 500);
+                }
             }
         } else {
             // إزالة الرسالة المؤقتة في حالة الفشل
@@ -1522,14 +1539,26 @@ function showMentionMenu(query = '') {
         document.body.appendChild(mentionMenu);
     }
     
+    // التأكد من وجود قائمة المستخدمين
+    if (!allUsers || allUsers.length === 0) {
+        mentionMenu.style.display = 'none';
+        mentionMenuVisible = false;
+        return;
+    }
+    
     // فلترة المستخدمين حسب الاستعلام
     const filteredUsers = allUsers.filter(user => {
-        if (!query) return true;
+        if (!user || !user.user_id) return false;
+        if (user.user_id === currentUser.id) return false; // استبعاد المستخدم الحالي
+        
+        if (!query || query.trim() === '') return true;
+        
         const name = (user.name || user.username || '').toLowerCase();
-        const username = (user.username || '').toLowerCase();
-        const searchQuery = query.toLowerCase();
-        return name.includes(searchQuery) || username.includes(searchQuery);
-    }).filter(user => user.user_id !== currentUser.id); // استبعاد المستخدم الحالي
+        const username = (user.username || user.user_id || '').toLowerCase();
+        const searchQuery = query.toLowerCase().trim();
+        
+        return name.includes(searchQuery) || username.includes(searchQuery) || user.user_id.toLowerCase().includes(searchQuery);
+    });
     
     if (filteredUsers.length === 0) {
         mentionMenu.style.display = 'none';
