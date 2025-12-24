@@ -217,6 +217,14 @@ body {
     flex: 1;
     font-size: 1.5em;
     color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.top-bar h1 i {
+    color: var(--primary-color);
+    font-size: 1.1em;
 }
 
 .header-actions {
@@ -1576,18 +1584,51 @@ body {
         cursor: pointer;
     }
     
-    .top-bar .header-actions .sync-indicator i {
-        font-size: 1.1em;
-        margin: 0;
-        position: absolute;
-        display: block;
-        text-indent: 0;
-        color: var(--primary-color);
+    /* إخفاء جميع المحتويات على الهاتف */
+    .top-bar .header-actions .sync-indicator {
+        font-size: 0 !important;
+        line-height: 0 !important;
     }
     
-    /* إخفاء النص في زر المزامنة على الموبايل */
-    .top-bar .header-actions .sync-indicator > *:not(i) {
+    /* إخفاء كل المحتويات الداخلية */
+    .top-bar .header-actions .sync-indicator > * {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
+    
+    /* إظهار أيقونة refresh دائماً على الهاتف باستخدام ::before */
+    .top-bar .header-actions .sync-indicator::before {
+        content: "\f21e" !important; /* Bootstrap Icons arrow-repeat */
+        font-family: "bootstrap-icons" !important;
+        font-size: 1.1em !important;
+        position: absolute;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        color: var(--primary-color);
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 2;
+        font-style: normal !important;
+        font-weight: normal !important;
+    }
+    
+    /* تغيير لون الأيقونة حسب حالة المزامنة */
+    .top-bar .header-actions .sync-indicator[style*="color: rgb(76, 175, 80)"]::before,
+    .top-bar .header-actions .sync-indicator[style*="color: var(--success-color)"]::before {
+        color: var(--success-color) !important;
+    }
+    
+    .top-bar .header-actions .sync-indicator[style*="color: rgb(244, 67, 54)"]::before,
+    .top-bar .header-actions .sync-indicator[style*="color: var(--danger-color)"]::before {
+        color: var(--danger-color) !important;
+    }
+    
+    .top-bar .header-actions .sync-indicator[style*="color: rgb(255, 165, 0)"]::before,
+    .top-bar .header-actions .sync-indicator[style*="color: #FFA500"]::before {
+        color: #FFA500 !important;
     }
     
     /* زر الوضع الليلي - مربع صغير مع border */
