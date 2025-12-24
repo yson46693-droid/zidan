@@ -34,10 +34,17 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
     
-    if (dbExecute($createBranchesTable, [])) {
+    // استخدام query مباشرة للـ DDL
+    if ($conn->query($createBranchesTable)) {
         $results[] = 'تم إنشاء جدول branches';
     } else {
-        $errors[] = 'فشل إنشاء جدول branches';
+        $errorMsg = $conn->error;
+        // إذا كان الخطأ بسبب وجود الجدول بالفعل، لا نعتبره خطأ
+        if (strpos($errorMsg, 'already exists') === false && strpos($errorMsg, 'Duplicate') === false) {
+            $errors[] = 'فشل إنشاء جدول branches: ' . $errorMsg;
+        } else {
+            $results[] = 'جدول branches موجود بالفعل';
+        }
     }
     
     // 2. إدراج الفروع الافتراضية
@@ -47,10 +54,16 @@ try {
     ('branch_bitash', 'فرع البيطاش', 'BITASH', 0, 1, NOW())
     ";
     
-    if (dbExecute($insertBranches, [])) {
+    if ($conn->query($insertBranches)) {
         $results[] = 'تم إدراج الفروع الافتراضية';
     } else {
-        $errors[] = 'فشل إدراج الفروع الافتراضية';
+        $errorMsg = $conn->error;
+        // إذا كان الخطأ بسبب وجود البيانات بالفعل، لا نعتبره خطأ
+        if (strpos($errorMsg, 'Duplicate') === false) {
+            $errors[] = 'فشل إدراج الفروع الافتراضية: ' . $errorMsg;
+        } else {
+            $results[] = 'الفروع الافتراضية موجودة بالفعل';
+        }
     }
     
     // 3. إضافة branch_id إلى users
@@ -180,31 +193,43 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
     
-    if (dbExecute($createInventoryRequestsTable, [])) {
+    // استخدام query مباشرة للـ DDL
+    if ($conn->query($createInventoryRequestsTable)) {
         $results[] = 'تم إنشاء جدول inventory_requests';
     } else {
-        $errors[] = 'فشل إنشاء جدول inventory_requests';
+        $errorMsg = $conn->error;
+        // إذا كان الخطأ بسبب وجود الجدول بالفعل، لا نعتبره خطأ
+        if (strpos($errorMsg, 'already exists') === false && strpos($errorMsg, 'Duplicate') === false) {
+            $errors[] = 'فشل إنشاء جدول inventory_requests: ' . $errorMsg;
+        } else {
+            $results[] = 'جدول inventory_requests موجود بالفعل';
+        }
     }
     
-    // 8. تحديث البيانات الموجودة - ربطها بالفرع الأول
-    $updateRepairs = "UPDATE `repairs` SET `branch_id` = 'branch_hanovil' WHERE `branch_id` IS NULL";
-    if (dbExecute($updateRepairs, [])) {
-        $results[] = 'تم تحديث عمليات الصيانة الموجودة';
-    }
-    
-    $updateCustomers = "UPDATE `customers` SET `branch_id` = 'branch_hanovil' WHERE `branch_id` IS NULL";
-    if (dbExecute($updateCustomers, [])) {
-        $results[] = 'تم تحديث العملاء الموجودين';
-    }
-    
-    $updateSales = "UPDATE `sales` SET `branch_id` = 'branch_hanovil' WHERE `branch_id` IS NULL";
-    if (dbExecute($updateSales, [])) {
-        $results[] = 'تم تحديث المبيعات الموجودة';
-    }
-    
-    $updateUsers = "UPDATE `users` SET `branch_id` = 'branch_hanovil' WHERE `role` != 'admin' AND `branch_id` IS NULL";
-    if (dbExecute($updateUsers, [])) {
-        $results[] = 'تم تحديث المستخدمين الموجودين';
+    // 8. تحديث البيانات الموجودة - ربطها بالفرع الأول (فقط إذا كان الفرع موجوداً)
+    $branchExists = dbSelectOne("SELECT id FROM branches WHERE id = 'branch_hanovil'");
+    if ($branchExists) {
+        $updateRepairs = "UPDATE `repairs` SET `branch_id` = 'branch_hanovil' WHERE `branch_id` IS NULL";
+        if ($conn->query($updateRepairs)) {
+            $results[] = 'تم تحديث عمليات الصيانة الموجودة';
+        }
+        
+        $updateCustomers = "UPDATE `customers` SET `branch_id` = 'branch_hanovil' WHERE `branch_id` IS NULL";
+        if ($conn->query($updateCustomers)) {
+            $results[] = 'تم تحديث العملاء الموجودين';
+        }
+        
+        $updateSales = "UPDATE `sales` SET `branch_id` = 'branch_hanovil' WHERE `branch_id` IS NULL";
+        if ($conn->query($updateSales)) {
+            $results[] = 'تم تحديث المبيعات الموجودة';
+        }
+        
+        $updateUsers = "UPDATE `users` SET `branch_id` = 'branch_hanovil' WHERE `role` != 'admin' AND `branch_id` IS NULL";
+        if ($conn->query($updateUsers)) {
+            $results[] = 'تم تحديث المستخدمين الموجودين';
+        }
+    } else {
+        $errors[] = 'الفرع branch_hanovil غير موجود - لم يتم تحديث البيانات';
     }
     
     response(true, 'تم تنفيذ الهجرة بنجاح', [
