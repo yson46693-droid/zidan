@@ -172,7 +172,15 @@ function updateChatMessagesTable($conn) {
     $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE 'username'");
     if ($result->num_rows == 0) {
         // إضافة عمود username
-        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `username` varchar(100) NOT NULL AFTER `user_id`");
+        $conn->query("ALTER TABLE `chat_messages` ADD COLUMN `username` varchar(100) NOT NULL DEFAULT '' AFTER `user_id`");
+        
+        // ملء username من جدول users للرسائل الموجودة
+        $conn->query("
+            UPDATE chat_messages cm
+            INNER JOIN users u ON u.id = cm.user_id
+            SET cm.username = COALESCE(u.name, u.username, 'مستخدم')
+            WHERE cm.username = '' OR cm.username IS NULL
+        ");
     }
     
     // التحقق من وجود عمود reply_to

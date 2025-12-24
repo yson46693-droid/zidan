@@ -200,6 +200,33 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'sales') 
     response(true, '', $sales);
 }
 
+// الحصول على التقييم التراكمي للعميل
+if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'rating') {
+    checkAuth();
+    
+    $customerId = $_GET['customer_id'] ?? '';
+    
+    if (empty($customerId)) {
+        response(false, 'معرف العميل مطلوب', null, 400);
+    }
+    
+    // حساب التقييم التراكمي (متوسط التقييمات)
+    $ratingResult = dbSelectOne(
+        "SELECT AVG(rating) as average_rating, COUNT(*) as total_ratings 
+         FROM customer_ratings 
+         WHERE customer_id = ?",
+        [$customerId]
+    );
+    
+    $averageRating = $ratingResult ? floatval($ratingResult['average_rating'] ?? 0) : 0;
+    $totalRatings = $ratingResult ? intval($ratingResult['total_ratings'] ?? 0) : 0;
+    
+    response(true, '', [
+        'average_rating' => round($averageRating, 2),
+        'total_ratings' => $totalRatings
+    ]);
+}
+
 // قراءة جميع العملاء
 if ($method === 'GET') {
     checkAuth();
@@ -207,20 +234,31 @@ if ($method === 'GET') {
     // Filter by customer type if provided
     $customerType = $_GET['type'] ?? null;
     
-    $query = "SELECT * FROM customers WHERE 1=1";
+    $query = "SELECT c.*, 
+              COALESCE(AVG(cr.rating), 0) as average_rating,
+              COUNT(cr.id) as total_ratings
+              FROM customers c
+              LEFT JOIN customer_ratings cr ON c.id = cr.customer_id
+              WHERE 1=1";
     $params = [];
     
     if ($customerType && in_array($customerType, ['retail', 'commercial'])) {
-        $query .= " AND customer_type = ?";
+        $query .= " AND c.customer_type = ?";
         $params[] = $customerType;
     }
     
-    $query .= " ORDER BY created_at DESC";
+    $query .= " GROUP BY c.id ORDER BY c.created_at DESC";
     
     $customers = dbSelect($query, $params);
     
     if ($customers === false) {
         response(false, 'خطأ في قراءة العملاء', null, 500);
+    }
+    
+    // تحويل التقييمات إلى أرقام
+    foreach ($customers as &$customer) {
+        $customer['average_rating'] = round(floatval($customer['average_rating'] ?? 0), 2);
+        $customer['total_ratings'] = intval($customer['total_ratings'] ?? 0);
     }
     
     response(true, '', $customers);
@@ -321,6 +359,11 @@ if ($method === 'PUT') {
         $updateParams[] = trim($data['shop_name']) ?: null;
     }
     
+    if (isset($data['notes'])) {
+        $updateFields[] = "notes = ?";
+        $updateParams[] = trim($data['notes']);
+    }
+    
     if (empty($updateFields)) {
         response(false, 'لا توجد بيانات للتحديث', null, 400);
     }
@@ -337,6 +380,122 @@ if ($method === 'PUT') {
     }
     
     response(true, 'تم تعديل العميل بنجاح');
+}
+
+// حفظ تقييم للعميل
+if ($method === 'POST' && isset($data['action']) && $data['action'] === 'rating') {
+    checkAuth();
+    
+    $customerId = trim($data['customer_id'] ?? '');
+    $saleId = trim($data['sale_id'] ?? '');
+    $rating = intval($data['rating'] ?? 0);
+    
+    if (empty($customerId)) {
+        response(false, 'معرف العميل مطلوب', null, 400);
+    }
+    
+    if ($rating < 1 || $rating > 5) {
+        response(false, 'التقييم يجب أن يكون بين 1 و 5', null, 400);
+    }
+    
+    // التحقق من وجود العميل
+    $customer = dbSelectOne("SELECT id FROM customers WHERE id = ?", [$customerId]);
+    if (!$customer) {
+        response(false, 'العميل غير موجود', null, 404);
+    }
+    
+    // التحقق من وجود الفاتورة إذا تم إرسال sale_id
+    if (!empty($saleId)) {
+        $sale = dbSelectOne("SELECT id FROM sales WHERE id = ?", [$saleId]);
+        if (!$sale) {
+            response(false, 'الفاتورة غير موجودة', null, 404);
+        }
+    }
+    
+    $session = checkAuth();
+    $ratingId = generateId();
+    
+    $result = dbExecute(
+        "INSERT INTO customer_ratings (id, customer_id, sale_id, rating, rating_type, created_at, created_by) 
+         VALUES (?, ?, ?, ?, 'transaction', NOW(), ?)",
+        [$ratingId, $customerId, $saleId ?: null, $rating, $session['user_id']]
+    );
+    
+    if ($result === false) {
+        response(false, 'خطأ في حفظ التقييم', null, 500);
+    }
+    
+    // حساب التقييم التراكمي الجديد
+    $ratingResult = dbSelectOne(
+        "SELECT AVG(rating) as average_rating, COUNT(*) as total_ratings 
+         FROM customer_ratings 
+         WHERE customer_id = ?",
+        [$customerId]
+    );
+    
+    $averageRating = $ratingResult ? round(floatval($ratingResult['average_rating'] ?? 0), 2) : 0;
+    
+    response(true, 'تم حفظ التقييم بنجاح', [
+        'rating_id' => $ratingId,
+        'average_rating' => $averageRating
+    ]);
+}
+
+// تعديل التقييم التراكمي (للمالك فقط)
+if ($method === 'PUT' && isset($data['action']) && $data['action'] === 'update_rating') {
+    checkPermission('admin'); // المالك فقط
+    
+    $customerId = trim($data['customer_id'] ?? '');
+    $rating = intval($data['rating'] ?? 0);
+    
+    if (empty($customerId)) {
+        response(false, 'معرف العميل مطلوب', null, 400);
+    }
+    
+    if ($rating < 1 || $rating > 5) {
+        response(false, 'التقييم يجب أن يكون بين 1 و 5', null, 400);
+    }
+    
+    // التحقق من وجود العميل
+    $customer = dbSelectOne("SELECT id FROM customers WHERE id = ?", [$customerId]);
+    if (!$customer) {
+        response(false, 'العميل غير موجود', null, 404);
+    }
+    
+    $session = checkAuth();
+    $ratingId = generateId();
+    
+    // حذف التقييمات اليدوية السابقة للعميل
+    dbExecute(
+        "DELETE FROM customer_ratings WHERE customer_id = ? AND rating_type = 'manual'",
+        [$customerId]
+    );
+    
+    // إضافة التقييم اليدوي الجديد
+    $result = dbExecute(
+        "INSERT INTO customer_ratings (id, customer_id, sale_id, rating, rating_type, created_at, created_by) 
+         VALUES (?, ?, NULL, ?, 'manual', NOW(), ?)",
+        [$ratingId, $customerId, $rating, $session['user_id']]
+    );
+    
+    if ($result === false) {
+        response(false, 'خطأ في تعديل التقييم', null, 500);
+    }
+    
+    // حساب التقييم التراكمي الجديد
+    $ratingResult = dbSelectOne(
+        "SELECT AVG(rating) as average_rating, COUNT(*) as total_ratings 
+         FROM customer_ratings 
+         WHERE customer_id = ?",
+        [$customerId]
+    );
+    
+    $averageRating = $ratingResult ? round(floatval($ratingResult['average_rating'] ?? 0), 2) : 0;
+    
+    response(true, 'تم تحديث التقييم بنجاح', [
+        'rating_id' => $ratingId,
+        'average_rating' => $averageRating
+    ]);
 }
 
 // حذف عميل

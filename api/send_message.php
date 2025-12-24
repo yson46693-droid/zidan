@@ -40,9 +40,14 @@ try {
     $replyToMessage = null;
     if (!empty($replyTo)) {
         $replyToMessage = dbSelectOne("
-            SELECT id, user_id, username, message 
-            FROM chat_messages 
-            WHERE id = ?
+            SELECT 
+                cm.id, 
+                cm.user_id, 
+                COALESCE(cm.username, u.name, u.username, 'مستخدم') as username, 
+                cm.message 
+            FROM chat_messages cm
+            LEFT JOIN users u ON u.id = cm.user_id
+            WHERE cm.id = ?
         ", [$replyTo]);
         
         if (!$replyToMessage) {
@@ -54,10 +59,20 @@ try {
     $messageId = generateId();
     
     // حفظ الرسالة في قاعدة البيانات
-    $result = dbExecute("
-        INSERT INTO chat_messages (id, user_id, username, message, reply_to, created_at)
-        VALUES (?, ?, ?, ?, ?, NOW())
-    ", [$messageId, $userId, $username, $message, $replyTo]);
+    // التحقق من وجود عمود username أولاً
+    try {
+        $result = dbExecute("
+            INSERT INTO chat_messages (id, user_id, username, message, reply_to, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
+        ", [$messageId, $userId, $username, $message, $replyTo]);
+    } catch (Exception $e) {
+        // إذا فشل بسبب عدم وجود عمود username، محاولة بدون username
+        error_log('محاولة إدراج بدون username: ' . $e->getMessage());
+        $result = dbExecute("
+            INSERT INTO chat_messages (id, user_id, message, reply_to, created_at)
+            VALUES (?, ?, ?, ?, NOW())
+        ", [$messageId, $userId, $message, $replyTo]);
+    }
     
     if (!$result) {
         response(false, 'فشل إرسال الرسالة', null, 500);

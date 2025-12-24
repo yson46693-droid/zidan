@@ -44,7 +44,7 @@ function loadCustomersSection() {
                         <th id="shopNameHeader" style="display: none;">اسم المحل</th>
                         <th>رقم الهاتف</th>
                         <th>العنوان</th>
-                        <th>تاريخ التسجيل</th>
+                        <th>التقييم</th>
                         <th>الإجراءات</th>
                     </tr>
                 </thead>
@@ -164,7 +164,8 @@ function displayCustomers(customers) {
     const tbody = document.getElementById('customersTableBody');
 
     if (paginated.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا يوجد عملاء</td></tr>';
+        const colspan = currentCustomerType === 'commercial' ? 6 : 5;
+        tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">لا يوجد عملاء</td></tr>`;
         return;
     }
 
@@ -173,13 +174,24 @@ function displayCustomers(customers) {
             ? `<td>${customer.shop_name || '-'}</td>` 
             : '';
         
+        const averageRating = parseFloat(customer.average_rating || 0);
+        const totalRatings = parseInt(customer.total_ratings || 0);
+        const ratingStars = renderRatingStars(averageRating);
+        
         return `
         <tr>
             <td><strong>${customer.name}</strong></td>
             ${shopNameCell}
             <td>${customer.phone}</td>
             <td>${customer.address || '-'}</td>
-            <td>${formatDate(customer.created_at)}</td>
+            <td>
+                ${totalRatings > 0 ? `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="color: var(--warning-color); font-size: 16px;">${ratingStars}</div>
+                        <span style="color: var(--text-light); font-size: 13px;">(${averageRating.toFixed(1)})</span>
+                    </div>
+                ` : '<span style="color: var(--text-light);">لا يوجد تقييم</span>'}
+            </td>
             <td>
                 <button onclick="viewCustomerProfile('${customer.id}')" class="btn btn-sm btn-icon" title="عرض البروفايل" style="background: var(--primary-color); color: var(--white);">
                     <i class="bi bi-eye"></i>
@@ -657,6 +669,32 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// دالة لرسم النجوم للتقييم
+function renderRatingStars(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = (rating % 1) >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    let starsHtml = '';
+    
+    // نجوم مملوءة
+    for (let i = 0; i < fullStars; i++) {
+        starsHtml += '<i class="bi bi-star-fill" style="color: var(--warning-color);"></i>';
+    }
+    
+    // نجمة نصف مملوءة
+    if (hasHalfStar) {
+        starsHtml += '<i class="bi bi-star-half" style="color: var(--warning-color);"></i>';
+    }
+    
+    // نجوم فارغة
+    for (let i = 0; i < emptyStars; i++) {
+        starsHtml += '<i class="bi bi-star" style="color: var(--border-color);"></i>';
+    }
+    
+    return starsHtml;
 }
 
 // دالة لطباعة الفاتورة مباشرة

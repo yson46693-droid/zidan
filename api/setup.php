@@ -34,6 +34,7 @@ function setupDatabase() {
               `address` text DEFAULT NULL,
               `customer_type` enum('retail','commercial') NOT NULL DEFAULT 'retail',
               `shop_name` varchar(255) DEFAULT NULL,
+              `notes` text DEFAULT NULL,
               `created_at` datetime NOT NULL,
               `updated_at` datetime DEFAULT NULL,
               `created_by` varchar(50) DEFAULT NULL,
@@ -324,6 +325,25 @@ function setupDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
+        'customer_ratings' => "
+            CREATE TABLE IF NOT EXISTS `customer_ratings` (
+              `id` varchar(50) NOT NULL,
+              `customer_id` varchar(50) NOT NULL,
+              `sale_id` varchar(50) DEFAULT NULL,
+              `rating` tinyint(1) NOT NULL DEFAULT 5,
+              `rating_type` enum('transaction','manual') NOT NULL DEFAULT 'transaction',
+              `created_at` datetime NOT NULL,
+              `created_by` varchar(50) DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_customer_id` (`customer_id`),
+              KEY `idx_sale_id` (`sale_id`),
+              KEY `idx_rating` (`rating`),
+              KEY `idx_created_at` (`created_at`),
+              CONSTRAINT `customer_ratings_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+              CONSTRAINT `customer_ratings_ibfk_2` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
         'chat_rooms' => "
             CREATE TABLE IF NOT EXISTS `chat_rooms` (
               `id` varchar(50) NOT NULL,
@@ -539,6 +559,22 @@ function applyDatabaseMigrations($conn) {
             if ($result['count'] == 0) {
                 $conn->query("ALTER TABLE `users` ADD COLUMN `webauthn_enabled` tinyint(1) DEFAULT 0");
                 $migrationsApplied[] = 'users.webauthn_enabled';
+            }
+        }
+        $stmt->close();
+    }
+    
+    // إضافة عمود notes إلى customers إذا لم يكن موجوداً
+    if (dbTableExists('customers')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'notes'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkNotes = $stmt->get_result();
+        if ($checkNotes) {
+            $result = $checkNotes->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `customers` ADD COLUMN `notes` text DEFAULT NULL AFTER `shop_name`");
+                $migrationsApplied[] = 'customers.notes';
             }
         }
         $stmt->close();

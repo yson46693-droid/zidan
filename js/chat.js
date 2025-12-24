@@ -573,44 +573,69 @@ async function registerPushSubscription() {
         let subscription = await registration.pushManager.getSubscription();
         
         if (!subscription) {
-            // إنشاء subscription جديد
-            const vapidPublicKey = 'YOUR_VAPID_PUBLIC_KEY'; // TODO: إضافة VAPID key
+            // التحقق من وجود VAPID key - إذا لم يكن موجوداً، تخطي Web Push
+            // TODO: إضافة VAPID public key في متغير منفصل أو من السيرفر
+            const vapidPublicKey = null; // سيتم تعيينه لاحقاً
             
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-            });
+            if (!vapidPublicKey || vapidPublicKey === 'YOUR_VAPID_PUBLIC_KEY') {
+                // تخطي Web Push إذا لم يكن VAPID key موجوداً
+                return;
+            }
+            
+            try {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                });
+            } catch (pushError) {
+                // تخطي Web Push في حالة الخطأ
+                console.warn('تخطي Web Push:', pushError);
+                return;
+            }
         }
         
         pushSubscription = subscription;
         
         // تسجيل في قاعدة البيانات
-        await API.request('register_push.php', 'POST', {
-            endpoint: subscription.endpoint,
-            keys: {
-                p256dh: arrayBufferToBase64(subscription.getKey('p256dh')),
-                auth: arrayBufferToBase64(subscription.getKey('auth'))
-            }
-        });
+        try {
+            await API.request('register_push.php', 'POST', {
+                endpoint: subscription.endpoint,
+                keys: {
+                    p256dh: arrayBufferToBase64(subscription.getKey('p256dh')),
+                    auth: arrayBufferToBase64(subscription.getKey('auth'))
+                }
+            });
+        } catch (registerError) {
+            console.warn('فشل تسجيل Web Push:', registerError);
+        }
         
     } catch (error) {
-        console.error('خطأ في تسجيل Web Push:', error);
+        // تخطي Web Push في حالة أي خطأ
+        console.warn('تخطي Web Push:', error);
     }
 }
 
 function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/\-/g, '+')
-        .replace(/_/g, '/');
-    
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
+    if (!base64String || typeof base64String !== 'string') {
+        throw new Error('VAPID key غير صحيح');
     }
-    return outputArray;
+    
+    try {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+        
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    } catch (e) {
+        throw new Error('فشل تحويل VAPID key: ' + e.message);
+    }
 }
 
 function arrayBufferToBase64(buffer) {
@@ -938,9 +963,11 @@ function showLoading(show) {
 }
 
 function showMessage(message, type = 'info') {
-    if (typeof window.showMessage === 'function') {
+    // تجنب infinite recursion - التحقق من أننا لا نستدعي نفسنا
+    if (typeof window.showMessage === 'function' && window.showMessage !== showMessage) {
         window.showMessage(message, type);
     } else {
+        // استخدام alert كبديل آمن
         alert(message);
     }
 }

@@ -226,6 +226,27 @@ const API = {
     async getCustomerSales(customerId) {
         return await this.request(`customers.php?action=sales&customer_id=${customerId}`, 'GET');
     },
+    
+    async getCustomerRating(customerId) {
+        return await this.request(`customers.php?action=rating&customer_id=${customerId}`, 'GET');
+    },
+    
+    async saveCustomerRating(customerId, saleId, rating) {
+        return await this.request('customers.php', 'POST', {
+            action: 'rating',
+            customer_id: customerId,
+            sale_id: saleId || null,
+            rating: rating
+        });
+    },
+    
+    async updateCustomerRating(customerId, rating) {
+        return await this.request('customers.php', 'PUT', {
+            action: 'update_rating',
+            customer_id: customerId,
+            rating: rating
+        });
+    },
 
     async addCustomer(customerData) {
         return await this.request('customers.php', 'POST', customerData);

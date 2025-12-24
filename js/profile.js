@@ -81,7 +81,15 @@ async function loadProfileSection() {
         // عرض حالة التحميل
         section.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-light);"><i class="bi bi-hourglass-split"></i> جاري التحميل...</p>';
 
-        // التحقق من وجود الدوال المطلوبة
+        // التحقق من وجود الدوال المطلوبة مع retry mechanism
+        let retries = 0;
+        const maxRetries = 3;
+        
+        while (typeof getCurrentUser !== 'function' && retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            retries++;
+        }
+        
         if (typeof getCurrentUser !== 'function') {
             throw new Error('دالة getCurrentUser غير متوفرة. تأكد من تحميل auth.js');
         }
@@ -98,10 +106,16 @@ async function loadProfileSection() {
             };
         }
 
-        // الحصول على بيانات المستخدم الحالي
-        currentUser = getCurrentUser();
+        // الحصول على بيانات المستخدم الحالي مع معالجة أفضل للأخطاء
+        try {
+            currentUser = getCurrentUser();
+        } catch (error) {
+            console.error('خطأ في getCurrentUser:', error);
+            currentUser = null;
+        }
+        
         if (!currentUser) {
-            // محاولة الحصول على المستخدم من checkLogin
+            // محاولة الحصول على المستخدم من checkLogin مع retry
             try {
                 if (typeof checkLogin === 'function') {
                     const user = await checkLogin();
@@ -117,11 +131,16 @@ async function loadProfileSection() {
                 section.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: var(--danger-color);">
                         <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                        <p>خطأ: لم يتم العثور على بيانات المستخدم</p>
-                        <p style="font-size: 14px; color: var(--text-light); margin-top: 10px;">يرجى تسجيل الدخول مرة أخرى</p>
-                        <button onclick="location.href='index.html'" class="btn btn-primary" style="margin-top: 20px;">
-                            <i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول
-                        </button>
+                        <p>خطأ في تحميل الملف الشخصي</p>
+                        <p style="font-size: 14px; color: var(--text-light); margin-top: 10px;">يرجى تسجيل الدخول مرة أخرى أو إعادة تحميل الصفحة</p>
+                        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                            <button onclick="if(typeof loadProfileSection === 'function') loadProfileSection(); else location.reload();" class="btn btn-primary">
+                                <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                            </button>
+                            <button onclick="location.href='index.html'" class="btn btn-secondary">
+                                <i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول
+                            </button>
+                        </div>
                     </div>
                 `;
                 return;
@@ -324,11 +343,16 @@ async function loadProfileSection() {
             section.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--danger-color);">
                     <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                    <p>حدث خطأ في تحميل الملف الشخصي</p>
+                    <p>خطأ في تحميل الملف الشخصي</p>
                     <p style="font-size: 14px; color: var(--text-light); margin-top: 10px;">${error.message || 'خطأ غير معروف'}</p>
-                    <button onclick="if(typeof loadProfileSection === 'function') loadProfileSection(); else location.reload();" class="btn btn-primary" style="margin-top: 20px;">
-                        <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
-                    </button>
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                        <button onclick="if(typeof loadProfileSection === 'function') loadProfileSection(); else location.reload();" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+                        </button>
+                        <button onclick="location.reload()" class="btn btn-secondary">
+                            <i class="bi bi-arrow-repeat"></i> إعادة تحميل الصفحة
+                        </button>
+                    </div>
                 </div>
             `;
         }

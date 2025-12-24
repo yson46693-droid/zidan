@@ -298,6 +298,24 @@ CREATE TABLE IF NOT EXISTS `webauthn_credentials` (
   KEY `idx_credential_id` (`credential_id`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- جدول تقييمات العملاء
+CREATE TABLE IF NOT EXISTS `customer_ratings` (
+  `id` varchar(50) NOT NULL,
+  `customer_id` varchar(50) NOT NULL,
+  `sale_id` varchar(50) DEFAULT NULL,
+  `rating` tinyint(1) NOT NULL DEFAULT 5,
+  `rating_type` enum('transaction','manual') NOT NULL DEFAULT 'transaction',
+  `created_at` datetime NOT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_sale_id` (`sale_id`),
+  KEY `idx_rating` (`rating`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `customer_ratings_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `customer_ratings_ibfk_2` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ============================================
 -- 2. إدراج البيانات الافتراضية
 -- ============================================
@@ -511,6 +529,24 @@ SET @preparedStatement = (SELECT IF(
   ) > 0,
   "SELECT 1",
   CONCAT("ALTER TABLE ", @tablename, " ADD COLUMN ", @columnname, " tinyint(1) DEFAULT 0")
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+-- إضافة notes إلى customers (إذا لم يكن موجوداً)
+SET @tablename = "customers";
+SET @columnname = "notes";
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (table_name = @tablename)
+      AND (table_schema = @dbname)
+      AND (column_name = @columnname)
+  ) > 0,
+  "SELECT 1",
+  CONCAT("ALTER TABLE ", @tablename, " ADD COLUMN ", @columnname, " text DEFAULT NULL AFTER `shop_name`")
 ));
 PREPARE alterIfNotExists FROM @preparedStatement;
 EXECUTE alterIfNotExists;
