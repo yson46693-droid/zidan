@@ -1538,9 +1538,10 @@ body {
     /* إعادة تنظيم الأزرار في الهيدر العلوي - صف واحد */
     .top-bar .header-actions {
         display: flex;
-        flex-wrap: nowrap;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         gap: 4px;
-        width: 100%;
+        width: auto !important;
         align-items: center;
         justify-content: flex-start;
     }
@@ -1824,7 +1825,6 @@ body {
     .mobile-menu-btn {
         display: block !important;
     }
-}
     
     /* المحتوى الرئيسي */
     .main-content {
@@ -1854,6 +1854,15 @@ body {
         gap: 10px;
         width: 100%;
     }
+    
+    /* الأزرار في الهيدر العلوي تبقى أفقية */
+    .top-bar .header-actions {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        width: auto !important;
+    }
+}
     
     /* أزرار قسم الصيانة - grid 2 أعمدة */
     #repairs-section .header-actions {
