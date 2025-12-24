@@ -6,7 +6,7 @@ let returnItems = {}; // { sale_item_id: { selected: bool, quantity: int, is_dam
 let allReturns = [];
 let normalReturns = [];
 let damagedReturns = [];
-let isScannerOpen = false;
+let productReturnsScannerOpen = false; // استخدام اسم فريد لتجنب التعارض مع repairs.js
 
 // Load Product Returns Section
 function loadProductReturnsSection() {
@@ -580,7 +580,7 @@ function displayReturnsTables() {
 
 // Open Barcode Scanner
 async function openBarcodeScanner() {
-    if (isScannerOpen) {
+    if (productReturnsScannerOpen) {
         showMessage('قارئ الباركود مفتوح بالفعل', 'info');
         return;
     }
@@ -605,7 +605,7 @@ async function openBarcodeScanner() {
         }
     }
     
-    isScannerOpen = true;
+    productReturnsScannerOpen = true;
     
     const scannerModal = document.createElement('div');
     scannerModal.id = 'barcodeScannerModal';
@@ -745,7 +745,7 @@ function closeBarcodeScannerForReturns() {
         modal.remove();
     }
     
-    isScannerOpen = false;
+    productReturnsScannerOpen = false;
 }
 
 // Retry Barcode Scanner

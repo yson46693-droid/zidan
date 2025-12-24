@@ -1693,9 +1693,11 @@
                 }
                 
                 // تحميل product-returns مباشرة إذا كان القسم المطلوب
+                let skipContentCheck = false;
                 if (section === 'product-returns') {
                     if (typeof loadProductReturnsSection !== 'function') {
                         console.log('تحميل product-returns.js...');
+                        skipContentCheck = true; // تخطي فحص المحتوى الفوري لأن السكربت يجري تحميله
                         loadScriptOnDemand('product-returns-script').then(() => {
                             console.log('تم تحميل product-returns.js بنجاح');
                             if (typeof loadProductReturnsSection === 'function') {
@@ -1706,16 +1708,14 @@
                         }).catch(err => {
                             console.error('خطأ في تحميل product-returns.js:', err);
                         });
-                        // تخطي فحص المحتوى الفوري لأن السكربت يجري تحميله
-                        hasContent = true;
-                        hasMinContent = true;
                     } else {
                         loadProductReturnsSection();
                     }
                 }
                 
                 // إذا كان القسم فارغاً أو لا يحتوي على محتوى كافٍ، نعيد تحميله
-                if (!hasContent || !hasMinContent) {
+                // تخطي الفحص إذا كان product-returns يجري تحميله حالياً
+                if ((!hasContent || !hasMinContent) && !skipContentCheck) {
                     console.log(`⚠️ القسم ${section} فارغ أو لا يحتوي على محتوى كافٍ (${targetSection.innerHTML.trim().length} حرف)، إعادة تحميل...`);
                     // إعادة تحميل القسم بعد تأخير
                     const reloadDelay = isReturningFromPOS ? 500 : 200;

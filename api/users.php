@@ -12,7 +12,7 @@ error_log('users.php - Data keys: ' . implode(', ', array_keys($data)));
 // قراءة جميع المستخدمين
 if ($method === 'GET') {
     checkPermission('admin');
-    $users = dbSelect("SELECT u.id, u.username, u.name, u.role, u.branch_id, b.name as branch_name, u.created_at, u.updated_at 
+    $users = dbSelect("SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at, u.updated_at 
                        FROM users u 
                        LEFT JOIN branches b ON u.branch_id = b.id 
                        ORDER BY u.created_at DESC");
@@ -62,6 +62,7 @@ if ($method === 'POST') {
     $name = isset($data['name']) ? trim($data['name']) : '';
     $role = isset($data['role']) ? $data['role'] : 'employee';
     $branchId = isset($data['branch_id']) && !empty($data['branch_id']) ? trim($data['branch_id']) : null;
+    $salary = isset($data['salary']) ? floatval($data['salary']) : 0.00;
     
     // التحقق من صحة نوع الدور
     if (!in_array($role, ['admin', 'manager', 'employee', 'technician'])) {
@@ -100,8 +101,8 @@ if ($method === 'POST') {
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
     $result = dbExecute(
-        "INSERT INTO users (id, username, password, name, role, branch_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
-        [$userId, $username, $hashedPassword, $name, $role, $branchId]
+        "INSERT INTO users (id, username, password, name, role, branch_id, salary, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+        [$userId, $username, $hashedPassword, $name, $role, $branchId, $salary]
     );
     
     if ($result === false) {
@@ -169,6 +170,11 @@ if ($method === 'PUT') {
         
         $updateFields[] = "branch_id = ?";
         $updateParams[] = $branchId;
+    }
+    
+    if (isset($data['salary'])) {
+        $updateFields[] = "salary = ?";
+        $updateParams[] = floatval($data['salary']);
     }
     
     if (isset($data['password']) && !empty($data['password'])) {
