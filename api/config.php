@@ -211,22 +211,33 @@ function getRequestMethod() {
 }
 
 function getRequestData() {
+    // إذا تم قراءة البيانات مسبقاً وحفظها، إرجاعها
+    // هذا يحل مشكلة php://input الذي يمكن قراءته مرة واحدة فقط
+    if (isset($GLOBALS['_cached_request_data']) && $GLOBALS['_cached_request_data'] !== null) {
+        return $GLOBALS['_cached_request_data'];
+    }
+    
     // محاولة قراءة JSON أولاً
     $rawInput = file_get_contents('php://input');
     
     if (!empty($rawInput)) {
         $jsonData = json_decode($rawInput, true);
         if (json_last_error() === JSON_ERROR_NONE && is_array($jsonData)) {
+            // حفظ البيانات في متغير عام للاستخدام لاحقاً
+            $GLOBALS['_cached_request_data'] = $jsonData;
             return $jsonData;
         }
     }
     
     // إذا لم يكن JSON، استخدام $_POST
     if (!empty($_POST)) {
+        // حفظ البيانات في متغير عام للاستخدام لاحقاً
+        $GLOBALS['_cached_request_data'] = $_POST;
         return $_POST;
     }
     
     // إذا لم يكن هناك بيانات، إرجاع array فارغ
+    $GLOBALS['_cached_request_data'] = [];
     return [];
 }
 

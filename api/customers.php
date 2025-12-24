@@ -536,7 +536,18 @@ $isPutMethod = ($method === 'PUT' || ($method === 'POST' && isset($data['_method
 if ($isPutMethod && isset($data['action']) && $data['action'] === 'update_rating') {
     checkPermission('admin'); // المالك فقط
     
-    // استخدام $data الذي تم قراءته في بداية الملف (php://input يمكن قراءته مرة واحدة فقط)
+    // التأكد من أن البيانات موجودة - إذا كانت $data فارغة، محاولة قراءتها من المتغير العام
+    if (empty($data) || (!isset($data['customer_id']) && !isset($data['id']))) {
+        // محاولة استخدام البيانات المحفوظة
+        if (isset($GLOBALS['_cached_request_data']) && !empty($GLOBALS['_cached_request_data'])) {
+            $data = $GLOBALS['_cached_request_data'];
+        }
+        // إذا لم تنجح، محاولة قراءة من $_POST كحل بديل
+        elseif (!empty($_POST)) {
+            $data = array_merge($data, $_POST);
+        }
+    }
+    
     // محاولة قراءة customer_id من مصادر مختلفة
     $customerId = trim($data['customer_id'] ?? $data['id'] ?? '');
     $rating = intval($data['rating'] ?? 0);
@@ -545,10 +556,13 @@ if ($isPutMethod && isset($data['action']) && $data['action'] === 'update_rating
     error_log('update_rating request data: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
     error_log('update_rating customer_id: ' . $customerId);
     error_log('update_rating rating: ' . $rating);
+    error_log('update_rating all keys: ' . implode(', ', array_keys($data ?? [])));
     
     if (empty($customerId)) {
         error_log('update_rating error: customer_id is empty. Data received: ' . json_encode($data, JSON_UNESCAPED_UNICODE));
         error_log('update_rating error: All data keys: ' . implode(', ', array_keys($data ?? [])));
+        error_log('update_rating error: _POST keys: ' . implode(', ', array_keys($_POST ?? [])));
+        error_log('update_rating error: _cached_request_data keys: ' . implode(', ', array_keys($GLOBALS['_cached_request_data'] ?? [])));
         response(false, 'معرف العميل مطلوب', null, 400);
     }
     
