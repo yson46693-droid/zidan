@@ -41,7 +41,12 @@ async function checkLogin() {
     lastCheckLoginTime = now;
     
     try {
-        const result = await API.checkAuth();
+        // 🔧 الحل: جعل checkAuth صامتاً بعد تسجيل الدخول مباشرة
+        const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+        const isRecentLogin = justLoggedInTime && (now - parseInt(justLoggedInTime)) < 15000;
+        const shouldBeSilent = isRecentLogin;
+        
+        const result = await API.checkAuth(shouldBeSilent);
         
         if (!result || !result.success) {
             // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
@@ -83,9 +88,9 @@ async function checkLogin() {
                 console.log('⏳ تسجيل دخول حديث - إعطاء فرصة للجلسة...');
                 // إعطاء فرصة للجلسة - إعادة المحاولة بعد ثانية واحدة
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                // محاولة مرة أخرى
+                // محاولة مرة أخرى (صامتة)
                 try {
-                        const retryResult = await API.checkAuth();
+                        const retryResult = await API.checkAuth(true);
                         if (retryResult && retryResult.success) {
                             const user = retryResult.data;
                             if (user) {

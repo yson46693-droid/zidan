@@ -521,9 +521,41 @@
                     return;
                 }
                 
-                // فحص تسجيل الدخول
+                // 🔧 الحل: جعل checkAuth صامتاً بعد تسجيل الدخول مباشرة
+                const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+                const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 15000;
+                
+                if (isRecentLogin) {
+                    console.log('⏳ تسجيل دخول حديث - استخدام البيانات المحفوظة أولاً...');
+                    // محاولة استخدام البيانات المحفوظة أولاً
+                    try {
+                        const savedUser = localStorage.getItem('currentUser');
+                        if (savedUser) {
+                            const user = JSON.parse(savedUser);
+                            console.log('✅ استخدام بيانات المستخدم المحفوظة بعد تسجيل الدخول');
+                            // مسح العلامة بعد النجاح
+                            sessionStorage.removeItem('just_logged_in_time');
+                            console.log('✅ تم التحقق من تسجيل الدخول بنجاح (من البيانات المحفوظة)');
+                            return; // نجح - لا حاجة للتحقق من الخادم
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ خطأ في قراءة البيانات المحفوظة:', e);
+                    }
+                }
+                
+                // فحص تسجيل الدخول (صامت بعد تسجيل الدخول مباشرة)
                 const user = await checkLogin();
                 if (!user) {
+                    // إذا كان تسجيل دخول حديث، إعطاء فرصة إضافية
+                    if (isRecentLogin) {
+                        console.log('⏳ تسجيل دخول حديث - إعادة المحاولة بعد انتظار...');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        const retryUser = await checkLogin();
+                        if (retryUser) {
+                            console.log('✅ تم التحقق من تسجيل الدخول بنجاح (بعد إعادة المحاولة)');
+                            return;
+                        }
+                    }
                     console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
                     window.location.href = 'index.html';
                     return;

@@ -198,8 +198,9 @@ const API = {
         return await this.request('auth.php', 'POST', { username, password });
     },
 
-    async checkAuth() {
-        return await this.request('auth.php', 'GET');
+    async checkAuth(silent = false) {
+        const options = silent ? { silent: true } : {};
+        return await this.request('auth.php', 'GET', null, options);
     },
 
     async logout() {
