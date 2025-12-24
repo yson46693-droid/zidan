@@ -465,30 +465,54 @@ function setupPermissionObserver() {
 
 // عرض معلومات المستخدم في الواجهة
 function displayUserInfo() {
-    const user = getCurrentUser();
-    if (!user) return;
-    
-    const userNameElement = document.getElementById('userName');
-    const userRoleElement = document.getElementById('userRole');
-    
-    if (userNameElement) {
-        userNameElement.textContent = user.name;
-    }
-    
-    if (userRoleElement) {
-        userRoleElement.textContent = getRoleText(user.role);
-    }
-    
-    // تحديث معلومات المستخدم في الـ top-bar للهواتف
-    const mobileUserNameElement = document.getElementById('mobileUserName');
-    const mobileUserRoleElement = document.getElementById('mobileUserRole');
-    
-    if (mobileUserNameElement) {
-        mobileUserNameElement.textContent = user.name;
-    }
-    
-    if (mobileUserRoleElement) {
-        mobileUserRoleElement.textContent = getRoleText(user.role);
+    try {
+        const user = getCurrentUser();
+        if (!user) {
+            console.warn('displayUserInfo: لا توجد بيانات مستخدم');
+            return;
+        }
+        
+        // استخدام قيم افتراضية في حالة عدم وجود القيم
+        const userName = user.name || user.username || 'المستخدم';
+        const userRole = user.role || 'employee';
+        
+        console.log('displayUserInfo: عرض بيانات المستخدم', { userName, userRole, user });
+        
+        const userNameElement = document.getElementById('userName');
+        const userRoleElement = document.getElementById('userRole');
+        
+        if (userNameElement) {
+            userNameElement.textContent = userName;
+        } else {
+            console.warn('displayUserInfo: عنصر userName غير موجود');
+        }
+        
+        if (userRoleElement) {
+            // التأكد من وجود دالة getRoleText
+            const roleText = typeof getRoleText === 'function' ? getRoleText(userRole) : userRole;
+            userRoleElement.textContent = roleText;
+        } else {
+            console.warn('displayUserInfo: عنصر userRole غير موجود');
+        }
+        
+        // تحديث معلومات المستخدم في الـ top-bar للهواتف
+        const mobileUserNameElement = document.getElementById('mobileUserName');
+        const mobileUserRoleElement = document.getElementById('mobileUserRole');
+        
+        if (mobileUserNameElement) {
+            mobileUserNameElement.textContent = userName;
+        } else {
+            console.warn('displayUserInfo: عنصر mobileUserName غير موجود');
+        }
+        
+        if (mobileUserRoleElement) {
+            const roleText = typeof getRoleText === 'function' ? getRoleText(userRole) : userRole;
+            mobileUserRoleElement.textContent = roleText;
+        } else {
+            console.warn('displayUserInfo: عنصر mobileUserRole غير موجود');
+        }
+    } catch (error) {
+        console.error('displayUserInfo: خطأ في عرض بيانات المستخدم:', error);
     }
 }
 
