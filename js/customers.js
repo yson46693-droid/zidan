@@ -662,6 +662,7 @@ async function viewCustomerProfile(customerId) {
             
             // حفظ بيانات المبيعات للبحث والتصفح
             window.currentCustomerSales = sales;
+            window._originalCustomerSales = sales; // حفظ نسخة أصلية للفلترة
             window.currentCustomerId = customerId;
             window.currentSalesPage = 1;
             window.salesPerPage = 5;
@@ -685,6 +686,11 @@ async function viewCustomerProfile(customerId) {
                 const tbody = document.getElementById('customerSalesTableBody');
                 if (tbody) {
                     tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مسجلة لهذا العميل</td></tr>';
+                }
+                // مسح pagination
+                const paginationContainer = document.getElementById('customerSalesPagination');
+                if (paginationContainer) {
+                    paginationContainer.innerHTML = '';
                 }
             }
             
@@ -1779,21 +1785,48 @@ function displaySalesWithPagination(allSales) {
     // عرض pagination
     const paginationContainer = document.getElementById('customerSalesPagination');
     if (paginationContainer) {
+        console.log('📄 إنشاء أزرار pagination:', {
+            totalPages: paginated.totalPages,
+            currentPage: window.currentSalesPage || 1,
+            totalItems: paginated.totalItems
+        });
+        
         createPaginationButtons(
             paginationContainer,
             paginated.totalPages,
             window.currentSalesPage || 1,
             (page) => {
+                console.log('🔄 تغيير الصفحة إلى:', page);
                 window.currentSalesPage = page;
-                const allSales = window.currentCustomerSales || [];
-                filterAndDisplaySales(allSales);
+                
+                // الحصول على الفواتير المفلترة الحالية (إذا كان هناك فلترة) أو الفواتير الأصلية
+                let salesToDisplay = window.currentCustomerSales || [];
+                
+                // إذا كان هناك فلترة نشطة، نحتاج إلى إعادة تطبيقها
+                const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
+                const dateSearchInput = document.getElementById('salesSearchDate');
+                
+                const hasFilter = (invoiceSearchInput && invoiceSearchInput.value.trim()) || 
+                                 (dateSearchInput && dateSearchInput.value);
+                
+                if (hasFilter) {
+                    // إذا كان هناك فلترة، نحتاج إلى الحصول على الفواتير الأصلية أولاً
+                    // ثم تطبيق الفلترة عليها
+                    const originalSales = window._originalCustomerSales || window.currentCustomerSales || [];
+                    filterAndDisplaySales(originalSales, false);
+                } else {
+                    // إذا لم يكن هناك فلترة، استخدم displaySalesWithPagination مباشرة
+                    displaySalesWithPagination(salesToDisplay);
+                }
             }
         );
+    } else {
+        console.warn('⚠️ customerSalesPagination container not found');
     }
 }
 
 // فلترة وعرض المبيعات
-function filterAndDisplaySales(allSales) {
+function filterAndDisplaySales(allSales, resetPage = true) {
     const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
     const dateSearchInput = document.getElementById('salesSearchDate');
     
@@ -1818,8 +1851,21 @@ function filterAndDisplaySales(allSales) {
         });
     }
     
-    // إعادة تعيين الصفحة الحالية
-    window.currentSalesPage = 1;
+    // إعادة تعيين الصفحة الحالية فقط إذا كان resetPage = true (عند البحث، وليس عند تغيير الصفحة)
+    if (resetPage) {
+        window.currentSalesPage = 1;
+        console.log('🔄 إعادة تعيين الصفحة إلى 1 بسبب البحث/الفلترة');
+    }
+    
+    // حفظ الفواتير المفلترة للاستخدام في pagination
+    // لكن نحتفظ بالنسخة الأصلية في _originalCustomerSales
+    window.currentCustomerSales = filtered;
+    
+    console.log('🔍 بعد الفلترة:', {
+        originalCount: window._originalCustomerSales?.length || 0,
+        filteredCount: filtered.length,
+        currentPage: window.currentSalesPage
+    });
     
     // عرض الفواتير المفلترة
     displaySalesWithPagination(filtered);
