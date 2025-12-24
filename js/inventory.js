@@ -286,7 +286,7 @@ function displaySpareParts(parts) {
                 </div>
                 
                 <div class="inventory-card-actions">
-                    <button onclick="printSparePartBarcode('${part.id}')" class="btn btn-info btn-sm" title="طباعة الباركود">
+                    <button onclick="printSparePartBarcode('${part.id}', '${barcode.replace(/'/g, "\\'")}', '${barcodeImage.replace(/'/g, "\\'")}')" class="btn btn-info btn-sm" title="طباعة الباركود">
                         <i class="bi bi-printer"></i> طباعة
                     </button>
                     <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
@@ -2314,14 +2314,11 @@ function printAccessoryBarcode(id) {
             <div class="barcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 20px;">
                 <div class="barcode-header">
                     <h2>${accessory.name}</h2>
-                    ${type ? `<p>${type.name}</p>` : ''}
                 </div>
                 <div class="barcode-image">
                     ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 24px; font-size: 24px; background: #f0f0f0; border-radius: 5px;">باركود</div>'}
                 </div>
-                <div class="barcode-code">
-                    ${barcode}
-                </div>
+
                 <div class="barcode-info">
                     <div class="barcode-info-item">
                         <span class="barcode-info-label">السعر:</span>
@@ -2499,31 +2496,41 @@ function fallbackCopyBarcode(barcode) {
 }
 
 // دالة طباعة باركود قطع الغيار
-function printSparePartBarcode(partId) {
+function printSparePartBarcode(partId, barcode, barcodeImage) {
     const part = allSpareParts.find(p => p.id === partId);
     if (!part) {
         showMessage('قطعة الغيار غير موجودة', 'error');
         return;
     }
     
-    // التأكد من وجود الباركود
-    const actualBarcode = part.barcode || `${part.brand}-${part.model}-${part.id}`;
+    // استخدام الباركود الممرر أو إنشاء واحد جديد
+    const actualBarcode = barcode || part.barcode || `${part.brand}-${part.model}-${part.id}`;
     
-    // إنشاء صورة الباركود
-    let actualBarcodeImage = '';
-    try {
-        if (typeof BarcodeGenerator !== 'undefined') {
-            const barcodeGenerator = new BarcodeGenerator();
-            actualBarcodeImage = barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
-        } else if (typeof window.barcodeGenerator !== 'undefined') {
-            actualBarcodeImage = window.barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
-        } else {
-            showMessage('خطأ: مكتبة الباركود غير متاحة', 'error');
+    // استخدام صورة الباركود الممررة أو إنشاء واحدة جديدة
+    let actualBarcodeImage = barcodeImage || '';
+    
+    if (!actualBarcodeImage) {
+        try {
+            if (typeof BarcodeGenerator !== 'undefined') {
+                const barcodeGenerator = new BarcodeGenerator();
+                actualBarcodeImage = barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
+            } else if (typeof window.barcodeGenerator !== 'undefined') {
+                actualBarcodeImage = window.barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
+            } else {
+                showMessage('خطأ: مكتبة الباركود غير متاحة', 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('خطأ في إنشاء الباركود:', error);
+            showMessage('حدث خطأ في إنشاء الباركود', 'error');
             return;
         }
-    } catch (error) {
-        console.error('خطأ في إنشاء الباركود:', error);
-        showMessage('حدث خطأ في إنشاء الباركود', 'error');
+    }
+    
+    // التحقق من أن صورة الباركود صالحة
+    if (!actualBarcodeImage || actualBarcodeImage.trim() === '') {
+        console.error('صورة الباركود فارغة');
+        showMessage('خطأ: لم يتم إنشاء صورة الباركود', 'error');
         return;
     }
     
@@ -2549,10 +2556,10 @@ function printSparePartBarcode(partId) {
                         <p>${part.model}</p>
                     </div>
                     <div class="barcode-label-barcode">
-                        <img src="${actualBarcodeImage}" alt="Barcode ${actualBarcode}">
+                        <img src="${actualBarcodeImage.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}" alt="Barcode ${actualBarcode.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}" style="max-width: 100%; height: auto;">
                     </div>
                     <div class="barcode-label-code">
-                        ${actualBarcode}
+                        ${actualBarcode.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}
                     </div>
                 </div>
             </div>
@@ -2972,148 +2979,4 @@ function fallbackCopyBarcode(barcode) {
     document.body.removeChild(textArea);
 }
 
-// دالة طباعة باركود قطع الغيار
-function printSparePartBarcode(partId, barcode, barcodeImage) {
-    const part = allSpareParts.find(p => p.id === partId);
-    if (!part) {
-        showMessage('قطعة الغيار غير موجودة', 'error');
-        return;
-    }
-    
-    // طلب عدد النسخ
-    const copies = prompt('كم عدد النسخ المطلوبة للطباعة؟', '1');
-    if (!copies || isNaN(copies) || parseInt(copies) < 1) {
-        return;
-    }
-    
-    const numCopies = parseInt(copies);
-    
-    // إنشاء نافذة الطباعة
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
-    
-    // إنشاء محتوى الطباعة
-    let printContent = '';
-    for (let i = 0; i < numCopies; i++) {
-        printContent += `
-            <div class="barcode-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 10px;">
-                <div class="barcode-label-content">
-                    <div class="barcode-label-header">
-                        <h4>${part.brand}</h4>
-                        <p>${part.model}</p>
-                    </div>
-                    <div class="barcode-label-barcode">
-                        <img src="${barcodeImage}" alt="Barcode ${barcode}">
-                        <div class="barcode-label-code">${barcode}</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>طباعة باركود - ${part.brand} ${part.model}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-            <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-                body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    padding: 10px;
-                    background: white;
-                }
-                .barcode-label {
-                    width: 100%;
-                    max-width: 100mm;
-                    margin: 0 auto 10px;
-                    border: 1px solid #ddd;
-                    border-radius: 5px;
-                    overflow: hidden;
-                }
-                .barcode-label-content {
-                    padding: 8px;
-                    text-align: center;
-                }
-                .barcode-label-header {
-                    margin-bottom: 8px;
-                    padding-bottom: 6px;
-                    border-bottom: 1px solid #eee;
-                }
-                .barcode-label-header h4 {
-                    font-size: 12px;
-                    margin: 0 0 3px 0;
-                    color: #333;
-                    font-weight: 600;
-                }
-                .barcode-label-header p {
-                    font-size: 10px;
-                    margin: 0;
-                    color: #666;
-                }
-                .barcode-label-barcode {
-                    margin-top: 5px;
-                }
-                .barcode-label-barcode img {
-                    max-width: 100%;
-                    height: auto;
-                    max-height: 40px;
-                    display: block;
-                    margin: 0 auto;
-                }
-                .barcode-label-code {
-                    margin-top: 4px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 9px;
-                    color: #333;
-                    letter-spacing: 1px;
-                }
-                @media print {
-                    body {
-                        padding: 0;
-                        margin: 0;
-                    }
-                    .barcode-label {
-                        page-break-inside: avoid;
-                        margin-bottom: 5mm;
-                        border: none;
-                    }
-                    .no-print {
-                        display: none;
-                    }
-                }
-                @page {
-                    size: auto;
-                    margin: 5mm;
-                }
-            </style>
-        </head>
-        <body>
-            ${printContent}
-            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-printer"></i> طباعة
-                </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-arrow-right"></i> رجوع
-                </button>
-            </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
-                }
-            </script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-}
 
