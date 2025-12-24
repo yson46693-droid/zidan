@@ -30,28 +30,22 @@ class GlobalNotificationManager {
                 return;
             }
 
-            // التحقق من تسجيل الدخول
+            // التحقق من تسجيل الدخول - استخدام checkLogin أولاً
             if (typeof checkLogin === 'function') {
                 const user = await checkLogin();
                 if (!user) {
                     console.log('📋 المستخدم غير مسجل دخول - إيقاف نظام الإشعارات');
+                    // إيقاف النظام إذا كان يعمل
+                    this.stop();
                     return; // المستخدم غير مسجل دخول
                 }
                 this.currentUser = user;
             } else {
-                // محاولة الحصول من localStorage
-                const userStr = localStorage.getItem('currentUser');
-                if (userStr) {
-                    try {
-                        this.currentUser = JSON.parse(userStr);
-                    } catch (e) {
-                        console.error('خطأ في تحليل بيانات المستخدم:', e);
-                        return;
-                    }
-                } else {
-                    console.log('📋 لا يوجد مستخدم في localStorage - إيقاف نظام الإشعارات');
-                    return; // لا يوجد مستخدم
-                }
+                // إذا لم يكن checkLogin متاحاً، التحقق من localStorage
+                // لكن هذا ليس آمناً، لذا نتوقف
+                console.warn('⚠️ checkLogin غير متاح - إيقاف نظام الإشعارات');
+                this.stop();
+                return;
             }
 
             if (!this.currentUser || !this.currentUser.id) {
@@ -314,15 +308,30 @@ class GlobalNotificationManager {
             });
 
             // معالجة النقر على الإشعار
-            notification.onclick = () => {
+            notification.onclick = async () => {
                 window.focus();
                 notification.close();
                 
-                // الانتقال إلى صفحة الشات
-                const currentPath = window.location.pathname;
-                const chatPath = basePath + '/chat.html';
-                if (currentPath !== chatPath && !currentPath.includes('chat.html')) {
-                    window.location.href = chatPath;
+                // التحقق من تسجيل الدخول قبل الانتقال
+                try {
+                    if (typeof checkLogin === 'function') {
+                        const user = await checkLogin();
+                        if (!user) {
+                            console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه إلى صفحة تسجيل الدخول');
+                            window.location.href = basePath + '/index.html';
+                            return;
+                        }
+                    }
+                    
+                    // الانتقال إلى صفحة الشات
+                    const currentPath = window.location.pathname;
+                    const chatPath = basePath + '/chat.html';
+                    if (currentPath !== chatPath && !currentPath.includes('chat.html')) {
+                        window.location.href = chatPath;
+                    }
+                } catch (error) {
+                    console.error('❌ خطأ في فحص تسجيل الدخول:', error);
+                    window.location.href = basePath + '/index.html';
                 }
             };
 

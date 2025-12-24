@@ -272,10 +272,43 @@
     <script src="js/version.js"></script>
     <script src="js/api.js" defer></script>
     <script src="js/utils.js" defer></script>
-    <script src="js/global-notifications.js" defer></script>
     <script src="js/auth.js" defer></script>
     <script src="js/barcode.js" defer></script>
     <script src="js/pos.js" defer></script>
+    <script src="js/global-notifications.js" defer></script>
+    
+    <!-- حماية الصفحة - فحص تسجيل الدخول فوراً -->
+    <script>
+        (async function protectPage() {
+            try {
+                // الانتظار حتى يتم تحميل API و auth
+                let retries = 0;
+                while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < 20) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    retries++;
+                }
+                
+                if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
+                    console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // فحص تسجيل الدخول
+                const user = await checkLogin();
+                if (!user) {
+                    console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                console.log('✅ تم التحقق من تسجيل الدخول بنجاح');
+            } catch (error) {
+                console.error('❌ خطأ في فحص تسجيل الدخول:', error);
+                window.location.href = 'index.html';
+            }
+        })();
+    </script>
     
     <script>
         // فحص المصادقة عند تحميل الصفحة

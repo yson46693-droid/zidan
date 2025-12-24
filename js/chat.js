@@ -38,26 +38,66 @@ let mentionStartPosition = -1;
     });
 })();
 
-// تهيئة الصفحة
-document.addEventListener('DOMContentLoaded', async () => {
+// فحص تسجيل الدخول الفوري - قبل تحميل الصفحة
+(async function checkAuthBeforeLoad() {
     try {
-        if (typeof checkLogin !== 'function') {
-            showMessage('خطأ في تحميل ملفات المصادقة', 'error');
-            setTimeout(() => window.location.href = 'index.html', 2000);
-            return;
+        // الانتظار حتى يتم تحميل API و auth
+        let retries = 0;
+        while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < 20) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
         }
         
-        const user = await checkLogin();
-        if (!user) {
+        if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
+            console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
             window.location.href = 'index.html';
             return;
         }
         
+        // فحص تسجيل الدخول فوراً
+        const user = await checkLogin();
+        if (!user) {
+            console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        // حفظ المستخدم للمتابعة
         currentUser = user;
+        
+    } catch (error) {
+        console.error('❌ خطأ في فحص تسجيل الدخول:', error);
+        window.location.href = 'index.html';
+        return;
+    }
+})();
+
+// تهيئة الصفحة
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // التحقق مرة أخرى من تسجيل الدخول
+        if (typeof checkLogin !== 'function') {
+            console.error('❌ خطأ في تحميل ملفات المصادقة');
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        // إذا لم يكن هناك مستخدم محفوظ، فحص مرة أخرى
+        if (!currentUser) {
+            const user = await checkLogin();
+            if (!user) {
+                console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+                window.location.href = 'index.html';
+                return;
+            }
+            currentUser = user;
+        }
+        
+        // الآن يمكن تهيئة الشات
         await initializeChat();
     } catch (error) {
-        console.error('خطأ في تهيئة الشات:', error);
-        showMessage('حدث خطأ في تحميل الشات: ' + (error.message || error), 'error');
+        console.error('❌ خطأ في تهيئة الشات:', error);
+        window.location.href = 'index.html';
     }
 });
 
