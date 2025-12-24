@@ -43,7 +43,7 @@ try {
             SELECT 
                 cm.id, 
                 cm.user_id, 
-                COALESCE(cm.username, u.name, u.username, 'مستخدم') as username, 
+                COALESCE(u.name, u.username, 'مستخدم') as username, 
                 cm.message 
             FROM chat_messages cm
             LEFT JOIN users u ON u.id = cm.user_id

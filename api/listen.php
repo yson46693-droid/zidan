@@ -95,13 +95,13 @@ function getNewMessages($lastId) {
                 SELECT 
                     cm.id,
                     cm.user_id,
-                    COALESCE(cm.username, u.name, u.username, 'مستخدم') as username,
+                    COALESCE(u.name, u.username, 'مستخدم') as username,
                     cm.message,
                     cm.reply_to,
                     cm.created_at,
                     rm.id as reply_to_id,
                     rm.user_id as reply_to_user_id,
-                    COALESCE(rm.username, ru.name, ru.username, 'مستخدم') as reply_to_username,
+                    COALESCE(ru.name, ru.username, 'مستخدم') as reply_to_username,
                     rm.message as reply_to_message
                 FROM chat_messages cm
                 LEFT JOIN users u ON u.id = cm.user_id
