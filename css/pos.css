@@ -2122,7 +2122,7 @@
     }
     
     .invoice-items-table {
-        font-size: 0.7em !important;
+        font-size: 0.65em !important;
         page-break-inside: avoid !important;
         box-shadow: none !important;
         width: 100% !important;
@@ -2132,6 +2132,7 @@
         display: table !important;
         border: 1px solid #ddd !important;
         box-sizing: border-box !important;
+        margin: 0 !important;
     }
     
     .invoice-items-table thead {
@@ -2150,49 +2151,56 @@
     .invoice-items-table th,
     .invoice-items-table td {
         display: table-cell !important;
-        padding: 3px 1px !important;
-        font-size: 0.7em !important;
+        padding: 2px 1px !important;
+        font-size: 0.65em !important;
         box-sizing: border-box !important;
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
     }
     
-    /* تحديد عرض الأعمدة في الطباعة - 80mm */
+    /* تحديد عرض الأعمدة في الطباعة - 80mm (المجموع = 100%) */
     .invoice-items-table th:nth-child(1),
     .invoice-items-table td:nth-child(1) {
         width: 8% !important;
         min-width: 0 !important;
+        max-width: 8% !important;
         text-align: center !important;
     }
     
     .invoice-items-table th:nth-child(2),
     .invoice-items-table td:nth-child(2) {
-        width: 35% !important;
+        width: 32% !important;
         min-width: 0 !important;
-        max-width: none !important;
+        max-width: 32% !important;
         white-space: normal !important;
         overflow: visible !important;
         word-break: break-word !important;
+        text-align: right !important;
     }
     
     .invoice-items-table th:nth-child(3),
     .invoice-items-table td:nth-child(3) {
         width: 12% !important;
         min-width: 0 !important;
+        max-width: 12% !important;
         text-align: center !important;
     }
     
     .invoice-items-table th:nth-child(4),
     .invoice-items-table td:nth-child(4) {
-        width: 22% !important;
+        width: 24% !important;
         min-width: 0 !important;
+        max-width: 24% !important;
         text-align: right !important;
     }
     
     .invoice-items-table th:nth-child(5),
     .invoice-items-table td:nth-child(5) {
-        width: 23% !important;
+        width: 24% !important;
         min-width: 0 !important;
+        max-width: 24% !important;
         text-align: right !important;
     }
     

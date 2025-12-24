@@ -325,6 +325,10 @@ async function viewCustomerProfile(customerId) {
         // Load customer sales - فقط فواتير هذا العميل
         const salesResult = await API.getCustomerSales(customerId);
         
+        // Load customer rating
+        const ratingResult = await API.getCustomerRating(customerId);
+        const customerRating = ratingResult && ratingResult.success ? ratingResult.data : { average_rating: 0, total_ratings: 0 };
+        
         // Error handling: التحقق من نجاح الطلب
         if (!salesResult || !salesResult.success) {
             console.error('خطأ في جلب مبيعات العميل:', salesResult?.message || 'خطأ غير معروف');
@@ -333,6 +337,10 @@ async function viewCustomerProfile(customerId) {
         }
         
         let sales = salesResult && salesResult.success && Array.isArray(salesResult.data) ? salesResult.data : [];
+        
+        // إضافة التقييم للعميل
+        customer.average_rating = customerRating.average_rating || 0;
+        customer.total_ratings = customerRating.total_ratings || 0;
         
         console.log('🔍 عدد الفواتير المستلمة من API:', sales.length);
         console.log('🔍 بيانات الفواتير:', sales);
@@ -472,10 +480,56 @@ async function viewCustomerProfile(customerId) {
                     <div class="customer-info-item-value">${formatDate(customer.created_at)}</div>
                 </div>
             </div>
+            <div class="customer-info-item">
+                <i class="bi bi-star-fill" style="color: var(--warning-color);"></i>
+                <div>
+                    <div class="customer-info-item-label">التقييم التراكمي</div>
+                    <div class="customer-info-item-value">
+                        ${customer.total_ratings > 0 ? `
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="color: var(--warning-color); font-size: 18px;">${renderRatingStars(customer.average_rating)}</span>
+                                <span style="color: var(--text-light);">(${customer.average_rating.toFixed(1)})</span>
+                                <span style="color: var(--text-light); font-size: 0.9em;">(${customer.total_ratings} تقييم)</span>
+                            </div>
+                        ` : '<span style="color: var(--text-light);">لا يوجد تقييم</span>'}
+                    </div>
+                </div>
+            </div>
         `;
         
         customerInfoCard.appendChild(customerInfoHeader);
         customerInfoCard.appendChild(customerInfoGrid);
+        
+        // إضافة قسم الملاحظات
+        const notesSection = document.createElement('div');
+        notesSection.className = 'customer-notes-section';
+        notesSection.style.cssText = 'margin-top: 20px; padding: 20px; background: var(--white); border-radius: 10px; border: 1px solid var(--border-color);';
+        notesSection.innerHTML = `
+            <h4 style="margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                <i class="bi bi-sticky"></i> ملاحظات العميل
+            </h4>
+            <textarea id="customerNotesTextarea" rows="4" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; font-family: inherit; resize: vertical;">${escapeHtml(customer.notes || '')}</textarea>
+            ${hasPermission('manager') ? `
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button onclick="saveCustomerNotes('${customer.id}')" class="btn btn-primary btn-sm">
+                        <i class="bi bi-save"></i> حفظ الملاحظات
+                    </button>
+                </div>
+            ` : ''}
+        `;
+        customerInfoCard.appendChild(notesSection);
+        
+        // إضافة زر تعديل التقييم للمالك فقط
+        if (hasPermission('admin')) {
+            const ratingEditSection = document.createElement('div');
+            ratingEditSection.style.cssText = 'margin-top: 15px; padding: 15px; background: var(--light-bg); border-radius: 8px; border: 1px dashed var(--border-color);';
+            ratingEditSection.innerHTML = `
+                <button onclick="showEditRatingModal('${customer.id}', ${customer.average_rating || 0})" class="btn btn-warning btn-sm" style="background: var(--warning-color); color: var(--white);">
+                    <i class="bi bi-star"></i> تعديل التقييم التراكمي
+                </button>
+            `;
+            customerInfoCard.appendChild(ratingEditSection);
+        }
         
         // Statistics Cards
         const statsGrid = document.createElement('div');
@@ -510,7 +564,7 @@ async function viewCustomerProfile(customerId) {
                 <i class="bi bi-receipt-cutoff"></i>
             </div>
             <span>سجل المشتريات</span>
-            ${sales.length > 0 ? `<span class="section-badge"> </span>` : ''}
+            ${sales.length > 0 ? `<span class="section-badge">${sales.length}</span>` : ''}
         `;
         
         if (sales.length === 0) {
@@ -523,9 +577,22 @@ async function viewCustomerProfile(customerId) {
             salesSection.appendChild(salesHeader);
             salesSection.appendChild(emptyState);
         } else {
+            // إضافة حقول البحث
+            const searchBar = document.createElement('div');
+            searchBar.className = 'filters-bar';
+            searchBar.style.cssText = 'margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;';
+            searchBar.innerHTML = `
+                <input type="text" id="salesSearchInvoiceNumber" placeholder="بحث برقم الفاتورة..." class="search-input" style="flex: 1; min-width: 200px;">
+                <input type="date" id="salesSearchDate" class="search-input" style="flex: 0 0 auto;">
+                <button onclick="clearSalesSearch()" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-x-circle"></i> مسح البحث
+                </button>
+            `;
+            
             // Build sales table
             const tableContainer = document.createElement('div');
             tableContainer.className = 'table-container customer-sales-table';
+            tableContainer.style.cssText = 'overflow-x: auto; -webkit-overflow-scrolling: touch;';
             
             const table = document.createElement('table');
             table.className = 'data-table';
@@ -542,92 +609,52 @@ async function viewCustomerProfile(customerId) {
                 </tr>
             `;
             
-            // Build table body using DocumentFragment for better performance
+            // Build table body - سيتم ملؤه بواسطة displaySalesWithPagination
             const tbody = document.createElement('tbody');
-            const tbodyFragment = document.createDocumentFragment();
+            tbody.id = 'customerSalesTableBody';
             
-            sales.forEach(sale => {
-                try {
-                    // Error handling: التأكد من وجود البيانات الصحيحة
-                    const saleNumber = sale.sale_number || sale.id || 'غير محدد';
-                    const items = sale.items && Array.isArray(sale.items) ? sale.items : [];
-                    const itemsCount = items.length;
-                    
-                    // حساب المبلغ من العناصر إذا لم يكن موجوداً
-                    let totalAmount = parseFloat(sale.total_amount || 0);
-                    let finalAmount = parseFloat(sale.final_amount || 0);
-                    
-                    // إذا كانت القيم 0، نحسبها من العناصر
-                    if (items.length > 0 && (totalAmount === 0 || finalAmount === 0)) {
-                        const calculatedTotal = items.reduce((sum, item) => {
-                            try {
-                                const itemPrice = parseFloat(item.total_price || 0);
-                                const itemQty = parseInt(item.quantity || 1);
-                                return sum + (itemPrice * itemQty);
-                            } catch (error) {
-                                console.warn('خطأ في حساب عنصر الفاتورة:', error);
-                                return sum;
-                            }
-                        }, 0);
-                        
-                        if (totalAmount === 0 && !isNaN(calculatedTotal)) {
-                            totalAmount = calculatedTotal;
-                        }
-                        if (finalAmount === 0 && !isNaN(calculatedTotal)) {
-                            const discount = parseFloat(sale.discount || 0);
-                            const tax = parseFloat(sale.tax || 0);
-                            finalAmount = calculatedTotal - discount + tax;
-                        }
-                    }
-                    
-                    // Ensure valid numbers
-                    totalAmount = isNaN(totalAmount) ? 0 : totalAmount;
-                    finalAmount = isNaN(finalAmount) ? 0 : finalAmount;
-                    
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>
-                            <div class="invoice-number-cell">
-                                <strong class="invoice-number-text">${escapeHtml(saleNumber)}</strong>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="invoice-date-cell">
-                                <i class="bi bi-calendar3"></i>
-                                <span>${formatDate(sale.created_at)}</span>
-                            </div>
-                        </td>
-                        <td style="text-align: center;">
-                            <span class="invoice-items-badge">
-                                <i class="bi bi-box-seam"></i> ${itemsCount}
-                            </span>
-                        </td>
-                        <td style="text-align: right;">
-                            <strong class="invoice-final-amount">
-                                ${finalAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
-                            </strong>
-                        </td>
-                        <td style="text-align: center;">
-                            <div class="invoice-actions">
-                                <button onclick="printSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-pdf">
-                                    <i class="bi bi-printer"></i> طباعة الفاتورة
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    tbodyFragment.appendChild(row);
-                } catch (error) {
-                    console.error('خطأ في معالجة فاتورة:', error, sale);
-                }
-            });
-            
-            tbody.appendChild(tbodyFragment);
             table.appendChild(thead);
             table.appendChild(tbody);
+            
+            // إضافة min-width للجدول لضمان التمرير الأفقي على الموبايل
+            table.style.minWidth = '600px';
+            
             tableContainer.appendChild(table);
             
+            // إضافة pagination container
+            const paginationContainer = document.createElement('div');
+            paginationContainer.className = 'pagination';
+            paginationContainer.id = 'customerSalesPagination';
+            
             salesSection.appendChild(salesHeader);
+            salesSection.appendChild(searchBar);
             salesSection.appendChild(tableContainer);
+            salesSection.appendChild(paginationContainer);
+            
+            // حفظ بيانات المبيعات للبحث والتصفح
+            window.currentCustomerSales = sales;
+            window.currentCustomerId = customerId;
+            window.currentSalesPage = 1;
+            window.salesPerPage = 5;
+            
+            // عرض المبيعات مع pagination
+            displaySalesWithPagination(sales);
+            
+            // إضافة event listeners للبحث
+            const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
+            const dateSearchInput = document.getElementById('salesSearchDate');
+            
+            if (invoiceSearchInput) {
+                invoiceSearchInput.addEventListener('input', debounce(() => {
+                    filterAndDisplaySales(sales);
+                }, 300));
+            }
+            
+            if (dateSearchInput) {
+                dateSearchInput.addEventListener('change', () => {
+                    filterAndDisplaySales(sales);
+                });
+            }
         }
         
         // Assemble all parts
@@ -1327,5 +1354,329 @@ function formatDate(dateString) {
     } catch (error) {
         return dateString;
     }
+}
+
+// حفظ ملاحظات العميل
+async function saveCustomerNotes(customerId) {
+    const notesTextarea = document.getElementById('customerNotesTextarea');
+    if (!notesTextarea) {
+        showMessage('لم يتم العثور على حقل الملاحظات', 'error');
+        return;
+    }
+    
+    const notes = notesTextarea.value.trim();
+    
+    try {
+        const result = await API.updateCustomer({
+            id: customerId,
+            notes: notes
+        });
+        
+        if (result && result.success) {
+            showMessage('تم حفظ الملاحظات بنجاح', 'success');
+            // تحديث بيانات العميل في المصفوفة
+            const customer = allCustomers.find(c => c.id === customerId);
+            if (customer) {
+                customer.notes = notes;
+            }
+        } else {
+            showMessage(result?.message || 'فشل حفظ الملاحظات', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في حفظ الملاحظات:', error);
+        showMessage('حدث خطأ أثناء حفظ الملاحظات', 'error');
+    }
+}
+
+// عرض modal تعديل التقييم
+function showEditRatingModal(customerId, currentRating) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="bi bi-star"></i> تعديل التقييم التراكمي</h3>
+                <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: var(--text-light);">اختر التقييم الجديد للعميل (من 1 إلى 5 نجوم):</p>
+                <div id="ratingStarsContainer" style="display: flex; justify-content: center; gap: 10px; font-size: 40px; margin: 20px 0;">
+                    ${[1, 2, 3, 4, 5].map(star => `
+                        <i class="bi bi-star${star <= Math.round(currentRating) ? '-fill' : ''}" 
+                           data-rating="${star}" 
+                           onclick="selectRatingStar(this, ${star})"
+                           style="cursor: pointer; color: ${star <= Math.round(currentRating) ? 'var(--warning-color)' : 'var(--border-color)'}; transition: all 0.2s;"
+                           onmouseover="highlightRatingStars(this, ${star})"
+                           onmouseout="resetRatingStars(this, ${Math.round(currentRating)})"></i>
+                    `).join('')}
+                </div>
+                <input type="hidden" id="selectedRating" value="${Math.round(currentRating)}">
+                <p style="text-align: center; color: var(--text-light); font-size: 14px;">
+                    التقييم المحدد: <strong id="ratingText">${Math.round(currentRating)} / 5</strong>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">إلغاء</button>
+                <button onclick="saveCustomerRatingUpdate('${customerId}')" class="btn btn-primary">
+                    <i class="bi bi-save"></i> حفظ
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // إغلاق عند الضغط خارج الـ modal
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+// تحديد نجمة التقييم
+function selectRatingStar(element, rating) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    const selectedRatingInput = document.getElementById('selectedRating');
+    const ratingText = document.getElementById('ratingText');
+    
+    stars.forEach((star, index) => {
+        const starRating = parseInt(star.dataset.rating);
+        if (starRating <= rating) {
+            star.className = 'bi bi-star-fill';
+            star.style.color = 'var(--warning-color)';
+        } else {
+            star.className = 'bi bi-star';
+            star.style.color = 'var(--border-color)';
+        }
+    });
+    
+    if (selectedRatingInput) {
+        selectedRatingInput.value = rating;
+    }
+    if (ratingText) {
+        ratingText.textContent = `${rating} / 5`;
+    }
+}
+
+// تمييز النجوم عند المرور بالماوس
+function highlightRatingStars(element, rating) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    
+    stars.forEach((star) => {
+        const starRating = parseInt(star.dataset.rating);
+        if (starRating <= rating) {
+            star.style.color = 'var(--warning-color)';
+            star.style.transform = 'scale(1.1)';
+        }
+    });
+}
+
+// إعادة تعيين النجوم
+function resetRatingStars(element, currentRating) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    
+    stars.forEach((star) => {
+        const starRating = parseInt(star.dataset.rating);
+        const selectedRatingInput = document.getElementById('selectedRating');
+        const selectedRating = selectedRatingInput ? parseInt(selectedRatingInput.value) : currentRating;
+        
+        if (starRating <= selectedRating) {
+            star.style.color = 'var(--warning-color)';
+        } else {
+            star.style.color = 'var(--border-color)';
+        }
+        star.style.transform = 'scale(1)';
+    });
+}
+
+// حفظ التقييم المحدث
+async function saveCustomerRatingUpdate(customerId) {
+    const selectedRatingInput = document.getElementById('selectedRating');
+    if (!selectedRatingInput) {
+        showMessage('لم يتم العثور على التقييم المحدد', 'error');
+        return;
+    }
+    
+    const rating = parseInt(selectedRatingInput.value);
+    if (rating < 1 || rating > 5) {
+        showMessage('التقييم يجب أن يكون بين 1 و 5', 'error');
+        return;
+    }
+    
+    try {
+        const result = await API.updateCustomerRating(customerId, rating);
+        
+        if (result && result.success) {
+            showMessage('تم تحديث التقييم بنجاح', 'success');
+            // إغلاق modal
+            const modal = document.querySelector('.modal');
+            if (modal) {
+                modal.remove();
+            }
+            // إعادة تحميل البروفايل
+            setTimeout(() => {
+                viewCustomerProfile(customerId);
+            }, 500);
+        } else {
+            showMessage(result?.message || 'فشل تحديث التقييم', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في تحديث التقييم:', error);
+        showMessage('حدث خطأ أثناء تحديث التقييم', 'error');
+    }
+}
+
+// عرض المبيعات مع pagination
+function displaySalesWithPagination(allSales) {
+    const tbody = document.getElementById('customerSalesTableBody');
+    if (!tbody) return;
+    
+    const paginated = paginate(allSales, window.currentSalesPage || 1, window.salesPerPage || 5);
+    
+    if (paginated.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد فواتير</td></tr>';
+        const paginationContainer = document.getElementById('customerSalesPagination');
+        if (paginationContainer) {
+            paginationContainer.innerHTML = '';
+        }
+        return;
+    }
+    
+    // بناء HTML للفواتير
+    const fragment = document.createDocumentFragment();
+    paginated.data.forEach(sale => {
+        try {
+            const saleNumber = sale.sale_number || sale.id || 'غير محدد';
+            const items = sale.items && Array.isArray(sale.items) ? sale.items : [];
+            const itemsCount = items.length;
+            
+            let totalAmount = parseFloat(sale.total_amount || 0);
+            let finalAmount = parseFloat(sale.final_amount || 0);
+            
+            if (items.length > 0 && (totalAmount === 0 || finalAmount === 0)) {
+                const calculatedTotal = items.reduce((sum, item) => {
+                    const itemPrice = parseFloat(item.total_price || 0);
+                    const itemQty = parseInt(item.quantity || 1);
+                    return sum + (itemPrice * itemQty);
+                }, 0);
+                
+                if (totalAmount === 0 && !isNaN(calculatedTotal)) {
+                    totalAmount = calculatedTotal;
+                }
+                if (finalAmount === 0 && !isNaN(calculatedTotal)) {
+                    const discount = parseFloat(sale.discount || 0);
+                    const tax = parseFloat(sale.tax || 0);
+                    finalAmount = calculatedTotal - discount + tax;
+                }
+            }
+            
+            totalAmount = isNaN(totalAmount) ? 0 : totalAmount;
+            finalAmount = isNaN(finalAmount) ? 0 : finalAmount;
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <div class="invoice-number-cell">
+                        <strong class="invoice-number-text">${escapeHtml(saleNumber)}</strong>
+                    </div>
+                </td>
+                <td>
+                    <div class="invoice-date-cell">
+                        <i class="bi bi-calendar3"></i>
+                        <span>${formatDate(sale.created_at)}</span>
+                    </div>
+                </td>
+                <td style="text-align: center;">
+                    <span class="invoice-items-badge">
+                        <i class="bi bi-box-seam"></i> ${itemsCount}
+                    </span>
+                </td>
+                <td style="text-align: right;">
+                    <strong class="invoice-final-amount">
+                        ${finalAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
+                    </strong>
+                </td>
+                <td style="text-align: center;">
+                    <div class="invoice-actions">
+                        <button onclick="printSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-pdf">
+                            <i class="bi bi-printer"></i> طباعة الفاتورة
+                        </button>
+                    </div>
+                </td>
+            `;
+            fragment.appendChild(row);
+        } catch (error) {
+            console.error('خطأ في معالجة فاتورة:', error, sale);
+        }
+    });
+    
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
+    
+    // عرض pagination
+    const paginationContainer = document.getElementById('customerSalesPagination');
+    if (paginationContainer) {
+        createPaginationButtons(
+            paginationContainer,
+            paginated.totalPages,
+            window.currentSalesPage || 1,
+            (page) => {
+                window.currentSalesPage = page;
+                const allSales = window.currentCustomerSales || [];
+                filterAndDisplaySales(allSales);
+            }
+        );
+    }
+}
+
+// فلترة وعرض المبيعات
+function filterAndDisplaySales(allSales) {
+    const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
+    const dateSearchInput = document.getElementById('salesSearchDate');
+    
+    let filtered = [...allSales];
+    
+    // فلترة برقم الفاتورة
+    if (invoiceSearchInput && invoiceSearchInput.value.trim()) {
+        const searchTerm = invoiceSearchInput.value.trim().toLowerCase();
+        filtered = filtered.filter(sale => {
+            const saleNumber = (sale.sale_number || sale.id || '').toLowerCase();
+            return saleNumber.includes(searchTerm);
+        });
+    }
+    
+    // فلترة بالتاريخ
+    if (dateSearchInput && dateSearchInput.value) {
+        const searchDate = dateSearchInput.value;
+        filtered = filtered.filter(sale => {
+            if (!sale.created_at) return false;
+            const saleDate = new Date(sale.created_at).toISOString().split('T')[0];
+            return saleDate === searchDate;
+        });
+    }
+    
+    // إعادة تعيين الصفحة الحالية
+    window.currentSalesPage = 1;
+    
+    // عرض الفواتير المفلترة
+    displaySalesWithPagination(filtered);
+}
+
+// مسح البحث
+function clearSalesSearch() {
+    const invoiceSearchInput = document.getElementById('salesSearchInvoiceNumber');
+    const dateSearchInput = document.getElementById('salesSearchDate');
+    
+    if (invoiceSearchInput) invoiceSearchInput.value = '';
+    if (dateSearchInput) dateSearchInput.value = '';
+    
+    const allSales = window.currentCustomerSales || [];
+    window.currentSalesPage = 1;
+    displaySalesWithPagination(allSales);
 }
 

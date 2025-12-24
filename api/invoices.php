@@ -754,7 +754,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 width: 80mm !important;
                 max-width: 80mm !important;
                 margin: 0 !important;
-                padding: 10px 5px !important;
+                padding: 8px 4px !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
                 overflow: visible !important;
@@ -771,6 +771,10 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-wrapper * {
                 max-width: 100% !important;
                 box-sizing: border-box !important;
+            }
+            
+            .invoice-wrapper > * {
+                page-break-inside: avoid !important;
             }
             .invoice-logo-section {
                 margin-bottom: 10px !important;
@@ -809,20 +813,59 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-items-table {
                 width: 100% !important;
                 max-width: 100% !important;
-                font-size: 0.7em !important;
+                font-size: 0.65em !important;
                 page-break-inside: avoid !important;
                 display: table !important;
                 border-collapse: collapse !important;
                 table-layout: fixed !important;
                 box-sizing: border-box !important;
+                margin: 0 !important;
             }
             .invoice-items-table th,
             .invoice-items-table td {
-                padding: 3px 1px !important;
-                font-size: 0.7em !important;
+                padding: 2px 1px !important;
+                font-size: 0.65em !important;
                 box-sizing: border-box !important;
                 word-wrap: break-word !important;
                 overflow-wrap: break-word !important;
+                white-space: normal !important;
+                line-height: 1.2 !important;
+            }
+            /* تحديد عرض الأعمدة بدقة لـ 80mm */
+            .invoice-items-table th:nth-child(1),
+            .invoice-items-table td:nth-child(1) {
+                width: 8% !important;
+                min-width: 0 !important;
+                max-width: 8% !important;
+                text-align: center !important;
+            }
+            .invoice-items-table th:nth-child(2),
+            .invoice-items-table td:nth-child(2) {
+                width: 32% !important;
+                min-width: 0 !important;
+                max-width: 32% !important;
+                text-align: right !important;
+            }
+            .invoice-items-table th:nth-child(3),
+            .invoice-items-table td:nth-child(3) {
+                width: 12% !important;
+                min-width: 0 !important;
+                max-width: 12% !important;
+                text-align: center !important;
+            }
+            .invoice-items-table th:nth-child(4),
+            .invoice-items-table td:nth-child(4) {
+                width: 24% !important;
+                min-width: 0 !important;
+                max-width: 24% !important;
+                text-align: right !important;
+            }
+            .invoice-items-table th:nth-child(5),
+            .invoice-items-table td:nth-child(5) {
+                width: 24% !important;
+                min-width: 0 !important;
+                max-width: 24% !important;
+                text-align: right !important;
             }
             .invoice-items-table thead {
                 display: table-header-group !important;
@@ -846,16 +889,26 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 padding: 8px 0 !important;
             }
             .invoice-qrcode {
-                margin: 5px 0 !important;
+                margin: 8px 0 !important;
                 padding: 0 !important;
                 page-break-inside: avoid !important;
                 page-break-before: avoid !important;
                 page-break-after: avoid !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                text-align: center !important;
             }
             .invoice-qrcode img {
-                max-width: 40mm !important;
-                width: 40mm !important;
-                height: 40mm !important;
+                max-width: 45mm !important;
+                width: 45mm !important;
+                height: 45mm !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                margin: 0 auto !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
             .invoice-terms {
                 padding: 8px !important;

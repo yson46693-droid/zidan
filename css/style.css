@@ -4537,6 +4537,15 @@ body {
     .customer-sales-table {
         font-size: 0.85em;
     }
+    
+    .table-container.customer-sales-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .table-container.customer-sales-table table {
+        min-width: 600px;
+    }
 
     .customer-sales-table thead th,
     .customer-sales-table tbody td {

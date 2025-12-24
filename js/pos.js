@@ -1305,6 +1305,13 @@ async function processPayment() {
             filterProducts();
             
             showMessage('تم إتمام عملية البيع بنجاح', 'success');
+            
+            // عرض modal التقييم إذا كان هناك customer_id
+            if (customerId && response.data && response.data.id) {
+                setTimeout(() => {
+                    showRatingModal(customerId, response.data.id);
+                }, 1000); // تأخير ثانية واحدة بعد إظهار الفاتورة
+            }
         } else {
             showMessage(response?.message || 'حدث خطأ في معالجة الدفع', 'error');
         }
@@ -1783,6 +1790,138 @@ function formatDateTime12Hour(dateString) {
     }
 }
 
+// عرض modal التقييم بعد البيع
+function showRatingModal(customerId, saleId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="bi bi-star"></i> تقييم العملية</h3>
+                <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: var(--text-light); text-align: center;">كيف تقيم هذه العملية؟</p>
+                <div id="ratingStarsContainer" style="display: flex; justify-content: center; gap: 15px; font-size: 50px; margin: 30px 0;">
+                    ${[1, 2, 3, 4, 5].map(star => `
+                        <i class="bi bi-star" 
+                           data-rating="${star}" 
+                           onclick="selectRatingStarPOS(this, ${star}, '${customerId}', '${saleId}')"
+                           style="cursor: pointer; color: var(--border-color); transition: all 0.2s;"
+                           onmouseover="highlightRatingStarsPOS(this, ${star})"
+                           onmouseout="resetRatingStarsPOS(this)"></i>
+                    `).join('')}
+                </div>
+                <p style="text-align: center; color: var(--text-light); font-size: 14px;">
+                    اختر من <strong>1</strong> إلى <strong>5</strong> نجوم
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="skipRating('${customerId}', '${saleId}')" class="btn btn-secondary">تخطي</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // إغلاق عند الضغط خارج الـ modal
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+// تحديد نجمة التقييم في POS
+function selectRatingStarPOS(element, rating, customerId, saleId) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    
+    stars.forEach((star) => {
+        const starRating = parseInt(star.dataset.rating);
+        if (starRating <= rating) {
+            star.className = 'bi bi-star-fill';
+            star.style.color = 'var(--warning-color)';
+        } else {
+            star.className = 'bi bi-star';
+            star.style.color = 'var(--border-color)';
+        }
+        star.style.pointerEvents = 'none'; // منع النقر بعد الاختيار
+    });
+    
+    // حفظ التقييم
+    saveRatingPOS(customerId, saleId, rating, container);
+}
+
+// تمييز النجوم عند المرور بالماوس في POS
+function highlightRatingStarsPOS(element, rating) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    
+    stars.forEach((star) => {
+        const starRating = parseInt(star.dataset.rating);
+        if (starRating <= rating && star.className !== 'bi bi-star-fill') {
+            star.style.color = 'var(--warning-color)';
+            star.style.transform = 'scale(1.15)';
+        }
+    });
+}
+
+// إعادة تعيين النجوم في POS
+function resetRatingStarsPOS(element) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    
+    stars.forEach((star) => {
+        if (star.className !== 'bi bi-star-fill') {
+            star.style.color = 'var(--border-color)';
+            star.style.transform = 'scale(1)';
+        }
+    });
+}
+
+// حفظ التقييم في POS
+async function saveRatingPOS(customerId, saleId, rating, starsContainer) {
+    try {
+        const result = await API.saveCustomerRating(customerId, saleId, rating);
+        
+        if (result && result.success) {
+            showMessage('تم حفظ التقييم بنجاح', 'success');
+            // إغلاق modal بعد ثانية
+            setTimeout(() => {
+                const modal = starsContainer.closest('.modal');
+                if (modal) {
+                    modal.remove();
+                }
+            }, 1000);
+        } else {
+            showMessage(result?.message || 'فشل حفظ التقييم', 'error');
+            // إعادة تفعيل النجوم في حالة الخطأ
+            const stars = starsContainer.querySelectorAll('[data-rating]');
+            stars.forEach(star => {
+                star.style.pointerEvents = 'auto';
+            });
+        }
+    } catch (error) {
+        console.error('خطأ في حفظ التقييم:', error);
+        showMessage('حدث خطأ أثناء حفظ التقييم', 'error');
+        // إعادة تفعيل النجوم في حالة الخطأ
+        const stars = starsContainer.querySelectorAll('[data-rating]');
+        stars.forEach(star => {
+            star.style.pointerEvents = 'auto';
+        });
+    }
+}
+
+// تخطي التقييم
+function skipRating(customerId, saleId) {
+    const modal = document.querySelector('.modal');
+    if (modal && modal.querySelector('#ratingStarsContainer')) {
+        modal.remove();
+    }
+}
+
 // Expose functions to global scope for onclick handlers
 window.updateCartQuantity = updateCartQuantity;
 window.removeFromCart = removeFromCart;
@@ -1791,3 +1930,7 @@ window.increaseSparePartItemQuantity = increaseSparePartItemQuantity;
 window.updateSparePartItemQuantity = updateSparePartItemQuantity;
 window.addSparePartItemToCart = addSparePartItemToCart;
 window.closeSparePartItemsModal = closeSparePartItemsModal;
+window.selectRatingStarPOS = selectRatingStarPOS;
+window.highlightRatingStarsPOS = highlightRatingStarsPOS;
+window.resetRatingStarsPOS = resetRatingStarsPOS;
+window.skipRating = skipRating;

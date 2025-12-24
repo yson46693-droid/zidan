@@ -80,8 +80,9 @@ function getNewMessages($lastId) {
                     rm.message as reply_to_message
                 FROM chat_messages cm
                 LEFT JOIN users u ON u.id = cm.user_id
-                LEFT JOIN chat_messages rm ON rm.id = cm.reply_to
+                LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND (rm.deleted_at IS NULL OR rm.deleted_at = '')
                 LEFT JOIN users ru ON ru.id = rm.user_id
+                WHERE (cm.deleted_at IS NULL OR cm.deleted_at = '')
                 ORDER BY cm.id DESC
                 LIMIT 50
             ", []);
@@ -104,9 +105,9 @@ function getNewMessages($lastId) {
                     rm.message as reply_to_message
                 FROM chat_messages cm
                 LEFT JOIN users u ON u.id = cm.user_id
-                LEFT JOIN chat_messages rm ON rm.id = cm.reply_to
+                LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND (rm.deleted_at IS NULL OR rm.deleted_at = '')
                 LEFT JOIN users ru ON ru.id = rm.user_id
-                WHERE cm.id > ?
+                WHERE cm.id > ? AND (cm.deleted_at IS NULL OR cm.deleted_at = '')
                 ORDER BY cm.id ASC
                 LIMIT 50
             ", [$lastId]);

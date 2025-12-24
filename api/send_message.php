@@ -47,7 +47,7 @@ try {
                 cm.message 
             FROM chat_messages cm
             LEFT JOIN users u ON u.id = cm.user_id
-            WHERE cm.id = ?
+            WHERE cm.id = ? AND (cm.deleted_at IS NULL OR cm.deleted_at = '')
         ", [$replyTo]);
         
         if (!$replyToMessage) {

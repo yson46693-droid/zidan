@@ -286,7 +286,7 @@ function displaySpareParts(parts) {
                 </div>
                 
                 <div class="inventory-card-actions">
-                    <button onclick="printSparePartBarcode('${part.id}', '${barcodeImage}')" class="btn btn-info btn-sm" title="طباعة الباركود">
+                    <button onclick="printSparePartBarcode('${part.id}')" class="btn btn-info btn-sm" title="طباعة الباركود">
                         <i class="bi bi-printer"></i> طباعة
                     </button>
                     <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
@@ -873,12 +873,26 @@ function displayPhones(phones) {
     grid.innerHTML = phones.map(phone => {
         const brand = phoneBrands.find(b => b.id === phone.brand.toLowerCase()) || phoneBrands[phoneBrands.length - 1];
         
+        // التحقق من صحة الصورة
+        const isValidImage = phone.image && (
+            phone.image.startsWith('data:image/') || 
+            phone.image.startsWith('http://') || 
+            phone.image.startsWith('https://') || 
+            phone.image.startsWith('/')
+        );
+        
+        // تنظيف الصورة من أي أحرف غير صالحة
+        const cleanImage = phone.image ? phone.image.trim().replace(/"/g, '&quot;').replace(/'/g, '&#39;') : '';
+        const cleanBrand = (phone.brand || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const cleanModel = (phone.model || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const cleanPhoneId = (phone.id || '').replace(/'/g, '&#39;');
+        
         return `
-            <div class="inventory-card" onclick="viewPhoneDetails('${phone.id}')" style="cursor: pointer;">
+            <div class="inventory-card" onclick="viewPhoneDetails('${cleanPhoneId}')" style="cursor: pointer;">
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
-                        <h2>${phone.brand}</h2>
-                        <h1>${phone.model}</h1>
+                        <h2>${cleanBrand}</h2>
+                        <h1>${cleanModel}</h1>
                     </div>
                     <div class="inventory-card-icon">
                         <i class="bi ${brand.icon}"></i>
@@ -886,17 +900,17 @@ function displayPhones(phones) {
                 </div>
                 
                 <div class="inventory-card-body">
-                    ${phone.image ? `
-                        <div class="inventory-card-image">
-                            <img src="${phone.image}" 
-                                 alt="${phone.brand} ${phone.model}" 
+                    ${isValidImage ? `
+                        <div class="inventory-card-image" data-phone-id="${cleanPhoneId}">
+                            <img src="${cleanImage}" 
+                                 alt="${cleanBrand} ${cleanModel}" 
                                  loading="lazy" 
                                  decoding="async"
-                                 onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'bi bi-phone\\' style=\\'font-size: 48px;\\'></i>';">
+                                 onerror="handlePhoneImageError(this, '${cleanPhoneId}');">
                         </div>
                     ` : `
                         <div class="inventory-card-image">
-                            <i class="bi bi-phone" style="font-size: 48px;"></i>
+                            <i class="bi bi-phone" style="font-size: 48px; color: var(--text-light);"></i>
                         </div>
                     `}
                 </div>
@@ -928,18 +942,15 @@ function displayPhones(phones) {
     setTimeout(() => {
         const images = grid.querySelectorAll('.inventory-card-image img');
         images.forEach(img => {
-            if (img.complete) {
+            if (img.complete && img.naturalWidth > 0) {
                 img.classList.add('loaded');
             } else {
                 img.addEventListener('load', function() {
                     this.classList.add('loaded');
                 });
                 img.addEventListener('error', function() {
-                    this.style.display = 'none';
-                    const placeholder = document.createElement('i');
-                    placeholder.className = 'bi bi-phone';
-                    placeholder.style.fontSize = '48px';
-                    this.parentElement.appendChild(placeholder);
+                    const phoneId = this.closest('.inventory-card-image')?.dataset?.phoneId;
+                    handlePhoneImageError(this, phoneId);
                 });
             }
         });
@@ -1003,15 +1014,27 @@ function viewPhoneDetails(id) {
         </div>
         
         <div style="max-height: 80vh; overflow-y: auto; padding: 20px;">
-            ${phone.image ? `
-                <div style="text-align: center; margin-bottom: 25px;">
-                    <img src="${phone.image}" 
-                         alt="${phone.brand} ${phone.model}" 
-                         loading="lazy"
-                         decoding="async"
-                         style="max-width: 250px; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1); image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; image-rendering: high-quality;">
-                </div>
-            ` : ''}
+            ${(() => {
+                // التحقق من صحة الصورة
+                const isValidImage = phone.image && (
+                    phone.image.startsWith('data:image/') || 
+                    phone.image.startsWith('http://') || 
+                    phone.image.startsWith('https://') || 
+                    phone.image.startsWith('/')
+                );
+                const cleanImage = phone.image ? phone.image.trim().replace(/"/g, '&quot;') : '';
+                
+                return isValidImage ? `
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <img src="${cleanImage}" 
+                             alt="${(phone.brand + ' ' + phone.model).replace(/"/g, '&quot;')}" 
+                             loading="lazy"
+                             decoding="async"
+                             onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<i class=\\'bi bi-phone\\' style=\\'font-size: 64px; color: var(--text-light);\\'></i>';"
+                             style="max-width: 250px; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1); image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; image-rendering: high-quality; object-fit: contain;">
+                    </div>
+                ` : '';
+            })()}
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
                 <!-- المعلومات الأساسية -->
@@ -2005,6 +2028,40 @@ async function handlePhoneImageUpload(input) {
     }
 }
 
+// دالة معالجة أخطاء تحميل صور الهواتف
+function handlePhoneImageError(imgElement, phoneId) {
+    try {
+        if (!imgElement || !imgElement.parentElement) return;
+        
+        const imageContainer = imgElement.parentElement;
+        
+        // إخفاء الصورة
+        imgElement.style.display = 'none';
+        
+        // التحقق من عدم وجود placeholder بالفعل
+        if (imageContainer.querySelector('.bi-phone')) {
+            return;
+        }
+        
+        // إضافة placeholder
+        const placeholder = document.createElement('i');
+        placeholder.className = 'bi bi-phone';
+        placeholder.style.fontSize = '48px';
+        placeholder.style.color = 'var(--text-light)';
+        placeholder.style.display = 'block';
+        placeholder.style.margin = '0 auto';
+        
+        imageContainer.appendChild(placeholder);
+        
+        // تسجيل الخطأ للتشخيص
+        if (phoneId) {
+            console.warn(`فشل تحميل صورة الهاتف: ${phoneId}`);
+        }
+    } catch (error) {
+        console.error('خطأ في معالجة خطأ الصورة:', error);
+    }
+}
+
 // دالة ضغط الصور (مستعارة من repairs.js)
 function compressImage(file, maxWidth = 800, quality = 0.8) {
     return new Promise((resolve, reject) => {
@@ -2219,8 +2276,16 @@ function printAccessoryBarcode(id) {
         return;
     }
     
+    // طلب عدد النسخ
+    const copies = prompt('كم عدد النسخ المطلوبة للطباعة؟', '1');
+    if (!copies || isNaN(copies) || parseInt(copies) < 1) {
+        return;
+    }
+    
+    const numCopies = parseInt(copies);
+    
     // إنشاء باركود
-    const barcode = `${accessory.id}-${Date.now()}`;
+    const barcode = accessory.barcode || `${accessory.id}-${accessory.name.replace(/\s+/g, '-')}`;
     let barcodeImage = '';
     try {
         if (typeof BarcodeGenerator !== 'undefined') {
@@ -2228,14 +2293,44 @@ function printAccessoryBarcode(id) {
             barcodeImage = barcodeGenerator.generateBarcode(barcode, 300, 80);
         } else if (typeof window.barcodeGenerator !== 'undefined') {
             barcodeImage = window.barcodeGenerator.generateBarcode(barcode, 300, 80);
+        } else {
+            showMessage('خطأ: مكتبة الباركود غير متاحة', 'error');
+            return;
         }
     } catch (error) {
         console.error('خطأ في إنشاء الباركود:', error);
+        showMessage('حدث خطأ في إنشاء الباركود', 'error');
+        return;
     }
     
     // إنشاء نافذة الطباعة
     const printWindow = window.open('', '_blank');
     const type = accessoryTypes.find(t => t.id === accessory.type);
+    
+    // إنشاء محتوى الطباعة
+    let printContent = '';
+    for (let i = 0; i < numCopies; i++) {
+        printContent += `
+            <div class="barcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 20px;">
+                <div class="barcode-header">
+                    <h2>${accessory.name}</h2>
+                    ${type ? `<p>${type.name}</p>` : ''}
+                </div>
+                <div class="barcode-image">
+                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 24px; font-size: 24px; background: #f0f0f0; border-radius: 5px;">باركود</div>'}
+                </div>
+                <div class="barcode-code">
+                    ${barcode}
+                </div>
+                <div class="barcode-info">
+                    <div class="barcode-info-item">
+                        <span class="barcode-info-label">السعر:</span>
+                        <span class="barcode-info-value">${formatCurrency(accessory.selling_price || 0)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
     
     printWindow.document.write(`
         <!DOCTYPE html>
@@ -2334,6 +2429,11 @@ function printAccessoryBarcode(id) {
                         box-shadow: none;
                         border: 1px solid #ddd;
                         font-size: 22px;
+                        page-break-inside: avoid;
+                        margin-bottom: 10mm;
+                    }
+                    .no-print {
+                        display: none;
                     }
                     @page {
                         size: A4;
@@ -2343,23 +2443,17 @@ function printAccessoryBarcode(id) {
             </style>
         </head>
         <body>
-            <div class="barcode-container">
-                <div class="barcode-header">
-                    <h2>${accessory.name}</h2>
-                </div>
-                <div class="barcode-image">
-                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 24px; font-size: 24px; background: #f0f0f0; border-radius: 5px;">باركود</div>'}
-                </div>
-                <div class="barcode-info">
-                    <div class="barcode-info-item">
-                        <span class="barcode-info-label">السعر:</span>
-                        <span class="barcode-info-value">${formatCurrency(accessory.selling_price || 0)}</span>
-                    </div>
-                </div>
+            ${printContent}
+            <div class="no-print" style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
             </div>
             <script>
                 window.onload = function() {
-                    window.print();
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
                 };
             </script>
         </body>
@@ -2401,10 +2495,31 @@ function fallbackCopyBarcode(barcode) {
 }
 
 // دالة طباعة باركود قطع الغيار
-function printSparePartBarcode(partId, barcode, barcodeImage) {
+function printSparePartBarcode(partId) {
     const part = allSpareParts.find(p => p.id === partId);
     if (!part) {
         showMessage('قطعة الغيار غير موجودة', 'error');
+        return;
+    }
+    
+    // التأكد من وجود الباركود
+    const actualBarcode = part.barcode || `${part.brand}-${part.model}-${part.id}`;
+    
+    // إنشاء صورة الباركود
+    let actualBarcodeImage = '';
+    try {
+        if (typeof BarcodeGenerator !== 'undefined') {
+            const barcodeGenerator = new BarcodeGenerator();
+            actualBarcodeImage = barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
+        } else if (typeof window.barcodeGenerator !== 'undefined') {
+            actualBarcodeImage = window.barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
+        } else {
+            showMessage('خطأ: مكتبة الباركود غير متاحة', 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('خطأ في إنشاء الباركود:', error);
+        showMessage('حدث خطأ في إنشاء الباركود', 'error');
         return;
     }
     
@@ -2430,7 +2545,10 @@ function printSparePartBarcode(partId, barcode, barcodeImage) {
                         <p>${part.model}</p>
                     </div>
                     <div class="barcode-label-barcode">
-                        <img src="${barcodeImage}" alt="Barcode ${barcode}">
+                        <img src="${actualBarcodeImage}" alt="Barcode ${actualBarcode}">
+                    </div>
+                    <div class="barcode-label-code">
+                        ${actualBarcode}
                     </div>
                 </div>
             </div>
