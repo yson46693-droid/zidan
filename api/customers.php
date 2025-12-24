@@ -234,7 +234,9 @@ if ($method === 'GET') {
     // Filter by customer type if provided
     $customerType = $_GET['type'] ?? null;
     
-    $query = "SELECT c.*, 
+    // استخدام استعلام محسّن متوافق مع ONLY_FULL_GROUP_BY
+    // تحديد الأعمدة صراحة بدلاً من c.* لتجنب مشاكل GROUP BY
+    $query = "SELECT c.id, c.name, c.phone, c.address, c.customer_type, c.shop_name, c.notes, c.created_at, c.updated_at, c.created_by,
               COALESCE(AVG(cr.rating), 0) as average_rating,
               COUNT(cr.id) as total_ratings
               FROM customers c
@@ -247,12 +249,20 @@ if ($method === 'GET') {
         $params[] = $customerType;
     }
     
-    $query .= " GROUP BY c.id ORDER BY c.created_at DESC";
+    // إضافة جميع الأعمدة في GROUP BY للتوافق مع ONLY_FULL_GROUP_BY
+    $query .= " GROUP BY c.id, c.name, c.phone, c.address, c.customer_type, c.shop_name, c.notes, c.created_at, c.updated_at, c.created_by ORDER BY c.created_at DESC";
     
     $customers = dbSelect($query, $params);
     
     if ($customers === false) {
+        error_log("خطأ في جلب العملاء: " . (isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف'));
         response(false, 'خطأ في قراءة العملاء', null, 500);
+    }
+    
+    // التأكد من أن $customers هو array (قد يكون null أو false)
+    if (!is_array($customers)) {
+        error_log("تحذير: dbSelect لم يرجع array للعملاء، القيمة: " . var_export($customers, true));
+        $customers = [];
     }
     
     // تحويل التقييمات إلى أرقام
