@@ -67,14 +67,20 @@ class SecurityManager {
                     // الاستجابة ليست JSON - تجاهل بصمت
                     return;
                 }
+            } else if (response.status === 404) {
+                // الملف غير موجود - استخدام إعدادات افتراضية فارغة
+                this.telegramBotToken = '';
+                this.telegramChatId = '';
+                return;
             } else {
-                // الملف غير موجود أو غير متاح - هذا طبيعي ولا يعتبر خطأ
-                // لا نطبع أي شيء لتجنب إرباك المستخدم
+                // خطأ آخر - تجاهل بصمت
                 return;
             }
         } catch (error) {
             // تجاهل جميع الأخطاء بصمت - الملف اختياري
-            // لا نطبع أي شيء لتجنب إرباك المستخدم
+            // استخدام إعدادات افتراضية فارغة في حالة الخطأ
+            this.telegramBotToken = '';
+            this.telegramChatId = '';
             return;
         }
     }

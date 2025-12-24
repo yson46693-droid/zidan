@@ -30,16 +30,9 @@ function checkProductReturnsPermission() {
         return true;
     }
     
-    // الموظف في الفرع الأول (HANOVIL)
-    if ($userRole === 'employee' && $userBranchId) {
-        try {
-            $branch = dbSelectOne("SELECT code FROM branches WHERE id = ?", [$userBranchId]);
-            if ($branch && $branch['code'] === 'HANOVIL') {
-                return true;
-            }
-        } catch (Exception $e) {
-            error_log('خطأ في التحقق من صلاحيات الاسترجاع: ' . $e->getMessage());
-        }
+    // جميع الموظفين مسموح لهم
+    if ($userRole === 'employee') {
+        return true;
     }
     
     return false;

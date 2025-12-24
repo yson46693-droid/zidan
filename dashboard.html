@@ -1604,8 +1604,8 @@
                 else if (isManager && (!branchCode || branchCode === 'HANOVIL')) {
                     hasPermission = true;
                 }
-                // الموظف في الفرع الأول (HANOVIL)
-                else if (isEmployee && branchCode === 'HANOVIL') {
+                // جميع الموظفين مسموح لهم
+                else if (isEmployee) {
                     hasPermission = true;
                 }
                 
@@ -1617,14 +1617,9 @@
             }
             
             if (isEmployee) {
-                // الأقسام المسموحة للموظف: repairs, inventory, profile, product-returns (إذا كان في الفرع الأول)
+                // الأقسام المسموحة للموظف: repairs, inventory, profile, product-returns
                 // الأقسام المحظورة للموظف
                 const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings'];
-                
-                // product-returns مسموح فقط للموظف في الفرع الأول (HANOVIL)
-                if (section === 'product-returns' && branchCode !== 'HANOVIL') {
-                    forbiddenSections.push('product-returns');
-                }
                 
                 if (forbiddenSections.includes(section)) {
                     console.warn('🚫 محاولة الوصول إلى قسم محظور للموظف:', section);

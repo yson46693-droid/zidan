@@ -114,7 +114,7 @@ function loadSettingsSection() {
                         <option value="0">يدوي فقط (بدون مزامنة تلقائية)</option>
                     </select>
                 </div>
-                <button onclick="syncManager.manualSync()" class="btn btn-primary"><i class="bi bi-arrow-clockwise"></i> مزامنة الآن</button>
+                <button onclick="if(typeof syncManager !== 'undefined' && syncManager){syncManager.manualSync();}else{showMessage('نظام المزامنة غير متوفر حالياً', 'error');}" class="btn btn-primary"><i class="bi bi-arrow-clockwise"></i> مزامنة الآن</button>
                 <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
                     آخر مزامنة: <span id="lastSyncTime">لم تتم بعد</span>
                 </p>
@@ -291,11 +291,14 @@ function loadSettingsSection() {
                         // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
                         return null;
                     }),
-                    loadSyncFrequency().catch(err => {
-                        console.error('خطأ في تحميل تردد المزامنة:', err);
-                        console.error('تفاصيل الخطأ:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-                        // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
-                        return null;
+                    Promise.resolve().then(() => {
+                        try {
+                            return loadSyncFrequency();
+                        } catch (err) {
+                            console.error('خطأ في تحميل تردد المزامنة:', err);
+                            console.error('تفاصيل الخطأ:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                            return null;
+                        }
                     }),
                     loadBackupInfo().catch(err => {
                         console.error('خطأ في تحميل معلومات النسخ الاحتياطية:', err);
@@ -1146,6 +1149,11 @@ function restoreBackup() {
 
 // تحديث تردد المزامنة
 function updateSyncFrequency() {
+    if (typeof syncManager === 'undefined' || !syncManager) {
+        showMessage('نظام المزامنة غير متوفر حالياً', 'error');
+        return;
+    }
+    
     const frequency = parseInt(document.getElementById('syncFrequency').value);
     
     if (frequency === 0) {
@@ -1167,7 +1175,7 @@ function loadSyncFrequency() {
         const frequencySelect = document.getElementById('syncFrequency');
         if (frequencySelect) {
             frequencySelect.value = savedFrequency;
-            if (parseInt(savedFrequency) > 0) {
+            if (parseInt(savedFrequency) > 0 && typeof syncManager !== 'undefined' && syncManager) {
                 syncManager.setFrequency(parseInt(savedFrequency));
             }
         }
@@ -1177,7 +1185,7 @@ function loadSyncFrequency() {
 // تحديث وقت آخر مزامنة
 setInterval(() => {
     const lastSyncElement = document.getElementById('lastSyncTime');
-    if (lastSyncElement && syncManager.lastSyncTime) {
+    if (lastSyncElement && typeof syncManager !== 'undefined' && syncManager && syncManager.lastSyncTime) {
         const timeStr = syncManager.lastSyncTime.toLocaleTimeString('ar-EG', {
             timeZone: 'Africa/Cairo',
             hour: '2-digit',
