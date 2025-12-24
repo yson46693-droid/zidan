@@ -309,6 +309,11 @@ body {
     user-select: none;
 }
 
+/* إخفاء زر التحديث على الشاشات الكبيرة (يظهر فقط على الهاتف) */
+.top-bar .header-actions #mobileRefreshBtn {
+    display: none !important;
+}
+
 .sync-indicator:hover {
     background: var(--border-color);
     transform: scale(1.05);
@@ -1663,6 +1668,38 @@ body {
     .top-bar .header-actions .sync-indicator {
         display: none !important;
         visibility: hidden !important;
+    }
+    
+    /* زر التحديث للهاتف فقط - يظهر فقط على الهاتف */
+    .top-bar .header-actions #mobileRefreshBtn {
+        display: flex !important;
+        min-width: 36px;
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 2px solid var(--primary-color);
+        border-radius: 6px;
+        background: var(--white);
+        align-items: center;
+        justify-content: center;
+        order: 0;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+    
+    .top-bar .header-actions #mobileRefreshBtn i {
+        color: var(--primary-color);
+        font-size: 1.1em;
+    }
+    
+    .top-bar .header-actions #mobileRefreshBtn:hover {
+        background: var(--light-bg);
+        transform: scale(1.05);
+    }
+    
+    .top-bar .header-actions #mobileRefreshBtn:active {
+        transform: scale(0.95);
     }
     
     /* ضمان أن جميع الأزرار بنفس الحجم */
