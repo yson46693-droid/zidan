@@ -727,6 +727,9 @@ async function updateUsersActivity() {
             
             // تحديث عرض حالة النشاط في قائمة المشاركين
             updateActivityDisplay();
+            
+            // تحديث حالة النشاط في الرسائل
+            updateMessagesActivity();
         }
     } catch (error) {
         console.error('خطأ في تحديث حالة النشاط:', error);
@@ -757,6 +760,49 @@ function updateActivityDisplay() {
                     info.appendChild(badge);
                 }
             }
+        }
+    });
+}
+
+// تحديث حالة النشاط في الرسائل
+function updateMessagesActivity() {
+    const messageElements = document.querySelectorAll('.message');
+    messageElements.forEach(messageElement => {
+        const messageId = messageElement.dataset.messageId;
+        if (!messageId) return;
+        
+        // البحث عن الرسالة في المصفوفة
+        const message = messages.find(m => m.id === messageId);
+        if (!message || !message.user_id) return;
+        
+        const userId = message.user_id;
+        const avatar = messageElement.querySelector('.message-avatar');
+        if (!avatar) return;
+        
+        // البحث عن مؤشر النشاط الموجود أو إنشاء واحد جديد
+        let indicator = avatar.querySelector('.online-indicator');
+        
+        if (usersActivity[userId]) {
+            const activity = usersActivity[userId];
+            
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'online-indicator';
+                avatar.appendChild(indicator);
+            }
+            
+            indicator.className = `online-indicator ${activity.is_online ? 'online' : 'offline'}`;
+            indicator.title = activity.is_online ? 'نشط الآن' : (activity.time_ago_text || 'غير متصل');
+        } else {
+            // إذا لم تكن هناك معلومات، افتراضياً غير متصل
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'online-indicator offline';
+                avatar.appendChild(indicator);
+            } else {
+                indicator.className = 'online-indicator offline';
+            }
+            indicator.title = 'غير متصل';
         }
     });
 }
