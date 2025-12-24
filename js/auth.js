@@ -130,6 +130,21 @@ async function checkLogin() {
         return user;
     } catch (error) {
         console.error('خطأ في checkLogin:', error);
+        
+        // في حالة خطأ، محاولة استخدام البيانات المحفوظة
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                console.log('⚠️ استخدام بيانات المستخدم المحفوظة بعد الخطأ');
+                // تحديث cache بدون تحديث cacheTime (لإجبار إعادة المحاولة لاحقاً)
+                cachedAuthResult = user;
+                return user;
+            }
+        } catch (e) {
+            console.error('خطأ في قراءة البيانات المحفوظة:', e);
+        }
+        
         cachedAuthResult = null;
         cacheTime = 0;
         return null;
