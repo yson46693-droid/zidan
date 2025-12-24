@@ -1527,6 +1527,27 @@
                         const appVersion = '2.0.1';
                         const swUrl = '/sw.js';
                         
+                        // التحقق من أن الملف موجود وأنه JavaScript وليس HTML
+                        try {
+                            const response = await fetch(swUrl, { method: 'HEAD' });
+                            const contentType = response.headers.get('content-type') || '';
+                            
+                            if (contentType.includes('text/html')) {
+                                console.warn('⚠️ Service Worker file returns HTML instead of JavaScript. Server configuration issue.');
+                                console.warn('   The server may be returning an error page or redirecting 404 errors to index.html');
+                                console.warn('   Please check server configuration or ensure sw.js file exists');
+                                return; // عدم محاولة التسجيل إذا كان الملف غير صحيح
+                            }
+                            
+                            if (!response.ok) {
+                                console.warn(`⚠️ Service Worker file not accessible: ${response.status} ${response.statusText}`);
+                                return;
+                            }
+                        } catch (fetchError) {
+                            console.warn('⚠️ Could not verify Service Worker file:', fetchError);
+                            // نستمر في المحاولة رغم ذلك
+                        }
+                        
                         const registration = await navigator.serviceWorker.register(swUrl, {
                             scope: '/',
                             updateViaCache: 'none'
@@ -1584,7 +1605,17 @@
                         // التحقق بشكل دوري كل 30 ثانية
                         setInterval(checkForUpdates, 30000); // كل 30 ثانية
                     } catch (error) {
-                        console.warn('Service Worker registration failed:', error);
+                        // معالجة أفضل للأخطاء
+                        if (error.message && error.message.includes('MIME type')) {
+                            console.error('❌ Service Worker registration failed: Server returned wrong MIME type (HTML instead of JavaScript)');
+                            console.error('   This usually means:');
+                            console.error('   1. The sw.js file does not exist on the server');
+                            console.error('   2. The server is redirecting 404 errors to index.html');
+                            console.error('   3. Server MIME type configuration is incorrect');
+                            console.error('   Solution: Check .htaccess file and ensure sw.js is accessible');
+                        } else {
+                            console.warn('⚠️ Service Worker registration failed:', error.message || error);
+                        }
                     }
                 }
             };
