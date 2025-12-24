@@ -110,6 +110,9 @@ async function initializeChat() {
             throw new Error('API غير متاح');
         }
         
+        // حذف جميع إشعارات الرسائل عند فتح صفحة الشات
+        clearChatNotifications();
+        
         // تحديث معلومات المستخدم الحالي
         updateCurrentUserSection();
         
@@ -145,7 +148,8 @@ async function initializeChat() {
 // تحميل الرسائل عند الدخول
 async function loadMessages() {
     try {
-        const result = await API.request('get_messages.php');
+        // استدعاء get_messages.php مع silent flag لمنع عرض loading overlay أثناء التحديثات
+        const result = await API.request('get_messages.php', 'GET', null, { silent: false });
         
         if (result && result.success && result.data) {
             messages = result.data || [];
@@ -578,7 +582,10 @@ async function performLongPoll() {
         const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
-            signal: longPollingAbortController.signal
+            signal: longPollingAbortController.signal,
+            headers: {
+                'X-Silent-Request': 'true' // منع عرض loading overlay لطلبات Long Polling
+            }
         });
         
         if (!response.ok) {
@@ -1060,10 +1067,24 @@ function renderUsers(users) {
     
     participantsList.appendChild(fragment);
     
-    // حفظ في usersActivity
+    // حفظ في usersActivity و allUsers
     users.forEach(user => {
         usersActivity[user.user_id] = user;
     });
+    
+    // حفظ في allUsers للـ mention
+    allUsers = users.map(user => ({
+        user_id: user.user_id,
+        name: user.name,
+        username: user.username
+    }));
+    
+    // حفظ في allUsers للـ mention
+    allUsers = users.map(user => ({
+        user_id: user.user_id,
+        name: user.name,
+        username: user.username
+    }));
 }
 
 // معالجة تغيير حالة التاب
@@ -1509,11 +1530,33 @@ function loadSavedNotifications() {
 // تحميل الإشعارات عند التهيئة
 loadSavedNotifications();
 
+// حذف جميع إشعارات الرسائل عند فتح صفحة الشات
+function clearChatNotifications() {
+    try {
+        // استدعاء وظيفة حذف الإشعارات من GlobalNotificationManager إذا كان متاحاً
+        if (typeof window.GlobalNotificationManager !== 'undefined' && window.GlobalNotificationManager.clearChatNotifications) {
+            window.GlobalNotificationManager.clearChatNotifications();
+        }
+        
+        // حذف آخر معرف رسالة من localStorage لإجبار النظام على إعادة الجلب
+        localStorage.removeItem('lastChatMessageId');
+        
+        // إغلاق جميع الإشعارات المفتوحة (لا يمكن إغلاقها مباشرة في JavaScript)
+        // لكن يمكننا تحديث lastMessageId لإجبار النظام على التوقف عن عرض إشعارات قديمة
+        
+        console.log('✅ تم حذف إشعارات الرسائل عند فتح صفحة الشات');
+    } catch (error) {
+        console.error('خطأ في حذف إشعارات الرسائل:', error);
+    }
+}
+
 // معالجة إدخال @ للـ mention
 function handleMentionInput(e) {
     const chatInput = e.target;
+    if (!chatInput) return;
+    
     const value = chatInput.value;
-    const cursorPosition = chatInput.selectionStart;
+    const cursorPosition = chatInput.selectionStart || 0;
     
     // البحث عن @ قبل موضع المؤشر
     const textBeforeCursor = value.substring(0, cursorPosition);
@@ -1525,9 +1568,16 @@ function handleMentionInput(e) {
         if (charBefore === ' ' || charBefore === '\n' || lastAtIndex === 0) {
             const query = textBeforeCursor.substring(lastAtIndex + 1);
             // التحقق من أن الاستعلام لا يحتوي على مسافات (لم يكتمل الـ mention بعد)
-            if (!query.includes(' ') && !query.includes('\n')) {
+            if (!query.includes(' ') && !query.includes('\n') && !query.includes('@')) {
                 mentionStartPosition = lastAtIndex;
-                showMentionMenu(query);
+                // التأكد من تحميل المستخدمين إذا لم تكن محملة
+                if (!allUsers || allUsers.length === 0) {
+                    loadUsers().then(() => {
+                        showMentionMenu(query);
+                    });
+                } else {
+                    showMentionMenu(query);
+                }
                 return;
             }
         }
@@ -1671,16 +1721,32 @@ function showMentionMenu(query = '') {
 // تحديد موضع قائمة الـ mention
 function positionMentionMenu(chatInput) {
     const mentionMenu = document.getElementById('mentionMenu');
-    if (!mentionMenu) return;
+    if (!mentionMenu || !chatInput) return;
     
     const inputRect = chatInput.getBoundingClientRect();
-    const inputContainer = chatInput.closest('.chat-input-container');
+    const inputContainer = chatInput.closest('.chat-input-container') || chatInput.closest('.chat-footer');
     const containerRect = inputContainer ? inputContainer.getBoundingClientRect() : inputRect;
     
-    mentionMenu.style.bottom = `${window.innerHeight - containerRect.top + 10}px`;
+    // حساب الموضع فوق حقل الإدخال
+    const menuHeight = mentionMenu.offsetHeight || 200; // ارتفاع تقريبي
+    const spaceAbove = inputRect.top;
+    const spaceBelow = window.innerHeight - inputRect.bottom;
+    
+    if (spaceAbove > menuHeight + 20) {
+        // عرض القائمة فوق حقل الإدخال
+        mentionMenu.style.bottom = `${window.innerHeight - inputRect.top + 10}px`;
+        mentionMenu.style.top = 'auto';
+    } else {
+        // عرض القائمة تحت حقل الإدخال
+        mentionMenu.style.top = `${inputRect.bottom + 10}px`;
+        mentionMenu.style.bottom = 'auto';
+    }
+    
     mentionMenu.style.right = '20px';
     mentionMenu.style.left = 'auto';
     mentionMenu.style.maxWidth = '300px';
+    mentionMenu.style.position = 'fixed';
+    mentionMenu.style.zIndex = '10000';
 }
 
 // إخفاء قائمة الـ mention

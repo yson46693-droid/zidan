@@ -141,16 +141,37 @@ class LoadingOverlay {
             const originalRequest = API.request.bind(API);
             const self = this;
             
-            API.request = async function(endpoint, method = 'GET', data = null) {
-                // إظهار overlay
-                self.show();
+            API.request = async function(endpoint, method = 'GET', data = null, options = {}) {
+                // التحقق من أن الطلب يجب أن يكون صامتاً (silent) - لا يعرض loading overlay
+                let isSilent = options && options.silent === true;
+                
+                // تجاهل طلبات get_messages.php من خارج صفحة الشات
+                const isGetMessages = endpoint.includes('get_messages.php');
+                const isChatPage = window.location.pathname.includes('chat.html');
+                
+                // إذا كان get_messages.php وليس في صفحة الشات، لا نعرض loading overlay
+                if (isGetMessages && !isChatPage) {
+                    // تمرير silent flag
+                    if (!options) options = {};
+                    options.silent = true;
+                    isSilent = true;
+                }
+                
+                // إظهار overlay فقط إذا لم يكن silent
+                let overlayShown = false;
+                if (!isSilent && (!isGetMessages || isChatPage)) {
+                    self.show();
+                    overlayShown = true;
+                }
                 
                 try {
-                    const result = await originalRequest(endpoint, method, data);
+                    const result = await originalRequest(endpoint, method, data, options);
                     return result;
                 } finally {
-                    // إخفاء overlay
-                    self.hide();
+                    // إخفاء overlay فقط إذا كان قد تم إظهاره
+                    if (overlayShown) {
+                        self.hide();
+                    }
                 }
             };
         }
@@ -169,16 +190,33 @@ class LoadingOverlay {
                 }
             }
 
-            // إظهار overlay للطلبات API
+            // إظهار overlay للطلبات API (إلا إذا كانت get_messages.php من خارج صفحة الشات أو listen.php)
+            let shouldShowOverlay = false;
             if (typeof url === 'string' && (url.includes('api/') || url.includes('.php'))) {
-                self.show();
+                const isGetMessages = url.includes('get_messages.php');
+                const isListen = url.includes('listen.php');
+                const isChatPage = window.location.pathname.includes('chat.html');
+                
+                // تجاهل get_messages.php من خارج صفحة الشات
+                // تجاهل listen.php (Long Polling) - لا نريد loading overlay
+                if (!(isGetMessages && !isChatPage) && !isListen) {
+                    // التحقق من header X-Silent-Request
+                    const requestOptions = args[1] || {};
+                    const headers = requestOptions.headers || {};
+                    const isSilent = headers['X-Silent-Request'] === 'true';
+                    
+                    if (!isSilent) {
+                        shouldShowOverlay = true;
+                        self.show();
+                    }
+                }
             }
             
             try {
                 const response = await originalFetch.apply(this, args);
                 return response;
             } finally {
-                if (typeof url === 'string' && (url.includes('api/') || url.includes('.php'))) {
+                if (shouldShowOverlay) {
                     self.hide();
                 }
             }

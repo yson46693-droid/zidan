@@ -4,7 +4,8 @@ const API_BASE_URL = 'api/';
 // دوال التواصل مع API
 const API = {
     // دالة عامة لإرسال الطلبات
-    async request(endpoint, method = 'GET', data = null) {
+    // يمكن تمرير options إضافية مثل { silent: true } لمنع عرض loading overlay
+    async request(endpoint, method = 'GET', data = null, requestOptions = {}) {
         // تحويل PUT/DELETE إلى POST للتوافق مع الاستضافات المجانية
         let actualMethod = method;
         if (method === 'PUT' || method === 'DELETE') {
@@ -13,7 +14,8 @@ const API = {
             actualMethod = 'POST';
         }
 
-        const options = {
+        // إعداد options للـ fetch
+        const fetchOptions = {
             method: actualMethod,
             headers: {
                 'Content-Type': 'application/json',
@@ -25,14 +27,31 @@ const API = {
             cache: 'no-cache',
             redirect: 'follow' // متابعة التوجيهات تلقائياً
         };
+        
+        // إضافة silent flag إذا كان موجوداً
+        if (requestOptions && requestOptions.silent) {
+            fetchOptions.headers['X-Silent-Request'] = 'true';
+        }
 
         if (data && actualMethod !== 'GET') {
-            options.body = JSON.stringify(data);
+            fetchOptions.body = JSON.stringify(data);
         }
 
         try {
-            console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${API_BASE_URL + endpoint}`);
-            if (data && actualMethod !== 'GET') {
+            // التحقق من أن الطلب صامت (silent) - لا يعرض loading overlay
+            const isSilent = requestOptions && requestOptions.silent === true;
+            
+            // تجاهل get_messages.php من خارج صفحة الشات تلقائياً
+            const isGetMessages = endpoint.includes('get_messages.php');
+            const isChatPage = window.location.pathname.includes('chat.html');
+            if (isGetMessages && !isChatPage) {
+                fetchOptions.headers['X-Silent-Request'] = 'true';
+            }
+            
+            if (!isSilent && !(isGetMessages && !isChatPage)) {
+                console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${API_BASE_URL + endpoint}`);
+            }
+            if (data && actualMethod !== 'GET' && !isSilent && !(isGetMessages && !isChatPage)) {
                 console.log('📦 بيانات الطلب:', data);
             }
             
@@ -40,9 +59,9 @@ const API = {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 ثانية
             
-            options.signal = controller.signal;
+            fetchOptions.signal = controller.signal;
             
-            const response = await fetch(API_BASE_URL + endpoint, options);
+            const response = await fetch(API_BASE_URL + endpoint, fetchOptions);
             clearTimeout(timeoutId);
             
             console.log(`%c📥 استجابة الخادم: ${response.status} ${response.statusText}`, 
