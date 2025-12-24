@@ -1318,6 +1318,23 @@ body {
     opacity: 0.8;
 }
 
+/* مؤشر حالة الإرسال */
+.sending-indicator-icon {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 12px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
 /* مؤشر الإرسال */
 .sending-indicator {
     padding: 12px 15px;

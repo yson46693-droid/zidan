@@ -311,9 +311,23 @@ function createMessageElement(message) {
     const timeContainer = document.createElement('div');
     timeContainer.className = 'message-time-container';
     
+    // مؤشر حالة الإرسال
+    if (message.isSending) {
+        const sendingIndicator = document.createElement('span');
+        sendingIndicator.className = 'sending-indicator-icon';
+        sendingIndicator.innerHTML = '⏳';
+        sendingIndicator.title = 'قيد الإرسال...';
+        timeContainer.appendChild(sendingIndicator);
+    }
+    
     const time = document.createElement('span');
     time.className = 'message-time';
-    time.textContent = formatTime(message.created_at);
+    if (message.isSending) {
+        time.textContent = 'قيد الإرسال...';
+        time.style.opacity = '0.7';
+    } else {
+        time.textContent = formatTime(message.created_at);
+    }
     timeContainer.appendChild(time);
     
     // إضافة التوقيت داخل الـ bubble لجميع الرسائل
@@ -503,25 +517,46 @@ async function performLongPoll() {
         
         if (result && result.success && result.data && result.data.length > 0) {
             // إضافة الرسائل الجديدة
+            let hasNewMessages = false;
             result.data.forEach(newMessage => {
-                // تجنب التكرار
-                if (!messages.find(m => m.id === newMessage.id)) {
+                // تجنب التكرار (بما في ذلك الرسائل المؤقتة)
+                const existingMessage = messages.find(m => m.id === newMessage.id || (m.id && m.id.startsWith('temp-') && newMessage.user_id === m.user_id && newMessage.message === m.message));
+                
+                if (!existingMessage) {
                     messages.push(newMessage);
+                    hasNewMessages = true;
                     // تحديث lastMessageId إلى آخر رسالة
                     if (newMessage.id > lastMessageId || lastMessageId === '') {
                         lastMessageId = newMessage.id;
                     }
+                } else if (existingMessage.id && existingMessage.id.startsWith('temp-')) {
+                    // استبدال الرسالة المؤقتة بالرسالة الحقيقية
+                    const tempIndex = messages.indexOf(existingMessage);
+                    if (tempIndex !== -1) {
+                        messages[tempIndex] = newMessage;
+                        hasNewMessages = true;
+                        // تحديث lastMessageId
+                        if (newMessage.id > lastMessageId || lastMessageId === '') {
+                            lastMessageId = newMessage.id;
+                        }
+                    }
                 }
             });
             
-            // إعادة ترتيب الرسائل حسب id
-            messages.sort((a, b) => {
-                if (a.id < b.id) return -1;
-                if (a.id > b.id) return 1;
-                return 0;
-            });
-            
-            renderMessages();
+            if (hasNewMessages) {
+                // إعادة ترتيب الرسائل حسب id
+                messages.sort((a, b) => {
+                    // الرسائل المؤقتة تأتي أولاً
+                    if (a.id && a.id.startsWith('temp-') && !(b.id && b.id.startsWith('temp-'))) return -1;
+                    if (b.id && b.id.startsWith('temp-') && !(a.id && a.id.startsWith('temp-'))) return 1;
+                    // ترتيب حسب id
+                    if (a.id < b.id) return -1;
+                    if (a.id > b.id) return 1;
+                    return 0;
+                });
+                
+                renderMessages();
+            }
             
             // عرض إشعار إذا كان التاب مخفي
             if (document.hidden) {
@@ -1594,6 +1629,41 @@ function selectMention(user) {
     chatInput.focus();
     
     hideMentionMenu();
+}
+
+// استخراج الـ mentions من النص
+function extractMentions(text) {
+    const mentions = [];
+    if (!text || !allUsers || allUsers.length === 0) {
+        return mentions;
+    }
+    
+    const mentionRegex = /@([^\s@]+)/g;
+    let match;
+    
+    while ((match = mentionRegex.exec(text)) !== null) {
+        const mentionText = match[1];
+        // البحث عن المستخدم في قائمة المستخدمين
+        const user = allUsers.find(u => {
+            const name = (u.name || '').toLowerCase();
+            const username = (u.username || '').toLowerCase();
+            const mentionLower = mentionText.toLowerCase();
+            return name === mentionLower || username === mentionLower || u.user_id === mentionText;
+        });
+        
+        if (user && user.user_id !== currentUser.id) {
+            mentions.push({
+                user_id: user.user_id,
+                username: user.username || user.user_id,
+                name: user.name || user.username || 'مستخدم'
+            });
+        }
+    }
+    
+    // إزالة التكرار
+    return mentions.filter((mention, index, self) => 
+        index === self.findIndex(m => m.user_id === mention.user_id)
+    );
 }
 
 // تحميل الإشعارات عند التهيئة

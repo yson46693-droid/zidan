@@ -12,31 +12,61 @@ try {
     // تحديث حالة النشاط
     updateUserActivity($userId);
     
-    // جلب آخر 50 رسالة
-    // استخدام JOIN مع users للحصول على username
-    $messages = dbSelect("
-        SELECT 
-            cm.id,
-            cm.user_id,
-            COALESCE(u.name, u.username, 'مستخدم') as username,
-            u.avatar,
-            cm.message,
-            cm.reply_to,
-            cm.file_path,
-            cm.file_type,
-            cm.created_at,
-            rm.id as reply_to_id,
-            rm.user_id as reply_to_user_id,
-            COALESCE(ru.name, ru.username, 'مستخدم') as reply_to_username,
-            rm.message as reply_to_message
-        FROM chat_messages cm
-        LEFT JOIN users u ON u.id = cm.user_id
-        LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND (rm.deleted_at IS NULL OR rm.deleted_at = '')
-        LEFT JOIN users ru ON ru.id = rm.user_id
-        WHERE (cm.deleted_at IS NULL OR cm.deleted_at = '')
-        ORDER BY cm.id DESC
-        LIMIT 50
-    ", []);
+    // الحصول على last_id من الطلب (اختياري)
+    $lastId = $_GET['last_id'] ?? null;
+    
+    // جلب الرسائل
+    // إذا كان last_id موجوداً، جلب الرسائل الجديدة فقط بعد هذا ID
+    if (!empty($lastId) && $lastId !== '0') {
+        $messages = dbSelect("
+            SELECT 
+                cm.id,
+                cm.user_id,
+                COALESCE(u.name, u.username, 'مستخدم') as username,
+                u.avatar,
+                cm.message,
+                cm.reply_to,
+                cm.file_path,
+                cm.file_type,
+                cm.created_at,
+                rm.id as reply_to_id,
+                rm.user_id as reply_to_user_id,
+                COALESCE(ru.name, ru.username, 'مستخدم') as reply_to_username,
+                rm.message as reply_to_message
+            FROM chat_messages cm
+            LEFT JOIN users u ON u.id = cm.user_id
+            LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND (rm.deleted_at IS NULL OR rm.deleted_at = '')
+            LEFT JOIN users ru ON ru.id = rm.user_id
+            WHERE (cm.deleted_at IS NULL OR cm.deleted_at = '')
+            AND cm.id > ?
+            ORDER BY cm.id ASC
+            LIMIT 50
+        ", [$lastId]);
+    } else {
+        // جلب آخر 50 رسالة
+        $messages = dbSelect("
+            SELECT 
+                cm.id,
+                cm.user_id,
+                COALESCE(u.name, u.username, 'مستخدم') as username,
+                u.avatar,
+                cm.message,
+                cm.reply_to,
+                cm.file_path,
+                cm.file_type,
+                cm.created_at,
+                rm.id as reply_to_id,
+                rm.user_id as reply_to_user_id,
+                COALESCE(ru.name, ru.username, 'مستخدم') as reply_to_username,
+                rm.message as reply_to_message
+            FROM chat_messages cm
+            LEFT JOIN users u ON u.id = cm.user_id
+            LEFT JOIN chat_messages rm ON rm.id = cm.reply_to AND (rm.deleted_at IS NULL OR rm.deleted_at = '')
+            LEFT JOIN users ru ON ru.id = rm.user_id
+            WHERE (cm.deleted_at IS NULL OR cm.deleted_at = '')
+            ORDER BY cm.id DESC
+            LIMIT 50
+        ", []);
     
     // عكس الترتيب (الأقدم أولاً)
     $messages = array_reverse($messages);
