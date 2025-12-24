@@ -41,12 +41,7 @@ async function checkLogin() {
     lastCheckLoginTime = now;
     
     try {
-        // 🔧 الحل: جعل checkAuth صامتاً بعد تسجيل الدخول مباشرة
-        const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-        const isRecentLogin = justLoggedInTime && (now - parseInt(justLoggedInTime)) < 15000;
-        const shouldBeSilent = isRecentLogin;
-        
-        const result = await API.checkAuth(shouldBeSilent);
+        const result = await API.checkAuth();
         
         if (!result || !result.success) {
             // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
@@ -58,14 +53,6 @@ async function checkLogin() {
                     if (savedUser) {
                         const user = JSON.parse(savedUser);
                         console.log('✅ استخدام بيانات المستخدم المحفوظة');
-                        // تحديث معلومات الفرع من localStorage
-                        if (user.branch_id) {
-                            localStorage.setItem('branch_id', user.branch_id);
-                            localStorage.setItem('branch_name', user.branch_name || '');
-                            localStorage.setItem('branch_code', user.branch_code || '');
-                            localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
-                        }
-                        localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
                         // تحديث cache بدون تحديث cacheTime (لإجبار إعادة المحاولة لاحقاً)
                         cachedAuthResult = user;
                         return user;
@@ -88,30 +75,20 @@ async function checkLogin() {
                 console.log('⏳ تسجيل دخول حديث - إعطاء فرصة للجلسة...');
                 // إعطاء فرصة للجلسة - إعادة المحاولة بعد ثانية واحدة
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                // محاولة مرة أخرى (صامتة)
+                // محاولة مرة أخرى
                 try {
-                        const retryResult = await API.checkAuth(true);
-                        if (retryResult && retryResult.success) {
-                            const user = retryResult.data;
-                            if (user) {
-                                localStorage.setItem('currentUser', JSON.stringify(user));
-                                
-                                // حفظ معلومات الفرع
-                                if (user.branch_id) {
-                                    localStorage.setItem('branch_id', user.branch_id);
-                                    localStorage.setItem('branch_name', user.branch_name || '');
-                                    localStorage.setItem('branch_code', user.branch_code || '');
-                                    localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
-                                }
-                                localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
-                                
-                                cachedAuthResult = user;
-                                cacheTime = Date.now();
-                                // مسح العلامة بعد النجاح
-                                sessionStorage.removeItem('just_logged_in_time');
-                            }
-                            return user;
+                    const retryResult = await API.checkAuth();
+                    if (retryResult && retryResult.success) {
+                        const user = retryResult.data;
+                        if (user) {
+                            localStorage.setItem('currentUser', JSON.stringify(user));
+                            cachedAuthResult = user;
+                            cacheTime = Date.now();
+                            // مسح العلامة بعد النجاح
+                            sessionStorage.removeItem('just_logged_in_time');
                         }
+                        return user;
+                    }
                 } catch (retryError) {
                     console.log('فشلت إعادة المحاولة:', retryError);
                 }
@@ -143,23 +120,6 @@ async function checkLogin() {
         const user = result.data;
         if (user) {
             localStorage.setItem('currentUser', JSON.stringify(user));
-            
-            // حفظ معلومات الفرع
-            if (user.branch_id) {
-                localStorage.setItem('branch_id', user.branch_id);
-                localStorage.setItem('branch_name', user.branch_name || '');
-                localStorage.setItem('branch_code', user.branch_code || '');
-                localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
-            } else {
-                localStorage.removeItem('branch_id');
-                localStorage.removeItem('branch_name');
-                localStorage.removeItem('branch_code');
-                localStorage.removeItem('has_pos');
-            }
-            
-            // حفظ معلومات المالك
-            localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
-            
             // حفظ في التخزين المؤقت
             cachedAuthResult = user;
             cacheTime = Date.now();
@@ -177,14 +137,6 @@ async function checkLogin() {
             if (savedUser) {
                 const user = JSON.parse(savedUser);
                 console.log('⚠️ استخدام بيانات المستخدم المحفوظة بعد الخطأ');
-                // تحديث معلومات الفرع من localStorage
-                if (user.branch_id) {
-                    localStorage.setItem('branch_id', user.branch_id);
-                    localStorage.setItem('branch_name', user.branch_name || '');
-                    localStorage.setItem('branch_code', user.branch_code || '');
-                    localStorage.setItem('has_pos', user.has_pos ? 'true' : 'false');
-                }
-                localStorage.setItem('is_owner', user.is_owner ? 'true' : 'false');
                 // تحديث cache بدون تحديث cacheTime (لإجبار إعادة المحاولة لاحقاً)
                 cachedAuthResult = user;
                 return user;
@@ -225,22 +177,6 @@ async function login(username, password) {
             
             // حفظ بيانات المستخدم الجديدة
             localStorage.setItem('currentUser', JSON.stringify(result.data));
-            
-            // حفظ معلومات الفرع
-            if (result.data.branch_id) {
-                localStorage.setItem('branch_id', result.data.branch_id);
-                localStorage.setItem('branch_name', result.data.branch_name || '');
-                localStorage.setItem('branch_code', result.data.branch_code || '');
-                localStorage.setItem('has_pos', result.data.has_pos ? 'true' : 'false');
-            } else {
-                localStorage.removeItem('branch_id');
-                localStorage.removeItem('branch_name');
-                localStorage.removeItem('branch_code');
-                localStorage.removeItem('has_pos');
-            }
-            
-            // حفظ معلومات المالك
-            localStorage.setItem('is_owner', result.data.is_owner ? 'true' : 'false');
             
             // 🔧 الحل 2: إضافة علامة تسجيل دخول حديث مع timestamp
             sessionStorage.setItem('just_logged_in_time', Date.now().toString());
@@ -470,54 +406,30 @@ function setupPermissionObserver() {
 
 // عرض معلومات المستخدم في الواجهة
 function displayUserInfo() {
-    try {
-        const user = getCurrentUser();
-        if (!user) {
-            console.warn('displayUserInfo: لا توجد بيانات مستخدم');
-            return;
-        }
-        
-        // استخدام قيم افتراضية في حالة عدم وجود القيم
-        const userName = user.name || user.username || 'المستخدم';
-        const userRole = user.role || 'employee';
-        
-        console.log('displayUserInfo: عرض بيانات المستخدم', { userName, userRole, user });
-        
-        const userNameElement = document.getElementById('userName');
-        const userRoleElement = document.getElementById('userRole');
-        
-        if (userNameElement) {
-            userNameElement.textContent = userName;
-        } else {
-            console.warn('displayUserInfo: عنصر userName غير موجود');
-        }
-        
-        if (userRoleElement) {
-            // التأكد من وجود دالة getRoleText
-            const roleText = typeof getRoleText === 'function' ? getRoleText(userRole) : userRole;
-            userRoleElement.textContent = roleText;
-        } else {
-            console.warn('displayUserInfo: عنصر userRole غير موجود');
-        }
-        
-        // تحديث معلومات المستخدم في الـ top-bar للهواتف
-        const mobileUserNameElement = document.getElementById('mobileUserName');
-        const mobileUserRoleElement = document.getElementById('mobileUserRole');
-        
-        if (mobileUserNameElement) {
-            mobileUserNameElement.textContent = userName;
-        } else {
-            console.warn('displayUserInfo: عنصر mobileUserName غير موجود');
-        }
-        
-        if (mobileUserRoleElement) {
-            const roleText = typeof getRoleText === 'function' ? getRoleText(userRole) : userRole;
-            mobileUserRoleElement.textContent = roleText;
-        } else {
-            console.warn('displayUserInfo: عنصر mobileUserRole غير موجود');
-        }
-    } catch (error) {
-        console.error('displayUserInfo: خطأ في عرض بيانات المستخدم:', error);
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    const userNameElement = document.getElementById('userName');
+    const userRoleElement = document.getElementById('userRole');
+    
+    if (userNameElement) {
+        userNameElement.textContent = user.name;
+    }
+    
+    if (userRoleElement) {
+        userRoleElement.textContent = getRoleText(user.role);
+    }
+    
+    // تحديث معلومات المستخدم في الـ top-bar للهواتف
+    const mobileUserNameElement = document.getElementById('mobileUserName');
+    const mobileUserRoleElement = document.getElementById('mobileUserRole');
+    
+    if (mobileUserNameElement) {
+        mobileUserNameElement.textContent = user.name;
+    }
+    
+    if (mobileUserRoleElement) {
+        mobileUserRoleElement.textContent = getRoleText(user.role);
     }
 }
 
