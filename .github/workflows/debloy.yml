@@ -1,4 +1,4 @@
-name: Deploy to InfinityFree
+name: Deploy to Thamara Cloud
 
 on:
   push:
@@ -13,41 +13,27 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Upload via FTP
+      - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          server: ftpupload.net
-          username: if0_40710456
-          password: Osama7444
-
-          local-dir: ./
-          server-dir: /htdocs/
-
+          server: 213.239.220.209
+          username: osama74
+          password: QEvhhbM52d1?kgt#
           protocol: ftp
           port: 21
-          timeout: 50000
           security: loose
+          timeout: 120000
+          server-dir: /zidan.egsystem.top/z/
+
+          dangerous-clean-slate: false
 
           exclude: |
             **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.env
-            **/.env.*
-            **/README.md
             **/.github/**
+            **/node_modules/**
+            **/.env*
             **/.vscode/**
             **/.idea/**
             **/*.log
-            **/backups/**
-            **/temp/**
-            **/tmp/**
-            git-push.*
-            quick-push.*
-            .gitignore
-            .editorconfig
-            .DS_Store
-            Thumbs.db
+            **/.DS_Store

@@ -6,7 +6,6 @@ function loadReportsSection() {
     const section = document.getElementById('reports-section');
     section.innerHTML = `
         <div class="section-header">
-            <h2><i class="bi bi-graph-up"></i> التقارير المالية</h2>
             <button onclick="printReport()" class="btn btn-primary" id="printReportBtn" style="display: none;"><i class="bi bi-printer-fill"></i> طباعة التقرير</button>
         </div>
 
