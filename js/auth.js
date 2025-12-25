@@ -12,6 +12,27 @@ const AUTH_CACHE_DURATION = 30000; // 30 ثانية للتخزين المؤقت 
 async function checkLogin() {
     const now = Date.now();
     
+    // ✅ تحسين: بعد تسجيل الدخول مباشرة، استخدم البيانات المحفوظة بدون استدعاء الخادم
+    const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+    const isRecentLogin = justLoggedInTime && (now - parseInt(justLoggedInTime)) < 60000; // 60 ثانية
+    
+    if (isRecentLogin) {
+        console.log('⏳ تسجيل دخول حديث - استخدام البيانات المحفوظة بدون استدعاء الخادم...');
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                // تحديث cache
+                cachedAuthResult = user;
+                cacheTime = now;
+                console.log('✅ استخدام بيانات المستخدم المحفوظة (تسجيل دخول حديث)');
+                return user;
+            }
+        } catch (e) {
+            console.warn('⚠️ خطأ في قراءة البيانات المحفوظة:', e);
+        }
+    }
+    
     // استخدام التخزين المؤقت إذا كان صالحاً
     if (cachedAuthResult !== null && (now - cacheTime < AUTH_CACHE_DURATION)) {
         return cachedAuthResult;
@@ -41,7 +62,9 @@ async function checkLogin() {
     lastCheckLoginTime = now;
     
     try {
-        const result = await API.checkAuth();
+        // ✅ استخدام silent flag بعد تسجيل الدخول مباشرة لتجنب عرض loading overlay
+        const useSilent = isRecentLogin;
+        const result = await API.checkAuth(useSilent);
         
         if (!result || !result.success) {
             // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
