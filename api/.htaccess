@@ -88,6 +88,15 @@ AddHandler application/x-httpd-php .php
         Require all granted
         Options +ExecCGI +FollowSymLinks
     </Directory>
+    # قاعدة خاصة لمنع 403 من LiteSpeed
+    # السماح بجميع طرق HTTP بشكل صريح
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى جميع ملفات PHP
+        RewriteCond %{REQUEST_METHOD} POST
+        RewriteCond %{REQUEST_URI} \.php$
+        RewriteRule ^(.*)$ - [L,E=no-gzip:1]
+    </IfModule>
 </IfModule>
 
 # منع عرض محتويات المجلد (الأمان)
@@ -133,4 +142,23 @@ Options -Indexes
     </IfModule>
     # السماح بجميع طرق HTTP
     Options +ExecCGI +FollowSymLinks
+    # قاعدة خاصة لـ LiteSpeed
+    <IfModule LiteSpeed>
+        SetHandler lsapi
+        Require all granted
+    </IfModule>
 </Files>
+
+# محاولة تجاوز قيود LiteSpeed Security
+# إذا كان LiteSpeed يمنع POST، جرب هذه القواعد
+<IfModule LiteSpeed>
+    # تعطيل بعض قواعد الأمان لـ LiteSpeed (قد لا يعمل على جميع الخوادم)
+    # هذه القواعد تحاول السماح بطلبات POST
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى auth.php
+        RewriteCond %{REQUEST_METHOD} ^POST$
+        RewriteCond %{REQUEST_URI} auth\.php$
+        RewriteRule ^(.*)$ - [L,E=LSWS_EDC:0]
+    </IfModule>
+</IfModule>

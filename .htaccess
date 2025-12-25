@@ -187,6 +187,24 @@ Options -Indexes
         SetHandler lsapi
         Require all granted
     </FilesMatch>
+    # السماح بملفات PHP في مسارات API الفرعية (مثل /z/api/auth.php)
+    <FilesMatch "^.*api/.*\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # قاعدة خاصة لملف auth.php في أي مسار
+    <FilesMatch "^.*api/auth\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # السماح بطلبات POST بشكل صريح
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى API
+        RewriteCond %{REQUEST_METHOD} POST
+        RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
+        RewriteRule ^(.*)$ - [L,E=no-gzip:1]
+    </IfModule>
 </IfModule>
 
 # قواعد Apache للسماح بالوصول إلى API من أي مجلد فرعي
