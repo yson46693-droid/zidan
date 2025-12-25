@@ -35,27 +35,22 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     
-    <!-- Icons - مع cache busting لضمان الحصول على أحدث نسخة -->
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96x96.png?v=2.0.1">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72x72.png?v=2.0.1">
+    <!-- 🔧 تحسين الأداء: تقليل عدد الأيقونات (3 فقط بدلاً من 10+) -->
+    <link rel="icon" type="image/png" href="icons/icon-192x192.png?v=2.0.1">
     <link rel="shortcut icon" href="icons/icon-192x192.png?v=2.0.1">
-    
-    <!-- Apple Touch Icons - مع cache busting -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-128x128.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="114x114" href="icons/icon-128x128.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="76x76" href="icons/icon-96x96.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png?v=2.0.1">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png?v=2.0.1">
     
     <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
-    <!-- Bootstrap Icons - تحميل متأخر (non-blocking) -->
+    <!-- Google Fonts - Preconnect + async loading مع font-display: swap لتحسين الأداء -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap"></noscript>
+    
+    <!-- Bootstrap Icons - تحميل async لتحسين الأداء -->
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
     
@@ -67,6 +62,8 @@
     
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
+    <!-- Console Manager - إدارة console.log للإنتاج -->
+    <script src="js/console-manager.js"></script>
     <script>
         // 🔧 حماية فورية من Service Worker reload أثناء تسجيل الدخول (يجب أن يكون في بداية الصفحة)
         (function() {
@@ -143,27 +140,49 @@
     
     <!-- 🔧 منع FOUC - إخفاء المحتوى حتى تحميل CSS -->
     <style id="anti-fouc">
-        body {
+        html:not(.css-loaded) {
             visibility: hidden;
+        }
+        html.css-loaded {
+            visibility: visible;
+        }
+        body:not(.css-loaded) {
             opacity: 0;
         }
         body.css-loaded {
-            visibility: visible;
             opacity: 1;
-            transition: opacity 0.3s ease-in;
+            transition: opacity 0.2s ease-in;
         }
     </style>
     
-    <!-- Critical CSS - تحميل فوري -->
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Critical CSS Inline - للعرض الفوري بدون انتظار CSS الخارجي -->
+    <style>
+        /* Critical CSS Variables */
+        :root{--primary-color:#2196F3;--secondary-color:#64B5F6;--white:#fff;--text-dark:#333;--text-light:#666;--border-color:#ddd;--shadow:0 2px 10px rgba(0,0,0,0.1);--light-bg:#f5f5f5}
+        /* Reset & Base */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Cairo','Tajawal','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--light-bg);color:var(--text-dark);line-height:1.6;direction:rtl;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+        /* Critical Dashboard Styles */
+        .main-content{margin-right:260px;min-height:100vh;transition:margin 0.3s ease}
+        .top-bar{background:var(--white);padding:15px 30px;box-shadow:var(--shadow);display:flex;align-items:center;gap:15px}
+        .sidebar{position:fixed;right:0;top:0;width:260px;height:100vh;background:var(--white);box-shadow:var(--shadow);z-index:1000}
+        .content{padding:30px}
+        @media (max-width:767.98px){.main-content{margin-right:0;padding:20px 15px 80px}.sidebar{display:none}.mobile-navbar{display:block}}
+    </style>
+    
+    <!-- Critical CSS - non-blocking using media trick for better performance -->
+    <link rel="preload" href="css/style.css" as="style" crossorigin>
+    <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link rel="stylesheet" href="css/style.css"></noscript>
     
     <!-- CSS للصلاحيات - إخفاء العناصر المحظورة للموظف -->
     <style id="employee-permissions-style">
         /* سيتم تحديثه ديناميكياً */
     </style>
     
-    <!-- Loading Overlay CSS - Splash Screen للتحميل -->
-    <link rel="stylesheet" href="css/loading-overlay.css">
+    <!-- Loading Overlay CSS - non-blocking -->
+    <link rel="preload" href="css/loading-overlay.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/loading-overlay.css"></noscript>
     
     <!-- Non-Critical CSS - تحميل غير متزامن (lazy load) -->
     <link rel="preload" href="css/dark-mode.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -172,91 +191,100 @@
     <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="css/security.css"></noscript>
     
-    <!-- 🔧 إظهار المحتوى بعد تحميل CSS -->
+    <!-- 🔧 إظهار المحتوى بعد تحميل CSS - نسخة محسّنة للأداء -->
     <script>
         (function() {
             'use strict';
-            
-            // التحقق من تحميل CSS
-            function checkCSSLoaded() {
-                try {
-                    // التحقق من تحميل style.css (الملف الأساسي)
-                    const styleSheet = document.querySelector('link[href*="style.css"]');
-                    if (styleSheet) {
-                        // إذا كان CSS محملاً بالفعل
-                        if (styleSheet.sheet || (styleSheet.styleSheet && styleSheet.styleSheet.cssText)) {
-                            showContent();
-                            return;
-                        }
-                        
-                        // انتظار تحميل CSS
-                        styleSheet.addEventListener('load', showContent, { once: true });
-                        styleSheet.addEventListener('error', showContent, { once: true }); // إظهار حتى لو فشل التحميل
-                    } else {
-                        // إذا لم يتم العثور على CSS، إظهار المحتوى بعد وقت قصير
-                        setTimeout(showContent, 100);
-                    }
-                } catch (error) {
-                    console.error('خطأ في التحقق من تحميل CSS:', error);
-                    // في حالة الخطأ، إظهار المحتوى
-                    showContent();
-                }
-            }
+            let contentShown = false;
+            let syncManagerInitialized = false; // متغير عام لتتبع حالة تهيئة نظام المزامنة
             
             function showContent() {
+                if (contentShown) return; // منع التكرار
+                contentShown = true;
+                
                 try {
                     // إزالة style tag المضاد لـ FOUC
                     const antiFouc = document.getElementById('anti-fouc');
-                    if (antiFouc) {
-                        antiFouc.remove();
+                    if (antiFouc && antiFouc.parentNode) {
+                        antiFouc.parentNode.removeChild(antiFouc);
                     }
                     
                     // إضافة class لإظهار المحتوى
+                    if (document.documentElement) {
+                        document.documentElement.classList.add('css-loaded');
+                    }
                     if (document.body) {
                         document.body.classList.add('css-loaded');
                     } else {
-                        // انتظار body إذا لم يكن موجوداً
-                        const observer = new MutationObserver(function(mutations, obs) {
+                        // إذا لم يكن body موجوداً بعد، الانتظار
+                        const checkBody = setInterval(function() {
                             if (document.body) {
                                 document.body.classList.add('css-loaded');
-                                obs.disconnect();
+                                clearInterval(checkBody);
                             }
-                        });
-                        observer.observe(document.documentElement, { childList: true });
+                        }, 10);
                         
-                        // Fallback: إزالة observer بعد 1 ثانية
+                        // إيقاف بعد 500ms
                         setTimeout(function() {
-                            observer.disconnect();
-                            if (document.body) {
-                                document.body.classList.add('css-loaded');
-                            }
-                        }, 1000);
+                            clearInterval(checkBody);
+                        }, 500);
                     }
                 } catch (error) {
                     console.error('خطأ في إظهار المحتوى:', error);
-                    // في حالة الخطأ، إزالة style tag على الأقل
-                    const antiFouc = document.getElementById('anti-fouc');
-                    if (antiFouc) {
-                        antiFouc.remove();
+                    // في حالة الخطأ، محاولة مباشرة
+                    try {
+                        const antiFouc = document.getElementById('anti-fouc');
+                        if (antiFouc && antiFouc.parentNode) {
+                            antiFouc.parentNode.removeChild(antiFouc);
+                        }
+                        if (document.documentElement) document.documentElement.classList.add('css-loaded');
+                        if (document.body) document.body.classList.add('css-loaded');
+                    } catch (e) {
+                        console.error('فشل في إظهار المحتوى:', e);
                     }
                 }
             }
             
-            // التحقق عند DOMContentLoaded
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', checkCSSLoaded);
-            } else {
-                // إذا كانت الصفحة محملة بالفعل
-                checkCSSLoaded();
+            // التحقق من تحميل CSS باستخدام requestAnimationFrame لتحسين الأداء
+            function checkCSSLoaded() {
+                const styleSheet = document.querySelector('link[href*="style.css"]');
+                if (styleSheet && (styleSheet.sheet || styleSheet.href)) {
+                    showContent();
+                    return true;
+                }
+                return false;
             }
             
-            // Fallback: إظهار المحتوى بعد 2 ثانية كحد أقصى (لضمان عدم بقاء الصفحة مخفية)
-            setTimeout(function() {
-                if (!document.body || !document.body.classList.contains('css-loaded')) {
-                    console.warn('⚠️ تم إظهار المحتوى بعد timeout - قد يكون هناك مشكلة في تحميل CSS');
-                    showContent();
+            // إظهار المحتوى عند DOMContentLoaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    // محاولة فورية
+                    if (!checkCSSLoaded()) {
+                        // محاولة متعددة
+                        let attempts = 0;
+                        const maxAttempts = 20;
+                        const checkInterval = setInterval(function() {
+                            attempts++;
+                            if (checkCSSLoaded() || attempts >= maxAttempts) {
+                                clearInterval(checkInterval);
+                                if (attempts >= maxAttempts) {
+                                    showContent(); // إظهار حتى لو لم يتم تحميل CSS
+                                }
+                            }
+                        }, 50);
+                    }
+                });
+            } else {
+                // الصفحة محمّلة بالفعل
+                if (!checkCSSLoaded()) {
+                    showContent(); // إظهار مباشرة
                 }
-            }, 2000);
+            }
+            
+            // Fallback قوي: إظهار المحتوى بعد 200ms كحد أقصى
+            setTimeout(function() {
+                showContent();
+            }, 200);
         })();
     </script>
     
@@ -302,6 +330,10 @@
                 <i class="bi bi-cash-coin"></i>
                 <span>نقاط البيع</span>
             </a>
+            <a href="#product-returns" class="mobile-nav-item" onclick="showSection('product-returns')">
+                <i class="bi bi-arrow-return-left"></i>
+                <span>استرجاع المنتجات</span>
+            </a>
             <a href="chat.html" class="mobile-nav-item" id="chatMobileNavLink">
                 <i class="bi bi-chat-dots"></i>
                 <span>الشات</span>
@@ -329,7 +361,7 @@
     <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="" alt="ALAA ZIDAN Logo" class="sidebar-logo" style="display: block;">
+            <img src="" alt="ALAA ZIDAN Logo" class="sidebar-logo" style="display: block;" loading="lazy" decoding="async" width="150" height="150">
             <h2 style="display: none;"><i class="bi bi-phone"></i> محل الصيانة</h2>
         </div>
         
@@ -348,6 +380,9 @@
             </a>
             <a href="pos.html" class="nav-link">
                 <i class="bi bi-cash-coin"></i> نقاط البيع
+            </a>
+            <a href="#product-returns" class="nav-link" onclick="showSection('product-returns')">
+                <i class="bi bi-arrow-return-left"></i> استرجاع المنتجات
             </a>
             <a href="chat.html" class="nav-link" id="chatNavLink">
                 <i class="bi bi-chat-dots"></i> الشات
@@ -497,16 +532,30 @@
 
             <!-- الإعدادات -->
             <section id="settings-section" class="section"></section>
+
+            <!-- استرجاع المنتجات -->
+            <section id="product-returns-section" class="section"></section>
         </div>
     </main>
 
-    <!-- Critical Scripts - تحميل فوري (مطلوبة للتشغيل الأساسي) -->
-    <script src="js/api.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/loading-overlay.js"></script>
+    <!-- Critical Scripts - تحميل مع defer لتحسين الأداء (مطلوبة للتشغيل الأساسي) -->
+    <script src="js/api.js" defer></script>
+    <script src="js/utils.js" defer></script>
+    <script src="js/loading-overlay.js" defer></script>
     <script src="js/auth.js" defer></script>
     <script src="js/global-notifications.js" defer></script>
-    <script src="js/chat-unread-badge.js" defer></script>
+    <!-- 🔧 تحسين الأداء: تأجيل تحميل chat-unread-badge.js حتى بعد تحميل الصفحة -->
+    <script>
+        // تحميل chat-unread-badge.js بعد تحميل الصفحة بالكامل (تأخير 2 ثانية)
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const script = document.createElement('script');
+                script.src = 'js/chat-unread-badge.js';
+                script.defer = true;
+                document.body.appendChild(script);
+            }, 2000); // تأخير 2 ثانية
+        });
+    </script>
     
     <!-- حماية الصفحة - فحص تسجيل الدخول فوراً -->
     <script>
@@ -525,7 +574,7 @@
                     return;
                 }
                 
-                // فحص تسجيل الدخول
+                // ✅ تحسين الأداء: استخدام checkLogin مباشرة (سيتعامل مع تسجيل الدخول الحديث تلقائياً)
                 const user = await checkLogin();
                 if (!user) {
                     console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
@@ -627,12 +676,13 @@
                     { src: 'js/reports.js', id: 'reports-script' },
                     { src: 'js/settings.js', id: 'settings-script' },
                     { src: 'js/profile.js', id: 'profile-script' },
+                    { src: 'js/product-returns.js', id: 'product-returns-script' },
                     { src: 'js/pwa-install.js', id: 'pwa-script' },
                     { src: 'webauthn/webauthn.js', id: 'webauthn-script' }
                 ]
             };
             
-            // تحميل Critical Scripts بعد DOMContentLoaded مع تأخير لتقليل التحميل الفوري
+            // 🔧 تحسين الأداء: تحميل Critical Scripts عند الحاجة فقط (Lazy Loading حقيقي)
             document.addEventListener('DOMContentLoaded', () => {
                 // التحقق من نوع المستخدم - للموظف: تحميل فقط (repairs.js, inventory.js)
                 const userStr = localStorage.getItem('currentUser');
@@ -640,12 +690,12 @@
                 const isEmployee = user && user.role === 'employee';
                 
                 // تصفية Critical Scripts حسب نوع المستخدم
-                const scriptsToLoad = isEmployee 
+                const scriptsToPreload = isEmployee 
                     ? scripts.critical.filter(s => s.src.includes('repairs.js') || s.src.includes('inventory.js'))
                     : scripts.critical;
                 
-                // Preload Critical Scripts أولاً
-                scriptsToLoad.forEach(script => {
+                // Preload فقط (بدون تحميل فوري) - سيتم التحميل عند الحاجة
+                scriptsToPreload.forEach(script => {
                     const link = document.createElement('link');
                     link.rel = 'preload';
                     link.href = script.src;
@@ -653,19 +703,47 @@
                     document.head.appendChild(link);
                 });
                 
-                // تأخير تحميل Critical Scripts بمقدار 200ms لتقليل التحميل الفوري
-                setTimeout(() => {
-                    scriptsToLoad.forEach((script, index) => {
-                        // تحميل كل script مع تأخير تدريجي لتقليل التحميل المتزامن
-                        setTimeout(() => {
-                            const el = document.createElement('script');
-                            el.src = script.src;
-                            if (script.defer) el.defer = true;
-                            el.async = true; // إضافة async للتحميل غير المتزامن
-                            document.body.appendChild(el);
-                        }, index * 100); // تأخير 100ms بين كل script
+                // 🔧 تحسين: تحميل Critical Scripts فقط عند فتح القسم المطلوب
+                // إضافة دالة لتحميل script عند الحاجة
+                window.loadCriticalScript = function(scriptSrc) {
+                    return new Promise((resolve, reject) => {
+                        // التحقق من عدم تحميله مسبقاً
+                        if (document.querySelector(`script[src="${scriptSrc}"]`)) {
+                            resolve();
+                            return;
+                        }
+                        
+                        const el = document.createElement('script');
+                        el.src = scriptSrc;
+                        el.defer = true;
+                        el.async = true;
+                        el.onload = () => resolve();
+                        el.onerror = () => reject(new Error(`Failed to load ${scriptSrc}`));
+                        document.body.appendChild(el);
                     });
-                }, 200);
+                };
+                
+                // 🔧 تحميل فقط عند فتح القسم لأول مرة (تأخير حتى التفاعل أو بعد 2 ثانية)
+                let criticalScriptsLoaded = false;
+                const loadCriticalScriptsOnDemand = () => {
+                    if (criticalScriptsLoaded) return;
+                    criticalScriptsLoaded = true;
+                    
+                    // تحميل مع تأخير تدريجي لتقليل التحميل المتزامن
+                    scriptsToPreload.forEach((script, index) => {
+                        setTimeout(() => {
+                            window.loadCriticalScript(script.src).catch(err => {
+                                console.warn(`⚠️ فشل تحميل ${script.src}:`, err);
+                            });
+                        }, index * 150); // تأخير 150ms بين كل script
+                    });
+                };
+                
+                // تحميل عند التفاعل الأول أو بعد 2 ثانية (أيهما أسرع)
+                ['click', 'touchstart', 'mousemove'].forEach(event => {
+                    document.addEventListener(event, loadCriticalScriptsOnDemand, { once: true, passive: true });
+                });
+                setTimeout(loadCriticalScriptsOnDemand, 2000); // تأخير 2 ثانية كحد أقصى
                 
                 // تحميل On-Demand Scripts عند الحاجة (Lazy Loading)
                 window.loadScriptOnDemand = function(scriptId) {
@@ -878,14 +956,27 @@
         async function performAuthCheck() {
             // 🔧 الحل 5: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
             const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-            if (justLoggedInTime) {
-                const timeSinceLogin = Date.now() - parseInt(justLoggedInTime);
-                // إذا كان تسجيل الدخول حديث (أقل من 15 ثانية)، انتظر قليلاً قبل التحقق
-                if (timeSinceLogin < 15000) {
-                    console.log('⏳ تسجيل دخول حديث في dashboard - انتظار قليل...');
-                    // انتظار إضافي للجلسة
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+            const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 15000;
+            
+            if (isRecentLogin) {
+                console.log('⏳ تسجيل دخول حديث في dashboard - استخدام البيانات المحفوظة أولاً...');
+                // محاولة استخدام البيانات المحفوظة أولاً
+                try {
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        const user = JSON.parse(savedUser);
+                        console.log('✅ استخدام بيانات المستخدم المحفوظة بعد تسجيل الدخول');
+                        cachedUser = user;
+                        authChecked = true;
+                        // مسح العلامة بعد النجاح
+                        sessionStorage.removeItem('just_logged_in_time');
+                        return user;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ خطأ في قراءة البيانات المحفوظة:', e);
                 }
+                // انتظار إضافي للجلسة قبل التحقق من الخادم
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             // منع الطلبات المتكررة - إذا كان هناك طلب قيد التنفيذ، انتظر
@@ -972,6 +1063,430 @@
             sessionStorage.removeItem('returning_from_pos');
             console.log('🔄 تم اكتشاف العودة من نقاط البيع - سيتم إعادة تحميل المحتوى');
         }
+
+        // عرض قسم معين - تعريف مبكر لضمان توافره عند النقر على الروابط
+        window.showSection = function(section, skipSave = false) {
+            // التحقق من أن DOM جاهز
+            if (document.readyState === 'loading') {
+                console.warn('DOM غير جاهز بعد - سيتم الانتظار');
+                document.addEventListener('DOMContentLoaded', () => {
+                    window.showSection(section, skipSave);
+                });
+                return;
+            }
+
+            console.log(`📄 عرض القسم: ${section}, isReturningFromPOS: ${isReturningFromPOS}`);
+            
+            // التحقق من الصلاحيات
+            const userStr = localStorage.getItem('currentUser');
+            const user = userStr ? JSON.parse(userStr) : null;
+            const isEmployee = user && user.role === 'employee';
+            const isManager = user && user.role === 'manager';
+            const isAdmin = user && user.role === 'admin';
+            const branchCode = localStorage.getItem('branch_code') || '';
+            
+            // التحقق من صلاحيات product-returns
+            if (section === 'product-returns') {
+                let hasPermission = false;
+                
+                // المالك له كامل الصلاحيات
+                if (isAdmin) {
+                    hasPermission = true;
+                }
+                // المدير في الفرع الأول
+                else if (isManager && (!branchCode || branchCode === 'HANOVIL')) {
+                    hasPermission = true;
+                }
+                // جميع الموظفين مسموح لهم
+                else if (isEmployee) {
+                    hasPermission = true;
+                }
+                
+                if (!hasPermission) {
+                    console.warn('🚫 محاولة الوصول إلى قسم استرجاع المنتجات بدون صلاحية');
+                    if (typeof showMessage === 'function') {
+                        showMessage('ليس لديك صلاحية للوصول إلى هذا القسم', 'error');
+                    }
+                    section = 'repairs';
+                }
+            }
+            
+            if (isEmployee) {
+                // الأقسام المسموحة للموظف: repairs, inventory, profile, product-returns
+                // الأقسام المحظورة للموظف
+                const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings'];
+                
+                if (forbiddenSections.includes(section)) {
+                    console.warn('🚫 محاولة الوصول إلى قسم محظور للموظف:', section);
+                    if (typeof showMessage === 'function') {
+                        showMessage('ليس لديك صلاحية للوصول إلى هذا القسم', 'error');
+                    }
+                    // التوجيه إلى قسم الصيانة كبديل
+                    section = 'repairs';
+                }
+            }
+            
+            // حفظ الصفحة الحالية في localStorage (إلا إذا كان skipSave = true)
+            if (!skipSave && typeof saveCurrentPage === 'function') {
+                saveCurrentPage(section);
+            }
+            
+            // إخفاء جميع الأقسام بشكل قوي - منع أي تعارضات
+            document.querySelectorAll('.section').forEach(sec => {
+                sec.classList.remove('active');
+                // إضافة style مباشر لضمان الإخفاء
+                sec.style.display = 'none';
+            });
+            
+            // إخفاء جميع الأقسام الفرعية للمخزون أيضاً
+            document.querySelectorAll('.inventory-section').forEach(sec => {
+                sec.classList.remove('active');
+                sec.style.display = 'none';
+            });
+            
+            // إزالة التحديد من جميع الروابط
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // إزالة التحديد من الـ navbar العائم
+            document.querySelectorAll('.mobile-nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // عرض القسم المحدد
+            const targetSection = document.getElementById(`${section}-section`);
+            
+            // التحقق من وجود محتوى في القسم
+            const hasContent = targetSection && targetSection.innerHTML.trim().length > 0;
+            const hasMinContent = targetSection && targetSection.innerHTML.trim().length > 100;
+            
+            console.log(`📊 حالة القسم ${section}: hasContent=${hasContent}, hasMinContent=${hasMinContent}, length=${targetSection ? targetSection.innerHTML.trim().length : 0}`);
+            
+            if (targetSection) {
+                // إظهار القسم المحدد فقط
+                targetSection.classList.add('active');
+                targetSection.style.display = 'block';
+                
+                // التأكد من إخفاء جميع الأقسام الأخرى مرة أخرى
+                document.querySelectorAll('.section').forEach(sec => {
+                    if (sec !== targetSection) {
+                        sec.classList.remove('active');
+                        sec.style.display = 'none';
+                    }
+                });
+                
+                // إخفاء جميع الأقسام الفرعية للمخزون إذا لم يكن القسم المحدد هو المخزون
+                if (section !== 'inventory') {
+                    document.querySelectorAll('.inventory-section').forEach(sec => {
+                        sec.classList.remove('active');
+                        sec.style.display = 'none';
+                    });
+                }
+                
+                // تحميل product-returns مباشرة إذا كان القسم المطلوب
+                let skipContentCheck = false;
+                if (section === 'product-returns') {
+                    if (typeof loadProductReturnsSection !== 'function') {
+                        console.log('تحميل product-returns.js...');
+                        skipContentCheck = true; // تخطي فحص المحتوى الفوري لأن السكربت يجري تحميله
+                        if (typeof loadScriptOnDemand === 'function') {
+                            loadScriptOnDemand('product-returns-script').then(() => {
+                                console.log('تم تحميل product-returns.js بنجاح');
+                                if (typeof loadProductReturnsSection === 'function') {
+                                    loadProductReturnsSection();
+                                } else {
+                                    console.error('loadProductReturnsSection غير متوفرة بعد تحميل الملف');
+                                }
+                            }).catch(err => {
+                                console.error('خطأ في تحميل product-returns.js:', err);
+                            });
+                        }
+                    } else {
+                        loadProductReturnsSection();
+                    }
+                }
+                
+                // إذا كان القسم فارغاً أو لا يحتوي على محتوى كافٍ، نعيد تحميله
+                // تخطي الفحص إذا كان product-returns يجري تحميله حالياً
+                if ((!hasContent || !hasMinContent) && !skipContentCheck) {
+                    console.log(`⚠️ القسم ${section} فارغ أو لا يحتوي على محتوى كافٍ (${targetSection.innerHTML.trim().length} حرف)، إعادة تحميل...`);
+                    // إعادة تحميل القسم بعد تأخير
+                    const reloadDelay = isReturningFromPOS ? 500 : 200;
+                    setTimeout(async () => {
+                        // 🔧 تحسين الأداء: تحميل critical script عند الحاجة
+                        if (section === 'repairs') {
+                            if (typeof loadCriticalScript === 'function') {
+                                await loadCriticalScript('js/repairs.js').catch(() => {});
+                            }
+                            if (typeof loadRepairsSection === 'function') {
+                                loadRepairsSection();
+                            }
+                        } else if (section === 'customers') {
+                            if (typeof loadCriticalScript === 'function') {
+                                await loadCriticalScript('js/customers.js').catch(() => {});
+                            }
+                            if (typeof loadCustomersSection === 'function') {
+                                loadCustomersSection();
+                            }
+                        } else if (section === 'inventory') {
+                            if (typeof loadCriticalScript === 'function') {
+                                await loadCriticalScript('js/inventory.js').catch(() => {});
+                            }
+                            if (typeof loadInventorySection === 'function') {
+                                loadInventorySection();
+                            }
+                        } else if (section === 'expenses' && typeof loadExpensesSection === 'function') {
+                            loadExpensesSection();
+                        } else if (section === 'reports' && typeof loadReportsSection === 'function') {
+                            loadReportsSection();
+                        } else if (section === 'product-returns') {
+                            // تحميل product-returns.js إذا لم يكن محملاً
+                            if (typeof loadProductReturnsSection !== 'function') {
+                                if (typeof loadScriptOnDemand === 'function') {
+                                    loadScriptOnDemand('product-returns-script').then(() => {
+                                        console.log('تم تحميل product-returns.js بنجاح (من إعادة التحميل)');
+                                        if (typeof loadProductReturnsSection === 'function') {
+                                            loadProductReturnsSection();
+                                        } else {
+                                            console.error('loadProductReturnsSection غير متوفرة بعد تحميل الملف');
+                                        }
+                                    }).catch(err => {
+                                        console.error('خطأ في تحميل product-returns.js:', err);
+                                    });
+                                }
+                            } else {
+                                loadProductReturnsSection();
+                            }
+                        } else {
+                            // إذا لم تكن الدالة متوفرة، ننتظر قليلاً ثم نحاول مرة أخرى
+                            if (typeof updateSectionData === 'function') {
+                                setTimeout(() => {
+                                    updateSectionData(section, true);
+                                }, 500);
+                            }
+                        }
+                    }, reloadDelay);
+                }
+            } else {
+                console.warn('القسم غير موجود:', section);
+                // 🔧 تحسين الأداء: تحميل critical script عند الحاجة
+                if (section === 'repairs') {
+                    if (typeof loadCriticalScript === 'function') {
+                        loadCriticalScript('js/repairs.js').then(() => {
+                            if (typeof loadRepairsSection === 'function') loadRepairsSection();
+                        }).catch(() => {});
+                    } else if (typeof loadRepairsSection === 'function') {
+                        loadRepairsSection();
+                    }
+                } else if (section === 'customers') {
+                    if (typeof loadCriticalScript === 'function') {
+                        loadCriticalScript('js/customers.js').then(() => {
+                            if (typeof loadCustomersSection === 'function') loadCustomersSection();
+                        }).catch(() => {});
+                    } else if (typeof loadCustomersSection === 'function') {
+                        loadCustomersSection();
+                    }
+                } else if (section === 'inventory') {
+                    if (typeof loadCriticalScript === 'function') {
+                        loadCriticalScript('js/inventory.js').then(() => {
+                            if (typeof loadInventorySection === 'function') loadInventorySection();
+                        }).catch(() => {});
+                    } else if (typeof loadInventorySection === 'function') {
+                        loadInventorySection();
+                    }
+                } else if (section === 'expenses' && typeof loadExpensesSection === 'function') {
+                    loadExpensesSection();
+                } else if (section === 'reports' && typeof loadReportsSection === 'function') {
+                    loadReportsSection();
+                } else if (section === 'product-returns') {
+                    // تحميل product-returns.js إذا لم يكن محملاً
+                    console.log('القسم غير موجود، تحميل product-returns.js...');
+                    if (typeof loadProductReturnsSection !== 'function') {
+                        if (typeof loadScriptOnDemand === 'function') {
+                            loadScriptOnDemand('product-returns-script').then(() => {
+                                console.log('تم تحميل product-returns.js بنجاح');
+                                if (typeof loadProductReturnsSection === 'function') {
+                                    loadProductReturnsSection();
+                                } else {
+                                    console.error('loadProductReturnsSection غير متوفرة بعد تحميل الملف');
+                                }
+                            }).catch(err => {
+                                console.error('خطأ في تحميل product-returns.js:', err);
+                            });
+                        }
+                    } else {
+                        loadProductReturnsSection();
+                    }
+                } else if (section === 'settings') {
+                    // تحميل settings.js إذا لم يكن محملاً
+                    if (typeof loadSettingsSection !== 'function') {
+                        if (typeof loadScriptOnDemand === 'function') {
+                            loadScriptOnDemand('settings-script').then(() => {
+                                if (typeof loadSettingsSection === 'function') {
+                                    loadSettingsSection();
+                                } else {
+                                    console.error('loadSettingsSection غير متوفرة بعد تحميل settings.js');
+                                    const settingsSection = document.getElementById('settings-section');
+                                    if (settingsSection) {
+                                        settingsSection.innerHTML = `
+                                            <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                                <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                                <p>خطأ في تحميل قسم الإعدادات</p>
+                                                <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                                    إعادة تحميل الصفحة
+                                                </button>
+                                            </div>
+                                        `;
+                                    }
+                                }
+                            }).catch(err => {
+                                console.error('خطأ في تحميل settings.js:', err);
+                                const settingsSection = document.getElementById('settings-section');
+                                if (settingsSection) {
+                                    settingsSection.innerHTML = `
+                                        <div style="text-align: center; padding: 40px; color: var(--danger-color);">
+                                            <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                                            <p>خطأ في تحميل ملف الإعدادات</p>
+                                            <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
+                                                إعادة تحميل الصفحة
+                                            </button>
+                                        </div>
+                                    `;
+                                }
+                            });
+                        }
+                    } else {
+                        loadSettingsSection();
+                    }
+                } else if (section === 'profile') {
+                    // تحميل profile.js إذا لم يكن محملاً
+                    if (typeof loadProfileSection !== 'function') {
+                        if (typeof loadScriptOnDemand === 'function') {
+                            loadScriptOnDemand('profile-script').then(() => {
+                                if (typeof loadProfileSection === 'function') {
+                                    loadProfileSection();
+                                }
+                            }).catch(err => {
+                                console.error('خطأ في تحميل profile.js:', err);
+                            });
+                        }
+                    } else {
+                        loadProfileSection();
+                    }
+                }
+                // إعادة المحاولة بعد تحميل القسم
+                setTimeout(() => {
+                    const retrySection = document.getElementById(`${section}-section`);
+                    if (retrySection) {
+                        retrySection.classList.add('active');
+                    }
+                }, 100);
+            }
+            
+            // تحميل قسم الملف الشخصي مباشرة إذا كان القسم المطلوب
+            if (section === 'profile') {
+                // تحميل profile.js إذا لم يكن محملاً
+                if (typeof loadProfileSection !== 'function') {
+                    if (typeof loadScriptOnDemand === 'function') {
+                        loadScriptOnDemand('profile-script').then(() => {
+                            if (typeof loadProfileSection === 'function') {
+                                loadProfileSection();
+                            }
+                        }).catch(err => {
+                            console.error('خطأ في تحميل profile.js:', err);
+                        });
+                    }
+                } else {
+                    loadProfileSection();
+                }
+            }
+            
+            // تحديد الرابط (استخدام window.event إذا كان متاحاً، أو البحث يدوياً)
+            const event = window.event || null;
+            if (event && event.target) {
+                const navLink = event.target.closest('.nav-link');
+                if (navLink) {
+                    navLink.classList.add('active');
+                }
+                const mobileNavItem = event.target.closest('.mobile-nav-item');
+                if (mobileNavItem) {
+                    mobileNavItem.classList.add('active');
+                }
+            } else {
+                // إذا لم يكن هناك event، نبحث عن الرابط يدوياً
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(`'${section}'`)) {
+                        link.classList.add('active');
+                    }
+                });
+                document.querySelectorAll('.mobile-nav-item').forEach(item => {
+                    if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${section}'`)) {
+                        item.classList.add('active');
+                    }
+                });
+            }
+            
+            // تحديث عنوان الصفحة
+            const titles = {
+                'dashboard': 'لوحة التحكم',
+                'repairs': 'عمليات الصيانة',
+                'customers': 'العملاء',
+                'inventory': 'المخزون',
+                'expenses': 'المصروفات',
+                'reports': 'التقارير المالية',
+                'settings': 'الإعدادات',
+                'profile': 'الملف الشخصي'
+            };
+            
+            const icons = {
+                'dashboard': 'bi-speedometer2',
+                'repairs': 'bi-tools',
+                'customers': 'bi-people',
+                'inventory': 'bi-box-seam',
+                'expenses': 'bi-cash-stack',
+                'reports': 'bi-graph-up',
+                'settings': 'bi-gear',
+                'profile': 'bi-person-circle'
+            };
+            
+            if (titles[section]) {
+                const pageTitle = document.getElementById('pageTitle');
+                if (pageTitle) {
+                    const iconClass = icons[section] || 'bi-speedometer2';
+                    pageTitle.innerHTML = `<i class="bi ${iconClass}"></i> ${titles[section]}`;
+                }
+            }
+            if (typeof currentSection !== 'undefined') {
+                currentSection = section;
+            }
+            
+            // تحديث البيانات عند تغيير التبويبات - مع إعادة تحميل كاملة
+            // إضافة تأخير لضمان أن DOM جاهز
+            if (typeof updateSectionData === 'function') {
+                const updateDelay = isReturningFromPOS ? 300 : 100;
+                setTimeout(() => {
+                    updateSectionData(section, true); // true = إعادة تحميل كاملة
+                }, updateDelay);
+            }
+            
+            // تحديث الـ navbar العائم
+            if (typeof updateMobileNavbar === 'function') {
+                updateMobileNavbar(section);
+            }
+            
+            // إغلاق الـ sidebar في واجهة الهاتف بعد اختيار تبويب
+            if (window.innerWidth <= 575.98) {
+                const sidebar = document.getElementById('sidebar');
+                const mobileMenuBtn = document.getElementById('mobileMenuBtn') || document.querySelector('.btn-menu');
+                if (sidebar) {
+                    sidebar.classList.remove('open');
+                }
+                if (mobileMenuBtn) {
+                    mobileMenuBtn.innerHTML = '<i class="bi bi-list"></i>';
+                }
+            }
+        };
 
         // التحقق من تسجيل الدخول عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', async () => {
@@ -1093,10 +1608,48 @@
                 if ('serviceWorker' in navigator) {
                     try {
                         const appVersion = '2.0.1';
-                        const swUrl = '/sw.js';
+                        
+                        // تحديد المسار الأساسي تلقائياً
+                        const getBasePath = () => {
+                            try {
+                                const pathname = window.location.pathname;
+                                const match = pathname.match(/^(\/[^\/]+)/);
+                                if (match && match[1] !== '/') {
+                                    return match[1];
+                                }
+                                return '';
+                            } catch (e) {
+                                return '';
+                            }
+                        };
+                        const basePath = getBasePath();
+                        const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
+                        // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
+                        const scope = basePath ? `${basePath}/` : '/';
+                        
+                        // التحقق من أن الملف موجود وأنه JavaScript وليس HTML
+                        try {
+                            const response = await fetch(swUrl, { method: 'HEAD' });
+                            const contentType = response.headers.get('content-type') || '';
+                            
+                            if (contentType.includes('text/html')) {
+                                console.warn('⚠️ Service Worker file returns HTML instead of JavaScript. Server configuration issue.');
+                                console.warn('   The server may be returning an error page or redirecting 404 errors to index.html');
+                                console.warn('   Please check server configuration or ensure sw.js file exists');
+                                return; // عدم محاولة التسجيل إذا كان الملف غير صحيح
+                            }
+                            
+                            if (!response.ok) {
+                                console.warn(`⚠️ Service Worker file not accessible: ${response.status} ${response.statusText}`);
+                                return;
+                            }
+                        } catch (fetchError) {
+                            console.warn('⚠️ Could not verify Service Worker file:', fetchError);
+                            // نستمر في المحاولة رغم ذلك
+                        }
                         
                         const registration = await navigator.serviceWorker.register(swUrl, {
-                            scope: '/',
+                            scope: scope,
                             updateViaCache: 'none'
                         });
                         
@@ -1116,43 +1669,90 @@
                             }
                         });
                         
-                    // التحقق من التحديثات فوراً عند تحميل الصفحة
-                    // ثم بشكل دوري كل 30 ثانية لضمان الحصول على آخر إصدار
-                    const checkForUpdates = async () => {
-                        try {
-                            console.log('🔄 التحقق من التحديثات...');
-                            await registration.update();
-                            
-                            // التحقق من وجود Service Worker محدث
-                            if (registration.waiting) {
-                                console.log('🔄 تم اكتشاف Service Worker محدث - سيتم التفعيل');
-                                // إرسال رسالة للـ Service Worker لتخطي الانتظار
-                                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                            }
-                            
-                            // التحقق من تحديث الملفات نفسها
-                            if (typeof window.checkForUpdates === 'function') {
-                                const hasUpdate = await window.checkForUpdates();
-                                if (hasUpdate) {
-                                    console.log('🔄 تم اكتشاف تحديث للملفات - إعادة تحميل...');
-                                    // إعادة تحميل الصفحة بعد ثانيتين
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 2000);
+                        // التحقق من التحديثات فوراً عند تحميل الصفحة
+                        // ثم بشكل دوري كل 30 ثانية لضمان الحصول على آخر إصدار
+                        const checkForUpdates = async () => {
+                            try {
+                                // التحقق من الاتصال بالإنترنت أولاً
+                                if (!navigator.onLine) {
+                                    console.log('[Update] لا يوجد اتصال - سيتم التحقق لاحقاً');
+                                    return;
+                                }
+                                
+                                console.log('🔄 التحقق من التحديثات...');
+                                
+                                // محاولة تحديث Service Worker مع معالجة أفضل للأخطاء
+                                try {
+                                    await registration.update();
+                                } catch (updateError) {
+                                    // تجاهل خطأ التحديث إذا كان بسبب عدم الاتصال أو مشاكل الشبكة
+                                    if (updateError.message && (
+                                        updateError.message.includes('Failed to fetch') ||
+                                        updateError.message.includes('NetworkError') ||
+                                        updateError.message.includes('network')
+                                    )) {
+                                        console.log('[Update] لا يوجد اتصال بالإنترنت - سيتم التحقق لاحقاً');
+                                        return;
+                                    }
+                                    // إعادة رمي الخطأ إذا كان خطأ آخر
+                                    throw updateError;
+                                }
+                                
+                                // التحقق من وجود Service Worker محدث
+                                if (registration.waiting) {
+                                    console.log('🔄 تم اكتشاف Service Worker محدث - سيتم التفعيل');
+                                    // إرسال رسالة للـ Service Worker لتخطي الانتظار
+                                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                                
+                                // التحقق من تحديث الملفات نفسها
+                                if (typeof window.checkForUpdates === 'function') {
+                                    try {
+                                        const hasUpdate = await window.checkForUpdates();
+                                        if (hasUpdate) {
+                                            console.log('🔄 تم اكتشاف تحديث للملفات - إعادة تحميل...');
+                                            // إعادة تحميل الصفحة بعد ثانيتين
+                                            setTimeout(() => {
+                                                window.location.reload();
+                                            }, 2000);
+                                        }
+                                    } catch (versionError) {
+                                        // تجاهل أخطاء التحقق من الإصدار
+                                        console.log('[Update] خطأ في التحقق من الإصدار:', versionError.message);
+                                    }
+                                }
+                            } catch (error) {
+                                // معالجة أفضل للأخطاء - عدم عرض أخطاء الشبكة كأخطاء حرجة
+                                if (error.message && (
+                                    error.message.includes('Failed to fetch') ||
+                                    error.message.includes('NetworkError') ||
+                                    error.message.includes('network') ||
+                                    !navigator.onLine
+                                )) {
+                                    console.log('[Update] لا يوجد اتصال - سيتم التحقق لاحقاً');
+                                } else {
+                                    console.warn('⚠️ خطأ في التحقق من التحديثات:', error.message || error);
                                 }
                             }
-                        } catch (error) {
-                            console.warn('⚠️ خطأ في التحقق من التحديثات:', error);
-                        }
-                    };
-                    
-                    // التحقق فوراً
-                    setTimeout(checkForUpdates, 1000);
-                    
-                    // التحقق بشكل دوري كل 30 ثانية
-                    setInterval(checkForUpdates, 30000); // كل 30 ثانية
+                        };
+                        
+                        // التحقق فوراً
+                        setTimeout(checkForUpdates, 1000);
+                        
+                        // التحقق بشكل دوري كل 30 ثانية
+                        setInterval(checkForUpdates, 30000); // كل 30 ثانية
                     } catch (error) {
-                        console.warn('Service Worker registration failed:', error);
+                        // معالجة أفضل للأخطاء
+                        if (error.message && error.message.includes('MIME type')) {
+                            console.error('❌ Service Worker registration failed: Server returned wrong MIME type (HTML instead of JavaScript)');
+                            console.error('   This usually means:');
+                            console.error('   1. The sw.js file does not exist on the server');
+                            console.error('   2. The server is redirecting 404 errors to index.html');
+                            console.error('   3. Server MIME type configuration is incorrect');
+                            console.error('   Solution: Check .htaccess file and ensure sw.js is accessible');
+                        } else {
+                            console.warn('⚠️ Service Worker registration failed:', error.message || error);
+                        }
                     }
                 }
             };
@@ -1290,7 +1890,7 @@
             // تحميل محتوى الأقسام بشكل آمن مع معالجة أفضل للأخطاء
             const loadSectionSafely = async (sectionName, loadFunction) => {
                 try {
-                    // للقسم settings و profile و expenses، نحتاج لتحميل الـ script أولاً
+                    // للقسم settings و profile و expenses و reports، نحتاج لتحميل الـ script أولاً
                     if (sectionName === 'settings' && typeof loadFunction !== 'function') {
                         await loadScriptOnDemand('settings-script');
                         // إعادة محاولة بعد تحميل الـ script
@@ -1315,6 +1915,42 @@
                             await loadExpensesSection();
                         } else {
                             console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد تحميل الـ script`);
+                        }
+                    } else if (sectionName === 'reports' && typeof loadFunction !== 'function') {
+                        // 🔧 الحل: تحميل reports.js قبل استدعاء loadReportsSection
+                        try {
+                            await loadScriptOnDemand('reports-script');
+                            // انتظار قليلاً لضمان تحميل الدالة
+                            let attempts = 0;
+                            const maxAttempts = 15;
+                            while (attempts < maxAttempts && typeof loadReportsSection !== 'function') {
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                attempts++;
+                            }
+                            // إعادة محاولة بعد تحميل الـ script
+                            if (typeof loadReportsSection === 'function') {
+                                await loadReportsSection();
+                            } else {
+                                console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد ${maxAttempts} محاولة`);
+                            }
+                        } catch (e) {
+                            // قد يكون غير مسموح للموظف أو خطأ في التحميل
+                            console.warn(`غير متاح تحميل ${sectionName}:`, e.message);
+                        }
+                    } else if (sectionName === 'inventory' && typeof loadFunction !== 'function') {
+                        // 🔧 الحل: inventory.js هو critical script، لكن قد لا يكون جاهزاً بعد
+                        // ننتظر قليلاً ثم نتحقق من وجود الدالة
+                        let attempts = 0;
+                        const maxAttempts = 20;
+                        while (attempts < maxAttempts && typeof loadInventorySection !== 'function') {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            attempts++;
+                        }
+                        // إعادة محاولة بعد انتظار تحميل الـ script
+                        if (typeof loadInventorySection === 'function') {
+                            await loadInventorySection();
+                        } else {
+                            console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد ${maxAttempts} محاولة`);
                         }
                     } else if (typeof loadFunction === 'function') {
                         await loadFunction();
@@ -1432,15 +2068,40 @@
                 }
             }, isReturningFromPOS ? 800 : 200);
             
-            // تهيئة نظام المزامنة مع تأخير لضمان تحميل كل شيء
+            // 🔧 تحسين الأداء: تأجيل نظام المزامنة حتى بعد 30 ثانية أو عند التفاعل الأول
             const initSyncManager = () => {
+                if (syncManagerInitialized) return true;
                 if (typeof syncManager !== 'undefined' && !syncManager.isInitialized) {
-                    console.log('[Dashboard] بدء تهيئة نظام المزامنة');
+                    console.log('[Dashboard] بدء تهيئة نظام المزامنة (متأخر)');
                     syncManager.startAutoSync();
+                    syncManagerInitialized = true;
                     return true;
                 }
                 return false;
             };
+            
+            // 🔧 تأجيل المزامنة: إما عند التفاعل الأول أو بعد 30 ثانية
+            let userInteracted = false;
+            const triggerSyncOnInteraction = () => {
+                if (!userInteracted) {
+                    userInteracted = true;
+                    // تأخير إضافي بعد التفاعل لتقليل الحمل
+                    setTimeout(() => {
+                        initSyncManager();
+                    }, 5000); // تأخير 5 ثواني بعد التفاعل
+                }
+            };
+            
+            ['click', 'touchstart', 'keydown'].forEach(event => {
+                document.addEventListener(event, triggerSyncOnInteraction, { once: true, passive: true });
+            });
+            
+            // تأجيل المزامنة حتى بعد 30 ثانية كحد أقصى
+            setTimeout(() => {
+                if (!syncManagerInitialized) {
+                    initSyncManager();
+                }
+            }, 30000); // 30 ثانية
             
             // محاولة فورية
             if (!initSyncManager()) {
@@ -1469,8 +2130,8 @@
             }
         });
 
-        // إدارة إغلاق التبويب
-        window.addEventListener('beforeunload', (event) => {
+        // إدارة إغلاق التبويب - استخدام pagehide لتحسين bfcache
+        const handlePageUnload = () => {
             // إيقاف نظام المزامنة
             if (typeof syncManager !== 'undefined' && syncManager.isInitialized) {
                 console.log('[Dashboard] إيقاف نظام المزامنة قبل إغلاق التبويب');
@@ -1512,6 +2173,19 @@
             }
             
             console.log('[Dashboard] تم تنظيف الموارد قبل إغلاق التبويب');
+        };
+        
+        // استخدام pagehide بدلاً من beforeunload لتحسين bfcache
+        window.addEventListener('pagehide', handlePageUnload);
+        
+        // Fallback لـ beforeunload فقط عند الحاجة لإظهار رسالة تأكيد
+        window.addEventListener('beforeunload', (event) => {
+            // فقط إذا كان هناك تغييرات غير محفوظة
+            if (typeof hasUnsavedChanges !== 'undefined' && hasUnsavedChanges()) {
+                event.preventDefault();
+                event.returnValue = '';
+                return '';
+            }
         });
 
         // إدارة إخفاء التبويب
@@ -1523,10 +2197,12 @@
                     syncManager.stopAutoSync();
                 }
             } else {
-                // إعادة تشغيل المزامنة عند إظهار التبويب
-                if (typeof syncManager !== 'undefined' && !syncManager.isInitialized) {
-                    console.log('[Dashboard] إعادة تشغيل المزامنة - التبويب مرئي');
-                    syncManager.startAutoSync();
+                // 🔧 تحسين الأداء: إعادة تشغيل المزامنة فقط إذا لم تكن مفعلة (تأخير حتى التفاعل)
+                if (typeof syncManager !== 'undefined' && !syncManager.isInitialized && !syncManagerInitialized) {
+                    // تأخير حتى التفاعل أو بعد 5 ثواني
+                    setTimeout(() => {
+                        initSyncManager();
+                    }, 5000);
                 }
             }
         });
@@ -1536,278 +2212,6 @@
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('collapsed');
             sidebar.classList.toggle('show');
-        }
-
-        // عرض قسم معين
-        function showSection(section, skipSave = false) {
-            console.log(`📄 عرض القسم: ${section}, isReturningFromPOS: ${isReturningFromPOS}`);
-            
-            // التحقق من الصلاحيات - للموظف: السماح فقط بـ (repairs, inventory, pos, chat)
-            const userStr = localStorage.getItem('currentUser');
-            const user = userStr ? JSON.parse(userStr) : null;
-            const isEmployee = user && user.role === 'employee';
-            
-            if (isEmployee) {
-                // الأقسام المسموحة للموظف: repairs, inventory, profile
-                // الأقسام المحظورة للموظف
-                const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings'];
-                
-                if (forbiddenSections.includes(section)) {
-                    console.warn('🚫 محاولة الوصول إلى قسم محظور للموظف:', section);
-                    showMessage('ليس لديك صلاحية للوصول إلى هذا القسم', 'error');
-                    // التوجيه إلى قسم الصيانة كبديل
-                    section = 'repairs';
-                }
-            }
-            
-            // حفظ الصفحة الحالية في localStorage (إلا إذا كان skipSave = true)
-            if (!skipSave) {
-                saveCurrentPage(section);
-            }
-            
-            // إخفاء جميع الأقسام بشكل قوي - منع أي تعارضات
-            document.querySelectorAll('.section').forEach(sec => {
-                sec.classList.remove('active');
-                // إضافة style مباشر لضمان الإخفاء
-                sec.style.display = 'none';
-            });
-            
-            // إخفاء جميع الأقسام الفرعية للمخزون أيضاً
-            document.querySelectorAll('.inventory-section').forEach(sec => {
-                sec.classList.remove('active');
-                sec.style.display = 'none';
-            });
-            
-            // إزالة التحديد من جميع الروابط
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            // إزالة التحديد من الـ navbar العائم
-            document.querySelectorAll('.mobile-nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            // عرض القسم المحدد
-            const targetSection = document.getElementById(`${section}-section`);
-            
-            // التحقق من وجود محتوى في القسم
-            const hasContent = targetSection && targetSection.innerHTML.trim().length > 0;
-            const hasMinContent = targetSection && targetSection.innerHTML.trim().length > 100;
-            
-            console.log(`📊 حالة القسم ${section}: hasContent=${hasContent}, hasMinContent=${hasMinContent}, length=${targetSection ? targetSection.innerHTML.trim().length : 0}`);
-            
-            if (targetSection) {
-                // إظهار القسم المحدد فقط
-                targetSection.classList.add('active');
-                targetSection.style.display = 'block';
-                
-                // التأكد من إخفاء جميع الأقسام الأخرى مرة أخرى
-                document.querySelectorAll('.section').forEach(sec => {
-                    if (sec !== targetSection) {
-                        sec.classList.remove('active');
-                        sec.style.display = 'none';
-                    }
-                });
-                
-                // إخفاء جميع الأقسام الفرعية للمخزون إذا لم يكن القسم المحدد هو المخزون
-                if (section !== 'inventory') {
-                    document.querySelectorAll('.inventory-section').forEach(sec => {
-                        sec.classList.remove('active');
-                        sec.style.display = 'none';
-                    });
-                }
-                
-                // إذا كان القسم فارغاً أو لا يحتوي على محتوى كافٍ، نعيد تحميله
-                if (!hasContent || !hasMinContent) {
-                    console.log(`⚠️ القسم ${section} فارغ أو لا يحتوي على محتوى كافٍ (${targetSection.innerHTML.trim().length} حرف)، إعادة تحميل...`);
-                    // إعادة تحميل القسم بعد تأخير
-                    const reloadDelay = isReturningFromPOS ? 500 : 200;
-                    setTimeout(() => {
-                        if (section === 'repairs' && typeof loadRepairsSection === 'function') {
-                            loadRepairsSection();
-                        } else if (section === 'customers' && typeof loadCustomersSection === 'function') {
-                            loadCustomersSection();
-                        } else if (section === 'inventory' && typeof loadInventorySection === 'function') {
-                            loadInventorySection();
-                        } else if (section === 'expenses' && typeof loadExpensesSection === 'function') {
-                            loadExpensesSection();
-                        } else if (section === 'reports' && typeof loadReportsSection === 'function') {
-                            loadReportsSection();
-                        } else {
-                            // إذا لم تكن الدالة متوفرة، ننتظر قليلاً ثم نحاول مرة أخرى
-                            setTimeout(() => {
-                                updateSectionData(section, true);
-                            }, 500);
-                        }
-                    }, reloadDelay);
-                }
-            } else {
-                console.warn('القسم غير موجود:', section);
-                // إعادة تحميل القسم إذا لم يكن موجوداً
-                if (section === 'repairs' && typeof loadRepairsSection === 'function') {
-                    loadRepairsSection();
-                } else if (section === 'customers' && typeof loadCustomersSection === 'function') {
-                    loadCustomersSection();
-                } else if (section === 'inventory' && typeof loadInventorySection === 'function') {
-                    loadInventorySection();
-                } else if (section === 'expenses' && typeof loadExpensesSection === 'function') {
-                    loadExpensesSection();
-                } else if (section === 'reports' && typeof loadReportsSection === 'function') {
-                    loadReportsSection();
-                } else if (section === 'settings') {
-                    // تحميل settings.js إذا لم يكن محملاً
-                    if (typeof loadSettingsSection !== 'function') {
-                        loadScriptOnDemand('settings-script').then(() => {
-                            if (typeof loadSettingsSection === 'function') {
-                                loadSettingsSection();
-                            } else {
-                                console.error('loadSettingsSection غير متوفرة بعد تحميل settings.js');
-                                const settingsSection = document.getElementById('settings-section');
-                                if (settingsSection) {
-                                    settingsSection.innerHTML = `
-                                        <div style="text-align: center; padding: 40px; color: var(--danger-color);">
-                                            <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                                            <p>خطأ في تحميل قسم الإعدادات</p>
-                                            <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
-                                                إعادة تحميل الصفحة
-                                            </button>
-                                        </div>
-                                    `;
-                                }
-                            }
-                        }).catch(err => {
-                            console.error('خطأ في تحميل settings.js:', err);
-                            const settingsSection = document.getElementById('settings-section');
-                            if (settingsSection) {
-                                settingsSection.innerHTML = `
-                                    <div style="text-align: center; padding: 40px; color: var(--danger-color);">
-                                        <i class="bi bi-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                                        <p>خطأ في تحميل ملف الإعدادات</p>
-                                        <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">
-                                            إعادة تحميل الصفحة
-                                        </button>
-                                    </div>
-                                `;
-                            }
-                        });
-                    } else {
-                        loadSettingsSection();
-                    }
-                } else if (section === 'profile') {
-                    // تحميل profile.js إذا لم يكن محملاً
-                    if (typeof loadProfileSection !== 'function') {
-                        loadScriptOnDemand('profile-script').then(() => {
-                            if (typeof loadProfileSection === 'function') {
-                                loadProfileSection();
-                            }
-                        }).catch(err => {
-                            console.error('خطأ في تحميل profile.js:', err);
-                        });
-                    } else {
-                        loadProfileSection();
-                    }
-                }
-                // إعادة المحاولة بعد تحميل القسم
-                setTimeout(() => {
-                    const retrySection = document.getElementById(`${section}-section`);
-                    if (retrySection) {
-                        retrySection.classList.add('active');
-                    }
-                }, 100);
-            }
-            
-            // تحميل قسم الملف الشخصي مباشرة إذا كان القسم المطلوب
-            if (section === 'profile') {
-                // تحميل profile.js إذا لم يكن محملاً
-                if (typeof loadProfileSection !== 'function') {
-                    loadScriptOnDemand('profile-script').then(() => {
-                        if (typeof loadProfileSection === 'function') {
-                            loadProfileSection();
-                        }
-                    }).catch(err => {
-                        console.error('خطأ في تحميل profile.js:', err);
-                    });
-                } else {
-                    loadProfileSection();
-                }
-            }
-            
-            // تحديد الرابط
-            if (event && event.target) {
-                const navLink = event.target.closest('.nav-link');
-                if (navLink) {
-                    navLink.classList.add('active');
-                }
-                const mobileNavItem = event.target.closest('.mobile-nav-item');
-                if (mobileNavItem) {
-                    mobileNavItem.classList.add('active');
-                }
-            } else {
-                // إذا لم يكن هناك event، نبحث عن الرابط يدوياً
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(`'${section}'`)) {
-                        link.classList.add('active');
-                    }
-                });
-                document.querySelectorAll('.mobile-nav-item').forEach(item => {
-                    if (item.getAttribute('onclick') && item.getAttribute('onclick').includes(`'${section}'`)) {
-                        item.classList.add('active');
-                    }
-                });
-            }
-            
-            // تحديث عنوان الصفحة
-            const titles = {
-                'dashboard': 'لوحة التحكم',
-                'repairs': 'عمليات الصيانة',
-                'customers': 'العملاء',
-                'inventory': 'المخزون',
-                'expenses': 'المصروفات',
-                'reports': 'التقارير المالية',
-                'settings': 'الإعدادات',
-                'profile': 'الملف الشخصي'
-            };
-            
-            const icons = {
-                'dashboard': 'bi-speedometer2',
-                'repairs': 'bi-tools',
-                'customers': 'bi-people',
-                'inventory': 'bi-box-seam',
-                'expenses': 'bi-cash-stack',
-                'reports': 'bi-graph-up',
-                'settings': 'bi-gear',
-                'profile': 'bi-person-circle'
-            };
-            
-            if (titles[section]) {
-                const pageTitle = document.getElementById('pageTitle');
-                const iconClass = icons[section] || 'bi-speedometer2';
-                pageTitle.innerHTML = `<i class="bi ${iconClass}"></i> ${titles[section]}`;
-            }
-            currentSection = section;
-            
-            // تحديث البيانات عند تغيير التبويبات - مع إعادة تحميل كاملة
-            // إضافة تأخير لضمان أن DOM جاهز
-            const updateDelay = isReturningFromPOS ? 300 : 100;
-            setTimeout(() => {
-                updateSectionData(section, true); // true = إعادة تحميل كاملة
-            }, updateDelay);
-            
-            // تحديث الـ navbar العائم
-            updateMobileNavbar(section);
-            
-            // إغلاق الـ sidebar في واجهة الهاتف بعد اختيار تبويب
-            if (window.innerWidth <= 575.98) {
-                const sidebar = document.getElementById('sidebar');
-                const mobileMenuBtn = document.getElementById('mobileMenuBtn') || document.querySelector('.btn-menu');
-                if (sidebar) {
-                    sidebar.classList.remove('open');
-                }
-                if (mobileMenuBtn) {
-                    mobileMenuBtn.innerHTML = '<i class="bi bi-list"></i>';
-                }
-            }
         }
 
         // تحديث البيانات عند تغيير التبويبات
@@ -2173,72 +2577,81 @@
                     syncIndicator.style.color = '';
                 }
                 
-                // تحميل تقرير اليوم مع معالجة الأخطاء بشكل منفصل
+                // 🔧 تحسين الأداء: تحميل الطلبات بشكل متوازي بدلاً من متسلسل
                 let reportData = null;
+                let currentRepairs = [];
+                
                 try {
-                    const result = await API.getReport('daily', today);
-                    if (result && result.success && result.data) {
-                        reportData = result.data;
+                    // تنفيذ الطلبات بشكل متوازي لتقليل وقت الانتظار
+                    const [reportResult, repairsResult] = await Promise.allSettled([
+                        API.getReport('daily', today).catch(err => ({ success: false, error: err })),
+                        API.getRepairs().catch(err => ({ success: false, error: err }))
+                    ]);
+                    
+                    // معالجة نتائج التقرير
+                    if (reportResult.status === 'fulfilled' && reportResult.value && reportResult.value.success && reportResult.value.data) {
+                        reportData = reportResult.value.data;
                     } else {
-                        console.warn('فشل تحميل تقرير اليوم:', result?.message || 'Unknown error');
-                        if (result?.message) {
-                            errorMessage = result.message;
+                        console.warn('فشل تحميل تقرير اليوم:', reportResult.value?.message || reportResult.reason || 'Unknown error');
+                        if (reportResult.value?.message) {
+                            errorMessage = reportResult.value.message;
                             hasError = true;
                         }
                     }
-                } catch (reportError) {
-                    console.error('خطأ في تحميل تقرير اليوم:', reportError);
-                    hasError = true;
-                    if (reportError.message) {
-                        errorMessage = reportError.message;
+                    
+                    // معالجة نتائج العمليات
+                    if (repairsResult.status === 'fulfilled' && repairsResult.value && repairsResult.value.success && repairsResult.value.data) {
+                        currentRepairs = repairsResult.value.data.filter(r => 
+                            r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
+                        );
+                    } else {
+                        console.warn('فشل تحميل العمليات:', repairsResult.value?.message || repairsResult.reason || 'Unknown error');
+                        if (repairsResult.value?.message && !errorMessage) {
+                            errorMessage = repairsResult.value.message;
+                            hasError = true;
+                        }
                     }
-                }
-                
-                // تحديث الإحصائيات (حتى لو فشل التقرير، نعرض القيم الافتراضية)
-                const todayRepairsEl = document.getElementById('todayRepairs');
-                const todayRevenueEl = document.getElementById('todayRevenue');
-                const todayExpensesEl = document.getElementById('todayExpenses');
-                const todayProfitEl = document.getElementById('todayProfit');
-                
-                if (reportData) {
-                    if (todayRepairsEl) todayRepairsEl.textContent = reportData.repairs_count || 0;
-                    if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(reportData.revenue || 0);
-                    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(reportData.expenses || 0);
-                    if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(reportData.profit || 0);
-                } else {
-                    // في حالة الفشل، عرض القيم الافتراضية
+                    
+                    // تحديث الإحصائيات
+                    const todayRepairsEl = document.getElementById('todayRepairs');
+                    const todayRevenueEl = document.getElementById('todayRevenue');
+                    const todayExpensesEl = document.getElementById('todayExpenses');
+                    const todayProfitEl = document.getElementById('todayProfit');
+                    
+                    if (reportData) {
+                        if (todayRepairsEl) todayRepairsEl.textContent = reportData.repairs_count || 0;
+                        if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(reportData.revenue || 0);
+                        if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(reportData.expenses || 0);
+                        if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(reportData.profit || 0);
+                    } else {
+                        // في حالة الفشل، عرض القيم الافتراضية
+                        if (todayRepairsEl) todayRepairsEl.textContent = '0';
+                        if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(0);
+                        if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
+                        if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
+                    }
+                    
+                    // عرض العمليات الحالية
+                    displayCurrentRepairs(currentRepairs);
+                    
+                } catch (error) {
+                    console.error('خطأ في تحميل بيانات Dashboard:', error);
+                    hasError = true;
+                    if (error.message && !errorMessage) {
+                        errorMessage = error.message;
+                    }
+                    
+                    // عرض القيم الافتراضية
+                    const todayRepairsEl = document.getElementById('todayRepairs');
+                    const todayRevenueEl = document.getElementById('todayRevenue');
+                    const todayExpensesEl = document.getElementById('todayExpenses');
+                    const todayProfitEl = document.getElementById('todayProfit');
+                    
                     if (todayRepairsEl) todayRepairsEl.textContent = '0';
                     if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(0);
                     if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
                     if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
-                }
-                
-                // تحميل العمليات الحالية مع معالجة الأخطاء بشكل منفصل
-                try {
-                    const repairsResult = await API.getRepairs();
-                    if (repairsResult && repairsResult.success && repairsResult.data) {
-                        const currentRepairs = repairsResult.data.filter(r => 
-                            r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
-                        );
-                        displayCurrentRepairs(currentRepairs);
-                    } else {
-                        // عرض رسالة "لا توجد عمليات حالية" في حالة الفشل
-                        displayCurrentRepairs([]);
-                        if (repairsResult?.message) {
-                            console.warn('فشل تحميل العمليات:', repairsResult.message);
-                            if (!errorMessage) {
-                                errorMessage = repairsResult.message;
-                                hasError = true;
-                            }
-                        }
-                    }
-                } catch (repairsError) {
-                    console.error('خطأ في تحميل العمليات:', repairsError);
                     displayCurrentRepairs([]);
-                    if (repairsError.message && !errorMessage) {
-                        errorMessage = repairsError.message;
-                        hasError = true;
-                    }
                 }
                 
                 // تحديث مؤشر التحميل حسب النتيجة
@@ -2599,6 +3012,76 @@
             }
         });
 
+    </script>
+    <!-- Fallback script لتحميل CSS بشكل async للمتصفحات القديمة -->
+    <script>
+        /*! loadCSS. [c]2017 Filament Group, Inc. MIT License */
+        (function(w){
+            "use strict";
+            var loadCSS = function(href, before, media, attributes){
+                var doc = w.document;
+                var ss = doc.createElement("link");
+                var ref;
+                if(before){
+                    ref = before;
+                } else {
+                    var refs = (doc.body || doc.getElementsByTagName("head")[0]).childNodes;
+                    ref = refs[refs.length - 1];
+                }
+                var sheets = doc.styleSheets;
+                ss.rel = "stylesheet";
+                ss.href = href;
+                if(attributes){
+                    for(var attributeName in attributes){
+                        if(attributes.hasOwnProperty(attributeName)){
+                            ss.setAttribute(attributeName, attributes[attributeName]);
+                        }
+                    }
+                }
+                ss.media = "only x";
+                function ready(cb){
+                    if(doc.body){
+                        return cb();
+                    }
+                    setTimeout(function(){
+                        ready(cb);
+                    });
+                }
+                ready(function(){
+                    ref.parentNode.insertBefore(ss, (before ? ref : ref.nextSibling));
+                });
+                var onloadcssdefined = function(cb){
+                    var resolvedHref = ss.href;
+                    var i = sheets.length;
+                    while(i--){
+                        if(sheets[i].href === resolvedHref){
+                            return cb();
+                        }
+                    }
+                    setTimeout(function(){
+                        onloadcssdefined(cb);
+                    });
+                };
+                function loadCB(){
+                    if(ss.addEventListener){
+                        ss.removeEventListener("load", loadCB);
+                    }
+                    ss.media = media || "all";
+                }
+                if(ss.addEventListener){
+                    ss.addEventListener("load", loadCB);
+                }
+                ss.onloadcssdefined = onloadcssdefined;
+                onloadcssdefined(loadCB);
+                return ss;
+            };
+            if(typeof exports !== "undefined"){
+                exports.loadCSS = loadCSS;
+            }
+            else {
+                w.loadCSS = loadCSS;
+            }
+        }(typeof global !== "undefined" ? global : this));
     </script>
 </body>
 </html>

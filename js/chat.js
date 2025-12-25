@@ -181,6 +181,9 @@ async function initializeChat() {
         // تحديث معلومات المستخدم الحالي
         updateCurrentUserSection();
         
+        // تحميل آخر رسالة مقروءة أولاً
+        loadLastReadMessageId();
+        
         // تحميل الرسائل عند الدخول
         await loadMessages();
         
@@ -231,6 +234,11 @@ async function loadMessages() {
             
             // تصفير العداد عند فتح الشات
             updateUnreadBadge(0);
+            
+            // تحديث lastReadMessageId في chat-unread-badge.js
+            if (typeof window.updateLastReadMessageId === 'function') {
+                window.updateLastReadMessageId(lastReadMessageId);
+            }
             
             // تحديث العداد في dashboard إذا كان متاحاً
             if (typeof window.updateChatUnreadBadge === 'function') {
@@ -515,6 +523,12 @@ function setupEventListeners() {
         notificationIcon.addEventListener('click', toggleNotificationsList);
     }
     
+    // زر حذف الرسائل (للمالك فقط)
+    const deleteMessagesBtn = document.getElementById('deleteMessagesBtn');
+    if (deleteMessagesBtn) {
+        deleteMessagesBtn.addEventListener('click', showDeleteMessagesModal);
+    }
+    
     // زر الرجوع
     const backToDashboardBtn = document.getElementById('backToDashboardBtn');
     if (backToDashboardBtn) {
@@ -600,18 +614,13 @@ async function sendMessage() {
                 }
                 renderMessages();
                 
-                // إعادة تشغيل Long Polling للتأكد من تحديث الرسائل للمستخدمين الآخرين
+                // إرسال حدث لإشعار النظام بوجود رسالة جديدة
+                // هذا سيؤدي إلى فحص فوري للرسائل الجديدة للمستخدمين الآخرين
+                window.dispatchEvent(new CustomEvent('messageSent'));
+                
+                // فحص فوري للرسائل الجديدة (للمستخدمين الآخرين)
                 if (longPollingActive) {
-                    // إلغاء الطلب الحالي وإعادة التشغيل
-                    if (longPollingAbortController) {
-                        longPollingAbortController.abort();
-                    }
-                    // إعادة التشغيل بعد فترة قصيرة
-                    setTimeout(() => {
-                        if (longPollingActive) {
-                            performLongPoll();
-                        }
-                    }, 500);
+                    setTimeout(() => checkForNewMessages(), 500);
                 }
             }
         } else {
@@ -634,33 +643,76 @@ async function sendMessage() {
 }
 
 
-// Long Polling
+// نظام محسّن: فتح اتصال SSE فقط عند وجود رسالة جديدة
+let eventSource = null;
+let checkInterval = null;
+
 function startLongPolling() {
     if (longPollingActive) return;
     
     longPollingActive = true;
-    performLongPoll();
+    startPeriodicCheck();
 }
 
-async function performLongPoll() {
+/**
+ * فحص للإشعارات المعلقة فقط عند الحاجة
+ * لا فحص دوري - فقط عند وجود إشعار معلق أو حدث إرسال رسالة
+ * النظام مقترن تماماً بإرسال الرسائل - لا ضغط على الخادم
+ */
+function startPeriodicCheck() {
+    if (!longPollingActive) return;
+    
+    // فحص فوري أولاً عند فتح الشات
+    checkForNewMessages();
+    
+    // لا فحص دوري - النظام يعتمد على الإشعارات المعلقة فقط
+    // الفحص يتم فقط عند:
+    // 1. إرسال رسالة جديدة (للمستخدمين الآخرين)
+    // 2. عودة المستخدم للصفحة
+    // 3. فتح الشات
+    
+    // الاستماع لحدث إرسال رسالة جديدة من نفس الصفحة
+    // عند إرسال رسالة جديدة، نفحص فوراً للمستخدمين الآخرين
+    window.addEventListener('messageSent', () => {
+        if (longPollingActive) {
+            // فحص فوري بعد إرسال رسالة (للمستخدمين الآخرين)
+            // السيرفر أضاف إشعارات معلقة لكل مستخدم نشط
+            setTimeout(() => checkForNewMessages(), 1000);
+        }
+    });
+    
+    // فحص عند عودة المستخدم للصفحة
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && longPollingActive) {
+            // فحص فوري عند عودة المستخدم للصفحة
+            checkForNewMessages();
+        }
+    });
+    
+    // فحص عند التركيز على النافذة
+    window.addEventListener('focus', () => {
+        if (longPollingActive) {
+            checkForNewMessages();
+        }
+    });
+}
+
+/**
+ * التحقق من وجود رسائل جديدة عبر الإشعارات المعلقة
+ */
+async function checkForNewMessages() {
     if (!longPollingActive) return;
     
     try {
-        // إلغاء الطلب السابق إذا كان موجوداً
-        if (longPollingAbortController) {
-            longPollingAbortController.abort();
-        }
-        
-        longPollingAbortController = new AbortController();
-        
+        // فتح اتصال SSE مؤقت فقط عند وجود إشعار معلق
+        // نستخدم listen.php للتحقق من الإشعارات المعلقة
         const url = `api/listen.php?last_id=${lastMessageId}`;
         
         const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
-            signal: longPollingAbortController.signal,
             headers: {
-                'X-Silent-Request': 'true' // منع عرض loading overlay لطلبات Long Polling
+                'X-Silent-Request': 'true'
             }
         });
         
@@ -671,74 +723,8 @@ async function performLongPoll() {
         const result = await response.json();
         
         if (result && result.success && result.data && result.data.length > 0) {
-            // إضافة الرسائل الجديدة
-            let hasNewMessages = false;
-            let unreadCount = 0;
-            
-            result.data.forEach(newMessage => {
-                // تجنب التكرار (بما في ذلك الرسائل المؤقتة)
-                const existingMessage = messages.find(m => m.id === newMessage.id || (m.id && m.id.startsWith('temp-') && newMessage.user_id === m.user_id && newMessage.message === m.message));
-                
-                if (!existingMessage) {
-                    messages.push(newMessage);
-                    hasNewMessages = true;
-                    // تحديث lastMessageId إلى آخر رسالة
-                    if (newMessage.id > lastMessageId || lastMessageId === '') {
-                        lastMessageId = newMessage.id;
-                    }
-                    // حساب الرسائل غير المقروءة (رسائل من مستخدمين آخرين بعد آخر رسالة مقروءة)
-                    if (newMessage.user_id !== currentUser.id && 
-                        (lastReadMessageId === '' || newMessage.id > lastReadMessageId)) {
-                        unreadCount++;
-                    }
-                } else if (existingMessage.id && existingMessage.id.startsWith('temp-')) {
-                    // استبدال الرسالة المؤقتة بالرسالة الحقيقية
-                    const tempIndex = messages.indexOf(existingMessage);
-                    if (tempIndex !== -1) {
-                        messages[tempIndex] = newMessage;
-                        hasNewMessages = true;
-                        // تحديث lastMessageId
-                        if (newMessage.id > lastMessageId || lastMessageId === '') {
-                            lastMessageId = newMessage.id;
-                        }
-                    }
-                }
-            });
-            
-            if (hasNewMessages) {
-                // إعادة ترتيب الرسائل حسب id
-                messages.sort((a, b) => {
-                    // الرسائل المؤقتة تأتي أولاً
-                    if (a.id && a.id.startsWith('temp-') && !(b.id && b.id.startsWith('temp-'))) return -1;
-                    if (b.id && b.id.startsWith('temp-') && !(a.id && a.id.startsWith('temp-'))) return 1;
-                    // ترتيب حسب id
-                    if (a.id < b.id) return -1;
-                    if (a.id > b.id) return 1;
-                    return 0;
-                });
-                
-                renderMessages();
-                
-                // تحديث العداد إذا كان المستخدم ليس في صفحة الشات
-                if (!document.location.pathname.includes('chat.html')) {
-                    const unreadCount = calculateUnreadCount();
-                    updateUnreadBadge(unreadCount);
-                }
-            }
-            
-            // عرض إشعار إذا كان التاب مخفي
-            if (document.hidden) {
-                result.data.forEach(message => {
-                    if (message.user_id !== currentUser.id) {
-                        showBrowserNotification(message);
-                    }
-                });
-            }
-        }
-        
-        // إعادة المحاولة فوراً
-        if (longPollingActive) {
-            performLongPoll();
+            // معالجة الرسائل الجديدة
+            processNewMessages(result.data);
         }
         
     } catch (error) {
@@ -746,17 +732,94 @@ async function performLongPoll() {
             return; // تم إلغاء الطلب
         }
         
-        console.error('خطأ في Long Polling:', error);
+        console.error('خطأ في فحص الرسائل الجديدة:', error);
+        // لا نعيد المحاولة فوراً - سنحاول في الفحص الدوري التالي
+    }
+}
+
+/**
+ * معالجة الرسائل الجديدة
+ */
+function processNewMessages(newMessagesArray) {
+    let hasNewMessages = false;
+    let unreadCount = 0;
+    
+    newMessagesArray.forEach(newMessage => {
+        // تجنب التكرار (بما في ذلك الرسائل المؤقتة)
+        const existingMessage = messages.find(m => m.id === newMessage.id || (m.id && m.id.startsWith('temp-') && newMessage.user_id === m.user_id && newMessage.message === m.message));
         
-        // إعادة المحاولة بعد 2 ثانية
-        if (longPollingActive) {
-            setTimeout(() => performLongPoll(), 2000);
+        if (!existingMessage) {
+            messages.push(newMessage);
+            hasNewMessages = true;
+            // تحديث lastMessageId إلى آخر رسالة
+            if (newMessage.id > lastMessageId || lastMessageId === '') {
+                lastMessageId = newMessage.id;
+            }
+            // حساب الرسائل غير المقروءة (رسائل من مستخدمين آخرين بعد آخر رسالة مقروءة)
+            if (newMessage.user_id !== currentUser.id && 
+                (lastReadMessageId === '' || newMessage.id > lastReadMessageId)) {
+                unreadCount++;
+            }
+        } else if (existingMessage.id && existingMessage.id.startsWith('temp-')) {
+            // استبدال الرسالة المؤقتة بالرسالة الحقيقية
+            const tempIndex = messages.indexOf(existingMessage);
+            if (tempIndex !== -1) {
+                messages[tempIndex] = newMessage;
+                hasNewMessages = true;
+                // تحديث lastMessageId
+                if (newMessage.id > lastMessageId || lastMessageId === '') {
+                    lastMessageId = newMessage.id;
+                }
+            }
+        }
+    });
+    
+    if (hasNewMessages) {
+        // إعادة ترتيب الرسائل حسب id
+        messages.sort((a, b) => {
+            // الرسائل المؤقتة تأتي أولاً
+            if (a.id && a.id.startsWith('temp-') && !(b.id && b.id.startsWith('temp-'))) return -1;
+            if (b.id && b.id.startsWith('temp-') && !(a.id && a.id.startsWith('temp-'))) return 1;
+            // ترتيب حسب id
+            if (a.id < b.id) return -1;
+            if (a.id > b.id) return 1;
+            return 0;
+        });
+        
+        renderMessages();
+        
+        // تحديث العداد إذا كان المستخدم ليس في صفحة الشات
+        if (!document.location.pathname.includes('chat.html')) {
+            const unreadCount = calculateUnreadCount();
+            updateUnreadBadge(unreadCount);
+        }
+        
+        // عرض إشعار إذا كان التاب مخفي
+        if (document.hidden) {
+            newMessagesArray.forEach(message => {
+                if (message.user_id !== currentUser.id) {
+                    showBrowserNotification(message);
+                }
+            });
         }
     }
 }
 
 function stopLongPolling() {
     longPollingActive = false;
+    
+    // إيقاف الفحص الدوري
+    if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+    }
+    
+    // إغلاق اتصال SSE إذا كان مفتوحاً
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
+    
     if (longPollingAbortController) {
         longPollingAbortController.abort();
         longPollingAbortController = null;
@@ -800,7 +863,8 @@ function showBrowserNotification(message) {
             id: message.id,
             username: message.username,
             message: message.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            read: false
         });
     }
 }
@@ -997,7 +1061,22 @@ function updateMessagesActivity() {
 
 // قائمة الإشعارات
 function addNotification(notification) {
-    notifications.unshift(notification);
+    // التحقق من عدم تكرار الإشعار (نفس id)
+    const existingIndex = notifications.findIndex(n => n.id === notification.id);
+    if (existingIndex !== -1) {
+        // تحديث الإشعار الموجود بدلاً من إضافة واحد جديد
+        notifications[existingIndex] = {
+            ...notifications[existingIndex],
+            ...notification,
+            read: notification.read !== undefined ? notification.read : notifications[existingIndex].read
+        };
+    } else {
+        // إضافة إشعار جديد
+        notifications.unshift({
+            ...notification,
+            read: notification.read !== undefined ? notification.read : false
+        });
+    }
     
     // حفظ في localStorage
     try {
@@ -1007,6 +1086,31 @@ function addNotification(notification) {
     }
     
     updateNotificationBadge();
+}
+
+// دالة لتحديد الإشعار كمقروء
+function markNotificationAsRead(notificationId) {
+    const notification = notifications.find(n => n.id === notificationId);
+    if (notification) {
+        notification.read = true;
+        try {
+            localStorage.setItem('chat_notifications', JSON.stringify(notifications.slice(0, 50)));
+            renderNotificationsList();
+        } catch (e) {
+            console.error('خطأ في حفظ الإشعارات:', e);
+        }
+    }
+}
+
+// دالة لتحديد جميع الإشعارات كمقروءة
+function markAllNotificationsAsRead() {
+    notifications.forEach(n => n.read = true);
+    try {
+        localStorage.setItem('chat_notifications', JSON.stringify(notifications.slice(0, 50)));
+        renderNotificationsList();
+    } catch (e) {
+        console.error('خطأ في حفظ الإشعارات:', e);
+    }
 }
 
 function toggleNotificationsList() {
@@ -1037,12 +1141,44 @@ function renderNotificationsList() {
     
     const fragment = document.createDocumentFragment();
     
+    // أزرار التحكم
+    const controlButtons = document.createElement('div');
+    controlButtons.className = 'notifications-control-buttons';
+    
+    // زر "تحديد الكل كمقروء"
+    const markAllReadBtn = document.createElement('button');
+    markAllReadBtn.className = 'mark-all-read-btn';
+    markAllReadBtn.textContent = 'تحديد الكل كمقروء';
+    markAllReadBtn.onclick = () => {
+        markAllNotificationsAsRead();
+    };
+    controlButtons.appendChild(markAllReadBtn);
+    
+    // زر "حذف الكل"
+    const deleteAllBtn = document.createElement('button');
+    deleteAllBtn.className = 'delete-all-notifications-btn';
+    deleteAllBtn.textContent = 'حذف جميع الإشعارات';
+    deleteAllBtn.onclick = () => {
+        if (confirm('هل أنت متأكد من حذف جميع الإشعارات؟')) {
+            deleteAllNotifications();
+        }
+    };
+    controlButtons.appendChild(deleteAllBtn);
+    
+    fragment.appendChild(controlButtons);
+    
     notifications.forEach(notification => {
         const item = document.createElement('div');
-        item.className = 'notification-item';
+        item.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
         
         const content = document.createElement('div');
         content.className = 'notification-content';
+        content.onclick = () => {
+            // عند النقر على الإشعار، تحديده كمقروء
+            if (!notification.read) {
+                markNotificationAsRead(notification.id);
+            }
+        };
         
         const username = document.createElement('div');
         username.className = 'notification-username';
@@ -1056,17 +1192,46 @@ function renderNotificationsList() {
         time.className = 'notification-time';
         time.textContent = formatTime(notification.timestamp);
         
+        // مؤشر "غير مقروء"
+        if (!notification.read) {
+            const unreadIndicator = document.createElement('div');
+            unreadIndicator.className = 'unread-indicator';
+            unreadIndicator.title = 'غير مقروء';
+            content.appendChild(unreadIndicator);
+        }
+        
         content.appendChild(username);
         content.appendChild(message);
         content.appendChild(time);
         
+        const actions = document.createElement('div');
+        actions.className = 'notification-actions';
+        
+        // زر "تم الرؤية" إذا لم يكن مقروءاً
+        if (!notification.read) {
+            const markReadBtn = document.createElement('button');
+            markReadBtn.className = 'mark-read-btn';
+            markReadBtn.innerHTML = '✓';
+            markReadBtn.title = 'تم الرؤية';
+            markReadBtn.onclick = (e) => {
+                e.stopPropagation();
+                markNotificationAsRead(notification.id);
+            };
+            actions.appendChild(markReadBtn);
+        }
+        
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'notification-delete';
         deleteBtn.innerHTML = '×';
-        deleteBtn.onclick = () => deleteNotification(notification.id);
+        deleteBtn.title = 'حذف';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteNotification(notification.id);
+        };
+        actions.appendChild(deleteBtn);
         
         item.appendChild(content);
-        item.appendChild(deleteBtn);
+        item.appendChild(actions);
         fragment.appendChild(item);
     });
     
@@ -1086,17 +1251,39 @@ function deleteNotification(notificationId) {
     renderNotificationsList();
 }
 
+// دالة لحذف جميع الإشعارات
+function deleteAllNotifications() {
+    notifications = [];
+    
+    try {
+        localStorage.setItem('chat_notifications', JSON.stringify([]));
+        updateNotificationBadge();
+        renderNotificationsList();
+        showMessage('تم حذف جميع الإشعارات', 'success');
+    } catch (e) {
+        console.error('خطأ في حذف جميع الإشعارات:', e);
+        showMessage('حدث خطأ في حذف الإشعارات', 'error');
+    }
+}
+
 function updateNotificationBadge() {
     const badge = document.getElementById('notificationBadge');
     if (badge) {
-        if (notifications.length > 0) {
-            badge.textContent = notifications.length > 99 ? '99+' : notifications.length;
+        // حساب عدد الإشعارات غير المقروءة فقط
+        const unreadCount = notifications.filter(n => !n.read).length;
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
             badge.style.display = 'flex';
         } else {
             badge.style.display = 'none';
         }
     }
 }
+
+// تصدير الدوال للاستخدام من ملفات أخرى
+window.addChatNotification = addNotification;
+window.markNotificationAsRead = markNotificationAsRead;
+window.markAllNotificationsAsRead = markAllNotificationsAsRead;
 
 // تحميل قائمة المستخدمين
 async function loadUsers() {
@@ -1294,6 +1481,25 @@ function updateCurrentUserSection() {
             </button>
         </div>
     `;
+    
+    // التحقق من المالك وإظهار زر حذف الرسائل
+    checkAndShowDeleteButton();
+}
+
+// التحقق من المالك وإظهار زر حذف الرسائل
+function checkAndShowDeleteButton() {
+    const deleteBtn = document.getElementById('deleteMessagesBtn');
+    if (!deleteBtn) return;
+    
+    // التحقق من is_owner من localStorage أو currentUser
+    const isOwner = localStorage.getItem('is_owner') === 'true' || 
+                    (currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin'));
+    
+    if (isOwner) {
+        deleteBtn.style.display = 'flex';
+    } else {
+        deleteBtn.style.display = 'none';
+    }
 }
 
 // منتقي الإيموجي
@@ -1460,6 +1666,52 @@ function attachFile() {
     input.click();
 }
 
+// دالة ضغط الصور للشات (لتقليل استهلاك الباندويث)
+function compressChatImage(file, maxWidth = 1200, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // حساب الأبعاد بعد الضغط
+                    if (width > maxWidth) {
+                        const ratio = maxWidth / width;
+                        width = maxWidth;
+                        height = Math.round(height * ratio);
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // تحويل إلى base64 مع ضغط
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve(compressedDataUrl);
+                };
+                img.onerror = () => {
+                    reject(new Error('فشل تحميل الصورة'));
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = () => {
+                reject(new Error('فشل قراءة الملف'));
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
 // إرفاق صورة
 function attachImage() {
     const input = document.createElement('input');
@@ -1475,16 +1727,23 @@ function attachImage() {
                     return;
                 }
                 
-                // قراءة الصورة كـ Base64
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    const fileData = event.target.result;
-                    await sendFileMessage(fileData, 'image', file.name);
-                };
-                reader.onerror = () => {
-                    showMessage('حدث خطأ في قراءة الصورة', 'error');
-                };
-                reader.readAsDataURL(file);
+                // ضغط الصورة قبل الرفع لتقليل استهلاك الباندويث
+                try {
+                    const compressedImage = await compressChatImage(file, 1200, 0.75);
+                    await sendFileMessage(compressedImage, 'image', file.name);
+                } catch (compressError) {
+                    console.warn('فشل ضغط الصورة، استخدام الصورة الأصلية:', compressError);
+                    // في حالة فشل الضغط، استخدام الصورة الأصلية
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const fileData = event.target.result;
+                        await sendFileMessage(fileData, 'image', file.name);
+                    };
+                    reader.onerror = () => {
+                        showMessage('حدث خطأ في قراءة الصورة', 'error');
+                    };
+                    reader.readAsDataURL(file);
+                }
             } catch (error) {
                 console.error('خطأ في إرسال الصورة:', error);
                 showMessage('حدث خطأ في إرسال الصورة', 'error');
@@ -1511,16 +1770,23 @@ function openCamera() {
                         return;
                     }
                     
-                    // قراءة الصورة كـ Base64
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                        const fileData = event.target.result;
-                        await sendFileMessage(fileData, 'image', file.name || 'camera.jpg');
-                    };
-                    reader.onerror = () => {
-                        showMessage('حدث خطأ في قراءة الصورة', 'error');
-                    };
-                    reader.readAsDataURL(file);
+                    // ضغط الصورة قبل الرفع لتقليل استهلاك الباندويث
+                    try {
+                        const compressedImage = await compressChatImage(file, 1200, 0.75);
+                        await sendFileMessage(compressedImage, 'image', file.name || 'camera.jpg');
+                    } catch (compressError) {
+                        console.warn('فشل ضغط الصورة، استخدام الصورة الأصلية:', compressError);
+                        // في حالة فشل الضغط، استخدام الصورة الأصلية
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                            const fileData = event.target.result;
+                            await sendFileMessage(fileData, 'image', file.name || 'camera.jpg');
+                        };
+                        reader.onerror = () => {
+                            showMessage('حدث خطأ في قراءة الصورة', 'error');
+                        };
+                        reader.readAsDataURL(file);
+                    }
                 } catch (error) {
                     console.error('خطأ في إرسال الصورة من الكاميرا:', error);
                     showMessage('حدث خطأ في إرسال الصورة', 'error');
@@ -1572,6 +1838,14 @@ async function sendFileMessage(fileData, fileType, fileName) {
                 messages[tempIndex] = result.data;
                 lastMessageId = result.data.id;
                 renderMessages();
+                
+                // إرسال حدث لإشعار النظام بوجود رسالة جديدة
+                window.dispatchEvent(new CustomEvent('messageSent'));
+                
+                // فحص فوري للرسائل الجديدة (للمستخدمين الآخرين)
+                if (longPollingActive) {
+                    setTimeout(() => checkForNewMessages(), 500);
+                }
             }
         } else {
             // إزالة الرسالة المؤقتة في حالة الفشل
@@ -1609,6 +1883,11 @@ function loadSavedNotifications() {
         const saved = localStorage.getItem('chat_notifications');
         if (saved) {
             notifications = JSON.parse(saved);
+            // إضافة خاصية read للإشعارات القديمة التي لا تحتوي عليها
+            notifications = notifications.map(n => ({
+                ...n,
+                read: n.read !== undefined ? n.read : false
+            }));
             updateNotificationBadge();
         }
     } catch (e) {
@@ -1618,6 +1897,127 @@ function loadSavedNotifications() {
 
 // تحميل الإشعارات عند التهيئة
 loadSavedNotifications();
+
+// مودال حذف الرسائل
+function showDeleteMessagesModal() {
+    // التحقق من المالك مرة أخرى
+    const isOwner = localStorage.getItem('is_owner') === 'true' || 
+                    (currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin'));
+    
+    if (!isOwner) {
+        showMessage('هذه الميزة متاحة للمالك فقط', 'error');
+        return;
+    }
+    
+    // إنشاء المودال
+    let modal = document.getElementById('deleteMessagesModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'deleteMessagesModal';
+        modal.className = 'delete-messages-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="closeDeleteMessagesModal()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>حذف الرسائل</h3>
+                    <button class="modal-close" onclick="closeDeleteMessagesModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <p class="warning-text">⚠️ تحذير: سيتم حذف جميع الرسائل في الفترة الزمنية المحددة بشكل نهائي ولا يمكن استرجاعها!</p>
+                    
+                    <div class="form-group">
+                        <label for="deleteFromDate">من تاريخ:</label>
+                        <input type="datetime-local" id="deleteFromDate" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="deleteToDate">إلى تاريخ:</label>
+                        <input type="datetime-local" id="deleteToDate" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="confirmDelete" required>
+                            أنا أؤكد أنني أريد حذف الرسائل في هذه الفترة الزمنية
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeDeleteMessagesModal()">إلغاء</button>
+                    <button class="btn btn-danger" id="confirmDeleteBtn" onclick="confirmDeleteMessages()">حذف الرسائل</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // إعادة تعيين القيم
+    document.getElementById('deleteFromDate').value = '';
+    document.getElementById('deleteToDate').value = '';
+    document.getElementById('confirmDelete').checked = false;
+    
+    // إظهار المودال
+    modal.style.display = 'flex';
+}
+
+function closeDeleteMessagesModal() {
+    const modal = document.getElementById('deleteMessagesModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function confirmDeleteMessages() {
+    const fromDate = document.getElementById('deleteFromDate').value;
+    const toDate = document.getElementById('deleteToDate').value;
+    const confirmCheck = document.getElementById('confirmDelete').checked;
+    
+    if (!fromDate || !toDate) {
+        showMessage('يرجى تحديد الفترة الزمنية', 'error');
+        return;
+    }
+    
+    if (!confirmCheck) {
+        showMessage('يرجى تأكيد الحذف', 'error');
+        return;
+    }
+    
+    // التحقق من أن تاريخ البداية قبل تاريخ النهاية
+    if (new Date(fromDate) > new Date(toDate)) {
+        showMessage('تاريخ البداية يجب أن يكون قبل تاريخ النهاية', 'error');
+        return;
+    }
+    
+    // تأكيد نهائي
+    if (!confirm('هل أنت متأكد تماماً من حذف جميع الرسائل في هذه الفترة؟\n\nهذا الإجراء لا يمكن التراجع عنه!')) {
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        const result = await API.request('delete_messages.php', 'POST', {
+            from_date: fromDate,
+            to_date: toDate
+        });
+        
+        showLoading(false);
+        
+        if (result && result.success) {
+            showMessage(result.message || 'تم حذف الرسائل بنجاح', 'success');
+            closeDeleteMessagesModal();
+            
+            // إعادة تحميل الرسائل
+            await loadMessages();
+        } else {
+            showMessage(result.message || 'حدث خطأ في حذف الرسائل', 'error');
+        }
+    } catch (error) {
+        showLoading(false);
+        console.error('خطأ في حذف الرسائل:', error);
+        showMessage('حدث خطأ في حذف الرسائل', 'error');
+    }
+}
 
 // تحميل آخر رسالة مقروءة
 function loadLastReadMessageId() {
@@ -1635,6 +2035,10 @@ function loadLastReadMessageId() {
 function saveLastReadMessageId() {
     try {
         localStorage.setItem('lastReadMessageId', lastReadMessageId);
+        // تحديث lastReadMessageId في chat-unread-badge.js أيضاً
+        if (typeof window.updateLastReadMessageId === 'function') {
+            window.updateLastReadMessageId(lastReadMessageId);
+        }
     } catch (e) {
         console.error('خطأ في حفظ آخر رسالة مقروءة:', e);
     }

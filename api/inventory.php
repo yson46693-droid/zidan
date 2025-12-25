@@ -12,13 +12,58 @@ $data = getRequestData();
 $method = $data['_method'] ?? getRequestMethod();
 $type = $_GET['type'] ?? $data['type'] ?? 'inventory'; // inventory, spare_parts, accessories, phones
 
+/**
+ * التحقق من صلاحيات المخزون
+ * @param string $action 'read' أو 'write'
+ * @return bool
+ */
+function checkInventoryPermission($action = 'read') {
+    $session = checkAuth();
+    $userRole = $session['role'];
+    $userBranchId = $session['branch_id'] ?? null;
+    
+    // المالك له كامل الصلاحيات
+    if ($userRole === 'admin') {
+        return true;
+    }
+    
+    // إذا لم يكن مرتبطاً بفرع
+    if (!$userBranchId) {
+        return false;
+    }
+    
+    // جلب معلومات الفرع
+    try {
+        $branch = dbSelectOne("SELECT code, has_pos FROM branches WHERE id = ?", [$userBranchId]);
+        if (!$branch) {
+            return false;
+        }
+        
+        // الفرع الأول (HANOVIL) له كامل الصلاحيات
+        if ($branch['code'] === 'HANOVIL') {
+            return true;
+        }
+        
+        // الفرع الثاني (BITASH) - قراءة فقط
+        if ($branch['code'] === 'BITASH' && $action === 'read') {
+            return true;
+        }
+        
+        // أي إجراء آخر للفرع الثاني = مرفوض
+        return false;
+    } catch (Exception $e) {
+        error_log('خطأ في التحقق من صلاحيات المخزون: ' . $e->getMessage());
+        return false;
+    }
+}
+
 // قراءة البيانات حسب النوع
 if ($method === 'GET') {
     checkAuth();
     
     if ($type === 'spare_parts') {
-        // قراءة قطع الغيار
-        $spareParts = dbSelect("SELECT * FROM spare_parts ORDER BY created_at DESC");
+        // قراءة قطع الغيار - حد أقصى 500 قطعة لتقليل استهلاك الباندويث
+        $spareParts = dbSelect("SELECT * FROM spare_parts ORDER BY created_at DESC LIMIT 500");
         
         if ($spareParts === false) {
             response(false, 'خطأ في قراءة قطع الغيار', null, 500);
@@ -60,8 +105,8 @@ if ($method === 'GET') {
         response(true, '', $spareParts);
     }
     elseif ($type === 'accessories') {
-        // قراءة الإكسسوارات
-        $accessories = dbSelect("SELECT * FROM accessories ORDER BY created_at DESC");
+        // قراءة الإكسسوارات - حد أقصى 500 إكسسوار لتقليل استهلاك الباندويث
+        $accessories = dbSelect("SELECT * FROM accessories ORDER BY created_at DESC LIMIT 500");
         
         if ($accessories === false) {
             response(false, 'خطأ في قراءة الإكسسوارات', null, 500);
@@ -70,8 +115,8 @@ if ($method === 'GET') {
         response(true, '', $accessories);
     }
     elseif ($type === 'phones') {
-        // قراءة الهواتف
-        $phones = dbSelect("SELECT * FROM phones ORDER BY created_at DESC");
+        // قراءة الهواتف - حد أقصى 500 هاتف لتقليل استهلاك الباندويث
+        $phones = dbSelect("SELECT * FROM phones ORDER BY created_at DESC LIMIT 500");
         
         if ($phones === false) {
             response(false, 'خطأ في قراءة الهواتف', null, 500);
@@ -80,8 +125,8 @@ if ($method === 'GET') {
         response(true, '', $phones);
     }
     else {
-        // قراءة المخزون القديم (للتوافق)
-        $inventory = dbSelect("SELECT * FROM inventory ORDER BY created_at DESC");
+        // قراءة المخزون القديم (للتوافق) - حد أقصى 500 عنصر لتقليل استهلاك الباندويث
+        $inventory = dbSelect("SELECT * FROM inventory ORDER BY created_at DESC LIMIT 500");
         
         if ($inventory === false) {
             response(false, 'خطأ في قراءة المخزون', null, 500);
@@ -93,6 +138,9 @@ if ($method === 'GET') {
 
 // إضافة بيانات جديدة
 if ($method === 'POST') {
+    if (!checkInventoryPermission('write')) {
+        response(false, 'ليس لديك صلاحية لتعديل المخزون', null, 403);
+    }
     checkPermission('manager');
     
     if ($type === 'spare_parts') {
@@ -374,6 +422,9 @@ if ($method === 'POST') {
 
 // تعديل البيانات
 if ($method === 'PUT') {
+    if (!checkInventoryPermission('write')) {
+        response(false, 'ليس لديك صلاحية لتعديل المخزون', null, 403);
+    }
     checkPermission('manager');
     
     if ($type === 'spare_parts') {
@@ -735,6 +786,9 @@ if ($method === 'PUT') {
 
 // حذف البيانات
 if ($method === 'DELETE') {
+    if (!checkInventoryPermission('write')) {
+        response(false, 'ليس لديك صلاحية لحذف المخزون', null, 403);
+    }
     checkPermission('admin');
     
     if ($type === 'spare_parts') {

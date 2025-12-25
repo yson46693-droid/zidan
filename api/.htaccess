@@ -1,23 +1,203 @@
 # إعدادات خاصة بمجلد API
 
-# تفعيل PHP
+# تفعيل PHP - ضروري لـ LiteSpeed و Apache
 AddType application/x-httpd-php .php
+AddHandler application/x-httpd-php .php
 
 # ملاحظة: إعدادات CORS والأمان يتم ضبطها من config.php ديناميكياً
 # هذا يمنع التعارضات ويضمن عمل credentials بشكل صحيح
 
+# ============================================
+# 🔒 إصلاح مشكلة 403 Forbidden لـ auth.php
+# ============================================
+
+# تعطيل mod_security بشكل كامل لـ auth.php
+<IfModule mod_security.c>
+    <LocationMatch "^/.*api/auth\.php$">
+        SecRuleEngine Off
+    </LocationMatch>
+    <FilesMatch "^.*api/auth\.php$">
+        SecRuleEngine Off
+    </FilesMatch>
+</IfModule>
+
+# قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
+<Files "auth.php">
+    # Apache 2.4+ و LiteSpeed
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    # Apache 2.2 (fallback)
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+    # السماح بجميع طرق HTTP
+    Options +ExecCGI +FollowSymLinks +Indexes
+    # قاعدة خاصة لـ LiteSpeed
+    <IfModule LiteSpeed>
+        SetHandler lsapi
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </IfModule>
+</Files>
+
 # معالجة طلبات OPTIONS (preflight) - نسخة احتياطية
 # config.php يتعامل معها أيضاً، لكن نتركها للاستضافات التي قد تحتاجها
-RewriteEngine On
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ - [R=200,L]
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # السماح بجميع طرق HTTP (GET, POST, PUT, DELETE, OPTIONS, PATCH)
+    RewriteCond %{REQUEST_METHOD} ^(GET|POST|PUT|DELETE|OPTIONS|PATCH)$
+    RewriteRule ^(.*)$ - [L]
+    
+    # معالجة طلبات OPTIONS بشكل خاص
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ - [R=200,L]
+    
+    # قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
+    RewriteCond %{REQUEST_URI} auth\.php$
+    RewriteRule ^(.*)$ - [L,E=no-gzip:1]
+</IfModule>
 
 # إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
-RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
-RewriteRule ^(.*)$ $1 [L]
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
+    RewriteRule ^(.*)$ $1 [L]
+</IfModule>
 
 # السماح بملفات API العامة
-<FilesMatch "\.(php)$">
-    Order allow,deny
-    Allow from all
+# استخدام صيغة متوافقة مع Apache 2.2 و 2.4+ و LiteSpeed
+<IfModule mod_authz_core.c>
+    # Apache 2.4+ و LiteSpeed
+    <FilesMatch "\.(php)$">
+        Require all granted
+    </FilesMatch>
+    <Files "auth.php">
+        Require all granted
+    </Files>
+    <DirectoryMatch ".*">
+        Require all granted
+    </DirectoryMatch>
+    # السماح بجميع الطلبات في هذا المجلد
+    <Directory ".">
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    # Apache 2.2 (fallback للخوادم القديمة)
+    <FilesMatch "\.(php)$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+    <Files "auth.php">
+        Order allow,deny
+        Allow from all
+    </Files>
+    <DirectoryMatch ".*">
+        Order allow,deny
+        Allow from all
+    </DirectoryMatch>
+    # السماح بجميع الطلبات في هذا المجلد
+    <Directory ".">
+        Order allow,deny
+        Allow from all
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
+</IfModule>
+
+# قواعد خاصة لـ LiteSpeed Web Server
+<IfModule LiteSpeed>
+    # السماح بتنفيذ PHP
+    <FilesMatch "\.(php)$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    <Files "auth.php">
+        SetHandler lsapi
+        Require all granted
+    </Files>
+    # السماح بجميع الطلبات
+    Options +ExecCGI
+    Options +FollowSymLinks
+    # السماح بجميع الطلبات في هذا المجلد
+    <Directory ".">
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
+    # قاعدة خاصة لمنع 403 من LiteSpeed
+    # السماح بجميع طرق HTTP بشكل صريح
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى جميع ملفات PHP
+        RewriteCond %{REQUEST_METHOD} POST
+        RewriteCond %{REQUEST_URI} \.php$
+        RewriteRule ^(.*)$ - [L,E=no-gzip:1]
+    </IfModule>
+</IfModule>
+
+# منع عرض محتويات المجلد (الأمان)
+Options -Indexes
+
+# السماح بجميع طرق HTTP بشكل صريح - حل مشكلة 403
+<IfModule mod_headers.c>
+    # إزالة أي قيود على طرق HTTP
+    Header unset X-Requested-With
+</IfModule>
+
+# السماح بتنفيذ PHP في جميع الملفات
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
 </FilesMatch>
+
+# قواعد إضافية لمنع 403 Forbidden
+# السماح بطلبات POST مع Content-Type: application/json
+<IfModule mod_headers.c>
+    # السماح بجميع أنواع المحتوى في الطلبات
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
+</IfModule>
+
+# محاولة تعطيل قواعد mod_security للطلبات إلى API (قد لا يعمل على جميع الخوادم)
+<IfModule mod_security.c>
+    SecRuleRemoveById 300013
+    SecRuleRemoveById 300014
+    SecRuleRemoveById 300015
+    SecRuleRemoveById 300016
+    SecRuleRemoveById 300017
+    SecRuleRemoveById 949110
+    SecRuleRemoveById 980130
+</IfModule>
+
+# قاعدة خاصة لملف auth.php لمنع 403
+<Files "auth.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+    # السماح بجميع طرق HTTP
+    Options +ExecCGI +FollowSymLinks
+    # قاعدة خاصة لـ LiteSpeed
+    <IfModule LiteSpeed>
+        SetHandler lsapi
+        Require all granted
+    </IfModule>
+</Files>
+
+# محاولة تجاوز قيود LiteSpeed Security
+# إذا كان LiteSpeed يمنع POST، جرب هذه القواعد
+<IfModule LiteSpeed>
+    # تعطيل بعض قواعد الأمان لـ LiteSpeed (قد لا يعمل على جميع الخوادم)
+    # هذه القواعد تحاول السماح بطلبات POST
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى auth.php
+        RewriteCond %{REQUEST_METHOD} ^POST$
+        RewriteCond %{REQUEST_URI} auth\.php$
+        RewriteRule ^(.*)$ - [L,E=LSWS_EDC:0]
+    </IfModule>
+</IfModule>

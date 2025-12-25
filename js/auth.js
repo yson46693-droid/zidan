@@ -6,11 +6,32 @@ let lastCheckLoginTime = 0;
 let cachedAuthResult = null;
 let cacheTime = 0;
 const CHECK_LOGIN_COOLDOWN = 1000; // 1 ثانية بين الطلبات
-const AUTH_CACHE_DURATION = 3000; // 3 ثواني للتخزين المؤقت
+const AUTH_CACHE_DURATION = 30000; // 30 ثانية للتخزين المؤقت (محسّن لتقليل الطلبات)
 
 // التحقق من تسجيل الدخول
 async function checkLogin() {
     const now = Date.now();
+    
+    // ✅ تحسين: بعد تسجيل الدخول مباشرة (أقل من 5 ثوان)، استخدم البيانات المحفوظة بدون استدعاء الخادم
+    const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
+    const isRecentLogin = justLoggedInTime && (now - parseInt(justLoggedInTime)) < 5000; // 5 ثوان فقط لتسجيل الدخول الفوري
+    
+    if (isRecentLogin) {
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                // تحديث cache
+                cachedAuthResult = user;
+                cacheTime = now;
+                // مسح العلامة بعد الاستخدام الناجح
+                sessionStorage.removeItem('just_logged_in_time');
+                return user;
+            }
+        } catch (e) {
+            console.warn('⚠️ خطأ في قراءة البيانات المحفوظة:', e);
+        }
+    }
     
     // استخدام التخزين المؤقت إذا كان صالحاً
     if (cachedAuthResult !== null && (now - cacheTime < AUTH_CACHE_DURATION)) {
@@ -41,7 +62,7 @@ async function checkLogin() {
     lastCheckLoginTime = now;
     
     try {
-        const result = await API.checkAuth();
+        const result = await API.checkAuth(false);
         
         if (!result || !result.success) {
             // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
@@ -123,8 +144,11 @@ async function checkLogin() {
             // حفظ في التخزين المؤقت
             cachedAuthResult = user;
             cacheTime = Date.now();
-            // مسح علامة تسجيل الدخول الحديث بعد نجاح التحقق
-            sessionStorage.removeItem('just_logged_in_time');
+            // مسح علامة تسجيل الدخول الحديث بعد نجاح التحقق من الخادم
+            const justLoggedInTime2 = sessionStorage.getItem('just_logged_in_time');
+            if (justLoggedInTime2) {
+                sessionStorage.removeItem('just_logged_in_time');
+            }
         }
         
         return user;

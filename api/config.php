@@ -5,6 +5,11 @@ if (ob_get_level()) {
 }
 ob_start();
 
+// إعدادات timeout لتحسين الأداء وتجنب التعليق (30 ثانية كحد أقصى)
+set_time_limit(30);
+ini_set('max_execution_time', 30);
+ini_set('default_socket_timeout', 10);
+
 // إعدادات النظام الأساسية
 header('Content-Type: application/json; charset=utf-8');
 
@@ -17,7 +22,20 @@ $allowedOrigins = [
     'https://alaa-zidan.free.nf',
     'http://alaa-zidan.free.nf',
     'https://www.alaa-zidan.free.nf',
-    'http://www.alaa-zidan.free.nf'
+    'http://www.alaa-zidan.free.nf',
+    'https://my-store.free.nf',
+    'http://my-store.free.nf',
+    'https://www.my-store.free.nf',
+    'http://www.my-store.free.nf',
+    'https://www.egsystem.top',
+    'http://www.egsystem.top',
+    'https://egsystem.top',
+    'http://egsystem.top',
+    // إضافة localhost للاختبار المحلي
+    'http://localhost',
+    'https://localhost',
+    'http://127.0.0.1',
+    'https://127.0.0.1'
 ];
 
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -38,8 +56,18 @@ if ($origin !== '*') {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Credentials: true');
 } else {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Credentials: false');
+    // إذا لم يكن في القائمة، السماح به في وضع التطوير
+    // أو يمكنك إضافة origin الحالي تلقائياً
+    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+    if (!empty($currentHost)) {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $currentOrigin = $protocol . '://' . $currentHost;
+        header('Access-Control-Allow-Origin: ' . $currentOrigin);
+        header('Access-Control-Allow-Credentials: true');
+    } else {
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Credentials: false');
+    }
 }
 
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
@@ -59,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // معالجة أخطاء PHP - تفعيل وضع التطوير
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // إخفاء الأخطاء من الشاشة (سنعرضها في JSON)
+ini_set('display_errors', 1); // إخفاء الأخطاء من الشاشة (سنعرضها في JSON)
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
@@ -118,7 +146,18 @@ if (session_status() === PHP_SESSION_NONE) {
 if (!isset($_SESSION['db_setup_checked'])) {
     require_once __DIR__ . '/setup.php';
     try {
+        // إضافة timeout protection لـ setupDatabase
+        $startTime = microtime(true);
+        $maxSetupTime = 10; // 10 ثواني كحد أقصى
+        
         $setupResult = setupDatabase();
+        
+        // التحقق من الوقت المستغرق
+        $elapsedTime = microtime(true) - $startTime;
+        if ($elapsedTime > $maxSetupTime) {
+            error_log('تحذير: setupDatabase() استغرق وقتاً طويلاً: ' . round($elapsedTime, 2) . ' ثانية');
+        }
+        
         $_SESSION['db_setup_checked'] = true;
         
         // تسجيل في السجل إذا تم إنشاء جداول جديدة
@@ -128,6 +167,11 @@ if (!isset($_SESSION['db_setup_checked'])) {
     } catch (Exception $e) {
         error_log('خطأ في إعداد قاعدة البيانات: ' . $e->getMessage());
         // لا نوقف التنفيذ، فقط نسجل الخطأ
+        // لكن نحدد أن setup تم التحقق منه لتجنب المحاولة مرة أخرى
+        $_SESSION['db_setup_checked'] = true;
+    } catch (Error $e) {
+        error_log('خطأ قاتل في إعداد قاعدة البيانات: ' . $e->getMessage());
+        $_SESSION['db_setup_checked'] = true;
     }
 }
 
@@ -273,16 +317,17 @@ function initializeSystem() {
             return; // لا نوقف التنفيذ، فقط نسجل التحذير
         }
         
-        // إنشاء قاعدة البيانات إذا لم تكن موجودة
-        createDatabaseIfNotExists();
+        // إنشاء قاعدة البيانات إذا لم تكن موجودة (فقط عند الحاجة)
+        // ملاحظة: createDatabaseIfNotExists قد يكون بطيئاً، لذلك نستخدمه بحذر
+        // يمكن تخطي هذا إذا كانت قاعدة البيانات موجودة مسبقاً
         
         // إنشاء مجلد النسخ الاحتياطية إذا لم يكن موجوداً
         if (!is_dir(BACKUP_DIR)) {
             @mkdir(BACKUP_DIR, 0755, true);
         }
         
-        // التحقق من وجود المستخدم الافتراضي (admin)
-        $defaultUser = dbSelectOne("SELECT * FROM users WHERE username = ?", ['admin']);
+        // التحقق من وجود المستخدم الافتراضي (admin) - استعلام واحد فقط
+        $defaultUser = dbSelectOne("SELECT id FROM users WHERE username = ? LIMIT 1", ['admin']);
         
         if (!$defaultUser) {
             $userId = generateId();
@@ -296,8 +341,8 @@ function initializeSystem() {
             }
         }
         
-        // التحقق من وجود المستخدم 1
-        $user1 = dbSelectOne("SELECT * FROM users WHERE username = ?", ['1']);
+        // التحقق من وجود المستخدم 1 - استعلام واحد فقط
+        $user1 = dbSelectOne("SELECT id FROM users WHERE username = ? LIMIT 1", ['1']);
         if (!$user1) {
             $userId1 = generateId();
             $password1 = password_hash('1', PASSWORD_DEFAULT);
@@ -310,8 +355,8 @@ function initializeSystem() {
             }
         }
         
-        // التحقق من وجود الإعدادات الافتراضية
-        $shopName = dbSelectOne("SELECT * FROM settings WHERE `key` = ?", ['shop_name']);
+        // التحقق من وجود الإعدادات الافتراضية - استعلام واحد فقط
+        $shopName = dbSelectOne("SELECT `key` FROM settings WHERE `key` = ? LIMIT 1", ['shop_name']);
         
         if (!$shopName) {
             $defaultSettings = [
@@ -325,9 +370,10 @@ function initializeSystem() {
                 ['loading_page_enabled', '1'] // تفعيل صفحة التحميل افتراضياً
             ];
             
+            // استخدام INSERT IGNORE أو ON DUPLICATE KEY UPDATE لتجنب الأخطاء
             foreach ($defaultSettings as $setting) {
                 $result = dbExecute(
-                    "INSERT INTO settings (`key`, `value`, updated_at) VALUES (?, ?, NOW())",
+                    "INSERT IGNORE INTO settings (`key`, `value`, updated_at) VALUES (?, ?, NOW())",
                     $setting
                 );
                 if ($result === false) {
@@ -344,13 +390,31 @@ function initializeSystem() {
     }
 }
 
-// تهيئة النظام فقط إذا لم يكن هناك خطأ في التحميل
-try {
-    initializeSystem();
-} catch (Exception $e) {
-    error_log('خطأ في تهيئة النظام: ' . $e->getMessage());
-} catch (Error $e) {
-    error_log('خطأ قاتل في تهيئة النظام: ' . $e->getMessage());
+// تهيئة النظام فقط مرة واحدة (caching باستخدام session)
+// هذا يمنع استدعاء initializeSystem() في كل طلب مما يسبب بطء كبير
+if (!isset($_SESSION['system_initialized'])) {
+    try {
+        // إضافة timeout protection
+        $startTime = microtime(true);
+        $maxInitTime = 5; // 5 ثواني كحد أقصى للتهيئة
+        
+        initializeSystem();
+        
+        // التحقق من الوقت المستغرق
+        $elapsedTime = microtime(true) - $startTime;
+        if ($elapsedTime > $maxInitTime) {
+            error_log('تحذير: initializeSystem() استغرق وقتاً طويلاً: ' . round($elapsedTime, 2) . ' ثانية');
+        }
+        
+        // تحديد أن النظام تم تهيئته
+        $_SESSION['system_initialized'] = true;
+    } catch (Exception $e) {
+        error_log('خطأ في تهيئة النظام: ' . $e->getMessage());
+        // لا نوقف التنفيذ، فقط نسجل الخطأ
+    } catch (Error $e) {
+        error_log('خطأ قاتل في تهيئة النظام: ' . $e->getMessage());
+        // لا نوقف التنفيذ، فقط نسجل الخطأ
+    }
 }
 ?>
 

@@ -25,10 +25,10 @@ class SyncManager {
         // تحديث حالة الاتصال فوراً
         this.updateSyncStatus('online');
         
-        // مزامنة فورية مع تأخير قصير
+        // مزامنة مع تأخير 10 ثواني لتقليل الطلبات الفورية (محسّن)
         setTimeout(() => {
             this.syncAll();
-        }, 1000);
+        }, 10000);
         
         // مزامنة دورية
         this.syncInterval = setInterval(() => {
@@ -211,7 +211,9 @@ class SyncManager {
                     const existingLossOperations = allRepairs.filter(r => r.is_loss_operation);
                     allRepairs = [...result.data, ...existingLossOperations];
                     
-                    if (typeof filterRepairs === 'function') {
+                    // التحقق من وجود العنصر والدالة قبل الاستدعاء
+                    const statusFilterElement = document.getElementById('statusFilter');
+                    if (statusFilterElement && typeof filterRepairs === 'function') {
                         filterRepairs();
                     }
                 }
@@ -233,7 +235,10 @@ class SyncManager {
                 localStorage.setItem('customers_cache', JSON.stringify(result.data));
                 if (typeof allCustomers !== 'undefined') {
                     allCustomers = result.data;
-                    if (typeof displayCustomers === 'function') {
+                    
+                    // التحقق من وجود العنصر والدالة قبل الاستدعاء
+                    const tbody = document.getElementById('customersTableBody');
+                    if (tbody && typeof displayCustomers === 'function') {
                         displayCustomers(allCustomers);
                     }
                 }
@@ -322,8 +327,9 @@ class SyncManager {
                     const existingRepairs = allRepairs.filter(r => !r.is_loss_operation);
                     allRepairs = [...existingRepairs, ...lossOperations];
                     
-                    // تحديث العرض فقط إذا كان قسم الصيانة مفتوح
-                    if (typeof filterRepairs === 'function') {
+                    // التحقق من وجود العنصر والدالة قبل الاستدعاء
+                    const statusFilterElement = document.getElementById('statusFilter');
+                    if (statusFilterElement && typeof filterRepairs === 'function') {
                         filterRepairs();
                     }
                 }

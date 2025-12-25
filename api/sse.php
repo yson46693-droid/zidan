@@ -1,9 +1,39 @@
 <?php
 /**
- * Long Polling endpoint للاستماع للرسائل الجديدة
- * يستخدم sleep(1) و timeout 20 ثانية
+ * Server-Sent Events (SSE) endpoint للاستماع للرسائل الجديدة
+ * بديل أفضل لـ Long Polling - يقلل الضغط على السيرفر بشكل كبير
  */
 require_once __DIR__ . '/config.php';
+
+// تعطيل output buffering للـ SSE
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
+
+// إعداد headers للـ SSE
+header('Content-Type: text/event-stream');
+header('Cache-Control: no-cache');
+header('Connection: keep-alive');
+header('X-Accel-Buffering: no'); // تعطيل buffering في Nginx
+
+// السماح بـ CORS
+$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowedOrigins = [
+    'https://alaa-zidan.free.nf',
+    'http://alaa-zidan.free.nf',
+    'https://www.alaa-zidan.free.nf',
+    'http://www.alaa-zidan.free.nf'
+];
+
+if (!empty($requestOrigin)) {
+    foreach ($allowedOrigins as $allowedOrigin) {
+        if (strpos($requestOrigin, $allowedOrigin) !== false || $requestOrigin === $allowedOrigin) {
+            header('Access-Control-Allow-Origin: ' . $requestOrigin);
+            header('Access-Control-Allow-Credentials: true');
+            break;
+        }
+    }
+}
 
 try {
     $session = checkAuth();
@@ -20,30 +50,98 @@ try {
     // تحديث حالة النشاط للمستخدم
     updateUserActivity($userId);
     
-    // التحقق من وجود إشعارات معلقة أولاً (نظام محسّن)
-    // عند وجود إشعار معلق، يتم إرجاع الرسائل فوراً بدون انتظار
-    $pendingNotification = checkPendingNotification($userId);
-    if ($pendingNotification && isset($pendingNotification['message_id'])) {
-        // يوجد إشعار معلق - جلب الرسائل الجديدة فوراً
-        $newMessages = getNewMessages($lastId);
-        if (!empty($newMessages)) {
-            // مسح الإشعارات المعلقة بعد قراءتها
-            clearPendingNotifications($userId, $pendingNotification['message_id']);
-            response(true, 'تم جلب الرسائل بنجاح', $newMessages);
-            return;
+    // إرسال رسالة أولية للاتصال
+    echo "data: " . json_encode(['type' => 'connected', 'message' => 'تم الاتصال بنجاح'], JSON_UNESCAPED_UNICODE) . "\n\n";
+    flush();
+    
+    // إعداد timeout طويل للاتصال المستمر
+    set_time_limit(300); // 5 دقائق
+    ignore_user_abort(true);
+    
+    // حلقة SSE - فحص كل ثانية
+    $iteration = 0;
+    $maxIterations = 300; // 5 دقائق = 300 ثانية
+    
+    while ($iteration < $maxIterations) {
+        // التحقق من انقطاع الاتصال
+        if (connection_aborted()) {
+            break;
         }
+        
+        // التحقق من وجود إشعارات معلقة أولاً (أسرع)
+        $pendingNotification = checkPendingNotification($userId);
+        if ($pendingNotification && isset($pendingNotification['message_id'])) {
+            // يوجد إشعار معلق - جلب الرسائل الجديدة فوراً
+            $newMessages = getNewMessages($lastId);
+            
+            if (!empty($newMessages)) {
+                // تحديث last_id
+                $lastId = $newMessages[count($newMessages) - 1]['id'];
+                
+                // مسح الإشعارات المعلقة بعد قراءتها
+                clearPendingNotifications($userId, $pendingNotification['message_id']);
+                
+                // إرسال الرسائل الجديدة عبر SSE
+                echo "data: " . json_encode([
+                    'type' => 'messages',
+                    'data' => $newMessages
+                ], JSON_UNESCAPED_UNICODE) . "\n\n";
+                flush();
+                
+                // إعادة تعيين العداد بعد إرسال الرسائل
+                $iteration = 0;
+            }
+        } else {
+            // فحص قاعدة البيانات مباشرة (كل 3 ثواني لتقليل الضغط)
+            if ($iteration % 3 === 0) {
+                $newMessages = getNewMessages($lastId);
+                
+                if (!empty($newMessages)) {
+                    // تحديث last_id
+                    $lastId = $newMessages[count($newMessages) - 1]['id'];
+                    
+                    // إرسال الرسائل الجديدة عبر SSE
+                    echo "data: " . json_encode([
+                        'type' => 'messages',
+                        'data' => $newMessages
+                    ], JSON_UNESCAPED_UNICODE) . "\n\n";
+                    flush();
+                    
+                    // إعادة تعيين العداد بعد إرسال الرسائل
+                    $iteration = 0;
+                }
+            }
+        }
+        
+        // إرسال heartbeat كل 30 ثانية للحفاظ على الاتصال
+        if ($iteration % 30 === 0 && $iteration > 0) {
+            echo "data: " . json_encode(['type' => 'heartbeat', 'timestamp' => time()], JSON_UNESCAPED_UNICODE) . "\n\n";
+            flush();
+        }
+        
+        // انتظار ثانية واحدة قبل المحاولة التالية
+        sleep(1);
+        $iteration++;
     }
     
-    // إذا لم يكن هناك إشعار معلق، إرجاع array فارغ فوراً
-    // لا حاجة لـ long polling - المستخدمون يفحصون كل 10 ثواني
-    response(true, 'لا توجد رسائل جديدة', []);
+    // إرسال رسالة انتهاء الاتصال
+    echo "data: " . json_encode(['type' => 'closed', 'message' => 'انتهى الاتصال'], JSON_UNESCAPED_UNICODE) . "\n\n";
+    flush();
     
 } catch (Exception $e) {
-    error_log('خطأ في listen.php: ' . $e->getMessage());
-    response(false, 'حدث خطأ في الاستماع للرسائل: ' . $e->getMessage(), null, 500);
+    error_log('خطأ في sse.php: ' . $e->getMessage());
+    echo "data: " . json_encode([
+        'type' => 'error',
+        'message' => 'حدث خطأ في الاتصال: ' . $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE) . "\n\n";
+    flush();
 } catch (Error $e) {
-    error_log('خطأ قاتل في listen.php: ' . $e->getMessage());
-    response(false, 'حدث خطأ قاتل في الاستماع للرسائل', null, 500);
+    error_log('خطأ قاتل في sse.php: ' . $e->getMessage());
+    echo "data: " . json_encode([
+        'type' => 'error',
+        'message' => 'حدث خطأ قاتل في الاتصال'
+    ], JSON_UNESCAPED_UNICODE) . "\n\n";
+    flush();
 }
 
 /**
@@ -208,7 +306,6 @@ function updateUserActivity($userId) {
         }
     } catch (Exception $e) {
         error_log('خطأ في updateUserActivity: ' . $e->getMessage());
-        // لا نوقف التنفيذ، فقط نسجل الخطأ
     }
 }
 

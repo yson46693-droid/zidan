@@ -20,7 +20,9 @@
     --shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
+/* Google Fonts يتم تحميلها بشكل async في index.html مع display=swap في URL لتحسين الأداء */
+/* font-display: swap يتم تطبيقه تلقائياً من خلال display=swap في Google Fonts URL */
+/* هذا يمنع FOIT (Flash of Invisible Text) ويحسن FCP و LCP */
 
 body {
     font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -30,6 +32,8 @@ body {
     direction: rtl;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* تحسين أداء النصوص */
+    text-rendering: optimizeLegibility;
 }
 
 /* صفحة تسجيل الدخول */
@@ -5027,4 +5031,230 @@ body > .nav-link,
 .main-content > .nav-link,
 .top-bar > .nav-link {
     display: none !important;
+}
+
+/* ========== أنماط جدول المستحقات ========== */
+
+/* Grid Layout للمصروفات والمستحقات */
+.expenses-grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.expenses-table-wrapper,
+.salaries-table-wrapper {
+    background: var(--white);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+}
+
+.table-title {
+    color: var(--primary-color);
+    font-size: 1.3em;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.table-title i {
+    font-size: 1.2em;
+}
+
+/* أنماط بروفايل المستخدم */
+.user-profile-content {
+    padding: 20px;
+}
+
+.profile-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: var(--light-bg);
+    border-radius: 8px;
+}
+
+.profile-section h4 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--white);
+    border-radius: 5px;
+}
+
+.info-label {
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.info-value {
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.salary-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.salary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: var(--white);
+    border-radius: 5px;
+    border-right: 4px solid var(--border-color);
+}
+
+.salary-item.total {
+    border-right-color: var(--primary-color);
+    background: var(--light-bg);
+}
+
+.salary-label {
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.salary-value {
+    font-size: 1.2em;
+    font-weight: 700;
+}
+
+.salary-value.primary {
+    color: var(--primary-color);
+}
+
+.salary-value.danger {
+    color: var(--danger-color);
+}
+
+.salary-value.success {
+    color: var(--success-color);
+}
+
+.deductions-list {
+    margin-top: 20px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.badge-warning {
+    background: var(--warning-color);
+    color: var(--white);
+}
+
+.badge-danger {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+/* Responsive Design للمستحقات */
+@media (max-width: 991.98px) {
+    .expenses-grid-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .expenses-table-wrapper,
+    .salaries-table-wrapper {
+        padding: 15px;
+    }
+    
+    .profile-section {
+        padding: 15px;
+    }
+    
+    .salary-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .salary-value {
+        font-size: 1.1em;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .expenses-grid-container {
+        gap: 15px;
+    }
+    
+    .expenses-table-wrapper,
+    .salaries-table-wrapper {
+        padding: 12px;
+    }
+    
+    .table-title {
+        font-size: 1.1em;
+    }
+    
+    .profile-section {
+        padding: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .profile-section h4 {
+        font-size: 1.1em;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .salary-item {
+        padding: 12px;
+    }
+    
+    .salary-value {
+        font-size: 1em;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .expenses-table-wrapper,
+    .salaries-table-wrapper {
+        padding: 10px;
+    }
+    
+    .table-title {
+        font-size: 1em;
+        margin-bottom: 12px;
+    }
+    
+    .profile-section {
+        padding: 10px;
+    }
+    
+    .info-item,
+    .salary-item {
+        padding: 10px;
+        font-size: 0.9em;
+    }
 }

@@ -36,28 +36,78 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     
-    <!-- Icons - مع cache busting لضمان الحصول على أحدث نسخة -->
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96x96.png?v=2.0.1">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72x72.png?v=2.0.1">
+    <!-- 🔧 تحسين الأداء: تقليل عدد الأيقونات (3 فقط بدلاً من 10+) -->
+    <link rel="icon" type="image/png" href="icons/icon-192x192.png?v=2.0.1">
     <link rel="shortcut icon" href="icons/icon-192x192.png?v=2.0.1">
-    
-    <!-- Apple Touch Icons - مع cache busting -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-128x128.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="114x114" href="icons/icon-128x128.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="76x76" href="icons/icon-96x96.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png?v=2.0.1">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png?v=2.0.1">
     
     <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
+    <!-- تحديد المسار الأساسي للتطبيق (يعمل مع المجلدات الفرعية) -->
+    <script>
+        // تحديد المسار الأساسي قبل تحميل أي ملفات أخرى
+        (function() {
+            try {
+                const pathname = window.location.pathname;
+                // استخراج المجلد الفرعي إذا كان موجوداً (مثل /z/index.html)
+                const match = pathname.match(/^(\/[^\/]+)/);
+                let basePath = '';
+                if (match && match[1] !== '/') {
+                    basePath = match[1]; // مثل '/z'
+                }
+                
+                // حفظ المسار الأساسي في window للاستخدام لاحقاً
+                window.BASE_PATH = basePath;
+                
+                // دالة مساعدة لإصلاح المسارات
+                function fixPath(path) {
+                    if (!path) return path;
+                    // إذا كان المسار يبدأ بـ /، أضف basePath
+                    if (path.startsWith('/')) {
+                        return basePath + path;
+                    }
+                    // إذا كان المسار نسبي، اتركه كما هو (سيعمل تلقائياً)
+                    return path;
+                }
+                
+                // إصلاح جميع المسارات في الصفحة
+                document.addEventListener('DOMContentLoaded', function() {
+                    // إصلاح preload links
+                    document.querySelectorAll('link[rel="preload"]').forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && !href.startsWith('http') && !href.startsWith('//')) {
+                            link.setAttribute('href', fixPath(href));
+                        }
+                    });
+                    
+                    // إصلاح script tags
+                    document.querySelectorAll('script[src]').forEach(script => {
+                        const src = script.getAttribute('src');
+                        if (src && !src.startsWith('http') && !src.startsWith('//') && !src.startsWith('data:')) {
+                            script.setAttribute('src', fixPath(src));
+                        }
+                    });
+                    
+                    // إصلاح link tags (CSS)
+                    document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && !href.startsWith('http') && !href.startsWith('//')) {
+                            link.setAttribute('href', fixPath(href));
+                        }
+                    });
+                });
+            } catch (e) {
+                console.error('خطأ في تحديد المسار الأساسي:', e);
+            }
+        })();
+    </script>
+    
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
+    <!-- Console Manager - إدارة console.log للإنتاج -->
+    <script src="js/console-manager.js"></script>
     <script>
         // استخدام رقم الإصدار من window.APP_VERSION (معرّف في version.js)
         // لا نعيد تعريف APP_VERSION لتجنب خطأ redeclaration
@@ -91,14 +141,35 @@
         })();
     </script>
     
-    <!-- Critical CSS - تحميل فوري -->
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Google Fonts - Preconnect + async loading مع font-display: swap لتحسين الأداء -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Google Fonts - Preconnect + async loading مع font-display: swap لتحسين الأداء -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap"></noscript>
+    <!-- ملاحظة: font-display: swap يتم تطبيقه تلقائياً من خلال display=swap في URL -->
     
-    <!-- Loading Overlay CSS - Splash Screen للتحميل -->
-    <link rel="stylesheet" href="css/loading-overlay.css">
+    <!-- Critical CSS - non-blocking using media trick for better performance -->
+    <!-- ✅ إزالة crossorigin من الملفات المحلية -->
+    <link rel="preload" href="css/style.css" as="style">
+    <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link rel="stylesheet" href="css/style.css"></noscript>
+    <script>
+        // Fallback for browsers that don't support onload on link tags
+        (function() {
+            var link = document.querySelector('link[href="css/style.css"][media="print"]');
+            if (link && link.sheet && link.sheet.cssRules.length === 0) {
+                link.media = 'all';
+            }
+        })();
+    </script>
     
-    <!-- Splash Screen CSS - تحميل فوري (لصفحة تسجيل الدخول فقط) -->
-    <link rel="stylesheet" href="css/splash-screen.css">
+    <!-- Non-critical CSS - تحميل غير متزامن لتحسين الأداء -->
+    <link rel="preload" href="css/loading-overlay.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/loading-overlay.css"></noscript>
+    
+    <link rel="preload" href="css/splash-screen.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/splash-screen.css"></noscript>
     
     <!-- Security CSS - تحميل متأخر (non-blocking) -->
     <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -108,98 +179,48 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
-    <!-- Bootstrap Icons - تحميل متأخر (non-blocking) -->
+    <!-- Bootstrap Icons - تحميل غير متزامن لتحسين الأداء -->
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
     
-    <!-- Preload Critical JS Files - في head للتحميل المبكر -->
+    <!-- Preload critical image - LCP optimization -->
+    <link rel="preload" href="icon-512x512.png" as="image" type="image/png" fetchpriority="high">
+    
+    <!-- Preload Critical JS Files - في head للتحميل المبكر (يتم استخدامها مباشرة في body) -->
+    <!-- ✅ إزالة crossorigin من الملفات المحلية لتجنب تحذيرات credentials mismatch -->
+    <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في الأعلى -->
     <link rel="preload" href="js/api.js" as="script">
     <link rel="preload" href="js/utils.js" as="script">
     <link rel="preload" href="js/loading-overlay.js" as="script">
     <link rel="preload" href="js/auth.js" as="script">
     
-    <!-- أنماط فورية لضمان عرض العناصر بشكل صحيح -->
+    <!-- Critical CSS Inline - للعرض الفوري بدون انتظار CSS الخارجي -->
     <style>
-        /* منع FOUC (Flash of Unstyled Content) */
-        .login-page {
-            visibility: hidden;
-        }
-        .login-page.loaded {
-            visibility: visible;
-        }
-        
-        /* إخفاء صفحة تسجيل الدخول حتى يختفي splash screen */
-        .login-container {
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-        
-        .login-container.show {
-            opacity: 1;
-        }
-        
-        /* ضمان عرض العناصر الأساسية حتى قبل تحميل CSS */
-        .login-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        
-        .login-box {
-            background: white;
-            border-radius: 10px;
-            padding: 40px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        
-        .form-group input {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1em;
-            box-sizing: border-box;
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1em;
-            cursor: pointer;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .btn-primary {
-            background: #2196F3;
-            color: white;
-        }
-        
-        /* إخفاء الصفحة حتى يتم تحميل CSS بالكامل */
-        body:not(.css-loaded) .login-page {
-            opacity: 0;
-        }
-        body.css-loaded .login-page {
-            opacity: 1;
-            transition: opacity 0.3s ease;
-        }
+        /* Critical CSS Variables */
+        :root{--primary-color:#2196F3;--secondary-color:#64B5F6;--white:#fff;--text-dark:#333;--text-light:#666;--border-color:#ddd;--shadow:0 2px 10px rgba(0,0,0,0.1);--light-bg:#f5f5f5}
+        /* Reset & Base */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Cairo','Tajawal','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--light-bg);color:var(--text-dark);line-height:1.6;direction:rtl;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+        /* Critical Login Page Styles */
+        .login-page{display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,var(--primary-color),var(--secondary-color))}
+        .login-container{width:100%;max-width:400px;padding:20px;display:flex;justify-content:center;align-items:center;min-height:100vh}
+        .login-box{background:var(--white);border-radius:10px;padding:40px;box-shadow:var(--shadow);width:100%;max-width:400px}
+        .form-group{margin-bottom:20px}
+        .form-group label{display:block;margin-bottom:5px;font-weight:500}
+        .form-group input{width:100%;padding:10px 15px;border:1px solid var(--border-color);border-radius:5px;font-size:1em;box-sizing:border-box}
+        .btn{padding:10px 20px;border:none;border-radius:5px;font-size:1em;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px}
+        .btn-primary{background:var(--primary-color);color:var(--white)}
+        /* Splash Screen - Critical CSS لمنع FOUC */
+        .splash-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999999;opacity:1;visibility:visible}
+        .splash-content{text-align:center;padding:20px;max-width:400px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+        .splash-logo{width:150px;height:150px;background:var(--white);border-radius:35px;display:flex;align-items:center;justify-content:center;box-shadow:0 15px 50px rgba(0,0,0,0.25);margin-bottom:30px;position:relative;overflow:hidden;padding:15px}
+        .splash-logo-img{width:100%;height:100%;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.15))}
+        .splash-title{font-size:32px;font-weight:800;color:var(--white);margin-bottom:10px;direction:rtl;text-shadow:0 2px 10px rgba(0,0,0,0.2);letter-spacing:-0.5px}
+        .splash-subtitle{font-size:18px;color:rgba(255,255,255,0.9);margin-bottom:40px;direction:rtl;text-shadow:0 1px 5px rgba(0,0,0,0.1);font-weight:500}
+        .splash-loader{display:none}
+        .login-container{opacity:0;visibility:visible;display:flex;transition:opacity 0.5s ease}
+        .login-container.show{opacity:1;visibility:visible}
+        @media (max-width:575.98px){.splash-logo{width:120px;height:120px;border-radius:30px;margin-bottom:25px;padding:12px}.splash-title{font-size:26px;margin-bottom:8px}.splash-subtitle{font-size:16px;margin-bottom:30px}}
     </style>
 </head>
 <body class="login-page">
@@ -207,7 +228,7 @@
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
             <div class="splash-logo">
-                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img">
+                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" onload="this.style.opacity='1'" onerror="this.style.display='none'">
             </div>
             <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
             <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>
@@ -215,7 +236,7 @@
         </div>
     </div>
     
-    <div class="login-container">
+    <div class="login-container" style="opacity: 0; visibility: visible; display: flex;">
         <div class="login-box">
             <!-- زر التثبيت PWA -->
             <div style="position: fixed; top: 20px; left: 20px; z-index: 10000;">
@@ -224,7 +245,7 @@
                 </button>
             </div>
             
-            <div class="login-header">
+            <div class="login-header"> 
                 <h1><i class="bi bi-phone-fill"></i> نظام إدارة محل الصيانة</h1>
                 <p><i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول</p>
             </div>
@@ -268,14 +289,28 @@
         </div>
     </div>
 
-    <script src="js/api.js"></script>
-    <script src="js/utils.js"></script>
-    <!-- تحميل Splash Screen أولاً (لصفحة تسجيل الدخول فقط) -->
-    <script src="js/splash-screen.js"></script>
-    <!-- تحميل Splash Screen للتحميل -->
-    <script src="js/loading-overlay.js"></script>
-    <!-- تحميل الملفات بشكل غير متزامن لتحسين الأداء -->
-    <script src="js/auth.js" defer></script>
+    <!-- تحميل ملفات JS بشكل غير متزامن (defer) لتحسين الأداء -->
+    <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في head -->
+    <script>
+        // إصلاح المسارات قبل تحميل الملفات
+        (function() {
+            const basePath = window.BASE_PATH || '';
+            const scripts = [
+                'js/api.js',
+                'js/utils.js',
+                'js/splash-screen.js',
+                'js/loading-overlay.js',
+                'js/auth.js'
+            ];
+            
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = basePath ? basePath + '/' + src : src;
+                script.defer = true;
+                document.body.appendChild(script);
+            });
+        })();
+    </script>
     <script>
         // التحقق من تحميل جميع العناصر بشكل صحيح
         window.addEventListener('DOMContentLoaded', () => {
@@ -659,12 +694,35 @@
         const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    const swUrl = '/sw.js';
+                    // ✅ تعيين علامة أن Service Worker قيد التسجيل
+                    window.serviceWorkerRegistering = true;
+                    
+                    // تحديد المسار الأساسي تلقائياً
+                    const getBasePath = () => {
+                        try {
+                            const pathname = window.location.pathname;
+                            const match = pathname.match(/^(\/[^\/]+)/);
+                            if (match && match[1] !== '/') {
+                                return match[1];
+                            }
+                            return '';
+                        } catch (e) {
+                            return '';
+                        }
+                    };
+                    const basePath = getBasePath();
+                    const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
+                    // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
+                    const scope = basePath ? `${basePath}/` : '/';
                     
                     const registration = await navigator.serviceWorker.register(swUrl, {
-                        scope: '/',
+                        scope: scope,
                         updateViaCache: 'none'
                     });
+                    
+                    // ✅ إزالة العلامة بعد التسجيل
+                    window.serviceWorkerRegistering = false;
+                    window.serviceWorkerRegistered = true;
                     
                     console.log('✅ Service Worker registered successfully');
                     console.log('   - Scope:', registration.scope);
@@ -708,6 +766,8 @@
                     
                     return registration;
                 } catch (error) {
+                    // ✅ إزالة العلامة في حالة الخطأ
+                    window.serviceWorkerRegistering = false;
                     console.error('❌ Service Worker registration failed:', error.message || error);
                     return null;
                 }
@@ -717,7 +777,7 @@
             }
         };
         
-        // تسجيل Service Worker فوراً (مهم لـ PWA)
+        // ✅ تسجيل Service Worker مبكراً (قبل load event)
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(registerServiceWorker, 100);
@@ -725,11 +785,6 @@
         } else {
             setTimeout(registerServiceWorker, 100);
         }
-        
-        // أيضاً تسجيل عند تحميل الصفحة
-        window.addEventListener('load', () => {
-            setTimeout(registerServiceWorker, 500);
-        });
         
         // تحميل PWA Validator و Install Manager
         const loadPWATools = () => {
@@ -770,6 +825,77 @@
                 setTimeout(loadPWATools, 1000);
             });
         }
+    </script>
+    
+    <!-- Fallback script لتحميل CSS بشكل async للمتصفحات القديمة -->
+    <script>
+        /*! loadCSS. [c]2017 Filament Group, Inc. MIT License */
+        (function(w){
+            "use strict";
+            var loadCSS = function(href, before, media, attributes){
+                var doc = w.document;
+                var ss = doc.createElement("link");
+                var ref;
+                if(before){
+                    ref = before;
+                } else {
+                    var refs = (doc.body || doc.getElementsByTagName("head")[0]).childNodes;
+                    ref = refs[refs.length - 1];
+                }
+                var sheets = doc.styleSheets;
+                ss.rel = "stylesheet";
+                ss.href = href;
+                if(attributes){
+                    for(var attributeName in attributes){
+                        if(attributes.hasOwnProperty(attributeName)){
+                            ss.setAttribute(attributeName, attributes[attributeName]);
+                        }
+                    }
+                }
+                ss.media = "only x";
+                function ready(cb){
+                    if(doc.body){
+                        return cb();
+                    }
+                    setTimeout(function(){
+                        ready(cb);
+                    });
+                }
+                ready(function(){
+                    ref.parentNode.insertBefore(ss, (before ? ref : ref.nextSibling));
+                });
+                var onloadcssdefined = function(cb){
+                    var resolvedHref = ss.href;
+                    var i = sheets.length;
+                    while(i--){
+                        if(sheets[i].href === resolvedHref){
+                            return cb();
+                        }
+                    }
+                    setTimeout(function(){
+                        onloadcssdefined(cb);
+                    });
+                };
+                function loadCB(){
+                    if(ss.addEventListener){
+                        ss.removeEventListener("load", loadCB);
+                    }
+                    ss.media = media || "all";
+                }
+                if(ss.addEventListener){
+                    ss.addEventListener("load", loadCB);
+                }
+                ss.onloadcssdefined = onloadcssdefined;
+                onloadcssdefined(loadCB);
+                return ss;
+            };
+            if(typeof exports !== "undefined"){
+                exports.loadCSS = loadCSS;
+            }
+            else {
+                w.loadCSS = loadCSS;
+            }
+        }(typeof global !== "undefined" ? global : this));
     </script>
 </body>
 </html>

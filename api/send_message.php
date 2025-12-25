@@ -88,13 +88,15 @@ try {
     // إنشاء معرف فريد للرسالة
     $messageId = generateId();
     
+    // التأكد من وجود الأعمدة المطلوبة
+    ensureChatMessagesColumns();
+    
     // حفظ الرسالة في قاعدة البيانات
-    // التحقق من وجود عمود username أولاً
     try {
         $result = dbExecute("
-            INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-        ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType]);
+            INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, file_name, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType, $fileName]);
     } catch (Exception $e) {
         // إذا فشل بسبب عدم وجود عمود، محاولة إضافته
         error_log('محاولة إضافة الأعمدة المفقودة: ' . $e->getMessage());
@@ -102,27 +104,29 @@ try {
             $conn = getDBConnection();
             if ($conn) {
                 // محاولة إضافة الأعمدة المفقودة
-                try {
-                    $conn->query("ALTER TABLE chat_messages ADD COLUMN username VARCHAR(255) DEFAULT NULL");
-                } catch (Exception $e3) {
-                    // العمود موجود بالفعل
-                }
-                try {
-                    $conn->query("ALTER TABLE chat_messages ADD COLUMN file_path VARCHAR(500) DEFAULT NULL");
-                } catch (Exception $e3) {
-                    // العمود موجود بالفعل
-                }
-                try {
-                    $conn->query("ALTER TABLE chat_messages ADD COLUMN file_type VARCHAR(50) DEFAULT NULL");
-                } catch (Exception $e3) {
-                    // العمود موجود بالفعل
+                $columns = [
+                    'username' => "ALTER TABLE chat_messages ADD COLUMN username VARCHAR(255) DEFAULT NULL",
+                    'file_path' => "ALTER TABLE chat_messages ADD COLUMN file_path VARCHAR(500) DEFAULT NULL",
+                    'file_type' => "ALTER TABLE chat_messages ADD COLUMN file_type VARCHAR(50) DEFAULT NULL",
+                    'file_name' => "ALTER TABLE chat_messages ADD COLUMN file_name VARCHAR(255) DEFAULT NULL"
+                ];
+                
+                foreach ($columns as $columnName => $alterSql) {
+                    try {
+                        $result = $conn->query("SHOW COLUMNS FROM chat_messages LIKE '{$columnName}'");
+                        if ($result && $result->num_rows == 0) {
+                            $conn->query($alterSql);
+                        }
+                    } catch (Exception $e3) {
+                        // العمود موجود بالفعل أو خطأ آخر
+                    }
                 }
                 
                 // محاولة الإدراج مرة أخرى
                 $result = dbExecute("
-                    INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType]);
+                    INSERT INTO chat_messages (id, user_id, username, message, reply_to, file_path, file_type, file_name, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                ", [$messageId, $userId, $username, $message, $replyToId, $filePath, $fileType, $fileName]);
             } else {
                 throw new Exception('فشل الاتصال بقاعدة البيانات');
             }
@@ -165,6 +169,10 @@ try {
             }
         }
     }
+    
+    // إشعار جميع المستخدمين النشطين في الشات بوجود رسالة جديدة
+    // يتم استدعاء تحديث الشات لكل مستخدم نشط مرة واحدة في الخلفية
+    notifyActiveChatUsers($messageId, $userId);
     
     // إعداد بيانات الرسالة المرسلة
     $sentMessage = [
@@ -209,6 +217,43 @@ try {
 } catch (Error $e) {
     error_log('خطأ قاتل في send_message.php: ' . $e->getMessage());
     response(false, 'حدث خطأ قاتل في إرسال الرسالة', null, 500);
+}
+
+/**
+ * التأكد من وجود الأعمدة المطلوبة في جدول chat_messages
+ */
+function ensureChatMessagesColumns() {
+    try {
+        $conn = getDBConnection();
+        if (!$conn) {
+            return false;
+        }
+        
+        // التحقق من وجود الأعمدة وإضافتها إذا لم تكن موجودة
+        $columns = [
+            'username' => "ALTER TABLE `chat_messages` ADD COLUMN `username` varchar(100) DEFAULT NULL AFTER `user_id`",
+            'file_path' => "ALTER TABLE `chat_messages` ADD COLUMN `file_path` varchar(500) DEFAULT NULL AFTER `reply_to`",
+            'file_type' => "ALTER TABLE `chat_messages` ADD COLUMN `file_type` varchar(50) DEFAULT NULL AFTER `file_path`",
+            'file_name' => "ALTER TABLE `chat_messages` ADD COLUMN `file_name` varchar(255) DEFAULT NULL AFTER `file_type`",
+            'deleted_at' => "ALTER TABLE `chat_messages` ADD COLUMN `deleted_at` datetime DEFAULT NULL AFTER `created_at`"
+        ];
+        
+        foreach ($columns as $columnName => $alterSql) {
+            $result = $conn->query("SHOW COLUMNS FROM `chat_messages` LIKE '{$columnName}'");
+            if ($result && $result->num_rows == 0) {
+                try {
+                    $conn->query($alterSql);
+                } catch (Exception $e) {
+                    error_log("خطأ في إضافة عمود {$columnName}: " . $e->getMessage());
+                }
+            }
+        }
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('خطأ في ensureChatMessagesColumns: ' . $e->getMessage());
+        return false;
+    }
 }
 
 /**
@@ -308,6 +353,92 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
     } catch (Exception $e) {
         error_log('خطأ في saveChatFile: ' . $e->getMessage());
         return null;
+    }
+}
+
+/**
+ * إشعار جميع المستخدمين النشطين في الشات بوجود رسالة جديدة
+ * يتم استدعاؤه بعد إرسال رسالة جديدة مباشرة
+ * يضيف إشعارات معلقة لكل مستخدم نشط - يتم فحصها من JavaScript
+ */
+function notifyActiveChatUsers($messageId, $senderId) {
+    try {
+        // التأكد من وجود جدول active_users
+        if (!ensureActiveUsersTable()) {
+            error_log('فشل في التأكد من وجود جدول active_users');
+            return;
+        }
+        
+        // الحصول على جميع المستخدمين النشطين في الشات (نشطون في آخر دقيقتين)
+        $activeUsers = dbSelect("
+            SELECT user_id 
+            FROM active_users 
+            WHERE is_online = 1 
+            AND user_id != ?
+            AND last_activity >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+            ORDER BY last_activity DESC
+        ", [$senderId]);
+        
+        if (empty($activeUsers)) {
+            return; // لا يوجد مستخدمون نشطون
+        }
+        
+        // إنشاء جدول للإشعارات المعلقة إذا لم يكن موجوداً
+        ensureChatNotificationsTable();
+        
+        // إضافة إشعار لكل مستخدم نشط
+        foreach ($activeUsers as $user) {
+            $notificationId = generateId();
+            try {
+                dbExecute("
+                    INSERT INTO chat_pending_notifications (id, user_id, message_id, created_at)
+                    VALUES (?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE created_at = NOW()
+                ", [$notificationId, $user['user_id'], $messageId]);
+            } catch (Exception $e) {
+                // تجاهل الأخطاء في حالة التكرار
+                error_log('خطأ في إضافة إشعار للمستخدم ' . $user['user_id'] . ': ' . $e->getMessage());
+            }
+        }
+        
+        error_log("✅ تم إشعار " . count($activeUsers) . " مستخدم نشط برسالة جديدة: {$messageId}");
+        
+    } catch (Exception $e) {
+        error_log('خطأ في notifyActiveChatUsers: ' . $e->getMessage());
+    }
+}
+
+/**
+ * التأكد من وجود جدول chat_pending_notifications
+ */
+function ensureChatNotificationsTable() {
+    try {
+        if (!dbTableExists('chat_pending_notifications')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                $sql = "
+                    CREATE TABLE IF NOT EXISTS `chat_pending_notifications` (
+                      `id` varchar(50) NOT NULL,
+                      `user_id` varchar(50) NOT NULL,
+                      `message_id` varchar(50) NOT NULL,
+                      `created_at` datetime NOT NULL,
+                      PRIMARY KEY (`id`),
+                      UNIQUE KEY `unique_user_message` (`user_id`, `message_id`),
+                      KEY `idx_user_id` (`user_id`),
+                      KEY `idx_message_id` (`message_id`),
+                      KEY `idx_created_at` (`created_at`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ";
+                if (!$conn->query($sql)) {
+                    error_log("خطأ في إنشاء جدول chat_pending_notifications: " . $conn->error);
+                    return false;
+                }
+            }
+        }
+        return true;
+    } catch (Exception $e) {
+        error_log('خطأ في ensureChatNotificationsTable: ' . $e->getMessage());
+        return false;
     }
 }
 

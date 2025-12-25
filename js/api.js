@@ -198,8 +198,9 @@ const API = {
         return await this.request('auth.php', 'POST', { username, password });
     },
 
-    async checkAuth() {
-        return await this.request('auth.php', 'GET');
+    async checkAuth(silent = false) {
+        const options = silent ? { silent: true } : {};
+        return await this.request('auth.php', 'GET', null, options);
     },
 
     async logout() {
@@ -474,6 +475,28 @@ const API = {
 
     async getCleanupStatus() {
         return await this.request('telegram-backup.php?action=get_cleanup_status', 'GET');
+    },
+
+    // المستحقات والرواتب
+    async getSalaries(branchId = null) {
+        const url = branchId ? `salaries.php?branch_id=${branchId}` : 'salaries.php';
+        return await this.request(url, 'GET');
+    },
+
+    async getUserSalaryDetails(userId) {
+        return await this.request(`salaries.php?action=user_details&user_id=${userId}`, 'GET');
+    },
+
+    async addSalaryDeduction(deductionData) {
+        return await this.request('salaries.php', 'POST', deductionData);
+    },
+
+    async updateSalaryDeduction(deductionData) {
+        return await this.request('salaries.php', 'PUT', deductionData);
+    },
+
+    async deleteSalaryDeduction(id) {
+        return await this.request('salaries.php', 'DELETE', { id });
     }
 };
 

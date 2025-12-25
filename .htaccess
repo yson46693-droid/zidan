@@ -1,4 +1,99 @@
-# إعدادات InfinityFree - حل مشكلة 404
+# ============================================
+# 🚀 تحسينات الأداء - Performance Optimizations
+# ============================================
+
+# تفعيل HTTP/2 و HTTP/3 (إذا كان مدعوماً من الخادم)
+<IfModule mod_headers.c>
+    # دعم HTTP/2 Server Push (إذا كان متاحاً)
+    Header always set Link "</css/style.css>; rel=preload; as=style"
+    Header always set Link "</js/api.js>; rel=preload; as=script"
+    # تم إزالة preload لـ utils.js لأنه يتم تحميله بـ defer في HTML
+    # Header always set Link "</js/utils.js>; rel=preload; as=script"
+    
+    # تحسين الأمان والأداء
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ============================================
+# 📦 ضغط الملفات - Compression (Gzip/Brotli)
+# ============================================
+<IfModule mod_deflate.c>
+    # ضغط ملفات HTML, CSS, JavaScript, Text, XML, JSON
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/atom+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+    
+    # منع ضغط الصور المضغوطة مسبقاً
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|ico)$ no-gzip dont-vary
+    SetEnvIfNoCase Request_URI \.(?:exe|t?gz|zip|bz2|sit|rar)$ no-gzip dont-vary
+</IfModule>
+
+# ============================================
+# 💾 التخزين المؤقت - Browser Caching
+# ============================================
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # الصور - تخزين لمدة سنة
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # CSS و JavaScript - تخزين لمدة شهر
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    
+    # الخطوط - تخزين لمدة سنة
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+    
+    # HTML - لا تخزين (يتم تحديثه باستمرار)
+    ExpiresByType text/html "access plus 0 seconds"
+    
+    # JSON - تخزين لمدة ساعة
+    ExpiresByType application/json "access plus 1 hour"
+</IfModule>
+
+# Cache-Control Headers (بديل لـ Expires)
+<IfModule mod_headers.c>
+    # الصور والخطوط - تخزين لمدة سنة
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "max-age=31536000, public, immutable"
+    </FilesMatch>
+    
+    # CSS و JavaScript - تخزين لمدة شهر
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "max-age=2592000, public"
+    </FilesMatch>
+    
+    # HTML - لا تخزين
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
+
+# ============================================
+# 📄 إعدادات InfinityFree - حل مشكلة 404
+# ============================================
 
 # السماح بملفات HTML
 <FilesMatch "\.html$">
@@ -21,9 +116,40 @@ AddDefaultCharset UTF-8
     AddType text/css .css
     AddType application/javascript .js
     AddType text/javascript .js
+    # MIME types لـ Service Worker و Manifest - ضروري للعمل الصحيح
+    AddType application/manifest+json .webmanifest
+    AddType application/manifest+json manifest.json
+    AddType application/json .json
+    # تحسين MIME types للصور
+    AddType image/webp .webp
+    AddType image/avif .avif
 </IfModule>
 
-# إعدادات CORS الأساسية
+# إعدادات خاصة لـ Service Worker (sw.js)
+<Files "sw.js">
+    <IfModule mod_headers.c>
+        Header set Content-Type "application/javascript; charset=utf-8"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+        # ✅ السماح بـ Service Worker scope لأي مسار فرعي
+        Header set Service-Worker-Allowed "/"
+    </IfModule>
+</Files>
+
+# إعدادات خاصة لـ Manifest (manifest.json)
+<Files "manifest.json">
+    <IfModule mod_headers.c>
+        Header set Content-Type "application/manifest+json; charset=utf-8"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </IfModule>
+</Files>
+
+# ============================================
+# 🌐 إعدادات CORS الأساسية
+# ============================================
 <IfModule mod_headers.c>
     # السماح بملفات HTML و CSS و JS
     <FilesMatch "\.(html|css|js)$">
@@ -36,6 +162,88 @@ AddDefaultCharset UTF-8
 # منع عرض محتويات المجلدات
 Options -Indexes
 
-# معالجة الأخطاء (اختياري)
-ErrorDocument 404 /index.html
+# السماح بالوصول إلى مجلد API (مهم لـ LiteSpeed)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # السماح بجميع الطلبات إلى مجلد api/ (بما في ذلك POST)
+    RewriteCond %{REQUEST_URI} ^/.*api/.*$
+    RewriteRule ^(.*)$ - [L]
+    
+    # السماح بشكل صريح بطلبات POST إلى API
+    RewriteCond %{REQUEST_METHOD} ^(POST|PUT|DELETE|OPTIONS|PATCH)$
+    RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
+    RewriteRule ^(.*)$ - [L]
+</IfModule>
+
+# قواعد خاصة لـ LiteSpeed Web Server - السماح بالوصول إلى API
+<IfModule LiteSpeed>
+    <DirectoryMatch "^/.*api/">
+        Options +ExecCGI
+        Options +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </DirectoryMatch>
+    # السماح بتنفيذ PHP في مجلد api
+    <FilesMatch "^api/.*\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # السماح بملفات PHP في مسارات API الفرعية (مثل /z/api/auth.php)
+    <FilesMatch "^.*api/.*\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # قاعدة خاصة لملف auth.php في أي مسار
+    <FilesMatch "^.*api/auth\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # السماح بطلبات POST بشكل صريح
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى API
+        RewriteCond %{REQUEST_METHOD} POST
+        RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
+        RewriteRule ^(.*)$ - [L,E=no-gzip:1]
+    </IfModule>
+</IfModule>
+
+# قواعد Apache للسماح بالوصول إلى API من أي مجلد فرعي
+<IfModule mod_authz_core.c>
+    <DirectoryMatch "^/.*api/">
+        Require all granted
+        Options +ExecCGI
+        Options +FollowSymLinks
+    </DirectoryMatch>
+    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
+    <FilesMatch "^.*api/.*\.php$">
+        Require all granted
+    </FilesMatch>
+    # السماح بشكل خاص بملف auth.php
+    <FilesMatch "^.*api/auth\.php$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <DirectoryMatch "^/.*api/">
+        Order allow,deny
+        Allow from all
+        Options +ExecCGI
+        Options +FollowSymLinks
+    </DirectoryMatch>
+    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
+    <FilesMatch "^.*api/.*\.php$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+    # السماح بشكل خاص بملف auth.php
+    <FilesMatch "^.*api/auth\.php$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+</IfModule>
+
+# معالجة الأخطاء - عدم إعادة توجيه ملفات JS و JSON إلى HTML
+# ErrorDocument 404 /index.html (تم التعليق لمنع مشاكل Service Worker)
 

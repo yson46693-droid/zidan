@@ -1,5 +1,59 @@
 // دوال مساعدة
 
+/**
+ * الحصول على المسار الأساسي للتطبيق (يعمل مع المجلدات الفرعية)
+ * @returns {string} المسار الأساسي (مثل: '' أو '/z')
+ */
+function getBasePath() {
+    try {
+        // استخدام window.location.pathname لتحديد المسار الحالي
+        const pathname = window.location.pathname;
+        
+        // إذا كان المسار يحتوي على index.html أو dashboard.html أو أي ملف HTML
+        const match = pathname.match(/^(\/[^\/]+)/);
+        if (match && match[1] !== '/') {
+            // إذا كان هناك مجلد فرعي (مثل /z/index.html)
+            return match[1];
+        }
+        
+        // إذا كان الملف في الجذر (مثل /index.html)
+        return '';
+    } catch (e) {
+        console.error('خطأ في تحديد المسار الأساسي:', e);
+        return '';
+    }
+}
+
+/**
+ * الحصول على مسار Service Worker
+ * @returns {string} مسار sw.js
+ */
+function getServiceWorkerPath() {
+    const basePath = getBasePath();
+    return basePath ? `${basePath}/sw.js` : '/sw.js';
+}
+
+/**
+ * التحقق من صلاحيات تعديل المخزون
+ * @returns {boolean}
+ */
+function canEditInventory() {
+    try {
+        const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const branchCode = localStorage.getItem('branch_code');
+        const isOwner = localStorage.getItem('is_owner') === 'true';
+        
+        // المالك له كامل الصلاحيات
+        if (isOwner) return true;
+        
+        // الفرع الأول فقط يمكنه التعديل
+        return branchCode === 'HANOVIL';
+    } catch (e) {
+        console.error('خطأ في التحقق من صلاحيات المخزون:', e);
+        return false;
+    }
+}
+
 // عرض رسالة
 function showMessage(message, type = 'success') {
     const messageDiv = document.createElement('div');

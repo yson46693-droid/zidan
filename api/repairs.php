@@ -7,8 +7,26 @@ $method = $data['_method'] ?? getRequestMethod();
 
 // قراءة جميع عمليات الصيانة
 if ($method === 'GET') {
-    checkAuth();
-    $repairs = dbSelect("SELECT * FROM repairs ORDER BY created_at DESC");
+    $session = checkAuth();
+    $userRole = $session['role'];
+    $userBranchId = $session['branch_id'] ?? null;
+    
+    // بناء الاستعلام مع فلترة حسب الفرع
+    $query = "SELECT r.*, b.name as branch_name 
+              FROM repairs r 
+              LEFT JOIN branches b ON r.branch_id = b.id 
+              WHERE 1=1";
+    $params = [];
+    
+    // إذا لم يكن المالك، فلترة حسب الفرع
+    if ($userRole !== 'admin' && $userBranchId) {
+        $query .= " AND r.branch_id = ?";
+        $params[] = $userBranchId;
+    }
+    
+    $query .= " ORDER BY r.created_at DESC";
+    
+    $repairs = dbSelect($query, $params);
     
     if ($repairs === false) {
         response(false, 'خطأ في قراءة عمليات الصيانة', null, 500);
@@ -67,16 +85,23 @@ if ($method === 'POST') {
     $repairId = generateId();
     $session = checkAuth();
     $createdBy = $session['user_id'];
+    $userBranchId = $session['branch_id'] ?? null;
+    $userRole = $session['role'];
+    
+    // التحقق من أن المستخدم مرتبط بفرع (عدا المالك)
+    if ($userRole !== 'admin' && !$userBranchId) {
+        response(false, 'المستخدم غير مرتبط بفرع', null, 400);
+    }
     
     $result = dbExecute(
         "INSERT INTO repairs (
-            id, repair_number, customer_id, customer_name, customer_phone, 
+            id, branch_id, repair_number, customer_id, customer_name, customer_phone, 
             device_type, device_model, serial_number, accessories, problem, repair_type,
             customer_price, repair_cost, parts_store, paid_amount, remaining_amount,
             delivery_date, device_image, status, notes, created_at, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
         [
-            $repairId, $repairNumber, $customer_id, $customer_name, $customer_phone,
+            $repairId, $userBranchId, $repairNumber, $customer_id, $customer_name, $customer_phone,
             $device_type, $device_model, $serial_number, $accessories, $problem, $repair_type,
             $customer_price, $repair_cost, $parts_store, $paid_amount, $remaining_amount,
             $delivery_date, $device_image, $status, $notes, $createdBy
