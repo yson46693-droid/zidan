@@ -19,12 +19,12 @@ jobs:
       - name: Upload via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          server: ftpupload.net
-          username: if0_40099081
-          password: 2sfYXFo1ezB
+          server: 213.239.220.209
+          username: osama74
+          password: UJWreugm6ca!d27&
 
           local-dir: ./
-          server-dir: /htdocs/
+          server-dir: /htdocs/z/
 
           protocol: ftp
           port: 21

@@ -5,10 +5,10 @@
  */
 
 // إعدادات قاعدة البيانات
-define('DB_HOST', 'sql211.infinityfree.com');
-define('DB_USER', 'if0_40099081');
+define('DB_HOST', 'localhost:3306');
+define('DB_USER', 'zidan_db_v1');
 define('DB_PORT', '3306');
-define('DB_PASS', '2sfYXFo1ezB');
+define('DB_PASS', 'QEvhhbM52d1?kgt#');
 define('DB_NAME', 'if0_40099081_1');
 define('DB_CHARSET', 'utf8mb4');
 
