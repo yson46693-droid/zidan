@@ -659,7 +659,15 @@ function displayUsers(users) {
         const name = escapeHtml(String(user.name || ''));
         const role = escapeHtml(String(user.role || 'employee'));
         const branchName = escapeHtml(String(user.branch_name || ''));
-        const branchId = escapeHtml(String(user.branch_id || ''));
+        // عدم استخدام escapeHtml على branchId لأنه قد يكون null ويجب تمريره كما هو
+        const branchId = user.branch_id ? String(user.branch_id) : '';
+        
+        // استخدام JSON.stringify لتأمين القيم في onclick handlers
+        const userIdParam = JSON.stringify(String(user.id || ''));
+        const usernameParam = JSON.stringify(String(user.username || ''));
+        const nameParam = JSON.stringify(String(user.name || ''));
+        const roleParam = JSON.stringify(String(user.role || 'employee'));
+        const branchIdParam = user.branch_id ? JSON.stringify(String(user.branch_id)) : JSON.stringify('');
         
         return `
         <tr>
@@ -668,8 +676,8 @@ function displayUsers(users) {
             <td>${getRoleTextFunc(role)}</td>
             <td>${branchName || (role === 'admin' ? 'كل الفروع' : 'غير محدد')}</td>
             <td>
-                <button onclick="editUser('${userId}', '${username}', '${name}', '${role}', '${branchId}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
-                <button onclick="deleteUser('${userId}')" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
+                <button onclick="editUser(${userIdParam}, ${usernameParam}, ${nameParam}, ${roleParam}, ${branchIdParam})" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
+                <button onclick="deleteUser(${userIdParam})" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
             </td>
         </tr>
     `;
@@ -1053,9 +1061,6 @@ async function editUser(id, username, name, role, branchId) {
             return;
         }
 
-        // تحميل الفروع أولاً
-        await loadBranches();
-
         // التحقق من وجود النموذج أولاً
         const userModal = document.getElementById('userModal');
         if (!userModal) {
@@ -1115,7 +1120,10 @@ async function editUser(id, username, name, role, branchId) {
             branchElement.style.borderColor = '';
         }
 
-        // الآن ملء البيانات الجديدة
+        // تحميل الفروع بعد إعادة التعيين
+        await loadBranches();
+
+        // الآن ملء البيانات الجديدة بعد تحميل الفروع
         if (titleElement) titleElement.textContent = 'تعديل المستخدم';
         if (userIdElement) userIdElement.value = String(id || '').trim();
         if (nameElement) nameElement.value = String(name || '').trim();
@@ -1129,7 +1137,13 @@ async function editUser(id, username, name, role, branchId) {
         }
         if (passwordHintElement) passwordHintElement.style.display = 'inline';
         if (roleElement) roleElement.value = String(role || 'employee').trim();
-        if (branchElement) branchElement.value = String(branchId || '').trim();
+        
+        // تعيين الفرع بعد تحميل الفروع مباشرة
+        if (branchElement) {
+            // تحويل branchId إلى string والتأكد من أنه ليس فارغاً أو 'null' أو 'undefined'
+            const branchIdValue = branchId && branchId !== 'null' && branchId !== 'undefined' && branchId.trim() !== '' ? String(branchId).trim() : '';
+            branchElement.value = branchIdValue;
+        }
         
         // إظهار/إخفاء حقل الفرع حسب الدور
         toggleBranchField();
