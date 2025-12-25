@@ -193,8 +193,8 @@ Options -Indexes
         SetHandler lsapi
         Require all granted
     </FilesMatch>
-    # قاعدة خاصة لملف auth.php في أي مسار
-    <FilesMatch "^.*api/auth\.php$">
+    # قاعدة خاصة لملف auth.php و test-auth.php في أي مسار
+    <FilesMatch "^.*api/(auth|test-auth)\.php$">
         SetHandler lsapi
         Require all granted
     </FilesMatch>
@@ -219,8 +219,8 @@ Options -Indexes
     <FilesMatch "^.*api/.*\.php$">
         Require all granted
     </FilesMatch>
-    # السماح بشكل خاص بملف auth.php
-    <FilesMatch "^.*api/auth\.php$">
+    # السماح بشكل خاص بملف auth.php و test-auth.php
+    <FilesMatch "^.*api/(auth|test-auth)\.php$">
         Require all granted
     </FilesMatch>
 </IfModule>

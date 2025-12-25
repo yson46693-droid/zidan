@@ -1,5 +1,20 @@
 # إعدادات خاصة بمجلد API
 
+# ✅ قاعدة عامة: السماح بجميع ملفات PHP في هذا المجلد
+<IfModule mod_authz_core.c>
+    <Directory ".">
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <Directory ".">
+        Order allow,deny
+        Allow from all
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
+</IfModule>
+
 # تفعيل PHP - ضروري لـ LiteSpeed و Apache
 AddType application/x-httpd-php .php
 AddHandler application/x-httpd-php .php
@@ -11,18 +26,45 @@ AddHandler application/x-httpd-php .php
 # 🔒 إصلاح مشكلة 403 Forbidden لـ auth.php
 # ============================================
 
-# تعطيل mod_security بشكل كامل لـ auth.php
+# تعطيل mod_security بشكل كامل لـ auth.php و test-auth.php
 <IfModule mod_security.c>
-    <LocationMatch "^/.*api/auth\.php$">
+    <LocationMatch "^/.*api/(auth|test-auth)\.php$">
         SecRuleEngine Off
     </LocationMatch>
-    <FilesMatch "^.*api/auth\.php$">
+    <FilesMatch "^.*api/(auth|test-auth)\.php$">
         SecRuleEngine Off
     </FilesMatch>
+    <Files "auth.php">
+        SecRuleEngine Off
+    </Files>
+    <Files "test-auth.php">
+        SecRuleEngine Off
+    </Files>
 </IfModule>
 
 # قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
 <Files "auth.php">
+    # Apache 2.4+ و LiteSpeed
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    # Apache 2.2 (fallback)
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+    # السماح بجميع طرق HTTP
+    Options +ExecCGI +FollowSymLinks +Indexes
+    # قاعدة خاصة لـ LiteSpeed
+    <IfModule LiteSpeed>
+        SetHandler lsapi
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </IfModule>
+</Files>
+
+# ✅ قاعدة خاصة لـ test-auth.php - السماح بجميع الطلبات
+<Files "test-auth.php">
     # Apache 2.4+ و LiteSpeed
     <IfModule mod_authz_core.c>
         Require all granted
@@ -170,8 +212,8 @@ Options -Indexes
     SecRuleRemoveById 980130
 </IfModule>
 
-# قاعدة خاصة لملف auth.php لمنع 403
-<Files "auth.php">
+# قاعدة خاصة لملف auth.php و test-auth.php لمنع 403
+<FilesMatch "^(auth|test-auth)\.php$">
     <IfModule mod_authz_core.c>
         Require all granted
     </IfModule>
@@ -186,7 +228,7 @@ Options -Indexes
         SetHandler lsapi
         Require all granted
     </IfModule>
-</Files>
+</FilesMatch>
 
 # محاولة تجاوز قيود LiteSpeed Security
 # إذا كان LiteSpeed يمنع POST، جرب هذه القواعد
