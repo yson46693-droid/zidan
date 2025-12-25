@@ -31,6 +31,11 @@ $allowedOrigins = [
     'http://www.egsystem.top',
     'https://egsystem.top',
     'http://egsystem.top',
+    // ✅ إضافة الدومين الجديد zidan.egsystem.top
+    'https://zidan.egsystem.top',
+    'http://zidan.egsystem.top',
+    'https://www.zidan.egsystem.top',
+    'http://www.zidan.egsystem.top',
     // إضافة localhost للاختبار المحلي
     'http://localhost',
     'https://localhost',
@@ -43,9 +48,13 @@ $origin = '*';
 
 // إذا كان الطلب من أصل مسموح، استخدمه مع credentials
 if (!empty($requestOrigin)) {
-    // التحقق من أن الأصل مسموح به
+    // التحقق من أن الأصل مسموح به (بما في ذلك الدومينات الفرعية)
     foreach ($allowedOrigins as $allowedOrigin) {
-        if (strpos($requestOrigin, $allowedOrigin) !== false || $requestOrigin === $allowedOrigin) {
+        // مطابقة دقيقة أو دومين فرعي
+        if ($requestOrigin === $allowedOrigin || 
+            strpos($requestOrigin, $allowedOrigin) !== false ||
+            // دعم الدومينات الفرعية: zidan.egsystem.top يطابق egsystem.top
+            (strpos($allowedOrigin, 'egsystem.top') !== false && strpos($requestOrigin, 'egsystem.top') !== false)) {
             $origin = $requestOrigin;
             break;
         }
@@ -128,7 +137,20 @@ require_once __DIR__ . '/database.php';
 if (session_status() === PHP_SESSION_NONE) {
     // تكوين ملفات تعريف الارتباط للجلسة للعمل مع CORS
     $cookieParams = session_get_cookie_params();
-    $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+    
+    // ✅ تحسين اكتشاف HTTPS - يعمل مع جميع أنواع الاستضافات
+    $isSecure = false;
+    if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+        $isSecure = true;
+    } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+        $isSecure = true;
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+        $isSecure = true;
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') {
+        $isSecure = true;
+    } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+        $isSecure = true;
+    }
     
     // إذا كان HTTPS متاحاً، استخدم SameSite=None للسماح بالطلبات عبر المواقع
     // إذا لم يكن HTTPS، استخدم SameSite=Lax (أكثر أماناً)
