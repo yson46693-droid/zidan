@@ -24,8 +24,6 @@ jobs:
           port: 21
           security: loose
           timeout: 120000
-
-          local-dir: public_html/
           server-dir: /httpdocs/z/
 
           dangerous-clean-slate: false
