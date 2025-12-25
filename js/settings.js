@@ -983,17 +983,6 @@ async function saveUser(event) {
             }
             delete userData.username; // لا يمكن تعديل اسم المستخدم
             
-            // التحقق من الفرع في حالة التحديث (مطلوب لجميع الأدوار عدا المالك)
-            if (userData.role !== 'admin' && !userData.branch_id) {
-                showMessage('يرجى اختيار الفرع المناسب (الفرع مطلوب لجميع الأدوار عدا المالك)', 'error');
-                const branchField = userForm.querySelector('#userBranch');
-                if (branchField) {
-                    branchField.focus();
-                    branchField.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-            
             console.log('📤 تحديث مستخدم:', userData);
             result = await API.updateUser(userData);
         } else {

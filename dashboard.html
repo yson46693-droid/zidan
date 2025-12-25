@@ -1753,7 +1753,7 @@
             // تحميل محتوى الأقسام بشكل آمن مع معالجة أفضل للأخطاء
             const loadSectionSafely = async (sectionName, loadFunction) => {
                 try {
-                    // للقسم settings و profile و expenses، نحتاج لتحميل الـ script أولاً
+                    // للقسم settings و profile و expenses و reports، نحتاج لتحميل الـ script أولاً
                     if (sectionName === 'settings' && typeof loadFunction !== 'function') {
                         await loadScriptOnDemand('settings-script');
                         // إعادة محاولة بعد تحميل الـ script
@@ -1778,6 +1778,42 @@
                             await loadExpensesSection();
                         } else {
                             console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد تحميل الـ script`);
+                        }
+                    } else if (sectionName === 'reports' && typeof loadFunction !== 'function') {
+                        // 🔧 الحل: تحميل reports.js قبل استدعاء loadReportsSection
+                        try {
+                            await loadScriptOnDemand('reports-script');
+                            // انتظار قليلاً لضمان تحميل الدالة
+                            let attempts = 0;
+                            const maxAttempts = 15;
+                            while (attempts < maxAttempts && typeof loadReportsSection !== 'function') {
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                                attempts++;
+                            }
+                            // إعادة محاولة بعد تحميل الـ script
+                            if (typeof loadReportsSection === 'function') {
+                                await loadReportsSection();
+                            } else {
+                                console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد ${maxAttempts} محاولة`);
+                            }
+                        } catch (e) {
+                            // قد يكون غير مسموح للموظف أو خطأ في التحميل
+                            console.warn(`غير متاح تحميل ${sectionName}:`, e.message);
+                        }
+                    } else if (sectionName === 'inventory' && typeof loadFunction !== 'function') {
+                        // 🔧 الحل: inventory.js هو critical script، لكن قد لا يكون جاهزاً بعد
+                        // ننتظر قليلاً ثم نتحقق من وجود الدالة
+                        let attempts = 0;
+                        const maxAttempts = 20;
+                        while (attempts < maxAttempts && typeof loadInventorySection !== 'function') {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            attempts++;
+                        }
+                        // إعادة محاولة بعد انتظار تحميل الـ script
+                        if (typeof loadInventorySection === 'function') {
+                            await loadInventorySection();
+                        } else {
+                            console.warn(`دالة تحميل ${sectionName} غير متوفرة بعد ${maxAttempts} محاولة`);
                         }
                     } else if (typeof loadFunction === 'function') {
                         await loadFunction();
