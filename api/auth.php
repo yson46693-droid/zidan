@@ -13,11 +13,24 @@ ini_set('log_errors', 1);
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $currentHost = $_SERVER['HTTP_HOST'] ?? '';
 
+// ✅ تحسين اكتشاف HTTPS
+$isHttps = false;
+if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+    $isHttps = true;
+} elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+    $isHttps = true;
+} elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $isHttps = true;
+} elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+    $isHttps = true;
+}
+
 if (!empty($requestOrigin)) {
+    // ✅ السماح بالدومينات الفرعية تلقائياً (مثل zidan.egsystem.top)
     header('Access-Control-Allow-Origin: ' . $requestOrigin);
     header('Access-Control-Allow-Credentials: true');
 } elseif (!empty($currentHost)) {
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $protocol = $isHttps ? 'https' : 'http';
     $currentOrigin = $protocol . '://' . $currentHost;
     header('Access-Control-Allow-Origin: ' . $currentOrigin);
     header('Access-Control-Allow-Credentials: true');
@@ -63,8 +76,18 @@ try {
 
 $method = getRequestMethod();
 
-// تسجيل معلومات الطلب للتشخيص
-error_log("Auth Request - Method: " . $method . ", Origin: " . ($_SERVER['HTTP_ORIGIN'] ?? 'none') . ", Host: " . ($_SERVER['HTTP_HOST'] ?? 'none') . ", IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+// تسجيل معلومات الطلب للتشخيص (مفصل)
+$logInfo = [
+    'method' => $method,
+    'origin' => $_SERVER['HTTP_ORIGIN'] ?? 'none',
+    'host' => $_SERVER['HTTP_HOST'] ?? 'none',
+    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+    'https' => isset($_SERVER['HTTPS']) ? $_SERVER['HTTPS'] : 'not_set',
+    'request_uri' => $_SERVER['REQUEST_URI'] ?? 'unknown',
+    'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'not_set'
+];
+error_log("🔐 Auth Request: " . json_encode($logInfo, JSON_UNESCAPED_UNICODE));
 
 // تسجيل الدخول
 if ($method === 'POST') {
