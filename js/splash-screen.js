@@ -4,6 +4,9 @@ class SplashScreenManager {
         this.splashElement = null;
         this.minDisplayTime = 1500; // الحد الأدنى للعرض: 1.5 ثانية
         this.startTime = Date.now();
+        this.hideProcessStarted = false;
+        this.hideProcessCompleted = false;
+        this.isHiding = false;
         this.init();
     }
 
@@ -18,28 +21,34 @@ class SplashScreenManager {
             return;
         }
 
-        // إنشاء عناصر splash screen
-        this.createSplashScreen();
+        // البحث عن splash screen الموجود في HTML أولاً
+        this.splashElement = document.getElementById('splash-screen');
+        
+        // إذا لم يكن موجوداً، إنشاؤه
+        if (!this.splashElement) {
+            this.createSplashScreen();
+        }
         
         // بدء عملية الإخفاء
         this.startHideProcess();
     }
 
     createSplashScreen() {
-        // التحقق من وجود العنصر أولاً
-        if (document.getElementById('splash-screen')) {
-            this.splashElement = document.getElementById('splash-screen');
+        // التحقق مرة أخرى من وجود العنصر (للتأكد)
+        const existingElement = document.getElementById('splash-screen');
+        if (existingElement) {
+            this.splashElement = existingElement;
             return;
         }
 
-        // إنشاء عناصر splash screen
+        // إنشاء عناصر splash screen فقط إذا لم يكن موجوداً
         const splashScreen = document.createElement('div');
         splashScreen.id = 'splash-screen';
         splashScreen.className = 'splash-screen';
         splashScreen.innerHTML = `
             <div class="splash-content">
                 <div class="splash-logo">
-                    <img src="icon-512x512.png" alt="Logo" class="splash-logo-img">
+                    <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="512" height="512" fetchpriority="high" decoding="async" loading="eager">
                 </div>
                 <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
                 <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>
@@ -55,8 +64,20 @@ class SplashScreenManager {
     }
 
     startHideProcess() {
+        // منع تشغيل العملية أكثر من مرة
+        if (this.hideProcessStarted) {
+            return;
+        }
+        this.hideProcessStarted = true;
+
         // الانتظار حتى يتم تحميل الصفحة بالكامل
         const hideSplash = () => {
+            // التأكد من أن العملية لم تبدأ بالفعل
+            if (this.hideProcessCompleted) {
+                return;
+            }
+            this.hideProcessCompleted = true;
+
             const elapsedTime = Date.now() - this.startTime;
             const remainingTime = Math.max(0, this.minDisplayTime - elapsedTime);
 
@@ -70,8 +91,12 @@ class SplashScreenManager {
             // الصفحة محملة بالفعل
             hideSplash();
         } else {
-            // انتظار تحميل الصفحة
-            window.addEventListener('load', hideSplash);
+            // انتظار تحميل الصفحة (مرة واحدة فقط)
+            const loadHandler = () => {
+                window.removeEventListener('load', loadHandler);
+                hideSplash();
+            };
+            window.addEventListener('load', loadHandler);
         }
 
         // أيضاً التحقق بشكل دوري (fallback)
@@ -91,9 +116,12 @@ class SplashScreenManager {
     }
 
     hide() {
-        if (!this.splashElement) {
+        // منع الإخفاء المتعدد
+        if (this.isHiding || !this.splashElement) {
             return;
         }
+        
+        this.isHiding = true;
 
         // إضافة class للإخفاء
         this.splashElement.classList.add('hidden');
@@ -132,15 +160,33 @@ class SplashScreenManager {
 // إنشاء instance عام
 let splashScreenManager;
 
-// تهيئة عند تحميل الصفحة
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        splashScreenManager = new SplashScreenManager();
-    });
-} else {
-    // إذا كانت الصفحة محملة بالفعل، تهيئة فورية
-    splashScreenManager = new SplashScreenManager();
+// منع التهيئة المتعددة
+let splashScreenInitialized = false;
+
+// تهيئة عند تحميل الصفحة (مرة واحدة فقط)
+function initSplashScreen() {
+    if (splashScreenInitialized) {
+        return; // منع التهيئة المتعددة
+    }
+    
+    splashScreenInitialized = true;
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!splashScreenManager) {
+                splashScreenManager = new SplashScreenManager();
+            }
+        });
+    } else {
+        // إذا كانت الصفحة محملة بالفعل، تهيئة فورية
+        if (!splashScreenManager) {
+            splashScreenManager = new SplashScreenManager();
+        }
+    }
 }
+
+// تهيئة فورية
+initSplashScreen();
 
 // تصدير للاستخدام العام
 if (typeof window !== 'undefined') {
