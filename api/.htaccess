@@ -9,20 +9,23 @@ AddHandler application/x-httpd-php .php
 
 # معالجة طلبات OPTIONS (preflight) - نسخة احتياطية
 # config.php يتعامل معها أيضاً، لكن نتركها للاستضافات التي قد تحتاجها
-RewriteEngine On
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ - [R=200,L]
-
-# السماح بجميع طرق HTTP (GET, POST, PUT, DELETE, OPTIONS, PATCH)
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    
+    # السماح بجميع طرق HTTP (GET, POST, PUT, DELETE, OPTIONS, PATCH)
     RewriteCond %{REQUEST_METHOD} ^(GET|POST|PUT|DELETE|OPTIONS|PATCH)$
     RewriteRule ^(.*)$ - [L]
+    
+    # معالجة طلبات OPTIONS بشكل خاص
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ - [R=200,L]
 </IfModule>
 
 # إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
-RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
-RewriteRule ^(.*)$ $1 [L]
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
+    RewriteRule ^(.*)$ $1 [L]
+</IfModule>
 
 # السماح بملفات API العامة
 # استخدام صيغة متوافقة مع Apache 2.2 و 2.4+ و LiteSpeed
@@ -31,9 +34,17 @@ RewriteRule ^(.*)$ $1 [L]
     <FilesMatch "\.(php)$">
         Require all granted
     </FilesMatch>
+    <Files "auth.php">
+        Require all granted
+    </Files>
     <DirectoryMatch ".*">
         Require all granted
     </DirectoryMatch>
+    # السماح بجميع الطلبات في هذا المجلد
+    <Directory ".">
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
 </IfModule>
 
 <IfModule !mod_authz_core.c>
@@ -42,10 +53,20 @@ RewriteRule ^(.*)$ $1 [L]
         Order allow,deny
         Allow from all
     </FilesMatch>
+    <Files "auth.php">
+        Order allow,deny
+        Allow from all
+    </Files>
     <DirectoryMatch ".*">
         Order allow,deny
         Allow from all
     </DirectoryMatch>
+    # السماح بجميع الطلبات في هذا المجلد
+    <Directory ".">
+        Order allow,deny
+        Allow from all
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
 </IfModule>
 
 # قواعد خاصة لـ LiteSpeed Web Server
@@ -53,11 +74,32 @@ RewriteRule ^(.*)$ $1 [L]
     # السماح بتنفيذ PHP
     <FilesMatch "\.(php)$">
         SetHandler lsapi
+        Require all granted
     </FilesMatch>
+    <Files "auth.php">
+        SetHandler lsapi
+        Require all granted
+    </Files>
     # السماح بجميع الطلبات
     Options +ExecCGI
     Options +FollowSymLinks
+    # السماح بجميع الطلبات في هذا المجلد
+    <Directory ".">
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </Directory>
 </IfModule>
 
 # منع عرض محتويات المجلد (الأمان)
 Options -Indexes
+
+# السماح بجميع طرق HTTP بشكل صريح - حل مشكلة 403
+<IfModule mod_headers.c>
+    # إزالة أي قيود على طرق HTTP
+    Header unset X-Requested-With
+</IfModule>
+
+# السماح بتنفيذ PHP في جميع الملفات
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
