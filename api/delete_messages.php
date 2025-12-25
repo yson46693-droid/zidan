@@ -8,10 +8,10 @@ try {
     $session = checkAuth();
     $userId = $session['user_id'];
     
-    // التحقق من أن المستخدم مالك
-    $user = dbSelectOne("SELECT is_owner, role FROM users WHERE id = ?", [$userId]);
+    // التحقق من أن المستخدم مالك (admin فقط)
+    $user = dbSelectOne("SELECT role FROM users WHERE id = ?", [$userId]);
     
-    if (!$user || (!$user['is_owner'] && $user['role'] !== 'admin')) {
+    if (!$user || $user['role'] !== 'admin') {
         response(false, 'هذه الميزة متاحة للمالك فقط', null, 403);
         return;
     }
