@@ -39,15 +39,11 @@ function getDBConnection() {
                 return null;
             }
             
-            // تعيين timeout options للاتصال (10 ثواني) - يجب أن تكون قبل الاستعلام
-            if (defined('MYSQLI_OPT_CONNECT_TIMEOUT')) {
-                $connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
-            }
-            if (defined('MYSQLI_OPT_READ_TIMEOUT')) {
-                $connection->options(MYSQLI_OPT_READ_TIMEOUT, 10);
-            }
-            if (defined('MYSQLI_OPT_WRITE_TIMEOUT')) {
-                $connection->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
+            // تعيين timeout للقراءة والكتابة (10 ثواني)
+            // ملاحظة: connect_timeout يتم تعيينه عبر ini_set('default_socket_timeout') قبل الاتصال
+            if (method_exists($connection, 'options')) {
+                @$connection->options(MYSQLI_OPT_READ_TIMEOUT, 10);
+                @$connection->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
             }
             
             // تعيين الترميز
@@ -275,9 +271,11 @@ function createDatabaseIfNotExists() {
             return false;
         }
         
-        // تعيين timeout options
-        $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
-        $conn->options(MYSQLI_OPT_READ_TIMEOUT, 10);
+        // تعيين timeout للقراءة والكتابة (10 ثواني)
+        if (method_exists($conn, 'options')) {
+            @$conn->options(MYSQLI_OPT_READ_TIMEOUT, 10);
+            @$conn->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
+        }
         
         $sql = "CREATE DATABASE IF NOT EXISTS " . DB_NAME . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
         
