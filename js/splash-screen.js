@@ -157,18 +157,36 @@ class SplashScreenManager {
                 }
             }
         }, 100);
+        
+        // ✅ إضافة timeout احتياطي (5 ثوان) لإخفاء splash screen حتى لو حدث خطأ
+        setTimeout(() => {
+            if (!this.hideProcessCompleted) {
+                console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 5 ثوان');
+                if (!this.hideProcessCompleted) {
+                    this.hideProcessCompleted = true;
+                    this.hide();
+                }
+            }
+        }, 5000);
     }
 
     hide() {
-        // منع الإخفاء المتعدد
-        if (this.isHiding || !this.splashElement) {
+        // منع الإخفاء المتعدد - لكن السماح بالإخفاء إذا كان العنصر غير موجود
+        if (this.isHiding) {
             return;
+        }
+        
+        // إذا لم يكن splashElement موجوداً، تأكد من إظهار login-container فقط
+        if (!this.splashElement) {
+            this.splashElement = document.getElementById('splash-screen');
         }
         
         this.isHiding = true;
 
         // إضافة class للإخفاء
-        this.splashElement.classList.add('hidden');
+        if (this.splashElement) {
+            this.splashElement.classList.add('hidden');
+        }
         
         // ✅ إظهار صفحة تسجيل الدخول بشكل صحيح
         const loginContainer = document.querySelector('.login-container');
