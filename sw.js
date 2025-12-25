@@ -25,13 +25,17 @@ const getBasePath = () => {
         const swPath = self.location.pathname; // مثال: /z/sw.js
         // استخراج المسار الأساسي (إزالة sw.js من النهاية)
         const basePath = swPath.substring(0, swPath.lastIndexOf('/sw.js'));
+        console.log('[SW] Service Worker path:', swPath);
+        console.log('[SW] Base path:', basePath || '(root)');
         return basePath || '';
     } catch (e) {
+        console.error('[SW] Error determining base path:', e);
         return '';
     }
 };
 
 const BASE_PATH = getBasePath();
+console.log('[SW] Using BASE_PATH:', BASE_PATH || '(root)');
 
 // قائمة الملفات الأساسية فقط - الملفات المهمة التي يجب أن تكون موجودة
 // تم تقليل الملفات لتسريع التحميل الأولي

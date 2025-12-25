@@ -91,7 +91,8 @@
     <!-- ملاحظة: font-display: swap يتم تطبيقه تلقائياً من خلال display=swap في URL -->
     
     <!-- Critical CSS - non-blocking using media trick for better performance -->
-    <link rel="preload" href="css/style.css" as="style" crossorigin>
+    <!-- ✅ إزالة crossorigin من الملفات المحلية -->
+    <link rel="preload" href="css/style.css" as="style">
     <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all';this.onload=null">
     <noscript><link rel="stylesheet" href="css/style.css"></noscript>
     <script>
