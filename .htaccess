@@ -7,7 +7,8 @@
     # دعم HTTP/2 Server Push (إذا كان متاحاً)
     Header always set Link "</css/style.css>; rel=preload; as=style"
     Header always set Link "</js/api.js>; rel=preload; as=script"
-    Header always set Link "</js/utils.js>; rel=preload; as=script"
+    # تم إزالة preload لـ utils.js لأنه يتم تحميله بـ defer في HTML
+    # Header always set Link "</js/utils.js>; rel=preload; as=script"
     
     # تحسين الأمان والأداء
     Header always set X-Content-Type-Options "nosniff"

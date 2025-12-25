@@ -7,6 +7,41 @@ AddHandler application/x-httpd-php .php
 # ملاحظة: إعدادات CORS والأمان يتم ضبطها من config.php ديناميكياً
 # هذا يمنع التعارضات ويضمن عمل credentials بشكل صحيح
 
+# ============================================
+# 🔒 إصلاح مشكلة 403 Forbidden لـ auth.php
+# ============================================
+
+# تعطيل mod_security بشكل كامل لـ auth.php
+<IfModule mod_security.c>
+    <LocationMatch "^/.*api/auth\.php$">
+        SecRuleEngine Off
+    </LocationMatch>
+    <FilesMatch "^.*api/auth\.php$">
+        SecRuleEngine Off
+    </FilesMatch>
+</IfModule>
+
+# قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
+<Files "auth.php">
+    # Apache 2.4+ و LiteSpeed
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    # Apache 2.2 (fallback)
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+    # السماح بجميع طرق HTTP
+    Options +ExecCGI +FollowSymLinks +Indexes
+    # قاعدة خاصة لـ LiteSpeed
+    <IfModule LiteSpeed>
+        SetHandler lsapi
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
+    </IfModule>
+</Files>
+
 # معالجة طلبات OPTIONS (preflight) - نسخة احتياطية
 # config.php يتعامل معها أيضاً، لكن نتركها للاستضافات التي قد تحتاجها
 <IfModule mod_rewrite.c>
@@ -19,6 +54,10 @@ AddHandler application/x-httpd-php .php
     # معالجة طلبات OPTIONS بشكل خاص
     RewriteCond %{REQUEST_METHOD} OPTIONS
     RewriteRule ^(.*)$ - [R=200,L]
+    
+    # قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
+    RewriteCond %{REQUEST_URI} auth\.php$
+    RewriteRule ^(.*)$ - [L,E=no-gzip:1]
 </IfModule>
 
 # إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
