@@ -35,21 +35,10 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     
-    <!-- Icons - مع cache busting لضمان الحصول على أحدث نسخة -->
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96x96.png?v=2.0.1">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72x72.png?v=2.0.1">
+    <!-- 🔧 تحسين الأداء: تقليل عدد الأيقونات (3 فقط بدلاً من 10+) -->
+    <link rel="icon" type="image/png" href="icons/icon-192x192.png?v=2.0.1">
     <link rel="shortcut icon" href="icons/icon-192x192.png?v=2.0.1">
-    
-    <!-- Apple Touch Icons - مع cache busting -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-128x128.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="114x114" href="icons/icon-128x128.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="76x76" href="icons/icon-96x96.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="60x60" href="icons/icon-72x72.png?v=2.0.1">
-    <link rel="apple-touch-icon" sizes="57x57" href="icons/icon-72x72.png?v=2.0.1">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png?v=2.0.1">
     
     <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -502,7 +491,18 @@
     <script src="js/loading-overlay.js"></script>
     <script src="js/auth.js" defer></script>
     <script src="js/global-notifications.js" defer></script>
-    <script src="js/chat-unread-badge.js" defer></script>
+    <!-- 🔧 تحسين الأداء: تأجيل تحميل chat-unread-badge.js حتى بعد تحميل الصفحة -->
+    <script>
+        // تحميل chat-unread-badge.js بعد تحميل الصفحة بالكامل (تأخير 2 ثانية)
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const script = document.createElement('script');
+                script.src = 'js/chat-unread-badge.js';
+                script.defer = true;
+                document.body.appendChild(script);
+            }, 2000); // تأخير 2 ثانية
+        });
+    </script>
     
     <!-- حماية الصفحة - فحص تسجيل الدخول فوراً -->
     <script>
@@ -521,39 +521,12 @@
                     return;
                 }
                 
-                // ✅ تحسين الأداء: استخدام البيانات المحفوظة مباشرة بعد تسجيل الدخول
-                const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-                const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 60000; // 60 ثانية
-                
-                if (isRecentLogin) {
-                    console.log('⏳ تسجيل دخول حديث - استخدام البيانات المحفوظة مباشرة...');
-                    // محاولة استخدام البيانات المحفوظة أولاً بدون استدعاء الخادم
-                    try {
-                        const savedUser = localStorage.getItem('currentUser');
-                        if (savedUser) {
-                            const user = JSON.parse(savedUser);
-                            console.log('✅ استخدام بيانات المستخدم المحفوظة بعد تسجيل الدخول (بدون استدعاء الخادم)');
-                            // مسح العلامة بعد النجاح
-                            sessionStorage.removeItem('just_logged_in_time');
-                            console.log('✅ تم التحقق من تسجيل الدخول بنجاح (من البيانات المحفوظة)');
-                            return; // نجح - لا حاجة للتحقق من الخادم
-                        }
-                    } catch (e) {
-                        console.warn('⚠️ خطأ في قراءة البيانات المحفوظة:', e);
-                    }
-                }
-                
-                // فحص تسجيل الدخول (سيستخدم البيانات المحفوظة إذا كان تسجيل دخول حديث)
+                // ✅ تحسين الأداء: استخدام checkLogin مباشرة (سيتعامل مع تسجيل الدخول الحديث تلقائياً)
                 const user = await checkLogin();
                 if (!user) {
                     console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
                     window.location.href = 'index.html';
                     return;
-                }
-                
-                // مسح العلامة بعد نجاح التحقق
-                if (isRecentLogin) {
-                    sessionStorage.removeItem('just_logged_in_time');
                 }
                 
                 console.log('✅ تم التحقق من تسجيل الدخول بنجاح');
@@ -656,7 +629,7 @@
                 ]
             };
             
-            // تحميل Critical Scripts بعد DOMContentLoaded مع تأخير لتقليل التحميل الفوري
+            // 🔧 تحسين الأداء: تحميل Critical Scripts عند الحاجة فقط (Lazy Loading حقيقي)
             document.addEventListener('DOMContentLoaded', () => {
                 // التحقق من نوع المستخدم - للموظف: تحميل فقط (repairs.js, inventory.js)
                 const userStr = localStorage.getItem('currentUser');
@@ -664,12 +637,12 @@
                 const isEmployee = user && user.role === 'employee';
                 
                 // تصفية Critical Scripts حسب نوع المستخدم
-                const scriptsToLoad = isEmployee 
+                const scriptsToPreload = isEmployee 
                     ? scripts.critical.filter(s => s.src.includes('repairs.js') || s.src.includes('inventory.js'))
                     : scripts.critical;
                 
-                // Preload Critical Scripts أولاً
-                scriptsToLoad.forEach(script => {
+                // Preload فقط (بدون تحميل فوري) - سيتم التحميل عند الحاجة
+                scriptsToPreload.forEach(script => {
                     const link = document.createElement('link');
                     link.rel = 'preload';
                     link.href = script.src;
@@ -677,19 +650,47 @@
                     document.head.appendChild(link);
                 });
                 
-                // تأخير تحميل Critical Scripts بمقدار 200ms لتقليل التحميل الفوري
-                setTimeout(() => {
-                    scriptsToLoad.forEach((script, index) => {
-                        // تحميل كل script مع تأخير تدريجي لتقليل التحميل المتزامن
-                        setTimeout(() => {
-                            const el = document.createElement('script');
-                            el.src = script.src;
-                            if (script.defer) el.defer = true;
-                            el.async = true; // إضافة async للتحميل غير المتزامن
-                            document.body.appendChild(el);
-                        }, index * 100); // تأخير 100ms بين كل script
+                // 🔧 تحسين: تحميل Critical Scripts فقط عند فتح القسم المطلوب
+                // إضافة دالة لتحميل script عند الحاجة
+                window.loadCriticalScript = function(scriptSrc) {
+                    return new Promise((resolve, reject) => {
+                        // التحقق من عدم تحميله مسبقاً
+                        if (document.querySelector(`script[src="${scriptSrc}"]`)) {
+                            resolve();
+                            return;
+                        }
+                        
+                        const el = document.createElement('script');
+                        el.src = scriptSrc;
+                        el.defer = true;
+                        el.async = true;
+                        el.onload = () => resolve();
+                        el.onerror = () => reject(new Error(`Failed to load ${scriptSrc}`));
+                        document.body.appendChild(el);
                     });
-                }, 200);
+                };
+                
+                // 🔧 تحميل فقط عند فتح القسم لأول مرة (تأخير حتى التفاعل أو بعد 2 ثانية)
+                let criticalScriptsLoaded = false;
+                const loadCriticalScriptsOnDemand = () => {
+                    if (criticalScriptsLoaded) return;
+                    criticalScriptsLoaded = true;
+                    
+                    // تحميل مع تأخير تدريجي لتقليل التحميل المتزامن
+                    scriptsToPreload.forEach((script, index) => {
+                        setTimeout(() => {
+                            window.loadCriticalScript(script.src).catch(err => {
+                                console.warn(`⚠️ فشل تحميل ${script.src}:`, err);
+                            });
+                        }, index * 150); // تأخير 150ms بين كل script
+                    });
+                };
+                
+                // تحميل عند التفاعل الأول أو بعد 2 ثانية (أيهما أسرع)
+                ['click', 'touchstart', 'mousemove'].forEach(event => {
+                    document.addEventListener(event, loadCriticalScriptsOnDemand, { once: true, passive: true });
+                });
+                setTimeout(loadCriticalScriptsOnDemand, 2000); // تأخير 2 ثانية كحد أقصى
                 
                 // تحميل On-Demand Scripts عند الحاجة (Lazy Loading)
                 window.loadScriptOnDemand = function(scriptId) {
@@ -1159,13 +1160,29 @@
                     console.log(`⚠️ القسم ${section} فارغ أو لا يحتوي على محتوى كافٍ (${targetSection.innerHTML.trim().length} حرف)، إعادة تحميل...`);
                     // إعادة تحميل القسم بعد تأخير
                     const reloadDelay = isReturningFromPOS ? 500 : 200;
-                    setTimeout(() => {
-                        if (section === 'repairs' && typeof loadRepairsSection === 'function') {
-                            loadRepairsSection();
-                        } else if (section === 'customers' && typeof loadCustomersSection === 'function') {
-                            loadCustomersSection();
-                        } else if (section === 'inventory' && typeof loadInventorySection === 'function') {
-                            loadInventorySection();
+                    setTimeout(async () => {
+                        // 🔧 تحسين الأداء: تحميل critical script عند الحاجة
+                        if (section === 'repairs') {
+                            if (typeof loadCriticalScript === 'function') {
+                                await loadCriticalScript('js/repairs.js').catch(() => {});
+                            }
+                            if (typeof loadRepairsSection === 'function') {
+                                loadRepairsSection();
+                            }
+                        } else if (section === 'customers') {
+                            if (typeof loadCriticalScript === 'function') {
+                                await loadCriticalScript('js/customers.js').catch(() => {});
+                            }
+                            if (typeof loadCustomersSection === 'function') {
+                                loadCustomersSection();
+                            }
+                        } else if (section === 'inventory') {
+                            if (typeof loadCriticalScript === 'function') {
+                                await loadCriticalScript('js/inventory.js').catch(() => {});
+                            }
+                            if (typeof loadInventorySection === 'function') {
+                                loadInventorySection();
+                            }
                         } else if (section === 'expenses' && typeof loadExpensesSection === 'function') {
                             loadExpensesSection();
                         } else if (section === 'reports' && typeof loadReportsSection === 'function') {
@@ -1200,13 +1217,31 @@
                 }
             } else {
                 console.warn('القسم غير موجود:', section);
-                // إعادة تحميل القسم إذا لم يكن موجوداً
-                if (section === 'repairs' && typeof loadRepairsSection === 'function') {
-                    loadRepairsSection();
-                } else if (section === 'customers' && typeof loadCustomersSection === 'function') {
-                    loadCustomersSection();
-                } else if (section === 'inventory' && typeof loadInventorySection === 'function') {
-                    loadInventorySection();
+                // 🔧 تحسين الأداء: تحميل critical script عند الحاجة
+                if (section === 'repairs') {
+                    if (typeof loadCriticalScript === 'function') {
+                        loadCriticalScript('js/repairs.js').then(() => {
+                            if (typeof loadRepairsSection === 'function') loadRepairsSection();
+                        }).catch(() => {});
+                    } else if (typeof loadRepairsSection === 'function') {
+                        loadRepairsSection();
+                    }
+                } else if (section === 'customers') {
+                    if (typeof loadCriticalScript === 'function') {
+                        loadCriticalScript('js/customers.js').then(() => {
+                            if (typeof loadCustomersSection === 'function') loadCustomersSection();
+                        }).catch(() => {});
+                    } else if (typeof loadCustomersSection === 'function') {
+                        loadCustomersSection();
+                    }
+                } else if (section === 'inventory') {
+                    if (typeof loadCriticalScript === 'function') {
+                        loadCriticalScript('js/inventory.js').then(() => {
+                            if (typeof loadInventorySection === 'function') loadInventorySection();
+                        }).catch(() => {});
+                    } else if (typeof loadInventorySection === 'function') {
+                        loadInventorySection();
+                    }
                 } else if (section === 'expenses' && typeof loadExpensesSection === 'function') {
                     loadExpensesSection();
                 } else if (section === 'reports' && typeof loadReportsSection === 'function') {
@@ -1926,15 +1961,41 @@
                 }
             }, isReturningFromPOS ? 800 : 200);
             
-            // تهيئة نظام المزامنة مع تأخير لضمان تحميل كل شيء
+            // 🔧 تحسين الأداء: تأجيل نظام المزامنة حتى بعد 30 ثانية أو عند التفاعل الأول
+            let syncManagerInitialized = false;
             const initSyncManager = () => {
+                if (syncManagerInitialized) return true;
                 if (typeof syncManager !== 'undefined' && !syncManager.isInitialized) {
-                    console.log('[Dashboard] بدء تهيئة نظام المزامنة');
+                    console.log('[Dashboard] بدء تهيئة نظام المزامنة (متأخر)');
                     syncManager.startAutoSync();
+                    syncManagerInitialized = true;
                     return true;
                 }
                 return false;
             };
+            
+            // 🔧 تأجيل المزامنة: إما عند التفاعل الأول أو بعد 30 ثانية
+            let userInteracted = false;
+            const triggerSyncOnInteraction = () => {
+                if (!userInteracted) {
+                    userInteracted = true;
+                    // تأخير إضافي بعد التفاعل لتقليل الحمل
+                    setTimeout(() => {
+                        initSyncManager();
+                    }, 5000); // تأخير 5 ثواني بعد التفاعل
+                }
+            };
+            
+            ['click', 'touchstart', 'keydown'].forEach(event => {
+                document.addEventListener(event, triggerSyncOnInteraction, { once: true, passive: true });
+            });
+            
+            // تأجيل المزامنة حتى بعد 30 ثانية كحد أقصى
+            setTimeout(() => {
+                if (!syncManagerInitialized) {
+                    initSyncManager();
+                }
+            }, 30000); // 30 ثانية
             
             // محاولة فورية
             if (!initSyncManager()) {
@@ -2017,10 +2078,12 @@
                     syncManager.stopAutoSync();
                 }
             } else {
-                // إعادة تشغيل المزامنة عند إظهار التبويب
-                if (typeof syncManager !== 'undefined' && !syncManager.isInitialized) {
-                    console.log('[Dashboard] إعادة تشغيل المزامنة - التبويب مرئي');
-                    syncManager.startAutoSync();
+                // 🔧 تحسين الأداء: إعادة تشغيل المزامنة فقط إذا لم تكن مفعلة (تأخير حتى التفاعل)
+                if (typeof syncManager !== 'undefined' && !syncManager.isInitialized && !syncManagerInitialized) {
+                    // تأخير حتى التفاعل أو بعد 5 ثواني
+                    setTimeout(() => {
+                        initSyncManager();
+                    }, 5000);
                 }
             }
         });
@@ -2395,72 +2458,81 @@
                     syncIndicator.style.color = '';
                 }
                 
-                // تحميل تقرير اليوم مع معالجة الأخطاء بشكل منفصل
+                // 🔧 تحسين الأداء: تحميل الطلبات بشكل متوازي بدلاً من متسلسل
                 let reportData = null;
+                let currentRepairs = [];
+                
                 try {
-                    const result = await API.getReport('daily', today);
-                    if (result && result.success && result.data) {
-                        reportData = result.data;
+                    // تنفيذ الطلبات بشكل متوازي لتقليل وقت الانتظار
+                    const [reportResult, repairsResult] = await Promise.allSettled([
+                        API.getReport('daily', today).catch(err => ({ success: false, error: err })),
+                        API.getRepairs().catch(err => ({ success: false, error: err }))
+                    ]);
+                    
+                    // معالجة نتائج التقرير
+                    if (reportResult.status === 'fulfilled' && reportResult.value && reportResult.value.success && reportResult.value.data) {
+                        reportData = reportResult.value.data;
                     } else {
-                        console.warn('فشل تحميل تقرير اليوم:', result?.message || 'Unknown error');
-                        if (result?.message) {
-                            errorMessage = result.message;
+                        console.warn('فشل تحميل تقرير اليوم:', reportResult.value?.message || reportResult.reason || 'Unknown error');
+                        if (reportResult.value?.message) {
+                            errorMessage = reportResult.value.message;
                             hasError = true;
                         }
                     }
-                } catch (reportError) {
-                    console.error('خطأ في تحميل تقرير اليوم:', reportError);
-                    hasError = true;
-                    if (reportError.message) {
-                        errorMessage = reportError.message;
+                    
+                    // معالجة نتائج العمليات
+                    if (repairsResult.status === 'fulfilled' && repairsResult.value && repairsResult.value.success && repairsResult.value.data) {
+                        currentRepairs = repairsResult.value.data.filter(r => 
+                            r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
+                        );
+                    } else {
+                        console.warn('فشل تحميل العمليات:', repairsResult.value?.message || repairsResult.reason || 'Unknown error');
+                        if (repairsResult.value?.message && !errorMessage) {
+                            errorMessage = repairsResult.value.message;
+                            hasError = true;
+                        }
                     }
-                }
-                
-                // تحديث الإحصائيات (حتى لو فشل التقرير، نعرض القيم الافتراضية)
-                const todayRepairsEl = document.getElementById('todayRepairs');
-                const todayRevenueEl = document.getElementById('todayRevenue');
-                const todayExpensesEl = document.getElementById('todayExpenses');
-                const todayProfitEl = document.getElementById('todayProfit');
-                
-                if (reportData) {
-                    if (todayRepairsEl) todayRepairsEl.textContent = reportData.repairs_count || 0;
-                    if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(reportData.revenue || 0);
-                    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(reportData.expenses || 0);
-                    if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(reportData.profit || 0);
-                } else {
-                    // في حالة الفشل، عرض القيم الافتراضية
+                    
+                    // تحديث الإحصائيات
+                    const todayRepairsEl = document.getElementById('todayRepairs');
+                    const todayRevenueEl = document.getElementById('todayRevenue');
+                    const todayExpensesEl = document.getElementById('todayExpenses');
+                    const todayProfitEl = document.getElementById('todayProfit');
+                    
+                    if (reportData) {
+                        if (todayRepairsEl) todayRepairsEl.textContent = reportData.repairs_count || 0;
+                        if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(reportData.revenue || 0);
+                        if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(reportData.expenses || 0);
+                        if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(reportData.profit || 0);
+                    } else {
+                        // في حالة الفشل، عرض القيم الافتراضية
+                        if (todayRepairsEl) todayRepairsEl.textContent = '0';
+                        if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(0);
+                        if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
+                        if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
+                    }
+                    
+                    // عرض العمليات الحالية
+                    displayCurrentRepairs(currentRepairs);
+                    
+                } catch (error) {
+                    console.error('خطأ في تحميل بيانات Dashboard:', error);
+                    hasError = true;
+                    if (error.message && !errorMessage) {
+                        errorMessage = error.message;
+                    }
+                    
+                    // عرض القيم الافتراضية
+                    const todayRepairsEl = document.getElementById('todayRepairs');
+                    const todayRevenueEl = document.getElementById('todayRevenue');
+                    const todayExpensesEl = document.getElementById('todayExpenses');
+                    const todayProfitEl = document.getElementById('todayProfit');
+                    
                     if (todayRepairsEl) todayRepairsEl.textContent = '0';
                     if (todayRevenueEl) todayRevenueEl.textContent = formatCurrencyFunc(0);
                     if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
                     if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
-                }
-                
-                // تحميل العمليات الحالية مع معالجة الأخطاء بشكل منفصل
-                try {
-                    const repairsResult = await API.getRepairs();
-                    if (repairsResult && repairsResult.success && repairsResult.data) {
-                        const currentRepairs = repairsResult.data.filter(r => 
-                            r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
-                        );
-                        displayCurrentRepairs(currentRepairs);
-                    } else {
-                        // عرض رسالة "لا توجد عمليات حالية" في حالة الفشل
-                        displayCurrentRepairs([]);
-                        if (repairsResult?.message) {
-                            console.warn('فشل تحميل العمليات:', repairsResult.message);
-                            if (!errorMessage) {
-                                errorMessage = repairsResult.message;
-                                hasError = true;
-                            }
-                        }
-                    }
-                } catch (repairsError) {
-                    console.error('خطأ في تحميل العمليات:', repairsError);
                     displayCurrentRepairs([]);
-                    if (repairsError.message && !errorMessage) {
-                        errorMessage = repairsError.message;
-                        hasError = true;
-                    }
                 }
                 
                 // تحديث مؤشر التحميل حسب النتيجة

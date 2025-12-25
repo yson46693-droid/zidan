@@ -199,13 +199,7 @@ const API = {
     },
 
     async checkAuth(silent = false) {
-        // ✅ تحسين: استخدام silent flag افتراضياً بعد تسجيل الدخول مباشرة
-        const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-        const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 60000; // 60 ثانية
-        
-        // إذا كان تسجيل دخول حديث أو تم تمرير silent، استخدم silent flag
-        const useSilent = silent || isRecentLogin;
-        const options = useSilent ? { silent: true } : {};
+        const options = silent ? { silent: true } : {};
         return await this.request('auth.php', 'GET', null, options);
     },
 

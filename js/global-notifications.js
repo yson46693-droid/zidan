@@ -70,10 +70,22 @@ class GlobalNotificationManager {
             // إعداد مراقبة حالة الصفحة
             this.setupVisibilityListener();
 
-            // بدء النظام للتحقق من الرسائل الجديدة في جميع الصفحات
+            // 🔧 تحسين الأداء: تأجيل بدء النظام حتى بعد 3 ثواني لتقليل الطلبات الفورية
             if (!this.isChatPage) {
-                // في صفحات أخرى، نبدأ النظام للتحقق من الرسائل الجديدة
-                this.start();
+                // تأخير بدء النظام حتى بعد 3 ثواني أو عند التفاعل
+                let notificationsStarted = false;
+                const startNotificationsDelayed = () => {
+                    if (!notificationsStarted) {
+                        notificationsStarted = true;
+                        this.start();
+                    }
+                };
+                
+                // بدء عند التفاعل الأول أو بعد 3 ثواني
+                ['click', 'touchstart', 'mousemove'].forEach(event => {
+                    document.addEventListener(event, startNotificationsDelayed, { once: true, passive: true });
+                });
+                setTimeout(startNotificationsDelayed, 3000); // تأخير 3 ثواني
             } else {
                 // في صفحة الشات، لا نحتاج للتحقق لأن Long Polling يقوم بذلك
                 console.log('📋 نظام الإشعارات يعمل في صفحة الشات - Long Polling يقوم بالتحقق');

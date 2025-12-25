@@ -64,9 +64,22 @@
             // إعداد مراقبة حالة الصفحة
             setupVisibilityListener();
             
-            // إذا لم نكن في صفحة الشات، نبدأ التحقق من الرسائل الجديدة
+            // 🔧 تحسين الأداء: تأجيل بدء التحقق حتى بعد 5 ثواني لتقليل الطلبات الفورية
             if (!isChatPage) {
-                startChecking();
+                // تأخير بدء التحقق حتى بعد 5 ثواني أو عند التفاعل
+                let checkingStarted = false;
+                const startCheckingDelayed = () => {
+                    if (!checkingStarted) {
+                        checkingStarted = true;
+                        startChecking();
+                    }
+                };
+                
+                // بدء عند التفاعل الأول أو بعد 5 ثواني
+                ['click', 'touchstart', 'mousemove'].forEach(event => {
+                    document.addEventListener(event, startCheckingDelayed, { once: true, passive: true });
+                });
+                setTimeout(startCheckingDelayed, 5000); // تأخير 5 ثواني
             } else {
                 // في صفحة الشات، ننتظر حتى يتم تحميل الرسائل ثم نحدث العداد
                 // سيتم استدعاء updateBadgeFromChat من chat.js
