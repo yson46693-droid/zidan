@@ -80,14 +80,21 @@
         })();
     </script>
     
-    <!-- Critical CSS - تحميل فوري -->
+    <!-- Google Fonts - Preconnect + async loading لتحسين الأداء -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap"></noscript>
+    
+    <!-- Critical CSS - تحميل فوري (فقط style.css للعرض الأول) -->
     <link rel="stylesheet" href="css/style.css">
     
-    <!-- Loading Overlay CSS - Splash Screen للتحميل -->
-    <link rel="stylesheet" href="css/loading-overlay.css">
+    <!-- Non-critical CSS - تحميل غير متزامن لتحسين الأداء -->
+    <link rel="preload" href="css/loading-overlay.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/loading-overlay.css"></noscript>
     
-    <!-- Splash Screen CSS - تحميل فوري (لصفحة تسجيل الدخول فقط) -->
-    <link rel="stylesheet" href="css/splash-screen.css">
+    <link rel="preload" href="css/splash-screen.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/splash-screen.css"></noscript>
     
     <!-- Security CSS - تحميل متأخر (non-blocking) -->
     <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -97,8 +104,12 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
-    <!-- Bootstrap Icons - تحميل متزامن لمنع FOUC -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Bootstrap Icons - تحميل غير متزامن لتحسين الأداء -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
+    
+    <!-- Preload critical image -->
+    <link rel="preload" href="icon-512x512.png" as="image" type="image/png">
     
     <!-- Preload Critical JS Files - في head للتحميل المبكر -->
     <link rel="preload" href="js/api.js" as="script">
@@ -195,7 +206,7 @@
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
             <div class="splash-logo">
-                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img">
+                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="512" height="512" fetchpriority="high">
             </div>
             <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
             <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>
@@ -256,13 +267,11 @@
         </div>
     </div>
 
-    <script src="js/api.js"></script>
-    <script src="js/utils.js"></script>
-    <!-- تحميل Splash Screen أولاً (لصفحة تسجيل الدخول فقط) -->
-    <script src="js/splash-screen.js"></script>
-    <!-- تحميل Splash Screen للتحميل -->
-    <script src="js/loading-overlay.js"></script>
-    <!-- تحميل الملفات بشكل غير متزامن لتحسين الأداء -->
+    <!-- تحميل ملفات JS بشكل غير متزامن (defer) لتحسين الأداء -->
+    <script src="js/api.js" defer></script>
+    <script src="js/utils.js" defer></script>
+    <script src="js/splash-screen.js" defer></script>
+    <script src="js/loading-overlay.js" defer></script>
     <script src="js/auth.js" defer></script>
     <script>
         // التحقق من تحميل جميع العناصر بشكل صحيح
@@ -705,18 +714,17 @@
             }
         };
         
-        // تسجيل Service Worker فوراً (مهم لـ PWA)
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(registerServiceWorker, 100);
-            });
-        } else {
-            setTimeout(registerServiceWorker, 100);
-        }
-        
-        // أيضاً تسجيل عند تحميل الصفحة
+        // تسجيل Service Worker بعد تحميل الصفحة لتحسين الأداء الأولي
+        // استخدام requestIdleCallback للتسجيل عند عدم وجود نشاط
         window.addEventListener('load', () => {
-            setTimeout(registerServiceWorker, 500);
+            if ('requestIdleCallback' in window) {
+                requestIdleCallback(() => {
+                    setTimeout(registerServiceWorker, 500);
+                }, { timeout: 2000 });
+            } else {
+                // Fallback للمتصفحات التي لا تدعم requestIdleCallback
+                setTimeout(registerServiceWorker, 1000);
+            }
         });
         
         // تحميل PWA Validator و Install Manager
