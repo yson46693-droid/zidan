@@ -24,7 +24,7 @@ jobs:
           port: 21
           security: loose
           timeout: 120000
-          server-dir: /httpdocs/z/
+          server-dir: /zidan.egsystem.top/z
 
           dangerous-clean-slate: false
 
