@@ -1,16 +1,29 @@
 // نظام Splash Screen - شاشة البداية (لصفحة تسجيل الدخول فقط)
 class SplashScreenManager {
     constructor() {
+        // منع إنشاء instance متعدد
+        if (SplashScreenManager.instance) {
+            return SplashScreenManager.instance;
+        }
+        SplashScreenManager.instance = this;
+        
         this.splashElement = null;
         this.minDisplayTime = 1500; // الحد الأدنى للعرض: 1.5 ثانية
         this.startTime = Date.now();
         this.hideProcessStarted = false;
         this.hideProcessCompleted = false;
         this.isHiding = false;
+        this.initialized = false;
         this.init();
     }
 
     init() {
+        // منع التهيئة المتعددة على مستوى instance
+        if (this.initialized) {
+            return;
+        }
+        this.initialized = true;
+        
         // التحقق من أننا في صفحة تسجيل الدخول فقط
         const isLoginPage = window.location.pathname.includes('index.html') || 
                            window.location.pathname === '/' ||
@@ -24,9 +37,21 @@ class SplashScreenManager {
         // البحث عن splash screen الموجود في HTML أولاً
         this.splashElement = document.getElementById('splash-screen');
         
-        // إذا لم يكن موجوداً، إنشاؤه
-        if (!this.splashElement) {
+        // التأكد من أن splash screen مرئي في البداية
+        if (this.splashElement) {
+            this.splashElement.classList.remove('hidden');
+            this.splashElement.style.opacity = '1';
+            this.splashElement.style.visibility = 'visible';
+        } else {
+            // إذا لم يكن موجوداً، إنشاؤه
             this.createSplashScreen();
+        }
+        
+        // إخفاء login-container في البداية
+        const loginContainer = document.querySelector('.login-container');
+        if (loginContainer) {
+            loginContainer.style.opacity = '0';
+            loginContainer.classList.remove('show');
         }
         
         // بدء عملية الإخفاء
@@ -99,18 +124,27 @@ class SplashScreenManager {
             window.addEventListener('load', loadHandler);
         }
 
-        // أيضاً التحقق بشكل دوري (fallback)
+        // أيضاً التحقق بشكل دوري (fallback) - فقط إذا لم يتم استدعاء hideSplash بعد
         let checkCount = 0;
         const maxChecks = 30; // 3 ثوان
         const checkInterval = setInterval(() => {
+            if (this.hideProcessCompleted) {
+                clearInterval(checkInterval);
+                return;
+            }
+            
             checkCount++;
             if (document.readyState === 'complete') {
                 clearInterval(checkInterval);
-                hideSplash();
+                if (!this.hideProcessCompleted) {
+                    hideSplash();
+                }
             } else if (checkCount >= maxChecks) {
                 clearInterval(checkInterval);
                 // إجبار الإخفاء بعد 3 ثوان
-                hideSplash();
+                if (!this.hideProcessCompleted) {
+                    hideSplash();
+                }
             }
         }, 100);
     }
@@ -146,6 +180,11 @@ class SplashScreenManager {
     }
 
     show() {
+        // منع إظهار splash screen إذا تم إخفاؤه بالفعل
+        if (this.isHiding || this.hideProcessCompleted) {
+            return;
+        }
+        
         if (!this.splashElement) {
             this.createSplashScreen();
         }
@@ -153,6 +192,8 @@ class SplashScreenManager {
         if (this.splashElement) {
             this.splashElement.classList.remove('hidden');
             this.startTime = Date.now();
+            // إعادة تعيين حالة الإخفاء إذا تم إظهاره مرة أخرى
+            this.isHiding = false;
         }
     }
 }
@@ -165,27 +206,36 @@ let splashScreenInitialized = false;
 
 // تهيئة عند تحميل الصفحة (مرة واحدة فقط)
 function initSplashScreen() {
-    if (splashScreenInitialized) {
-        return; // منع التهيئة المتعددة
+    // منع التهيئة المتعددة
+    if (splashScreenInitialized || splashScreenManager) {
+        return;
     }
     
     splashScreenInitialized = true;
     
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!splashScreenManager) {
-                splashScreenManager = new SplashScreenManager();
-            }
-        });
-    } else {
-        // إذا كانت الصفحة محملة بالفعل، تهيئة فورية
+    // استخدام requestAnimationFrame للتأكد من أن DOM جاهز
+    const init = () => {
         if (!splashScreenManager) {
             splashScreenManager = new SplashScreenManager();
         }
+    };
+    
+    // التحقق من حالة الصفحة
+    if (document.readyState === 'loading') {
+        // انتظار DOMContentLoaded (مرة واحدة فقط)
+        const handler = () => {
+            document.removeEventListener('DOMContentLoaded', handler);
+            init();
+        };
+        document.addEventListener('DOMContentLoaded', handler);
+    } else {
+        // إذا كانت الصفحة محملة بالفعل، تهيئة فورية
+        // استخدام setTimeout للتأكد من أن جميع scripts محملة
+        setTimeout(init, 0);
     }
 }
 
-// تهيئة فورية
+// تهيئة فورية (مرة واحدة فقط)
 initSplashScreen();
 
 // تصدير للاستخدام العام
