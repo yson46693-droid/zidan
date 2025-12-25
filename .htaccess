@@ -161,6 +161,47 @@ AddDefaultCharset UTF-8
 # منع عرض محتويات المجلدات
 Options -Indexes
 
+# السماح بالوصول إلى مجلد API (مهم لـ LiteSpeed)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # السماح بجميع الطلبات إلى مجلد api/
+    RewriteCond %{REQUEST_URI} ^/.*api/.*$
+    RewriteRule ^(.*)$ - [L]
+</IfModule>
+
+# قواعد خاصة لـ LiteSpeed Web Server - السماح بالوصول إلى API
+<IfModule LiteSpeed>
+    <DirectoryMatch "^/.*api/">
+        Options +ExecCGI
+        Options +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </DirectoryMatch>
+    # السماح بتنفيذ PHP في مجلد api
+    <FilesMatch "^api/.*\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+# قواعد Apache للسماح بالوصول إلى API من أي مجلد فرعي
+<IfModule mod_authz_core.c>
+    <DirectoryMatch "^/.*api/">
+        Require all granted
+        Options +ExecCGI
+        Options +FollowSymLinks
+    </DirectoryMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <DirectoryMatch "^/.*api/">
+        Order allow,deny
+        Allow from all
+        Options +ExecCGI
+        Options +FollowSymLinks
+    </DirectoryMatch>
+</IfModule>
+
 # معالجة الأخطاء - عدم إعادة توجيه ملفات JS و JSON إلى HTML
 # ErrorDocument 404 /index.html (تم التعليق لمنع مشاكل Service Worker)
 

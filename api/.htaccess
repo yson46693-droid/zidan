@@ -1,7 +1,8 @@
 # إعدادات خاصة بمجلد API
 
-# تفعيل PHP
+# تفعيل PHP - ضروري لـ LiteSpeed و Apache
 AddType application/x-httpd-php .php
+AddHandler application/x-httpd-php .php
 
 # ملاحظة: إعدادات CORS والأمان يتم ضبطها من config.php ديناميكياً
 # هذا يمنع التعارضات ويضمن عمل credentials بشكل صحيح
@@ -30,6 +31,9 @@ RewriteRule ^(.*)$ $1 [L]
     <FilesMatch "\.(php)$">
         Require all granted
     </FilesMatch>
+    <DirectoryMatch ".*">
+        Require all granted
+    </DirectoryMatch>
 </IfModule>
 
 <IfModule !mod_authz_core.c>
@@ -38,4 +42,22 @@ RewriteRule ^(.*)$ $1 [L]
         Order allow,deny
         Allow from all
     </FilesMatch>
+    <DirectoryMatch ".*">
+        Order allow,deny
+        Allow from all
+    </DirectoryMatch>
 </IfModule>
+
+# قواعد خاصة لـ LiteSpeed Web Server
+<IfModule LiteSpeed>
+    # السماح بتنفيذ PHP
+    <FilesMatch "\.(php)$">
+        SetHandler lsapi
+    </FilesMatch>
+    # السماح بجميع الطلبات
+    Options +ExecCGI
+    Options +FollowSymLinks
+</IfModule>
+
+# منع عرض محتويات المجلد (الأمان)
+Options -Indexes
