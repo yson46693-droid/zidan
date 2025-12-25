@@ -19,12 +19,23 @@ try {
     ensureChatMessagesColumns();
     
     // جلب الرسائل
-    // إذا كان last_id موجوداً، جلب الرسائل الجديدة فقط بعد هذا ID
+    // إذا كان last_id موجوداً، جلب الرسائل الجديدة فقط بعد هذا ID (لا نستخدم cache هنا)
     if (!empty($lastId) && $lastId !== '0') {
         $messages = getMessagesQuery($lastId, true);
     } else {
-        // جلب آخر 50 رسالة
-        $messages = getMessagesQuery(null, false);
+        // جلب آخر 50 رسالة - استخدام cache بسيط لتقليل الاستهلاك (5 ثواني)
+        static $cacheLast50 = null;
+        static $cacheTime = 0;
+        $now = time();
+        
+        // إذا مر أقل من 5 ثواني منذ آخر جلب، استخدام cache
+        if ($cacheLast50 !== null && ($now - $cacheTime) < 5) {
+            $messages = $cacheLast50;
+        } else {
+            $messages = getMessagesQuery(null, false);
+            $cacheLast50 = $messages;
+            $cacheTime = $now;
+        }
     }
     
     // عكس الترتيب (الأقدم أولاً) - فقط إذا كان هناك رسائل
