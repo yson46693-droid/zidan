@@ -30,7 +30,12 @@ $allowedOrigins = [
     'https://www.egsystem.top',
     'http://www.egsystem.top',
     'https://egsystem.top',
-    'http://egsystem.top'
+    'http://egsystem.top',
+    // إضافة localhost للاختبار المحلي
+    'http://localhost',
+    'https://localhost',
+    'http://127.0.0.1',
+    'https://127.0.0.1'
 ];
 
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -51,8 +56,18 @@ if ($origin !== '*') {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Credentials: true');
 } else {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Credentials: false');
+    // إذا لم يكن في القائمة، السماح به في وضع التطوير
+    // أو يمكنك إضافة origin الحالي تلقائياً
+    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+    if (!empty($currentHost)) {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $currentOrigin = $protocol . '://' . $currentHost;
+        header('Access-Control-Allow-Origin: ' . $currentOrigin);
+        header('Access-Control-Allow-Credentials: true');
+    } else {
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Credentials: false');
+    }
 }
 
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');

@@ -12,6 +12,13 @@ RewriteEngine On
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ - [R=200,L]
 
+# السماح بجميع طرق HTTP (GET, POST, PUT, DELETE, OPTIONS, PATCH)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} ^(GET|POST|PUT|DELETE|OPTIONS|PATCH)$
+    RewriteRule ^(.*)$ - [L]
+</IfModule>
+
 # إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
 RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
 RewriteRule ^(.*)$ $1 [L]
