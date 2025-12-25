@@ -1,203 +1,137 @@
-# إعدادات خاصة بمجلد API
-
-# تفعيل PHP - ضروري لـ LiteSpeed و Apache
-AddType application/x-httpd-php .php
-AddHandler application/x-httpd-php .php
-
-# ملاحظة: إعدادات CORS والأمان يتم ضبطها من config.php ديناميكياً
-# هذا يمنع التعارضات ويضمن عمل credentials بشكل صحيح
-
 # ============================================
-# 🔒 إصلاح مشكلة 403 Forbidden لـ auth.php
+# 🚀 تحسينات الأداء - Performance Optimizations
 # ============================================
 
-# تعطيل mod_security بشكل كامل لـ auth.php
-<IfModule mod_security.c>
-    <LocationMatch "^/.*api/auth\.php$">
-        SecRuleEngine Off
-    </LocationMatch>
-    <FilesMatch "^.*api/auth\.php$">
-        SecRuleEngine Off
+# تفعيل HTTP/2 و HTTP/3 (إذا كان مدعوماً من الخادم)
+<IfModule mod_headers.c>
+    # تحسين الأمان والأداء
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ============================================
+# 📦 ضغط الملفات - Compression (Gzip/Brotli)
+# ============================================
+<IfModule mod_deflate.c>
+    # ضغط ملفات HTML, CSS, JavaScript, Text, XML, JSON
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+    
+    # منع ضغط الصور المضغوطة مسبقاً
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|ico)$ no-gzip dont-vary
+    SetEnvIfNoCase Request_URI \.(?:exe|t?gz|zip|bz2|sit|rar)$ no-gzip dont-vary
+</IfModule>
+
+# ============================================
+# 💾 التخزين المؤقت - Browser Caching
+# ============================================
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # الصور - تخزين لمدة سنة
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # CSS و JavaScript - تخزين لمدة شهر
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    
+    # الخطوط - تخزين لمدة سنة
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    
+    # HTML - لا تخزين
+    ExpiresByType text/html "access plus 0 seconds"
+    
+    # JSON - تخزين لمدة ساعة
+    ExpiresByType application/json "access plus 1 hour"
+</IfModule>
+
+# Cache-Control Headers
+<IfModule mod_headers.c>
+    # الصور والخطوط - تخزين لمدة سنة
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "max-age=31536000, public, immutable"
+    </FilesMatch>
+    
+    # CSS و JavaScript - تخزين لمدة شهر
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "max-age=2592000, public"
+    </FilesMatch>
+    
+    # HTML - لا تخزين
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
     </FilesMatch>
 </IfModule>
 
-# قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
-<Files "auth.php">
-    # Apache 2.4+ و LiteSpeed
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    # Apache 2.2 (fallback)
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-    # السماح بجميع طرق HTTP
-    Options +ExecCGI +FollowSymLinks +Indexes
-    # قاعدة خاصة لـ LiteSpeed
-    <IfModule LiteSpeed>
-        SetHandler lsapi
-        Require all granted
-        Options +ExecCGI +FollowSymLinks
+# ============================================
+# 📄 إعدادات MIME Types
+# ============================================
+
+# ضمان تقديم ملفات HTML بشكل صحيح
+AddType text/html .html
+AddDefaultCharset UTF-8
+
+# ضمان تقديم ملفات CSS و JS
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+    AddType text/javascript .js
+    AddType application/manifest+json .webmanifest
+    AddType application/manifest+json manifest.json
+    AddType application/json .json
+    AddType image/webp .webp
+    AddType image/avif .avif
+</IfModule>
+
+# إعدادات خاصة لـ Service Worker (sw.js)
+<Files "sw.js">
+    <IfModule mod_headers.c>
+        Header set Content-Type "application/javascript; charset=utf-8"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+        Header set Service-Worker-Allowed "/"
     </IfModule>
 </Files>
 
-# معالجة طلبات OPTIONS (preflight) - نسخة احتياطية
-# config.php يتعامل معها أيضاً، لكن نتركها للاستضافات التي قد تحتاجها
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    
-    # السماح بجميع طرق HTTP (GET, POST, PUT, DELETE, OPTIONS, PATCH)
-    RewriteCond %{REQUEST_METHOD} ^(GET|POST|PUT|DELETE|OPTIONS|PATCH)$
-    RewriteRule ^(.*)$ - [L]
-    
-    # معالجة طلبات OPTIONS بشكل خاص
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ - [R=200,L]
-    
-    # قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
-    RewriteCond %{REQUEST_URI} auth\.php$
-    RewriteRule ^(.*)$ - [L,E=no-gzip:1]
-</IfModule>
-
-# إعادة توجيه طلبات PUT/DELETE إلى POST للاستضافات المجانية
-<IfModule mod_rewrite.c>
-    RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
-    RewriteRule ^(.*)$ $1 [L]
-</IfModule>
-
-# السماح بملفات API العامة
-# استخدام صيغة متوافقة مع Apache 2.2 و 2.4+ و LiteSpeed
-<IfModule mod_authz_core.c>
-    # Apache 2.4+ و LiteSpeed
-    <FilesMatch "\.(php)$">
-        Require all granted
-    </FilesMatch>
-    <Files "auth.php">
-        Require all granted
-    </Files>
-    <DirectoryMatch ".*">
-        Require all granted
-    </DirectoryMatch>
-    # السماح بجميع الطلبات في هذا المجلد
-    <Directory ".">
-        Require all granted
-        Options +ExecCGI +FollowSymLinks
-    </Directory>
-</IfModule>
-
-<IfModule !mod_authz_core.c>
-    # Apache 2.2 (fallback للخوادم القديمة)
-    <FilesMatch "\.(php)$">
-        Order allow,deny
-        Allow from all
-    </FilesMatch>
-    <Files "auth.php">
-        Order allow,deny
-        Allow from all
-    </Files>
-    <DirectoryMatch ".*">
-        Order allow,deny
-        Allow from all
-    </DirectoryMatch>
-    # السماح بجميع الطلبات في هذا المجلد
-    <Directory ".">
-        Order allow,deny
-        Allow from all
-        Options +ExecCGI +FollowSymLinks
-    </Directory>
-</IfModule>
-
-# قواعد خاصة لـ LiteSpeed Web Server
-<IfModule LiteSpeed>
-    # السماح بتنفيذ PHP
-    <FilesMatch "\.(php)$">
-        SetHandler lsapi
-        Require all granted
-    </FilesMatch>
-    <Files "auth.php">
-        SetHandler lsapi
-        Require all granted
-    </Files>
-    # السماح بجميع الطلبات
-    Options +ExecCGI
-    Options +FollowSymLinks
-    # السماح بجميع الطلبات في هذا المجلد
-    <Directory ".">
-        Require all granted
-        Options +ExecCGI +FollowSymLinks
-    </Directory>
-    # قاعدة خاصة لمنع 403 من LiteSpeed
-    # السماح بجميع طرق HTTP بشكل صريح
-    <IfModule mod_rewrite.c>
-        RewriteEngine On
-        # السماح بطلبات POST إلى جميع ملفات PHP
-        RewriteCond %{REQUEST_METHOD} POST
-        RewriteCond %{REQUEST_URI} \.php$
-        RewriteRule ^(.*)$ - [L,E=no-gzip:1]
+# إعدادات خاصة لـ Manifest (manifest.json)
+<Files "manifest.json">
+    <IfModule mod_headers.c>
+        Header set Content-Type "application/manifest+json; charset=utf-8"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
     </IfModule>
+</Files>
+
+# ============================================
+# 🌐 إعدادات CORS الأساسية
+# ============================================
+<IfModule mod_headers.c>
+    # السماح بملفات HTML و CSS و JS
+    <FilesMatch "\.(html|css|js)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type, X-Requested-With"
+    </FilesMatch>
 </IfModule>
 
-# منع عرض محتويات المجلد (الأمان)
+# منع عرض محتويات المجلدات
 Options -Indexes
-
-# السماح بجميع طرق HTTP بشكل صريح - حل مشكلة 403
-<IfModule mod_headers.c>
-    # إزالة أي قيود على طرق HTTP
-    Header unset X-Requested-With
-</IfModule>
-
-# السماح بتنفيذ PHP في جميع الملفات
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# قواعد إضافية لمنع 403 Forbidden
-# السماح بطلبات POST مع Content-Type: application/json
-<IfModule mod_headers.c>
-    # السماح بجميع أنواع المحتوى في الطلبات
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
-</IfModule>
-
-# محاولة تعطيل قواعد mod_security للطلبات إلى API (قد لا يعمل على جميع الخوادم)
-<IfModule mod_security.c>
-    SecRuleRemoveById 300013
-    SecRuleRemoveById 300014
-    SecRuleRemoveById 300015
-    SecRuleRemoveById 300016
-    SecRuleRemoveById 300017
-    SecRuleRemoveById 949110
-    SecRuleRemoveById 980130
-</IfModule>
-
-# قاعدة خاصة لملف auth.php لمنع 403
-<Files "auth.php">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-    # السماح بجميع طرق HTTP
-    Options +ExecCGI +FollowSymLinks
-    # قاعدة خاصة لـ LiteSpeed
-    <IfModule LiteSpeed>
-        SetHandler lsapi
-        Require all granted
-    </IfModule>
-</Files>
-
-# محاولة تجاوز قيود LiteSpeed Security
-# إذا كان LiteSpeed يمنع POST، جرب هذه القواعد
-<IfModule LiteSpeed>
-    # تعطيل بعض قواعد الأمان لـ LiteSpeed (قد لا يعمل على جميع الخوادم)
-    # هذه القواعد تحاول السماح بطلبات POST
-    <IfModule mod_rewrite.c>
-        RewriteEngine On
-        # السماح بطلبات POST إلى auth.php
-        RewriteCond %{REQUEST_METHOD} ^POST$
-        RewriteCond %{REQUEST_URI} auth\.php$
-        RewriteRule ^(.*)$ - [L,E=LSWS_EDC:0]
-    </IfModule>
-</IfModule>
