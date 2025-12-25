@@ -1624,7 +1624,8 @@
                         };
                         const basePath = getBasePath();
                         const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
-                        const scope = basePath || '/';
+                        // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
+                        const scope = basePath ? `${basePath}/` : '/';
                         
                         // التحقق من أن الملف موجود وأنه JavaScript وليس HTML
                         try {

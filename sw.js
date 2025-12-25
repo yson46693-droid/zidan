@@ -18,18 +18,33 @@ if (typeof self !== 'undefined' && !self.caches) {
     // Fallback بسيط للمتصفحات التي لا تدعم Cache API
     console.warn('[SW] Cache API not supported, using fallback');
 }
+// ✅ تحديد المسار الأساسي بناءً على موقع Service Worker
+const getBasePath = () => {
+    try {
+        // استخدام self.location لتحديد مسار Service Worker
+        const swPath = self.location.pathname; // مثال: /z/sw.js
+        // استخراج المسار الأساسي (إزالة sw.js من النهاية)
+        const basePath = swPath.substring(0, swPath.lastIndexOf('/sw.js'));
+        return basePath || '';
+    } catch (e) {
+        return '';
+    }
+};
+
+const BASE_PATH = getBasePath();
+
 // قائمة الملفات الأساسية فقط - الملفات المهمة التي يجب أن تكون موجودة
 // تم تقليل الملفات لتسريع التحميل الأولي
 // ملاحظة: الأيقونات لا يتم حفظها في cache لأنها قد تتغير - سيتم جلبها من الشبكة دائماً
 const essentialFiles = [
-    '/',
-    '/index.html',
-    '/dashboard.html',
-    '/manifest.json',
-    '/css/style.css',
-    '/js/version.js',
-    '/js/api.js',
-    '/js/utils.js'
+    BASE_PATH + '/',
+    BASE_PATH + '/index.html',
+    BASE_PATH + '/dashboard.html',
+    BASE_PATH + '/manifest.json',
+    BASE_PATH + '/css/style.css',
+    BASE_PATH + '/js/version.js',
+    BASE_PATH + '/js/api.js',
+    BASE_PATH + '/js/utils.js'
     // تم إزالة الأيقونات من essentialFiles - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
 ];
 
@@ -38,11 +53,11 @@ const essentialFiles = [
 // تم إزالة الملفات التي تسبب أخطاء 404 - سيتم تحميلها عند الحاجة من الصفحة
 // ملاحظة: تم إزالة الأيقونات من optionalFiles - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
 const optionalFiles = [
-    '/install.html',
-    '/css/dark-mode.css',
-    '/css/security.css',
+    BASE_PATH + '/install.html',
+    BASE_PATH + '/css/dark-mode.css',
+    BASE_PATH + '/css/security.css',
     // تم إزالة جميع الأيقونات - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
-    '/vertopal.com_photo_5922357566287580087_y.png'
+    BASE_PATH + '/vertopal.com_photo_5922357566287580087_y.png'
     // باقي ملفات JS سيتم تحميلها عند الحاجة (lazy loading)
 ];
 
