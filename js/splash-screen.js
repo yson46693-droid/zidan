@@ -239,8 +239,14 @@ let splashScreenInitialized = false;
 // تهيئة عند تحميل الصفحة (مرة واحدة فقط)
 function initSplashScreen() {
     // ✅ منع التهيئة المتعددة بشكل أقوى
-    if (splashScreenInitialized) {
+    if (splashScreenInitialized || window.splashScreenManager) {
         return;
+    }
+    
+    // ✅ التحقق من وجود splash screen في HTML أولاً
+    const existingSplash = document.getElementById('splash-screen');
+    if (!existingSplash) {
+        return; // لا تهيئة إذا لم يكن موجوداً في HTML
     }
     
     // التحقق من وجود instance موجود بالفعل
@@ -273,13 +279,18 @@ function initSplashScreen() {
         document.addEventListener('DOMContentLoaded', handler);
     } else {
         // إذا كانت الصفحة محملة بالفعل، تهيئة فورية
-        // استخدام setTimeout للتأكد من أن جميع scripts محملة
-        setTimeout(init, 0);
+        requestAnimationFrame(init);
     }
 }
 
 // ✅ تهيئة فورية (مرة واحدة فقط) - مع حماية من الاستدعاء المتعدد
-if (!splashScreenInitialized) {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!splashScreenInitialized && !window.splashScreenManager) {
+            initSplashScreen();
+        }
+    });
+} else if (!splashScreenInitialized && !window.splashScreenManager) {
     initSplashScreen();
 }
 
