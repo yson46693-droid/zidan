@@ -24,7 +24,7 @@ jobs:
           port: 21
           security: loose
           timeout: 120000
-          server-dir: /zidan.egsystem.top/
+          server-dir: ./
 
           dangerous-clean-slate: false
 

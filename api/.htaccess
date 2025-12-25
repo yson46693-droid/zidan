@@ -343,5 +343,5 @@ Options -Indexes
     </FilesMatch>
 </IfModule>
 
-# منع عرض محتويات المجلدات
+# منع عرض محتويات المجلدات 
 Options -Indexes
