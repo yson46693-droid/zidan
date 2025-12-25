@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 # إعدادات خاصة بمجلد API
 
 # ✅ قاعدة عامة: السماح بجميع ملفات PHP في هذا المجلد
@@ -24,88 +22,10 @@ AddHandler application/x-httpd-php .php
 # ملاحظة: إعدادات CORS والأمان يتم ضبطها من config.php ديناميكياً
 # هذا يمنع التعارضات ويضمن عمل credentials بشكل صحيح
 
->>>>>>> 04142393a4124dd57e08ede9a51134349457bdae
 # ============================================
-# 🚀 تحسينات الأداء - Performance Optimizations
+# 🔒 إصلاح مشكلة 403 Forbidden لـ auth.php
 # ============================================
 
-<<<<<<< HEAD
-# تفعيل HTTP/2 و HTTP/3 (إذا كان مدعوماً من الخادم)
-<IfModule mod_headers.c>
-    # تحسين الأمان والأداء
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-</IfModule>
-
-# ============================================
-# 📦 ضغط الملفات - Compression (Gzip/Brotli)
-# ============================================
-<IfModule mod_deflate.c>
-    # ضغط ملفات HTML, CSS, JavaScript, Text, XML, JSON
-    AddOutputFilterByType DEFLATE text/html
-    AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE text/javascript
-    AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/json
-    AddOutputFilterByType DEFLATE text/xml
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE image/svg+xml
-    
-    # منع ضغط الصور المضغوطة مسبقاً
-    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|ico)$ no-gzip dont-vary
-    SetEnvIfNoCase Request_URI \.(?:exe|t?gz|zip|bz2|sit|rar)$ no-gzip dont-vary
-</IfModule>
-
-# ============================================
-# 💾 التخزين المؤقت - Browser Caching
-# ============================================
-<IfModule mod_expires.c>
-    ExpiresActive On
-    
-    # الصور - تخزين لمدة سنة
-    ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/gif "access plus 1 year"
-    ExpiresByType image/webp "access plus 1 year"
-    ExpiresByType image/svg+xml "access plus 1 year"
-    ExpiresByType image/x-icon "access plus 1 year"
-    
-    # CSS و JavaScript - تخزين لمدة شهر
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType text/javascript "access plus 1 month"
-    
-    # الخطوط - تخزين لمدة سنة
-    ExpiresByType font/woff "access plus 1 year"
-    ExpiresByType font/woff2 "access plus 1 year"
-    
-    # HTML - لا تخزين
-    ExpiresByType text/html "access plus 0 seconds"
-    
-    # JSON - تخزين لمدة ساعة
-    ExpiresByType application/json "access plus 1 hour"
-</IfModule>
-
-# Cache-Control Headers
-<IfModule mod_headers.c>
-    # الصور والخطوط - تخزين لمدة سنة
-    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$">
-        Header set Cache-Control "max-age=31536000, public, immutable"
-    </FilesMatch>
-    
-    # CSS و JavaScript - تخزين لمدة شهر
-    <FilesMatch "\.(css|js)$">
-        Header set Cache-Control "max-age=2592000, public"
-    </FilesMatch>
-    
-    # HTML - لا تخزين
-    <FilesMatch "\.(html|htm)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-=======
 # تعطيل mod_security بشكل كامل لـ auth.php و test-auth.php
 <IfModule mod_security.c>
     <LocationMatch "^/.*api/(auth|test-auth)\.php$">
@@ -113,7 +33,6 @@ AddHandler application/x-httpd-php .php
     </LocationMatch>
     <FilesMatch "^.*api/(auth|test-auth)\.php$">
         SecRuleEngine Off
->>>>>>> 04142393a4124dd57e08ede9a51134349457bdae
     </FilesMatch>
     <Files "auth.php">
         SecRuleEngine Off
@@ -123,46 +42,27 @@ AddHandler application/x-httpd-php .php
     </Files>
 </IfModule>
 
-# ============================================
-# 📄 إعدادات MIME Types
-# ============================================
-
-# ضمان تقديم ملفات HTML بشكل صحيح
-AddType text/html .html
-AddDefaultCharset UTF-8
-
-# ضمان تقديم ملفات CSS و JS
-<IfModule mod_mime.c>
-    AddType text/css .css
-    AddType application/javascript .js
-    AddType text/javascript .js
-    AddType application/manifest+json .webmanifest
-    AddType application/manifest+json manifest.json
-    AddType application/json .json
-    AddType image/webp .webp
-    AddType image/avif .avif
-</IfModule>
-
-# إعدادات خاصة لـ Service Worker (sw.js)
-<Files "sw.js">
-    <IfModule mod_headers.c>
-        Header set Content-Type "application/javascript; charset=utf-8"
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-        Header set Service-Worker-Allowed "/"
+# قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
+<Files "auth.php">
+    # Apache 2.4+ و LiteSpeed
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    # Apache 2.2 (fallback)
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+    # السماح بجميع طرق HTTP
+    Options +ExecCGI +FollowSymLinks +Indexes
+    # قاعدة خاصة لـ LiteSpeed
+    <IfModule LiteSpeed>
+        SetHandler lsapi
+        Require all granted
+        Options +ExecCGI +FollowSymLinks
     </IfModule>
 </Files>
 
-<<<<<<< HEAD
-# إعدادات خاصة لـ Manifest (manifest.json)
-<Files "manifest.json">
-    <IfModule mod_headers.c>
-        Header set Content-Type "application/manifest+json; charset=utf-8"
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-=======
 # ✅ قاعدة خاصة لـ test-auth.php - السماح بجميع الطلبات
 <Files "test-auth.php">
     # Apache 2.4+ و LiteSpeed
@@ -327,21 +227,19 @@ Options -Indexes
     <IfModule LiteSpeed>
         SetHandler lsapi
         Require all granted
->>>>>>> 04142393a4124dd57e08ede9a51134349457bdae
     </IfModule>
 </FilesMatch>
 
-# ============================================
-# 🌐 إعدادات CORS الأساسية
-# ============================================
-<IfModule mod_headers.c>
-    # السماح بملفات HTML و CSS و JS
-    <FilesMatch "\.(html|css|js)$">
-        Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-        Header set Access-Control-Allow-Headers "Content-Type, X-Requested-With"
-    </FilesMatch>
+# محاولة تجاوز قيود LiteSpeed Security
+# إذا كان LiteSpeed يمنع POST، جرب هذه القواعد
+<IfModule LiteSpeed>
+    # تعطيل بعض قواعد الأمان لـ LiteSpeed (قد لا يعمل على جميع الخوادم)
+    # هذه القواعد تحاول السماح بطلبات POST
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى auth.php
+        RewriteCond %{REQUEST_METHOD} ^POST$
+        RewriteCond %{REQUEST_URI} auth\.php$
+        RewriteRule ^(.*)$ - [L,E=LSWS_EDC:0]
+    </IfModule>
 </IfModule>
-
-# منع عرض محتويات المجلدات 1
-Options -Indexes
