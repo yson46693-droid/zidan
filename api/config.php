@@ -26,7 +26,11 @@ $allowedOrigins = [
     'https://my-store.free.nf',
     'http://my-store.free.nf',
     'https://www.my-store.free.nf',
-    'http://www.my-store.free.nf'
+    'http://www.my-store.free.nf',
+    'https://www.egsystem.top',
+    'http://www.egsystem.top',
+    'https://egsystem.top',
+    'http://egsystem.top'
 ];
 
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';

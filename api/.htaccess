@@ -17,7 +17,18 @@ RewriteCond %{REQUEST_METHOD} ^(PUT|DELETE)$
 RewriteRule ^(.*)$ $1 [L]
 
 # السماح بملفات API العامة
-<FilesMatch "\.(php)$">
-    Order allow,deny
-    Allow from all
-</FilesMatch>
+# استخدام صيغة متوافقة مع Apache 2.2 و 2.4+ و LiteSpeed
+<IfModule mod_authz_core.c>
+    # Apache 2.4+ و LiteSpeed
+    <FilesMatch "\.(php)$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    # Apache 2.2 (fallback للخوادم القديمة)
+    <FilesMatch "\.(php)$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+</IfModule>
