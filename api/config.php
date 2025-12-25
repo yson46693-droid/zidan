@@ -69,7 +69,19 @@ if ($origin !== '*') {
     // أو يمكنك إضافة origin الحالي تلقائياً
     $currentHost = $_SERVER['HTTP_HOST'] ?? '';
     if (!empty($currentHost)) {
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        // ✅ تحسين اكتشاف HTTPS - متسق مع auth.php
+        $isHttps = false;
+        if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+            $isHttps = true;
+        } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+            $isHttps = true;
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            $isHttps = true;
+        } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+            $isHttps = true;
+        }
+        
+        $protocol = $isHttps ? 'https' : 'http';
         $currentOrigin = $protocol . '://' . $currentHost;
         header('Access-Control-Allow-Origin: ' . $currentOrigin);
         header('Access-Control-Allow-Credentials: true');
