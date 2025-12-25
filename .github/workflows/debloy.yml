@@ -14,6 +14,21 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      # خطوة: نسخ الملفات المطلوبة فقط إلى مجلد deploy
+      - name: Prepare Deployment Folder
+        run: |
+          mkdir deploy
+          rsync -av --progress ./zidan/ ./deploy/ \
+            --exclude='.git*' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='.env*' \
+            --exclude='.vscode/' \
+            --exclude='.idea/' \
+            --exclude='*.log' \
+            --exclude='.DS_Store'
+
+      # خطوة: رفع المجلد deploy فقط
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
@@ -24,17 +39,6 @@ jobs:
           port: 21
           security: loose
           timeout: 120000
+          local-dir: ./deploy/
           server-dir: ./
-
           dangerous-clean-slate: false
-
-          exclude: |
-            **/.git*
-            **/.github/**
-            **/node_modules/**
-            **/.env*
-            **/.vscode/**
-            **/.idea/**
-            **/*.log
-            **/.DS_Store
- 
