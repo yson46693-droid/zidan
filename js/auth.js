@@ -6,7 +6,7 @@ let lastCheckLoginTime = 0;
 let cachedAuthResult = null;
 let cacheTime = 0;
 const CHECK_LOGIN_COOLDOWN = 1000; // 1 ثانية بين الطلبات
-const AUTH_CACHE_DURATION = 3000; // 3 ثواني للتخزين المؤقت
+const AUTH_CACHE_DURATION = 30000; // 30 ثانية للتخزين المؤقت (محسّن لتقليل الطلبات)
 
 // التحقق من تسجيل الدخول
 async function checkLogin() {

@@ -10,7 +10,7 @@ class GlobalNotificationManager {
         this.lastMessageId = null;
         this.currentUser = null;
         this.isRunning = false;
-        this.checkIntervalMs = 15000; // 15 ثانية بدلاً من 5
+        this.checkIntervalMs = 30000; // 30 ثانية (محسّن لتقليل الطلبات)
         this.isChatPage = window.location.pathname.includes('chat.html');
         this.activeNotifications = new Map(); // حفظ مراجع للإشعارات المفتوحة
         this.lastCheckTime = 0;
@@ -192,7 +192,7 @@ class GlobalNotificationManager {
             this.checkForNewMessages();
         }, 1000);
 
-        // فحص دوري كل 15 ثانية (بدلاً من 5)
+        // فحص دوري كل 30 ثانية (محسّن لتقليل الطلبات)
         this.checkInterval = setInterval(() => {
             // فحص فقط إذا كانت الصفحة مرئية
             if (this.isPageVisible) {

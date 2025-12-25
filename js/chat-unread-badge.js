@@ -15,7 +15,7 @@
     let cachedResult = null;
     let cacheExpiry = 0;
     const CACHE_DURATION = 5000; // 5 ثواني cache
-    const CHECK_INTERVAL = 15000; // 15 ثانية بدلاً من 5
+    const CHECK_INTERVAL = 30000; // 30 ثانية (محسّن لتقليل الطلبات)
     let isPageVisible = true;
     let pendingCheck = false;
     
@@ -140,7 +140,7 @@
         // فحص فوري
         checkForUnreadMessages();
         
-        // فحص دوري كل 15 ثانية (بدلاً من 5)
+        // فحص دوري كل 30 ثانية (محسّن لتقليل الطلبات)
         checkInterval = setInterval(() => {
             // تحديث lastReadMessageId من localStorage قبل كل فحص
             loadLastReadMessageId();

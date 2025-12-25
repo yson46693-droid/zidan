@@ -25,10 +25,10 @@ class SyncManager {
         // تحديث حالة الاتصال فوراً
         this.updateSyncStatus('online');
         
-        // مزامنة فورية مع تأخير قصير
+        // مزامنة مع تأخير 10 ثواني لتقليل الطلبات الفورية (محسّن)
         setTimeout(() => {
             this.syncAll();
-        }, 1000);
+        }, 10000);
         
         // مزامنة دورية
         this.syncInterval = setInterval(() => {
