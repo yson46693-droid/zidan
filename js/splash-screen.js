@@ -18,8 +18,9 @@ class SplashScreenManager {
     }
 
     init() {
-        // منع التهيئة المتعددة على مستوى instance
+        // ✅ منع التهيئة المتعددة على مستوى instance بشكل أقوى
         if (this.initialized) {
+            console.log('⚠️ SplashScreenManager: تم التهيئة مسبقاً - تم إلغاء التهيئة المكررة');
             return;
         }
         this.initialized = true;
@@ -34,28 +35,37 @@ class SplashScreenManager {
             return;
         }
 
-        // البحث عن splash screen الموجود في HTML أولاً
+        // ✅ البحث عن splash screen الموجود في HTML أولاً (مع منع الإنشاء المتعدد)
         this.splashElement = document.getElementById('splash-screen');
         
-        // التأكد من أن splash screen مرئي في البداية
+        // ✅ التأكد من أن splash screen مرئي في البداية (فقط إذا لم يتم إخفاؤه مسبقاً)
         if (this.splashElement) {
-            this.splashElement.classList.remove('hidden');
-            this.splashElement.style.opacity = '1';
-            this.splashElement.style.visibility = 'visible';
+            // التحقق من أنه لم يتم إخفاؤه مسبقاً
+            if (!this.splashElement.classList.contains('hidden')) {
+                this.splashElement.classList.remove('hidden');
+                this.splashElement.style.opacity = '1';
+                this.splashElement.style.visibility = 'visible';
+            }
         } else {
             // إذا لم يكن موجوداً، إنشاؤه
             this.createSplashScreen();
         }
         
-        // إخفاء login-container في البداية
+        // ✅ إخفاء login-container في البداية (فقط إذا لم يتم إظهاره مسبقاً)
         const loginContainer = document.querySelector('.login-container');
         if (loginContainer) {
-            loginContainer.style.opacity = '0';
-            loginContainer.classList.remove('show');
+            // التحقق من أنه لم يتم إظهاره مسبقاً
+            if (!loginContainer.classList.contains('show')) {
+                loginContainer.style.opacity = '0';
+                loginContainer.style.visibility = 'visible'; // إبقاء visibility visible لضمان وجود العنصر
+                loginContainer.classList.remove('show');
+            }
         }
         
-        // بدء عملية الإخفاء
-        this.startHideProcess();
+        // ✅ بدء عملية الإخفاء (مع حماية من الاستدعاء المتعدد)
+        if (!this.hideProcessStarted) {
+            this.startHideProcess();
+        }
     }
 
     createSplashScreen() {
@@ -160,10 +170,14 @@ class SplashScreenManager {
         // إضافة class للإخفاء
         this.splashElement.classList.add('hidden');
         
-        // إظهار صفحة تسجيل الدخول
+        // ✅ إظهار صفحة تسجيل الدخول بشكل صحيح
         const loginContainer = document.querySelector('.login-container');
         if (loginContainer) {
             loginContainer.classList.add('show');
+            // ✅ التأكد من إظهار العناصر بشكل صحيح
+            loginContainer.style.opacity = '1';
+            loginContainer.style.visibility = 'visible';
+            loginContainer.style.display = 'flex'; // إضافة display للتأكد
         }
         
         // إزالة العنصر من DOM بعد انتهاء الانتقال
@@ -206,8 +220,14 @@ let splashScreenInitialized = false;
 
 // تهيئة عند تحميل الصفحة (مرة واحدة فقط)
 function initSplashScreen() {
-    // منع التهيئة المتعددة
-    if (splashScreenInitialized || splashScreenManager) {
+    // ✅ منع التهيئة المتعددة بشكل أقوى
+    if (splashScreenInitialized) {
+        return;
+    }
+    
+    // التحقق من وجود instance موجود بالفعل
+    if (window.splashScreenManager && window.splashScreenManager.initialized) {
+        splashScreenInitialized = true;
         return;
     }
     
@@ -215,8 +235,13 @@ function initSplashScreen() {
     
     // استخدام requestAnimationFrame للتأكد من أن DOM جاهز
     const init = () => {
+        // ✅ تحقق مرة أخرى قبل الإنشاء
+        if (splashScreenManager && splashScreenManager.initialized) {
+            return;
+        }
         if (!splashScreenManager) {
             splashScreenManager = new SplashScreenManager();
+            window.splashScreenManager = splashScreenManager;
         }
     };
     
@@ -235,8 +260,10 @@ function initSplashScreen() {
     }
 }
 
-// تهيئة فورية (مرة واحدة فقط)
-initSplashScreen();
+// ✅ تهيئة فورية (مرة واحدة فقط) - مع حماية من الاستدعاء المتعدد
+if (!splashScreenInitialized) {
+    initSplashScreen();
+}
 
 // تصدير للاستخدام العام
 if (typeof window !== 'undefined') {
