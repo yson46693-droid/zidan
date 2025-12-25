@@ -29,10 +29,12 @@ jobs:
           timeout: 120000
           log-level: standard
           server-dir: /httpdocs/z/
+          local-dir: ./
 
 
           # مهم: لا يحذف ملفات السيرفر
           dangerous-clean-slate: false
+          
 
           exclude: |
             **/.git*
