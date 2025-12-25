@@ -25,7 +25,7 @@ jobs:
           security: loose
           timeout: 120000
 
-          local-dir: dist/
+          local-dir: public_html/
           server-dir: /httpdocs/z/
 
           dangerous-clean-slate: false
