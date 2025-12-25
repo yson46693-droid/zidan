@@ -164,8 +164,13 @@ Options -Indexes
 # السماح بالوصول إلى مجلد API (مهم لـ LiteSpeed)
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    # السماح بجميع الطلبات إلى مجلد api/
+    # السماح بجميع الطلبات إلى مجلد api/ (بما في ذلك POST)
     RewriteCond %{REQUEST_URI} ^/.*api/.*$
+    RewriteRule ^(.*)$ - [L]
+    
+    # السماح بشكل صريح بطلبات POST إلى API
+    RewriteCond %{REQUEST_METHOD} ^(POST|PUT|DELETE|OPTIONS|PATCH)$
+    RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
     RewriteRule ^(.*)$ - [L]
 </IfModule>
 
@@ -191,6 +196,14 @@ Options -Indexes
         Options +ExecCGI
         Options +FollowSymLinks
     </DirectoryMatch>
+    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
+    <FilesMatch "^.*api/.*\.php$">
+        Require all granted
+    </FilesMatch>
+    # السماح بشكل خاص بملف auth.php
+    <FilesMatch "^.*api/auth\.php$">
+        Require all granted
+    </FilesMatch>
 </IfModule>
 
 <IfModule !mod_authz_core.c>
@@ -200,6 +213,16 @@ Options -Indexes
         Options +ExecCGI
         Options +FollowSymLinks
     </DirectoryMatch>
+    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
+    <FilesMatch "^.*api/.*\.php$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+    # السماح بشكل خاص بملف auth.php
+    <FilesMatch "^.*api/auth\.php$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
 </IfModule>
 
 # معالجة الأخطاء - عدم إعادة توجيه ملفات JS و JSON إلى HTML

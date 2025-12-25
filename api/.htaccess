@@ -103,3 +103,34 @@ Options -Indexes
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
+# قواعد إضافية لمنع 403 Forbidden
+# السماح بطلبات POST مع Content-Type: application/json
+<IfModule mod_headers.c>
+    # السماح بجميع أنواع المحتوى في الطلبات
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
+</IfModule>
+
+# محاولة تعطيل قواعد mod_security للطلبات إلى API (قد لا يعمل على جميع الخوادم)
+<IfModule mod_security.c>
+    SecRuleRemoveById 300013
+    SecRuleRemoveById 300014
+    SecRuleRemoveById 300015
+    SecRuleRemoveById 300016
+    SecRuleRemoveById 300017
+    SecRuleRemoveById 949110
+    SecRuleRemoveById 980130
+</IfModule>
+
+# قاعدة خاصة لملف auth.php لمنع 403
+<Files "auth.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+    # السماح بجميع طرق HTTP
+    Options +ExecCGI +FollowSymLinks
+</Files>
