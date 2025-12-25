@@ -1666,6 +1666,52 @@ function attachFile() {
     input.click();
 }
 
+// دالة ضغط الصور للشات (لتقليل استهلاك الباندويث)
+function compressChatImage(file, maxWidth = 1200, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // حساب الأبعاد بعد الضغط
+                    if (width > maxWidth) {
+                        const ratio = maxWidth / width;
+                        width = maxWidth;
+                        height = Math.round(height * ratio);
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // تحويل إلى base64 مع ضغط
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve(compressedDataUrl);
+                };
+                img.onerror = () => {
+                    reject(new Error('فشل تحميل الصورة'));
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = () => {
+                reject(new Error('فشل قراءة الملف'));
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
 // إرفاق صورة
 function attachImage() {
     const input = document.createElement('input');
@@ -1681,16 +1727,23 @@ function attachImage() {
                     return;
                 }
                 
-                // قراءة الصورة كـ Base64
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    const fileData = event.target.result;
-                    await sendFileMessage(fileData, 'image', file.name);
-                };
-                reader.onerror = () => {
-                    showMessage('حدث خطأ في قراءة الصورة', 'error');
-                };
-                reader.readAsDataURL(file);
+                // ضغط الصورة قبل الرفع لتقليل استهلاك الباندويث
+                try {
+                    const compressedImage = await compressChatImage(file, 1200, 0.75);
+                    await sendFileMessage(compressedImage, 'image', file.name);
+                } catch (compressError) {
+                    console.warn('فشل ضغط الصورة، استخدام الصورة الأصلية:', compressError);
+                    // في حالة فشل الضغط، استخدام الصورة الأصلية
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const fileData = event.target.result;
+                        await sendFileMessage(fileData, 'image', file.name);
+                    };
+                    reader.onerror = () => {
+                        showMessage('حدث خطأ في قراءة الصورة', 'error');
+                    };
+                    reader.readAsDataURL(file);
+                }
             } catch (error) {
                 console.error('خطأ في إرسال الصورة:', error);
                 showMessage('حدث خطأ في إرسال الصورة', 'error');
@@ -1717,16 +1770,23 @@ function openCamera() {
                         return;
                     }
                     
-                    // قراءة الصورة كـ Base64
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                        const fileData = event.target.result;
-                        await sendFileMessage(fileData, 'image', file.name || 'camera.jpg');
-                    };
-                    reader.onerror = () => {
-                        showMessage('حدث خطأ في قراءة الصورة', 'error');
-                    };
-                    reader.readAsDataURL(file);
+                    // ضغط الصورة قبل الرفع لتقليل استهلاك الباندويث
+                    try {
+                        const compressedImage = await compressChatImage(file, 1200, 0.75);
+                        await sendFileMessage(compressedImage, 'image', file.name || 'camera.jpg');
+                    } catch (compressError) {
+                        console.warn('فشل ضغط الصورة، استخدام الصورة الأصلية:', compressError);
+                        // في حالة فشل الضغط، استخدام الصورة الأصلية
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                            const fileData = event.target.result;
+                            await sendFileMessage(fileData, 'image', file.name || 'camera.jpg');
+                        };
+                        reader.onerror = () => {
+                            showMessage('حدث خطأ في قراءة الصورة', 'error');
+                        };
+                        reader.readAsDataURL(file);
+                    }
                 } catch (error) {
                     console.error('خطأ في إرسال الصورة من الكاميرا:', error);
                     showMessage('حدث خطأ في إرسال الصورة', 'error');

@@ -354,9 +354,26 @@
         const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    const swUrl = '/sw.js';
+                    // تحديد المسار الأساسي تلقائياً
+                    const getBasePath = () => {
+                        try {
+                            const pathname = window.location.pathname;
+                            const match = pathname.match(/^(\/[^\/]+)/);
+                            if (match && match[1] !== '/') {
+                                return match[1];
+                            }
+                            return '';
+                        } catch (e) {
+                            return '';
+                        }
+                    };
+                    const basePath = getBasePath();
+                    const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
+                    // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
+                    const scope = basePath ? `${basePath}/` : '/';
+                    
                     const registration = await navigator.serviceWorker.register(swUrl, {
-                        scope: '/',
+                        scope: scope,
                         updateViaCache: 'none'
                     });
                     console.log('✅ Service Worker registered in POS:', registration.scope);

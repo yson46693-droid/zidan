@@ -309,12 +309,36 @@ class PWAInstallManager {
     
     // التحقق من متطلبات PWA
     async checkPWARequirements() {
-        // التحقق من وجود Service Worker
+        // ✅ انتظار تسجيل Service Worker (بحد أقصى 5 ثوان)
         if ('serviceWorker' in navigator) {
+            let attempts = 0;
+            const maxAttempts = 10; // 5 ثوان (500ms × 10)
+            
+            while (attempts < maxAttempts) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    if (registrations.length > 0) {
+                        console.log('✅ Service Worker registered');
+                        break; // Service Worker موجود
+                    }
+                } catch (error) {
+                    // تجاهل الأخطاء مؤقتاً
+                }
+                
+                // انتظار 500ms قبل المحاولة التالية
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+            
+            // التحقق النهائي
             try {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 if (registrations.length === 0) {
-                    console.warn('⚠️ No Service Worker registered');
+                    // ✅ لا نعرض warning إذا كان Service Worker قيد التسجيل
+                    const isRegistering = window.serviceWorkerRegistering || false;
+                    if (!isRegistering) {
+                        console.warn('⚠️ No Service Worker registered');
+                    }
                     return false;
                 }
             } catch (error) {

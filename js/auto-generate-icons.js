@@ -11,6 +11,23 @@
     const requiredSizes = [72, 96, 128, 144, 152, 192, 384, 512];
     
     /**
+     * دالة مساعدة لإصلاح المسار (يدعم المجلدات الفرعية)
+     */
+    function fixIconPath(path) {
+        if (!path) return path;
+        const basePath = window.BASE_PATH || '';
+        // إذا كان المسار يبدأ بـ /، أضف basePath
+        if (path.startsWith('/')) {
+            return basePath + path;
+        }
+        // إذا كان المسار نسبي، أضف basePath إذا كان موجوداً
+        if (basePath && !path.startsWith('http') && !path.startsWith('//')) {
+            return basePath + '/' + path;
+        }
+        return path;
+    }
+    
+    /**
      * إنشاء أيقونة واحدة من اللوجو
      */
     async function createIcon(size) {
@@ -78,7 +95,7 @@
                 reject(new Error(`فشل تحميل اللوجو: ${logoPath}`));
             };
             
-            img.src = logoPath;
+            img.src = fixIconPath(logoPath);
         });
     }
     
@@ -86,11 +103,18 @@
      * التحقق من وجود الأيقونات وإنشاؤها إذا لم تكن موجودة
      */
     async function ensureIconsExist() {
+        // انتظار تحميل BASE_PATH إذا كان موجوداً
+        if (typeof window.BASE_PATH === 'undefined') {
+            // انتظار قليلاً ثم إعادة المحاولة
+            setTimeout(ensureIconsExist, 100);
+            return;
+        }
+        
         const missingIcons = [];
         
         // التحقق من وجود الأيقونات
         for (const size of requiredSizes) {
-            const iconPath = `${iconsDir}icon-${size}x${size}.png`;
+            const iconPath = fixIconPath(`${iconsDir}icon-${size}x${size}.png`);
             try {
                 const response = await fetch(iconPath, { method: 'HEAD' });
                 if (!response.ok) {

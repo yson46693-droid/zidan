@@ -161,6 +161,11 @@ function switchCustomerType(type) {
 function displayCustomers(customers) {
     const paginated = paginate(customers, currentCustomerPage, customersPerPage);
     const tbody = document.getElementById('customersTableBody');
+    
+    if (!tbody) {
+        console.warn('[Customers] قسم العملاء غير محمّل - تخطي العرض');
+        return;
+    }
 
     if (paginated.data.length === 0) {
         const colspan = currentCustomerType === 'commercial' ? 6 : 5;

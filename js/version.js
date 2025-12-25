@@ -28,6 +28,12 @@ if (typeof window !== 'undefined') {
     // دالة للتحقق من وجود تحديث جديد
     window.checkForUpdates = async function() {
         try {
+            // التحقق من الاتصال بالإنترنت أولاً
+            if (!navigator.onLine) {
+                console.log('[Update] لا يوجد اتصال بالإنترنت - سيتم التحقق لاحقاً');
+                return false;
+            }
+            
             const response = await fetch('/js/version.js?v=' + Date.now());
             if (response.ok) {
                 const text = await response.text();
@@ -39,7 +45,16 @@ if (typeof window !== 'undefined') {
             }
             return false;
         } catch (error) {
-            console.error('❌ خطأ في التحقق من التحديثات:', error);
+            // تجاهل أخطاء الشبكة - لا تعتبر أخطاء حرجة
+            if (error.message && (
+                error.message.includes('Failed to fetch') ||
+                error.message.includes('NetworkError') ||
+                error.message.includes('network')
+            )) {
+                console.log('[Update] لا يوجد اتصال بالإنترنت - سيتم التحقق لاحقاً');
+            } else {
+                console.error('❌ خطأ في التحقق من التحديثات:', error);
+            }
             return false;
         }
     };

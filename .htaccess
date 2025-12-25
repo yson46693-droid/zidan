@@ -7,7 +7,8 @@
     # دعم HTTP/2 Server Push (إذا كان متاحاً)
     Header always set Link "</css/style.css>; rel=preload; as=style"
     Header always set Link "</js/api.js>; rel=preload; as=script"
-    Header always set Link "</js/utils.js>; rel=preload; as=script"
+    # تم إزالة preload لـ utils.js لأنه يتم تحميله بـ defer في HTML
+    # Header always set Link "</js/utils.js>; rel=preload; as=script"
     
     # تحسين الأمان والأداء
     Header always set X-Content-Type-Options "nosniff"
@@ -131,6 +132,8 @@ AddDefaultCharset UTF-8
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"
+        # ✅ السماح بـ Service Worker scope لأي مسار فرعي
+        Header set Service-Worker-Allowed "/"
     </IfModule>
 </Files>
 
@@ -158,6 +161,88 @@ AddDefaultCharset UTF-8
 
 # منع عرض محتويات المجلدات
 Options -Indexes
+
+# السماح بالوصول إلى مجلد API (مهم لـ LiteSpeed)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # السماح بجميع الطلبات إلى مجلد api/ (بما في ذلك POST)
+    RewriteCond %{REQUEST_URI} ^/.*api/.*$
+    RewriteRule ^(.*)$ - [L]
+    
+    # السماح بشكل صريح بطلبات POST إلى API
+    RewriteCond %{REQUEST_METHOD} ^(POST|PUT|DELETE|OPTIONS|PATCH)$
+    RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
+    RewriteRule ^(.*)$ - [L]
+</IfModule>
+
+# قواعد خاصة لـ LiteSpeed Web Server - السماح بالوصول إلى API
+<IfModule LiteSpeed>
+    <DirectoryMatch "^/.*api/">
+        Options +ExecCGI
+        Options +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </DirectoryMatch>
+    # السماح بتنفيذ PHP في مجلد api
+    <FilesMatch "^api/.*\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # السماح بملفات PHP في مسارات API الفرعية (مثل /z/api/auth.php)
+    <FilesMatch "^.*api/.*\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # قاعدة خاصة لملف auth.php في أي مسار
+    <FilesMatch "^.*api/auth\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    # السماح بطلبات POST بشكل صريح
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        # السماح بطلبات POST إلى API
+        RewriteCond %{REQUEST_METHOD} POST
+        RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
+        RewriteRule ^(.*)$ - [L,E=no-gzip:1]
+    </IfModule>
+</IfModule>
+
+# قواعد Apache للسماح بالوصول إلى API من أي مجلد فرعي
+<IfModule mod_authz_core.c>
+    <DirectoryMatch "^/.*api/">
+        Require all granted
+        Options +ExecCGI
+        Options +FollowSymLinks
+    </DirectoryMatch>
+    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
+    <FilesMatch "^.*api/.*\.php$">
+        Require all granted
+    </FilesMatch>
+    # السماح بشكل خاص بملف auth.php
+    <FilesMatch "^.*api/auth\.php$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <DirectoryMatch "^/.*api/">
+        Order allow,deny
+        Allow from all
+        Options +ExecCGI
+        Options +FollowSymLinks
+    </DirectoryMatch>
+    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
+    <FilesMatch "^.*api/.*\.php$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+    # السماح بشكل خاص بملف auth.php
+    <FilesMatch "^.*api/auth\.php$">
+        Order allow,deny
+        Allow from all
+    </FilesMatch>
+</IfModule>
 
 # معالجة الأخطاء - عدم إعادة توجيه ملفات JS و JSON إلى HTML
 # ErrorDocument 404 /index.html (تم التعليق لمنع مشاكل Service Worker)

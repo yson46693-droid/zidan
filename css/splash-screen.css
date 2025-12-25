@@ -82,6 +82,13 @@
     position: relative;
     animation: logoImagePop 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s both;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+    /* ✅ تحسين الأداء */
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    /* ✅ منع التحميل البطيء */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
 }
 
 @keyframes logoPopIn {

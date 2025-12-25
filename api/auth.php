@@ -6,8 +6,34 @@ while (ob_get_level() > 0) {
 
 // بدء معالجة الأخطاء قبل أي شيء
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 ini_set('log_errors', 1);
+
+// إصلاح CORS احتياطي - للتأكد من عمل CORS حتى لو فشل config.php
+$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$currentHost = $_SERVER['HTTP_HOST'] ?? '';
+
+if (!empty($requestOrigin)) {
+    header('Access-Control-Allow-Origin: ' . $requestOrigin);
+    header('Access-Control-Allow-Credentials: true');
+} elseif (!empty($currentHost)) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $currentOrigin = $protocol . '://' . $currentHost;
+    header('Access-Control-Allow-Origin: ' . $currentOrigin);
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Credentials: false');
+}
+
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override');
+
+// معالجة طلبات OPTIONS (preflight) فوراً
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 try {
     require_once 'config.php';
@@ -36,6 +62,9 @@ try {
 }
 
 $method = getRequestMethod();
+
+// تسجيل معلومات الطلب للتشخيص
+error_log("Auth Request - Method: " . $method . ", Origin: " . ($_SERVER['HTTP_ORIGIN'] ?? 'none') . ", Host: " . ($_SERVER['HTTP_HOST'] ?? 'none') . ", IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
 
 // تسجيل الدخول
 if ($method === 'POST') {

@@ -10,7 +10,7 @@ class GlobalNotificationManager {
         this.lastMessageId = null;
         this.currentUser = null;
         this.isRunning = false;
-        this.checkIntervalMs = 30000; // 30 ثانية (محسّن لتقليل الطلبات)
+        this.checkIntervalMs = 60000; // 60 ثانية (محسّن لتقليل الطلبات والاستهلاك)
         this.isChatPage = window.location.pathname.includes('chat.html');
         this.activeNotifications = new Map(); // حفظ مراجع للإشعارات المفتوحة
         this.lastCheckTime = 0;

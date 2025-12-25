@@ -15,7 +15,7 @@
     let cachedResult = null;
     let cacheExpiry = 0;
     const CACHE_DURATION = 5000; // 5 ثواني cache
-    const CHECK_INTERVAL = 30000; // 30 ثانية (محسّن لتقليل الطلبات)
+    const CHECK_INTERVAL = 60000; // 60 ثانية (محسّن لتقليل الطلبات والاستهلاك)
     let isPageVisible = true;
     let pendingCheck = false;
     

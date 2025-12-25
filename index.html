@@ -45,6 +45,65 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
+    <!-- تحديد المسار الأساسي للتطبيق (يعمل مع المجلدات الفرعية) -->
+    <script>
+        // تحديد المسار الأساسي قبل تحميل أي ملفات أخرى
+        (function() {
+            try {
+                const pathname = window.location.pathname;
+                // استخراج المجلد الفرعي إذا كان موجوداً (مثل /z/index.html)
+                const match = pathname.match(/^(\/[^\/]+)/);
+                let basePath = '';
+                if (match && match[1] !== '/') {
+                    basePath = match[1]; // مثل '/z'
+                }
+                
+                // حفظ المسار الأساسي في window للاستخدام لاحقاً
+                window.BASE_PATH = basePath;
+                
+                // دالة مساعدة لإصلاح المسارات
+                function fixPath(path) {
+                    if (!path) return path;
+                    // إذا كان المسار يبدأ بـ /، أضف basePath
+                    if (path.startsWith('/')) {
+                        return basePath + path;
+                    }
+                    // إذا كان المسار نسبي، اتركه كما هو (سيعمل تلقائياً)
+                    return path;
+                }
+                
+                // إصلاح جميع المسارات في الصفحة
+                document.addEventListener('DOMContentLoaded', function() {
+                    // إصلاح preload links
+                    document.querySelectorAll('link[rel="preload"]').forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && !href.startsWith('http') && !href.startsWith('//')) {
+                            link.setAttribute('href', fixPath(href));
+                        }
+                    });
+                    
+                    // إصلاح script tags
+                    document.querySelectorAll('script[src]').forEach(script => {
+                        const src = script.getAttribute('src');
+                        if (src && !src.startsWith('http') && !src.startsWith('//') && !src.startsWith('data:')) {
+                            script.setAttribute('src', fixPath(src));
+                        }
+                    });
+                    
+                    // إصلاح link tags (CSS)
+                    document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && !href.startsWith('http') && !href.startsWith('//')) {
+                            link.setAttribute('href', fixPath(href));
+                        }
+                    });
+                });
+            } catch (e) {
+                console.error('خطأ في تحديد المسار الأساسي:', e);
+            }
+        })();
+    </script>
+    
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
     <!-- Console Manager - إدارة console.log للإنتاج -->
@@ -91,7 +150,8 @@
     <!-- ملاحظة: font-display: swap يتم تطبيقه تلقائياً من خلال display=swap في URL -->
     
     <!-- Critical CSS - non-blocking using media trick for better performance -->
-    <link rel="preload" href="css/style.css" as="style" crossorigin>
+    <!-- ✅ إزالة crossorigin من الملفات المحلية -->
+    <link rel="preload" href="css/style.css" as="style">
     <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all';this.onload=null">
     <noscript><link rel="stylesheet" href="css/style.css"></noscript>
     <script>
@@ -126,11 +186,13 @@
     <!-- Preload critical image - LCP optimization -->
     <link rel="preload" href="icon-512x512.png" as="image" type="image/png" fetchpriority="high">
     
-    <!-- Preload Critical JS Files - في head للتحميل المبكر -->
-    <link rel="preload" href="js/api.js" as="script" crossorigin>
-    <link rel="preload" href="js/utils.js" as="script" crossorigin>
-    <link rel="preload" href="js/loading-overlay.js" as="script" crossorigin>
-    <link rel="preload" href="js/auth.js" as="script" crossorigin>
+    <!-- Preload Critical JS Files - في head للتحميل المبكر (يتم استخدامها مباشرة في body) -->
+    <!-- ✅ إزالة crossorigin من الملفات المحلية لتجنب تحذيرات credentials mismatch -->
+    <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في الأعلى -->
+    <link rel="preload" href="js/api.js" as="script">
+    <link rel="preload" href="js/utils.js" as="script">
+    <link rel="preload" href="js/loading-overlay.js" as="script">
+    <link rel="preload" href="js/auth.js" as="script">
     
     <!-- Critical CSS Inline - للعرض الفوري بدون انتظار CSS الخارجي -->
     <style>
@@ -166,7 +228,7 @@
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
             <div class="splash-logo">
-                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="512" height="512" fetchpriority="high" decoding="async" loading="eager">
+                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" onload="this.style.opacity='1'" onerror="this.style.display='none'">
             </div>
             <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
             <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>
@@ -228,11 +290,27 @@
     </div>
 
     <!-- تحميل ملفات JS بشكل غير متزامن (defer) لتحسين الأداء -->
-    <script src="js/api.js" defer></script>
-    <script src="js/utils.js" defer></script>
-    <script src="js/splash-screen.js" defer></script>
-    <script src="js/loading-overlay.js" defer></script>
-    <script src="js/auth.js" defer></script>
+    <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في head -->
+    <script>
+        // إصلاح المسارات قبل تحميل الملفات
+        (function() {
+            const basePath = window.BASE_PATH || '';
+            const scripts = [
+                'js/api.js',
+                'js/utils.js',
+                'js/splash-screen.js',
+                'js/loading-overlay.js',
+                'js/auth.js'
+            ];
+            
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = basePath ? basePath + '/' + src : src;
+                script.defer = true;
+                document.body.appendChild(script);
+            });
+        })();
+    </script>
     <script>
         // التحقق من تحميل جميع العناصر بشكل صحيح
         window.addEventListener('DOMContentLoaded', () => {
@@ -616,12 +694,35 @@
         const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    const swUrl = '/sw.js';
+                    // ✅ تعيين علامة أن Service Worker قيد التسجيل
+                    window.serviceWorkerRegistering = true;
+                    
+                    // تحديد المسار الأساسي تلقائياً
+                    const getBasePath = () => {
+                        try {
+                            const pathname = window.location.pathname;
+                            const match = pathname.match(/^(\/[^\/]+)/);
+                            if (match && match[1] !== '/') {
+                                return match[1];
+                            }
+                            return '';
+                        } catch (e) {
+                            return '';
+                        }
+                    };
+                    const basePath = getBasePath();
+                    const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
+                    // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
+                    const scope = basePath ? `${basePath}/` : '/';
                     
                     const registration = await navigator.serviceWorker.register(swUrl, {
-                        scope: '/',
+                        scope: scope,
                         updateViaCache: 'none'
                     });
+                    
+                    // ✅ إزالة العلامة بعد التسجيل
+                    window.serviceWorkerRegistering = false;
+                    window.serviceWorkerRegistered = true;
                     
                     console.log('✅ Service Worker registered successfully');
                     console.log('   - Scope:', registration.scope);
@@ -665,6 +766,8 @@
                     
                     return registration;
                 } catch (error) {
+                    // ✅ إزالة العلامة في حالة الخطأ
+                    window.serviceWorkerRegistering = false;
                     console.error('❌ Service Worker registration failed:', error.message || error);
                     return null;
                 }
@@ -674,18 +777,14 @@
             }
         };
         
-        // تسجيل Service Worker بعد تحميل الصفحة لتحسين الأداء الأولي
-        // استخدام requestIdleCallback للتسجيل عند عدم وجود نشاط
-        window.addEventListener('load', () => {
-            if ('requestIdleCallback' in window) {
-                requestIdleCallback(() => {
-                    setTimeout(registerServiceWorker, 500);
-                }, { timeout: 2000 });
-            } else {
-                // Fallback للمتصفحات التي لا تدعم requestIdleCallback
-                setTimeout(registerServiceWorker, 1000);
-            }
-        });
+        // ✅ تسجيل Service Worker مبكراً (قبل load event)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(registerServiceWorker, 100);
+            });
+        } else {
+            setTimeout(registerServiceWorker, 100);
+        }
         
         // تحميل PWA Validator و Install Manager
         const loadPWATools = () => {

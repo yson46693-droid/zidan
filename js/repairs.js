@@ -333,7 +333,13 @@ function switchRepairType(type) {
 }
 
 function filterRepairs() {
-    const statusFilter = document.getElementById('statusFilter').value;
+    const statusFilterElement = document.getElementById('statusFilter');
+    if (!statusFilterElement) {
+        console.warn('[Repairs] قسم الصيانة غير محمّل - تخطي الفلترة');
+        return;
+    }
+    
+    const statusFilter = statusFilterElement.value;
     let filtered = allRepairs;
 
     // فلترة حسب نوع الصيانة أولاً
