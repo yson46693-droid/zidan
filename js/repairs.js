@@ -626,7 +626,7 @@ function showImagePreview(base64Image) {
     
     preview.innerHTML = `
         <div style="position: relative; display: inline-block; margin-top: 10px;">
-            <img src="${base64Image}" style="max-width: 250px; max-height: 250px; border-radius: 10px; border: 2px solid #4CAF50; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <img src="${base64Image}" style="max-width: 250px; max-height: 250px; border-radius: 10px; border: 2px solid #4CAF50; box-shadow: 0 2px 10px rgba(0,0,0,0.1);" loading="lazy" decoding="async" width="250" height="250">
             <button type="button" onclick="removeImage()" class="btn btn-danger btn-sm" style="position: absolute; top: 5px; left: 5px;">
                 <i class="bi bi-x"></i> حذف
             </button>
@@ -833,7 +833,7 @@ async function printRepairReceipt(id) {
         <body>
             <div class="receipt">
                 <div class="receipt-header">
-                    ${shopSettings.shop_logo ? `<div style="text-align: center; margin-bottom: 15px;"><img src="${shopSettings.shop_logo}" alt="شعار المحل" style="max-height: 60px; max-width: 200px;"></div>` : ''}
+                    ${shopSettings.shop_logo ? `<div style="text-align: center; margin-bottom: 15px;"><img src="${shopSettings.shop_logo}" alt="شعار المحل" style="max-height: 60px; max-width: 200px;" loading="lazy" decoding="async" width="200" height="60"></div>` : ''}
                     <h1>${shopSettings.shop_name}</h1>
                     <h2>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} جهاز</h2>
                     ${shopSettings.shop_address ? `<p style="color: #666; margin: 5px 0;">${shopSettings.shop_address}</p>` : ''}
@@ -870,7 +870,7 @@ async function printRepairReceipt(id) {
                 ${await checkAndShowImage(repair.id) ? `<div class="receipt-section">
                     <h3>صورة الجهاز</h3>
                     <div style="text-align: center; margin: 10px 0;">
-                        <img src="${API.getImagePath(repair.id)}" alt="صورة الجهاز" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 5px;">
+                        <img src="${API.getImagePath(repair.id)}" alt="صورة الجهاز" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 5px;" loading="lazy" decoding="async" width="200" height="200">
                     </div>
                 </div>` : ''}
                 

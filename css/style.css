@@ -20,7 +20,10 @@
     --shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-/* Google Fonts يتم تحميلها بشكل async في index.html مع font-display=swap لتحسين الأداء */
+/* Google Fonts يتم تحميلها بشكل async في index.html مع display=swap في URL لتحسين الأداء */
+/* font-display: swap يتم تطبيقه تلقائياً من خلال display=swap في Google Fonts URL */
+/* هذا يمنع FOIT (Flash of Invisible Text) ويحسن FCP و LCP */
+
 body {
     font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: var(--light-bg);
@@ -29,6 +32,8 @@ body {
     direction: rtl;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* تحسين أداء النصوص */
+    text-rendering: optimizeLegibility;
 }
 
 /* صفحة تسجيل الدخول */

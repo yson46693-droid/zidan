@@ -55,6 +55,8 @@
     
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
+    <!-- Console Manager - إدارة console.log للإنتاج -->
+    <script src="js/console-manager.js"></script>
     <script>
         // 🔧 حماية فورية من Service Worker reload أثناء تسجيل الدخول (يجب أن يكون في بداية الصفحة)
         (function() {
@@ -308,7 +310,7 @@
     <!-- القائمة الجانبية -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="" alt="ALAA ZIDAN Logo" class="sidebar-logo" style="display: block;">
+            <img src="" alt="ALAA ZIDAN Logo" class="sidebar-logo" style="display: block;" loading="lazy" decoding="async" width="150" height="150">
             <h2 style="display: none;"><i class="bi bi-phone"></i> محل الصيانة</h2>
         </div>
         

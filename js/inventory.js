@@ -266,7 +266,7 @@ function displaySpareParts(parts) {
                 <div class="inventory-card-body">
                     ${part.image ? `
                         <div class="inventory-card-image">
-                            <img src="${part.image}" alt="${part.brand} ${part.model}">
+                            <img src="${part.image}" alt="${part.brand} ${part.model}" loading="lazy" decoding="async" width="200" height="200">
                         </div>
                     ` : `
                         <div class="inventory-card-image">
@@ -668,7 +668,7 @@ function displayAccessories(accessories) {
                 <div class="inventory-card-body">
                     ${accessory.image ? `
                         <div class="inventory-card-image">
-                            <img src="${accessory.image}" alt="${accessory.name}">
+                            <img src="${accessory.image}" alt="${accessory.name}" loading="lazy" decoding="async" width="200" height="200" style="object-fit: contain;">
                         </div>
                     ` : `
                         <div class="inventory-card-image">
@@ -918,6 +918,9 @@ function displayPhones(phones) {
                                  alt="${cleanBrand} ${cleanModel}" 
                                  loading="lazy" 
                                  decoding="async"
+                                 width="200"
+                                 height="200"
+                                 style="object-fit: contain;"
                                  onerror="handlePhoneImageError(this, '${cleanPhoneId}');">
                         </div>
                     ` : `
