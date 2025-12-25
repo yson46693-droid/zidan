@@ -1608,7 +1608,23 @@
                 if ('serviceWorker' in navigator) {
                     try {
                         const appVersion = '2.0.1';
-                        const swUrl = '/sw.js';
+                        
+                        // تحديد المسار الأساسي تلقائياً
+                        const getBasePath = () => {
+                            try {
+                                const pathname = window.location.pathname;
+                                const match = pathname.match(/^(\/[^\/]+)/);
+                                if (match && match[1] !== '/') {
+                                    return match[1];
+                                }
+                                return '';
+                            } catch (e) {
+                                return '';
+                            }
+                        };
+                        const basePath = getBasePath();
+                        const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
+                        const scope = basePath || '/';
                         
                         // التحقق من أن الملف موجود وأنه JavaScript وليس HTML
                         try {
@@ -1632,7 +1648,7 @@
                         }
                         
                         const registration = await navigator.serviceWorker.register(swUrl, {
-                            scope: '/',
+                            scope: scope,
                             updateViaCache: 'none'
                         });
                         
