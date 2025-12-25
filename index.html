@@ -45,6 +45,65 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
+    <!-- تحديد المسار الأساسي للتطبيق (يعمل مع المجلدات الفرعية) -->
+    <script>
+        // تحديد المسار الأساسي قبل تحميل أي ملفات أخرى
+        (function() {
+            try {
+                const pathname = window.location.pathname;
+                // استخراج المجلد الفرعي إذا كان موجوداً (مثل /z/index.html)
+                const match = pathname.match(/^(\/[^\/]+)/);
+                let basePath = '';
+                if (match && match[1] !== '/') {
+                    basePath = match[1]; // مثل '/z'
+                }
+                
+                // حفظ المسار الأساسي في window للاستخدام لاحقاً
+                window.BASE_PATH = basePath;
+                
+                // دالة مساعدة لإصلاح المسارات
+                function fixPath(path) {
+                    if (!path) return path;
+                    // إذا كان المسار يبدأ بـ /، أضف basePath
+                    if (path.startsWith('/')) {
+                        return basePath + path;
+                    }
+                    // إذا كان المسار نسبي، اتركه كما هو (سيعمل تلقائياً)
+                    return path;
+                }
+                
+                // إصلاح جميع المسارات في الصفحة
+                document.addEventListener('DOMContentLoaded', function() {
+                    // إصلاح preload links
+                    document.querySelectorAll('link[rel="preload"]').forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && !href.startsWith('http') && !href.startsWith('//')) {
+                            link.setAttribute('href', fixPath(href));
+                        }
+                    });
+                    
+                    // إصلاح script tags
+                    document.querySelectorAll('script[src]').forEach(script => {
+                        const src = script.getAttribute('src');
+                        if (src && !src.startsWith('http') && !src.startsWith('//') && !src.startsWith('data:')) {
+                            script.setAttribute('src', fixPath(src));
+                        }
+                    });
+                    
+                    // إصلاح link tags (CSS)
+                    document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && !href.startsWith('http') && !href.startsWith('//')) {
+                            link.setAttribute('href', fixPath(href));
+                        }
+                    });
+                });
+            } catch (e) {
+                console.error('خطأ في تحديد المسار الأساسي:', e);
+            }
+        })();
+    </script>
+    
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
     <!-- Console Manager - إدارة console.log للإنتاج -->
@@ -129,6 +188,7 @@
     
     <!-- Preload Critical JS Files - في head للتحميل المبكر (يتم استخدامها مباشرة في body) -->
     <!-- ✅ إزالة crossorigin من الملفات المحلية لتجنب تحذيرات credentials mismatch -->
+    <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في الأعلى -->
     <link rel="preload" href="js/api.js" as="script">
     <link rel="preload" href="js/utils.js" as="script">
     <link rel="preload" href="js/loading-overlay.js" as="script">
@@ -230,11 +290,27 @@
     </div>
 
     <!-- تحميل ملفات JS بشكل غير متزامن (defer) لتحسين الأداء -->
-    <script src="js/api.js" defer></script>
-    <script src="js/utils.js" defer></script>
-    <script src="js/splash-screen.js" defer></script>
-    <script src="js/loading-overlay.js" defer></script>
-    <script src="js/auth.js" defer></script>
+    <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في head -->
+    <script>
+        // إصلاح المسارات قبل تحميل الملفات
+        (function() {
+            const basePath = window.BASE_PATH || '';
+            const scripts = [
+                'js/api.js',
+                'js/utils.js',
+                'js/splash-screen.js',
+                'js/loading-overlay.js',
+                'js/auth.js'
+            ];
+            
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = basePath ? basePath + '/' + src : src;
+                script.defer = true;
+                document.body.appendChild(script);
+            });
+        })();
+    </script>
     <script>
         // التحقق من تحميل جميع العناصر بشكل صحيح
         window.addEventListener('DOMContentLoaded', () => {
