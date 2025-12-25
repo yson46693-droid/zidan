@@ -24,13 +24,30 @@ function getDBConnection() {
     
     if ($connection === null) {
         try {
-            $connection = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+            // إعدادات timeout قبل الاتصال (10 ثواني)
+            ini_set('default_socket_timeout', 10);
             
-            if ($connection->connect_error) {
-                $errorMsg = 'خطأ في الاتصال بقاعدة البيانات: ' . $connection->connect_error . 
-                           ' | Host: ' . DB_HOST . ' | User: ' . DB_USER . ' | Database: ' . DB_NAME;
+            // استخدام DB_PORT في الاتصال
+            $connection = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
+            
+            // التحقق من نجاح الاتصال
+            if (!$connection || $connection->connect_error) {
+                $errorMsg = 'خطأ في الاتصال بقاعدة البيانات: ' . ($connection ? $connection->connect_error : 'فشل إنشاء الاتصال') . 
+                           ' | Host: ' . DB_HOST . ':' . DB_PORT . ' | User: ' . DB_USER . ' | Database: ' . DB_NAME;
                 error_log($errorMsg);
+                $connection = null;
                 return null;
+            }
+            
+            // تعيين timeout options للاتصال (10 ثواني) - يجب أن تكون قبل الاستعلام
+            if (defined('MYSQLI_OPT_CONNECT_TIMEOUT')) {
+                $connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
+            }
+            if (defined('MYSQLI_OPT_READ_TIMEOUT')) {
+                $connection->options(MYSQLI_OPT_READ_TIMEOUT, 10);
+            }
+            if (defined('MYSQLI_OPT_WRITE_TIMEOUT')) {
+                $connection->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
             }
             
             // تعيين الترميز
@@ -41,6 +58,12 @@ function getDBConnection() {
             
         } catch (Exception $e) {
             error_log('خطأ في الاتصال بقاعدة البيانات: ' . $e->getMessage());
+            $connection = null;
+            return null;
+        } catch (Error $e) {
+            // معالجة الأخطاء القاتلة (PHP 7+)
+            error_log('خطأ قاتل في الاتصال بقاعدة البيانات: ' . $e->getMessage());
+            $connection = null;
             return null;
         }
     }
@@ -240,21 +263,37 @@ function dbTableExists($tableName) {
  * @return bool
  */
 function createDatabaseIfNotExists() {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS);
-    
-    if ($conn->connect_error) {
-        error_log('خطأ في الاتصال: ' . $conn->connect_error);
+    try {
+        // إعدادات timeout قبل الاتصال
+        ini_set('default_socket_timeout', 10);
+        
+        // استخدام DB_PORT في الاتصال
+        $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, null, DB_PORT);
+        
+        if ($conn->connect_error) {
+            error_log('خطأ في الاتصال: ' . $conn->connect_error);
+            return false;
+        }
+        
+        // تعيين timeout options
+        $conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 10);
+        $conn->options(MYSQLI_OPT_READ_TIMEOUT, 10);
+        
+        $sql = "CREATE DATABASE IF NOT EXISTS " . DB_NAME . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+        
+        if ($conn->query($sql) === TRUE) {
+            $conn->close();
+            return true;
+        } else {
+            error_log('خطأ في إنشاء قاعدة البيانات: ' . $conn->error);
+            $conn->close();
+            return false;
+        }
+    } catch (Exception $e) {
+        error_log('خطأ في إنشاء قاعدة البيانات: ' . $e->getMessage());
         return false;
-    }
-    
-    $sql = "CREATE DATABASE IF NOT EXISTS " . DB_NAME . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
-    
-    if ($conn->query($sql) === TRUE) {
-        $conn->close();
-        return true;
-    } else {
-        error_log('خطأ في إنشاء قاعدة البيانات: ' . $conn->error);
-        $conn->close();
+    } catch (Error $e) {
+        error_log('خطأ قاتل في إنشاء قاعدة البيانات: ' . $e->getMessage());
         return false;
     }
 }

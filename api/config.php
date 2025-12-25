@@ -5,6 +5,11 @@ if (ob_get_level()) {
 }
 ob_start();
 
+// إعدادات timeout لتحسين الأداء وتجنب التعليق (30 ثانية كحد أقصى)
+set_time_limit(30);
+ini_set('max_execution_time', 30);
+ini_set('default_socket_timeout', 10);
+
 // إعدادات النظام الأساسية
 header('Content-Type: application/json; charset=utf-8');
 
@@ -17,7 +22,11 @@ $allowedOrigins = [
     'https://alaa-zidan.free.nf',
     'http://alaa-zidan.free.nf',
     'https://www.alaa-zidan.free.nf',
-    'http://www.alaa-zidan.free.nf'
+    'http://www.alaa-zidan.free.nf',
+    'https://my-store.free.nf',
+    'http://my-store.free.nf',
+    'https://www.my-store.free.nf',
+    'http://www.my-store.free.nf'
 ];
 
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -59,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // معالجة أخطاء PHP - تفعيل وضع التطوير
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // إخفاء الأخطاء من الشاشة (سنعرضها في JSON)
+ini_set('display_errors', 1); // إخفاء الأخطاء من الشاشة (سنعرضها في JSON)
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
