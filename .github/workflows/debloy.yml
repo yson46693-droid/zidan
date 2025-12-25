@@ -40,5 +40,5 @@ jobs:
           security: loose
           timeout: 120000
           local-dir: ./deploy/
-          server-dir: ./
+          server-dir: ./zidan/
           dangerous-clean-slate: false
