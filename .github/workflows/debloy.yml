@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -22,35 +20,22 @@ jobs:
           server: 213.239.220.209
           username: osama74
           password: QEvhhbM52d1?kgt#
-
           protocol: ftp
           port: 21
           security: loose
           timeout: 120000
-          log-level: standard
+
+          local-dir: dist/
           server-dir: /httpdocs/z/
-          local-dir: ./
 
-
-          # مهم: لا يحذف ملفات السيرفر
           dangerous-clean-slate: false
-          
 
           exclude: |
             **/.git*
-            **/.git*/**
             **/.github/**
             **/node_modules/**
-            **/.env
-            **/.env.*
+            **/.env*
             **/.vscode/**
             **/.idea/**
-            **/README.md
             **/*.log
-            **/backups/**
-            **/temp/**
-            **/tmp/**
             **/.DS_Store
-            **/Thumbs.db
-            .gitignore
-            .editorconfig
