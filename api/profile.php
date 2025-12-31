@@ -84,9 +84,10 @@ if ($method === 'PUT') {
                 response(false, 'اسم المستخدم لا يمكن أن يكون فارغاً', null, 400);
             }
             
-            // التحقق من أن اسم المستخدم الجديد غير موجود بالفعل (باستثناء المستخدم الحالي)
+            // ✅ التحقق من أن اسم المستخدم الجديد غير موجود بالفعل (باستثناء المستخدم الحالي)
+            // استخدام BINARY للتأكد من المقارنة الحساسة لحالة الأحرف (case-sensitive)
             $existingUser = dbSelectOne(
-                "SELECT id FROM users WHERE username = ? AND id != ?",
+                "SELECT id FROM users WHERE BINARY username = ? AND id != ?",
                 [$username, $currentUserId]
             );
             
@@ -353,9 +354,10 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'check_u
             response(false, 'اسم المستخدم فارغ', ['available' => false], 400);
         }
         
-        // التحقق من أن اسم المستخدم غير موجود (باستثناء المستخدم الحالي)
+        // ✅ التحقق من أن اسم المستخدم غير موجود (باستثناء المستخدم الحالي)
+        // استخدام BINARY للتأكد من المقارنة الحساسة لحالة الأحرف (case-sensitive)
         $existingUser = dbSelectOne(
-            "SELECT id FROM users WHERE username = ? AND id != ?",
+            "SELECT id FROM users WHERE BINARY username = ? AND id != ?",
             [$username, $currentUserId]
         );
         

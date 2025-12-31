@@ -7,8 +7,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     font-family: 'Cairo', 'Tajawal', 'Segoe UI', sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 /* Header */
@@ -39,6 +42,8 @@
     margin-bottom: 50px;
     max-width: 800px;
     width: 100%;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .status-badge {
@@ -103,11 +108,882 @@
     margin-right: 5px;
 }
 
+/* Repair Details Section */
+.repair-details-section {
+    width: 100%;
+    max-width: 1000px;
+    margin-bottom: 30px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.repair-details-card {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.repair-details-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--light-bg);
+}
+
+.repair-details-header h3 {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.repair-details-header h3 i {
+    color: var(--primary-color);
+    font-size: 1.2em;
+}
+
+.repair-details-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.repair-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.repair-detail-label {
+    font-size: 0.9em;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.repair-detail-value {
+    font-size: 1.1em;
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+/* Technician Card Section */
+.technician-card-section {
+    width: 100%;
+    max-width: 1000px;
+    margin-bottom: 30px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.technician-card-tracking {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.technician-card-header-tracking {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.technician-avatar-tracking {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 2em;
+    flex-shrink: 0;
+}
+
+.technician-info-tracking {
+    flex: 1;
+    min-width: 0;
+}
+
+.technician-name-tracking {
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+.technician-rating-display-tracking {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    direction: ltr;
+}
+
+.technician-rating-display-tracking .star {
+    font-size: 1.5em;
+    color: var(--warning-color);
+}
+
+.technician-rating-display-tracking .star.empty {
+    color: var(--border-color);
+}
+
+.technician-rating-display-tracking .star i::before {
+    content: "\f586"; /* bi-star-fill */
+}
+
+.technician-rating-display-tracking .star.empty i::before {
+    content: "\f588"; /* bi-star */
+}
+
+/* Additional Data for Technician */
+.technician-additional-data {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid var(--light-bg);
+}
+
+.technician-username-tracking {
+    font-size: 0.9em;
+    color: var(--text-light);
+    margin-bottom: 10px;
+}
+
+.technician-rating-section {
+    margin-bottom: 20px;
+}
+
+.rating-item-tracking {
+    margin-bottom: 15px;
+}
+
+.rating-label-tracking {
+    display: block;
+    font-size: 0.95em;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+.rating-value-tracking {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+.rating-stars-tracking {
+    display: flex;
+    gap: 3px;
+    direction: ltr;
+}
+
+.rating-stars-tracking .star {
+    font-size: 1.2em;
+    color: var(--warning-color);
+}
+
+.rating-stars-tracking .star.empty {
+    color: var(--border-color);
+}
+
+.rating-number-tracking {
+    font-weight: 700;
+    color: var(--text-dark);
+    font-size: 1.1em;
+}
+
+.rating-count-tracking {
+    font-size: 0.85em;
+    color: var(--text-light);
+    margin-top: 5px;
+}
+
+.technician-stats-tracking {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid var(--light-bg);
+}
+
+.technician-stat-tracking {
+    flex: 1;
+    text-align: center;
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 8px;
+}
+
+.technician-stat-value-tracking {
+    font-size: 2em;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+}
+
+.technician-stat-label-tracking {
+    font-size: 0.9em;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+/* Premium Gold Card Additional Data */
+.technician-card-tracking.premium-gold .technician-additional-data {
+    border-top-color: rgba(255, 255, 255, 0.3);
+}
+
+.technician-card-tracking.premium-gold .rating-label-tracking {
+    color: #8B4513;
+    font-weight: 700;
+}
+
+.technician-card-tracking.premium-gold .rating-number-tracking {
+    color: #8B4513;
+}
+
+.technician-card-tracking.premium-gold .technician-stat-tracking {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.technician-card-tracking.premium-gold .technician-stat-value-tracking {
+    color: #8B4513;
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+}
+
+.technician-card-tracking.premium-gold .technician-stat-label-tracking {
+    color: #8B4513;
+    font-weight: 600;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-content {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    max-width: 90%;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 20px 25px;
+    border-bottom: 2px solid var(--light-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-dark);
+    font-size: 1.3em;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-header h3 i {
+    color: var(--primary-color);
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5em;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.btn-close:hover {
+    background: var(--light-bg);
+    color: var(--text-dark);
+}
+
+.modal-body {
+    padding: 25px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 20px 25px;
+    border-top: 2px solid var(--light-bg);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+/* Ratings Modal Improved Styles */
+.ratings-modal-content-wrapper {
+    max-width: 900px;
+}
+
+.ratings-modal-content {
+    padding: 0;
+}
+
+.ratings-summary {
+    padding: 20px 25px;
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(33, 150, 243, 0.02) 100%);
+    border-bottom: 2px solid var(--light-bg);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.ratings-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ratings-summary-item i {
+    color: var(--warning-color);
+    font-size: 1.2em;
+}
+
+.ratings-summary-label {
+    color: var(--text-light);
+    font-size: 0.9em;
+}
+
+.ratings-summary-value {
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+.ratings-table-wrapper {
+    padding: 20px 25px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.ratings-table-improved {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--white);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.ratings-table-improved thead {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--white);
+}
+
+.ratings-table-improved thead th {
+    padding: 15px 12px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 0.95em;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.ratings-table-improved thead th:nth-child(3),
+.ratings-table-improved thead th:nth-child(4) {
+    text-align: center;
+}
+
+.ratings-table-improved tbody tr {
+    border-bottom: 1px solid var(--light-bg);
+    transition: background-color 0.2s ease;
+}
+
+.ratings-table-improved tbody tr:hover {
+    background-color: rgba(33, 150, 243, 0.03);
+}
+
+.ratings-table-improved tbody tr:last-child {
+    border-bottom: none;
+}
+
+.ratings-table-improved tbody td {
+    padding: 15px 12px;
+    text-align: right;
+    font-size: 0.9em;
+    color: var(--text-dark);
+}
+
+.ratings-table-improved tbody td.rating-cell {
+    text-align: center;
+}
+
+.customer-name-cell {
+    min-width: 120px;
+}
+
+.customer-name {
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.repair-number-cell {
+    min-width: 100px;
+}
+
+.repair-number-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--light-bg);
+    border-radius: 6px;
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 0.9em;
+}
+
+.rating-display-inline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    direction: rtl;
+    flex-direction: row-reverse;
+}
+
+.rating-stars-inline {
+    display: flex;
+    gap: 3px;
+    direction: rtl;
+    flex-direction: row-reverse;
+}
+
+.rating-stars-inline .star {
+    font-size: 1.1em;
+    color: var(--warning-color);
+}
+
+.rating-stars-inline .star.empty {
+    color: var(--border-color);
+}
+
+.rating-number-badge {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 0.9em;
+    padding: 2px 6px;
+    background: var(--light-bg);
+    border-radius: 4px;
+}
+
+.comment-cell {
+    max-width: 200px;
+}
+
+.comment-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--light-bg);
+    border-radius: 6px;
+    cursor: help;
+}
+
+.comment-content i {
+    color: var(--primary-color);
+    font-size: 1em;
+    flex-shrink: 0;
+}
+
+.comment-content span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.no-comment {
+    color: var(--text-light);
+    font-style: italic;
+}
+
+.date-cell {
+    min-width: 120px;
+}
+
+.date-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-light);
+    font-size: 0.85em;
+}
+
+.date-text i {
+    color: var(--primary-color);
+}
+
+/* Pagination Styles */
+.ratings-pagination {
+    padding: 20px 25px;
+    border-top: 2px solid var(--light-bg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    background: var(--white);
+}
+
+.pagination-info {
+    color: var(--text-light);
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pagination-btn {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    background: var(--white);
+    color: var(--text-dark);
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 40px;
+    justify-content: center;
+}
+
+.pagination-btn:hover:not(.disabled) {
+    background: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.pagination-btn.active {
+    background: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-color);
+    font-weight: 700;
+}
+
+.pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.pagination-ellipsis {
+    padding: 0 8px;
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+/* Responsive Design for Additional Data */
+@media (max-width: 767.98px) {
+    .technician-stats-tracking {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .technician-stat-tracking {
+        width: 100%;
+    }
+    
+    .modal-content {
+        max-width: 95%;
+        max-height: 95vh;
+    }
+    
+    .modal-header {
+        padding: 15px 20px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .modal-footer {
+        padding: 15px 20px;
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .ratings-table-wrapper {
+        padding: 15px;
+        overflow-x: auto;
+    }
+    
+    .ratings-table-improved {
+        min-width: 600px;
+    }
+    
+    .ratings-table-improved thead th,
+    .ratings-table-improved tbody td {
+        padding: 10px 8px;
+        font-size: 0.85em;
+    }
+    
+    .ratings-pagination {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .pagination-info {
+        text-align: center;
+        width: 100%;
+    }
+    
+    .pagination-buttons {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .technician-additional-data {
+        margin-top: 15px;
+        padding-top: 15px;
+    }
+    
+    .rating-item-tracking {
+        margin-bottom: 12px;
+    }
+    
+    .rating-label-tracking {
+        font-size: 0.9em;
+    }
+    
+    .rating-stars-tracking {
+        font-size: 0.9em;
+    }
+    
+    .rating-number-tracking {
+        font-size: 1em;
+    }
+    
+    .technician-stat-value-tracking {
+        font-size: 1.5em;
+    }
+    
+    .technician-stat-label-tracking {
+        font-size: 0.85em;
+    }
+}
+
+/* ✅ بطاقة ذهبية مميزة للفني "مالك" */
+.technician-card-tracking.premium-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
+    border: 3px solid #FFD700;
+    box-shadow: 0 8px 30px rgba(255, 215, 0, 0.4), 0 0 20px rgba(255, 215, 0, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+    animation: goldGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes goldGlow {
+    0% {
+        box-shadow: 0 8px 30px rgba(255, 215, 0, 0.4), 0 0 20px rgba(255, 215, 0, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.1);
+    }
+    100% {
+        box-shadow: 0 8px 40px rgba(255, 215, 0, 0.6), 0 0 30px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+}
+
+.technician-card-tracking.premium-gold::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shine 6s infinite;
+}
+
+.technician-card-tracking.premium-gold::after {
+    content: '⭐';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 1.5em;
+    opacity: 0.3;
+    animation: sparkle 4s ease-in-out infinite;
+}
+
+@keyframes shine {
+    0% {
+        transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    }
+    100% {
+        transform: translateX(100%) translateY(100%) rotate(45deg);
+    }
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.2);
+    }
+}
+
+.technician-card-tracking.premium-gold .technician-avatar-tracking {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.3);
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    animation: avatarPulse 4s ease-in-out infinite;
+}
+
+@keyframes avatarPulse {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(255, 215, 0, 0.7), 0 0 15px rgba(255, 215, 0, 0.5);
+    }
+}
+
+.technician-card-tracking.premium-gold .technician-name-tracking {
+    color: #8B4513;
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5), 0 0 8px rgba(255, 215, 0, 0.3);
+    font-size: 1.4em;
+    font-weight: 800;
+}
+
+.technician-card-tracking.premium-gold .technician-rating-display-tracking .star {
+    color: #FFD700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
+    animation: starTwinkle 5s ease-in-out infinite;
+}
+
+.technician-card-tracking.premium-gold .technician-rating-display-tracking .star:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.technician-card-tracking.premium-gold .technician-rating-display-tracking .star:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.technician-card-tracking.premium-gold .technician-rating-display-tracking .star:nth-child(3) {
+    animation-delay: 1s;
+}
+
+.technician-card-tracking.premium-gold .technician-rating-display-tracking .star:nth-child(4) {
+    animation-delay: 1.5s;
+}
+
+.technician-card-tracking.premium-gold .technician-rating-display-tracking .star:nth-child(5) {
+    animation-delay: 2s;
+}
+
+@keyframes starTwinkle {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
+    }
+    50% {
+        transform: scale(1.02);
+        filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.85));
+    }
+}
+
+.technician-card-tracking.premium-gold .technician-rating-display-tracking .star.empty {
+    color: rgba(139, 69, 19, 0.3);
+    animation: none;
+}
+
 /* Progress Timeline */
 .progress-section {
     width: 100%;
     max-width: 1000px;
     margin-bottom: 50px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .progress-timeline {
@@ -129,13 +1005,26 @@
     z-index: 1;
 }
 
+/* ✅ خط التقدم المكتمل - يظهر فوق الخط الأساسي لكن تحت الدوائر */
+.progress-timeline::after {
+    content: '';
+    position: absolute;
+    top: 30px;
+    right: 0;
+    height: 3px;
+    background: var(--primary-color);
+    z-index: 2; /* بين الخط الرمادي (1) والدوائر (4) - يمر من تحت الدوائر */
+    transition: width 0.3s ease;
+    width: var(--progress-width, 0%);
+}
+
 .progress-stage {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     position: relative;
-    z-index: 2;
+    z-index: 3; /* ✅ أعلى من الخط الأزرق (2) لضمان ظهور الدوائر وعلامة "صح" فوق الخط */
     padding: 0 10px;
 }
 
@@ -147,7 +1036,7 @@
     border: 3px solid var(--white);
     margin-bottom: 15px;
     position: relative;
-    z-index: 3;
+    z-index: 4; /* ✅ أعلى من الخط الأزرق (1.5) والخط الرمادي (1) - علامة "صح" ستظهر فوق الخط */
     transition: all 0.3s ease;
 }
 
@@ -171,20 +1060,7 @@
     color: var(--white);
     font-size: 12px;
     font-weight: bold;
-}
-
-.stage-line {
-    position: absolute;
-    top: 30px;
-    right: 0;
-    height: 3px;
-    background: var(--border-color);
-    z-index: 1;
-    transition: all 0.3s ease;
-}
-
-.stage-line.completed {
-    background: var(--primary-color);
+    z-index: 5; /* ✅ أعلى من الدائرة (4) والخط الأزرق (2) - علامة "صح" ستظهر فوق كل شيء */
 }
 
 .stage-info {
@@ -221,6 +1097,108 @@
     font-weight: 600;
 }
 
+/* Customer Approval Section */
+.customer-approval-section {
+    width: 100%;
+    max-width: 700px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.approval-card {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: var(--shadow);
+    border: 2px solid var(--warning-color);
+    text-align: center;
+}
+
+.approval-header {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--light-bg);
+}
+
+.approval-header h3 {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.approval-header h3 i {
+    color: var(--warning-color);
+    font-size: 1.2em;
+}
+
+.approval-subtitle {
+    color: var(--text-light);
+    font-size: 1em;
+    margin: 0;
+}
+
+.approval-actions {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-approve,
+.btn-reject {
+    padding: 15px 40px;
+    font-size: 1.1em;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 180px;
+    justify-content: center;
+}
+
+.btn-approve {
+    background: var(--success-color);
+    color: var(--white);
+}
+
+.btn-approve:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+}
+
+.btn-approve:disabled {
+    background: var(--text-light);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-reject {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+.btn-reject:hover {
+    background: #da190b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+}
+
+.btn-reject:disabled {
+    background: var(--text-light);
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* Action Buttons */
 .action-buttons {
     display: flex;
@@ -229,6 +1207,10 @@
     flex-wrap: wrap;
     max-width: 600px;
     width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 30px;
+    margin-bottom: 30px;
 }
 
 .action-buttons .btn {
@@ -255,18 +1237,6 @@
     background: var(--secondary-color);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
-}
-
-.action-buttons .btn-secondary {
-    background: var(--white);
-    color: var(--text-dark);
-    border: 2px solid var(--border-color);
-}
-
-.action-buttons .btn-secondary:hover {
-    background: var(--light-bg);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
 }
 
 /* Loading Overlay */
@@ -402,16 +1372,27 @@
         flex: 1;
     }
     
-    .stage-line {
-        display: none;
-    }
-    
     .action-buttons {
         flex-direction: column;
     }
     
     .action-buttons .btn {
         width: 100%;
+    }
+    
+    .approval-card {
+        padding: 20px;
+    }
+    
+    .approval-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .btn-approve,
+    .btn-reject {
+        width: 100%;
+        min-width: auto;
     }
 }
 
@@ -453,6 +1434,29 @@
     .stage-date {
         font-size: 0.85em;
     }
+    
+    .repair-details-card {
+        padding: 15px;
+    }
+    
+    .repair-details-content {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .technician-card-tracking {
+        padding: 20px;
+    }
+    
+    .technician-avatar-tracking {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5em;
+    }
+    
+    .technician-name-tracking {
+        font-size: 1.1em;
+    }
 }
 
 /* Rating Section */
@@ -461,6 +1465,8 @@
     max-width: 700px;
     margin: 40px auto;
     padding: 0 20px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .rating-card {
@@ -523,7 +1529,8 @@
     display: flex;
     gap: 5px;
     justify-content: center;
-    direction: ltr;
+    direction: rtl;
+    flex-direction: row-reverse;
     margin-bottom: 10px;
 }
 
@@ -630,6 +1637,8 @@
     max-width: 700px;
     margin: 40px auto;
     padding: 0 20px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .rating-summary {

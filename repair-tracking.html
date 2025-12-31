@@ -19,28 +19,84 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="repair-tracking-container">
-        <!-- Header -->
-        <div class="tracking-header">
-            <h1 class="tracking-title">
-                <i class="bi bi-tools"></i>
-                صفحة تتبع الصيانة
-            </h1>
-        </div>
+    <div class="repair-tracking-container" style="display: none;">
 
         <!-- Status Section -->
         <div class="status-section">
             <div class="status-badge">
-                <i class="bi bi-wrench"></i>
+                <i class="bi bi-tools"></i>
             </div>
-            <h2 class="status-title" id="repairStatusTitle">حالة الصيانة <span id="repairNumber">#GKL/02/05/2023</span></h2>
-            <p class="status-description" id="statusDescription">
-                تم تسليم المنتج بنجاح إلى مركز الخدمة وهو قيد التشخيص حالياً. يعمل فريقنا بجد لتحديد المشكلة وتحديد الإصلاحات أو الخدمات المطلوبة.
-            </p>
+            <h2 class="status-title" id="repairStatusTitle">رقم الصيانة <span id="repairNumber">-</span></h2>
             <div class="estimated-delivery">
                 <i class="bi bi-calendar-check"></i>
                 <span>الوقت المتوقع للتسليم:</span>
-                <strong id="estimatedDeliveryDate">31 مايو 2023</strong>
+                <strong id="estimatedDeliveryDate">-</strong>
+            </div>
+        </div>
+
+        <!-- Repair Details Section -->
+        <div class="repair-details-section">
+            <div class="repair-details-card">
+                <div class="repair-details-header">
+                    <h3>
+                        <i class="bi bi-info-circle"></i>
+                        تفاصيل العملية
+                    </h3>
+                </div>
+                <div class="repair-details-content" id="repairDetailsContent">
+                    <!-- Details will be dynamically generated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Technician Card Section -->
+        <div class="technician-card-section" id="technicianCardSection" style="display: none;">
+            <div class="technician-card-tracking" id="technicianCardTracking">
+                <div class="technician-card-header-tracking">
+                    <div class="technician-avatar-tracking" id="technicianAvatar">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <div class="technician-info-tracking">
+                        <div class="technician-name-tracking" id="technicianName">الفني المستلم</div>
+                        <div class="technician-username-tracking" id="technicianUsername" style="display: none;"></div>
+                        <div class="technician-rating-display-tracking" id="technicianRatingDisplay">
+                            <!-- Rating stars will be dynamically generated -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Data for Malik (Admin) -->
+                <div class="technician-additional-data" id="technicianAdditionalData" style="display: none;">
+                    <div class="technician-rating-section">
+                        <div class="rating-item-tracking">
+                            <span class="rating-label-tracking">التقييم التراكمي:</span>
+                            <div class="rating-value-tracking">
+                                <div class="rating-stars-tracking" id="cumulativeRatingStars"></div>
+                                <span class="rating-number-tracking" id="cumulativeRatingNumber">0.0</span>
+                            </div>
+                            <div class="rating-count-tracking" id="cumulativeRatingCount"></div>
+                        </div>
+                        <div class="rating-item-tracking" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--light-bg);">
+                            <span class="rating-label-tracking" style="font-size: 0.9em;">التقييم الشهري:</span>
+                            <div class="rating-value-tracking">
+                                <div class="rating-stars-tracking" id="monthlyRatingStars" style="font-size: 0.9em;"></div>
+                                <span class="rating-number-tracking" id="monthlyRatingNumber" style="font-size: 0.95em;">0.0</span>
+                            </div>
+                            <div class="rating-count-tracking" id="monthlyRatingCount" style="font-size: 0.85em;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="technician-stats-tracking">
+                        <div class="technician-stat-tracking">
+                            <div class="technician-stat-value-tracking" id="completedRepairsCount">0</div>
+                            <div class="technician-stat-label-tracking">عمليات مكتملة</div>
+                        </div>
+                        <div class="technician-stat-tracking">
+                            <div class="technician-stat-value-tracking" id="monthlyRepairsCount">0</div>
+                            <div class="technician-stat-label-tracking">عمليات هذا الشهر</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -51,7 +107,7 @@
             </div>
         </div>
 
-        <!-- Rating Section (يظهر فقط عند انتهاء الصيانة) -->
+        <!-- Rating Section (يظهر فقط عند انتهاء الصيانة أو إلغائها) -->
         <div class="rating-section" id="ratingSection" style="display: none;">
             <div class="rating-card">
                 <div class="rating-header">
@@ -73,19 +129,19 @@
                             تقييم جودة الصيانة
                         </label>
                         <div class="star-rating" id="repairRating">
-                            <span class="star" data-rating="1" onclick="setRating('repair', 1)">
-                                <i class="bi bi-star"></i>
-                            </span>
-                            <span class="star" data-rating="2" onclick="setRating('repair', 2)">
-                                <i class="bi bi-star"></i>
-                            </span>
-                            <span class="star" data-rating="3" onclick="setRating('repair', 3)">
+                            <span class="star" data-rating="5" onclick="setRating('repair', 5)">
                                 <i class="bi bi-star"></i>
                             </span>
                             <span class="star" data-rating="4" onclick="setRating('repair', 4)">
                                 <i class="bi bi-star"></i>
                             </span>
-                            <span class="star" data-rating="5" onclick="setRating('repair', 5)">
+                            <span class="star" data-rating="3" onclick="setRating('repair', 3)">
+                                <i class="bi bi-star"></i>
+                            </span>
+                            <span class="star" data-rating="2" onclick="setRating('repair', 2)">
+                                <i class="bi bi-star"></i>
+                            </span>
+                            <span class="star" data-rating="1" onclick="setRating('repair', 1)">
                                 <i class="bi bi-star"></i>
                             </span>
                         </div>
@@ -100,19 +156,19 @@
                             تقييم أداء الفني
                         </label>
                         <div class="star-rating" id="technicianRating">
-                            <span class="star" data-rating="1" onclick="setRating('technician', 1)">
-                                <i class="bi bi-star"></i>
-                            </span>
-                            <span class="star" data-rating="2" onclick="setRating('technician', 2)">
-                                <i class="bi bi-star"></i>
-                            </span>
-                            <span class="star" data-rating="3" onclick="setRating('technician', 3)">
+                            <span class="star" data-rating="5" onclick="setRating('technician', 5)">
                                 <i class="bi bi-star"></i>
                             </span>
                             <span class="star" data-rating="4" onclick="setRating('technician', 4)">
                                 <i class="bi bi-star"></i>
                             </span>
-                            <span class="star" data-rating="5" onclick="setRating('technician', 5)">
+                            <span class="star" data-rating="3" onclick="setRating('technician', 3)">
+                                <i class="bi bi-star"></i>
+                            </span>
+                            <span class="star" data-rating="2" onclick="setRating('technician', 2)">
+                                <i class="bi bi-star"></i>
+                            </span>
+                            <span class="star" data-rating="1" onclick="setRating('technician', 1)">
                                 <i class="bi bi-star"></i>
                             </span>
                         </div>
@@ -124,13 +180,13 @@
                     <div class="rating-group">
                         <label for="ratingComment" class="rating-label">
                             <i class="bi bi-chat-left-text"></i>
-                            تعليقاتك (اختياري)
+                            تعليقاتك وآراؤك (اختياري)
                         </label>
                         <textarea 
                             id="ratingComment" 
                             name="comment" 
                             rows="4" 
-                            placeholder="شاركنا رأيك في الخدمة..."
+                            placeholder="شاركنا رأيك في الخدمة وتفاصيل تجربتك..."
                             class="rating-textarea"></textarea>
                     </div>
                     
@@ -180,21 +236,40 @@
             </div>
         </div>
 
+        <!-- Customer Approval Buttons (يظهر فقط عندما تكون الحالة "بانتظار موافقة العميل") -->
+        <div class="customer-approval-section" id="customerApprovalSection" style="display: none;">
+            <div class="approval-card">
+                <div class="approval-header">
+                    <h3>
+                        <i class="bi bi-check-circle"></i>
+                        الموافقة على التكلفة المقترحة
+                    </h3>
+                    <p class="approval-subtitle">يرجى الموافقة أو رفض التكلفة المقترحة للمتابعة</p>
+                </div>
+                <div class="approval-actions">
+                    <button onclick="approveRepair()" class="btn btn-success btn-approve" id="approveBtn">
+                        <i class="bi bi-check-circle-fill"></i>
+                        موافقة
+                    </button>
+                    <button onclick="rejectRepair()" class="btn btn-danger btn-reject" id="rejectBtn">
+                        <i class="bi bi-x-circle-fill"></i>
+                        رفض
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="action-buttons">
             <button onclick="refreshTracking()" class="btn btn-primary" id="refreshBtn">
                 <i class="bi bi-arrow-clockwise"></i>
                 تحديث
             </button>
-            <button onclick="goToHome()" class="btn btn-secondary" id="homeBtn">
-                <i class="bi bi-house-door"></i>
-                العودة للصفحة الرئيسية
-            </button>
         </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div id="loadingOverlay" class="loading-overlay" style="display: flex;">
         <div class="loading-spinner">
             <i class="bi bi-hourglass-split"></i>
             <p>جاري التحميل...</p>
@@ -202,6 +277,8 @@
     </div>
 
     <!-- Scripts -->
+    <script src="js/utils.js" defer></script>
+    <script src="js/api.js" defer></script>
     <script src="js/repair-tracking.js" defer></script>
 </body>
 </html>

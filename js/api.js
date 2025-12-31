@@ -94,10 +94,34 @@ const API = {
             // التحقق من أن الطلب صامت (silent) - لا يعرض loading overlay
             const isSilent = requestOptions && requestOptions.silent === true;
             
-            // تجاهل get_messages.php من خارج صفحة الشات تلقائياً
+            // ✅ منع إرسال طلبات get_messages.php إذا لم يكن المستخدم مسجل دخول
             const isGetMessages = endpoint.includes('get_messages.php');
             const isChatPage = window.location.pathname.includes('chat.html');
+            
             if (isGetMessages && !isChatPage) {
+                // التحقق من وجود مستخدم مسجل دخول
+                let hasLoggedInUser = false;
+                try {
+                    // محاولة من localStorage
+                    const userStr = localStorage.getItem('currentUser');
+                    if (userStr) {
+                        const user = JSON.parse(userStr);
+                        hasLoggedInUser = user && user.id;
+                    }
+                } catch (e) {
+                    // تجاهل الخطأ
+                }
+                
+                // إذا لم يكن هناك مستخدم مسجل دخول، إرجاع استجابة فارغة بدلاً من إرسال الطلب
+                if (!hasLoggedInUser) {
+                    return {
+                        success: false,
+                        status: 401,
+                        message: 'غير مصرح، يرجى تسجيل الدخول',
+                        data: []
+                    };
+                }
+                
                 fetchOptions.headers['X-Silent-Request'] = 'true';
             }
             
@@ -369,6 +393,10 @@ const API = {
         return await this.request(`customers.php?action=sales&customer_id=${customerId}`, 'GET');
     },
     
+    async getCustomerRepairs(customerId) {
+        return await this.request(`repairs.php?action=customer&customer_id=${customerId}`, 'GET');
+    },
+    
     async getCustomerRating(customerId) {
         return await this.request(`customers.php?action=rating&customer_id=${customerId}`, 'GET');
     },
@@ -416,12 +444,12 @@ const API = {
     },
 
     // عمليات الصيانة
-    async getRepairs(branchId = null) {
+    async getRepairs(branchId = null, requestOptions = {}) {
         let url = 'repairs.php';
         if (branchId) {
             url += `?branch_id=${encodeURIComponent(branchId)}`;
         }
-        return await this.request(url, 'GET');
+        return await this.request(url, 'GET', null, requestOptions);
     },
 
     async addRepair(repairData) {

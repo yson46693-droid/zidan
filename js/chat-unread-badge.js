@@ -275,6 +275,13 @@
             
             pendingCheck = false;
             
+            // ✅ تجاهل خطأ 401 (غير مصرح) - يعني أن المستخدم غير مسجل دخول
+            if (result && result.status === 401) {
+                // المستخدم غير مسجل دخول - إيقاف النظام
+                stopChecking();
+                return;
+            }
+            
             if (result && result.success && result.data && result.data.length > 0) {
                 processMessagesForBadge(result.data);
             } else {
@@ -284,6 +291,11 @@
             }
         } catch (error) {
             pendingCheck = false;
+            // ✅ تجاهل خطأ 401 بشكل صامت
+            if (error && error.status === 401) {
+                stopChecking();
+                return;
+            }
             console.error('خطأ في التحقق من الرسائل غير المقروءة:', error);
         }
     }

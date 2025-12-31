@@ -1228,7 +1228,40 @@ function updateMessagesActivity() {
 }
 
 // قائمة الإشعارات
+// دالة للحصول على قائمة الإشعارات المحذوفة
+function getDeletedNotifications() {
+    try {
+        const deleted = localStorage.getItem('deleted_notifications');
+        return deleted ? JSON.parse(deleted) : [];
+    } catch (e) {
+        console.error('خطأ في قراءة الإشعارات المحذوفة:', e);
+        return [];
+    }
+}
+
+// دالة لإضافة إشعار إلى قائمة المحذوفة
+function addToDeletedNotifications(notificationId) {
+    try {
+        const deleted = getDeletedNotifications();
+        if (!deleted.includes(notificationId)) {
+            deleted.push(notificationId);
+            // حفظ فقط آخر 1000 إشعار محذوف (لتفادي امتلاء localStorage)
+            const trimmedDeleted = deleted.slice(-1000);
+            localStorage.setItem('deleted_notifications', JSON.stringify(trimmedDeleted));
+        }
+    } catch (e) {
+        console.error('خطأ في حفظ الإشعار المحذوف:', e);
+    }
+}
+
 function addNotification(notification) {
+    // التحقق من أن الإشعار غير محذوف
+    const deleted = getDeletedNotifications();
+    if (deleted.includes(notification.id)) {
+        // إذا كان الإشعار محذوفاً، لا نضيفه
+        return;
+    }
+    
     // التحقق من عدم تكرار الإشعار (نفس id)
     const existingIndex = notifications.findIndex(n => n.id === notification.id);
     if (existingIndex !== -1) {
@@ -1408,6 +1441,9 @@ function renderNotificationsList() {
 }
 
 function deleteNotification(notificationId) {
+    // إضافة ID إلى قائمة المحذوفة قبل الحذف
+    addToDeletedNotifications(notificationId);
+    
     notifications = notifications.filter(n => n.id !== notificationId);
     
     try {
@@ -1421,9 +1457,13 @@ function deleteNotification(notificationId) {
 
 // دالة لحذف جميع الإشعارات
 function deleteAllNotifications() {
-    notifications = [];
-    
     try {
+        // إضافة جميع IDs الحالية إلى قائمة المحذوفة
+        notifications.forEach(notification => {
+            addToDeletedNotifications(notification.id);
+        });
+        
+        notifications = [];
         localStorage.setItem('chat_notifications', JSON.stringify([]));
         updateNotificationBadge();
         renderNotificationsList();
@@ -2120,12 +2160,23 @@ function loadSavedNotifications() {
     try {
         const saved = localStorage.getItem('chat_notifications');
         if (saved) {
-            notifications = JSON.parse(saved);
+            const allNotifications = JSON.parse(saved);
+            const deleted = getDeletedNotifications();
+            
+            // تصفية الإشعارات المحذوفة
+            notifications = allNotifications.filter(n => !deleted.includes(n.id));
+            
             // إضافة خاصية read للإشعارات القديمة التي لا تحتوي عليها
             notifications = notifications.map(n => ({
                 ...n,
                 read: n.read !== undefined ? n.read : false
             }));
+            
+            // إذا تمت تصفية إشعارات، حفظ القائمة المحدثة
+            if (notifications.length !== allNotifications.length) {
+                localStorage.setItem('chat_notifications', JSON.stringify(notifications));
+            }
+            
             updateNotificationBadge();
         }
     } catch (e) {

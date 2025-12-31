@@ -40,10 +40,7 @@ async function loadRepairsSection() {
                     <option value="">اختر الفرع</option>
                 </select>
                 <button onclick="openBarcodeScanner()" class="btn btn-info btn-sm">
-                    <i class="bi bi-upc-scan"></i> قارئ الباركود
-                </button>
-                <button onclick="showLossOperationModal()" class="btn btn-danger btn-sm">
-                    <i class="bi bi-exclamation-triangle"></i> عملية خاسرة
+                    <i class="bi bi-upc-scan"></i> قارئ qr code الاستلام
                 </button>
                 <button onclick="showAddRepairModal()" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> إضافة عملية جديدة
@@ -70,12 +67,14 @@ async function loadRepairsSection() {
                 <option value="received">تم الاستلام</option>
                 <option value="under_inspection">قيد الفحص</option>
                 <option value="awaiting_customer_approval">بانتظار موافقة العميل</option>
+                <option value="customer_approved">تم الحصول علي الموافقه</option>
                 <option value="in_progress">قيد الإصلاح</option>
                 <option value="ready_for_delivery">جاهز للتسليم</option>
                 <option value="delivered">تم التسليم</option>
                 <option value="cancelled">عملية ملغية</option>
-                <option value="lost">عملية خاسرة</option>
             </select>
+            <input type="date" id="dateFromFilter" onchange="filterRepairs()" class="filter-select" placeholder="من تاريخ" title="من تاريخ">
+            <input type="date" id="dateToFilter" onchange="filterRepairs()" class="filter-select" placeholder="إلى تاريخ" title="إلى تاريخ">
         </div>
 
         <div class="table-container">
@@ -222,7 +221,7 @@ async function loadRepairsSection() {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="repairNumber">رقم العملية *</label>
-                            <input type="text" id="repairNumber" required>
+                            <input type="text" id="repairNumber" required readonly style="background: var(--light-bg); cursor: not-allowed;">
                         </div>
                         <div class="form-group">
                             <label for="technicianSelect">الفني المستلم *</label>
@@ -236,7 +235,7 @@ async function loadRepairsSection() {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="customerPrice">السعر للعميل *</label>
-                            <input type="number" id="customerPrice" step="0.01" min="0" required onchange="calculateRemaining()">
+                            <input type="number" id="customerPrice" step="0.01" min="0" required oninput="calculateRemaining()">
                         </div>
                         <div class="form-group">
                             <label for="repairCost">تكلفة الإصلاح</label>
@@ -267,7 +266,7 @@ async function loadRepairsSection() {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="paidAmount">المبلغ المدفوع مقدماً</label>
-                            <input type="number" id="paidAmount" step="0.01" min="0" value="0" onchange="calculateRemaining()">
+                            <input type="number" id="paidAmount" step="0.01" min="0" value="0" oninput="calculateRemaining()">
                         </div>
                         <div class="form-group">
                             <label for="remainingAmount">المتبقي</label>
@@ -287,13 +286,18 @@ async function loadRepairsSection() {
                                 <option value="received">تم الاستلام</option>
                                 <option value="under_inspection">قيد الفحص</option>
                                 <option value="awaiting_customer_approval">بانتظار موافقة العميل</option>
+                <option value="customer_approved">تم الحصول علي الموافقه</option>
                                 <option value="in_progress">قيد الإصلاح</option>
                                 <option value="ready_for_delivery">جاهز للتسليم</option>
                                 <option value="delivered">تم التسليم</option>
                                 <option value="cancelled">عملية ملغية</option>
-                                <option value="lost">عملية خاسرة</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-group" id="inspectionReportGroup">
+                        <label for="inspectionReport">تقرير الفحص</label>
+                        <textarea id="inspectionReport" rows="4" placeholder="أدخل تقرير الفحص..."></textarea>
                     </div>
 
                     <div class="form-group">
@@ -372,7 +376,7 @@ async function loadRepairsSection() {
 }
 
 // جلب الفنيين حسب الفرع المحدد
-async function loadRepairTechnicians(branchId) {
+async function loadRepairTechnicians(branchId, preserveValue = false) {
     try {
         // إذا لم يكن هناك فرع محدد، استخدام فرع المستخدم الحالي
         if (!branchId) {
@@ -400,22 +404,24 @@ async function loadRepairTechnicians(branchId) {
             repairTechnicians = [];
         }
         
-        // تحديث dropdown الفنيين
-        updateTechnicianSelect();
+        // ✅ تحديث dropdown الفنيين مع معامل preserveValue
+        // preserveValue = false عند الإضافة الجديدة (لا يتم تحديد أي فني)
+        // preserveValue = true عند التعديل (يتم الحفاظ على القيمة المحددة)
+        updateTechnicianSelect(preserveValue);
     } catch (error) {
         console.error('خطأ في جلب الفنيين:', error);
         repairTechnicians = [];
-        updateTechnicianSelect();
+        updateTechnicianSelect(preserveValue);
     }
 }
 
 // تحديث dropdown الفنيين
-function updateTechnicianSelect() {
+function updateTechnicianSelect(preserveValue = false) {
     const technicianSelect = document.getElementById('technicianSelect');
     if (!technicianSelect) return;
     
-    // حفظ القيمة المحددة حالياً
-    const currentValue = technicianSelect.value;
+    // حفظ القيمة المحددة حالياً فقط إذا كان مطلوباً (في حالة التعديل)
+    const currentValue = preserveValue ? technicianSelect.value : '';
     
     technicianSelect.innerHTML = '<option value="">اختر الفني...</option>';
     
@@ -439,15 +445,13 @@ function updateTechnicianSelect() {
         technicianSelect.appendChild(option);
     });
     
-    // استعادة القيمة المحددة إذا كانت موجودة
-    if (currentValue && technicianSelect.querySelector(`option[value="${currentValue}"]`)) {
+    // ✅ استعادة القيمة المحددة فقط إذا كان preserveValue = true (في حالة التعديل)
+    // ✅ في حالة الإضافة الجديدة، لا يتم تحديد أي فني تلقائياً
+    if (preserveValue && currentValue && technicianSelect.querySelector(`option[value="${currentValue}"]`)) {
         technicianSelect.value = currentValue;
     } else {
-        // تحديد المستخدم الحالي كافتراضي إذا كان متاحاً
-        const currentUser = getCurrentUser();
-        if (currentUser && technicianSelect.querySelector(`option[value="${currentUser.id}"]`)) {
-            technicianSelect.value = currentUser.id;
-        }
+        // ✅ التأكد من أن القيمة فارغة في حالة الإضافة الجديدة
+        technicianSelect.value = '';
     }
 }
 
@@ -714,6 +718,12 @@ async function onRepairBranchChange() {
     const branchId = getCurrentRepairBranchId();
     const customerType = document.getElementById('customerType')?.value || 'retail';
     
+    // ✅ مسح قيمة الفني المستلم عند تغيير الفرع (لضمان عدم التحديد التلقائي)
+    const technicianSelect = document.getElementById('technicianSelect');
+    if (technicianSelect) {
+        technicianSelect.value = '';
+    }
+    
     if (branchId) {
         await loadRepairCustomers(branchId, customerType);
         await loadRepairTechnicians(branchId);
@@ -721,6 +731,11 @@ async function onRepairBranchChange() {
         repairCustomers = [];
         updateCustomerSelect();
         await loadRepairTechnicians(null); // جلب المالكين فقط
+    }
+    
+    // ✅ التأكد من أن الفني غير محدد بعد التحميل
+    if (technicianSelect) {
+        technicianSelect.value = '';
     }
 }
 
@@ -1378,10 +1393,11 @@ async function loadRepairs(force = false) {
         
         // ✅ تحسين: استخدام cache للطلبات المتكررة (يعمل تلقائياً في API.request)
         // تحميل البيانات بشكل متوازي مع استخدام cache
-        const [repairsResult, usersResult, lossOperationsResult] = await Promise.all([
-            API.getRepairs(branchId), // سيستخدم cache تلقائياً
-            API.getUsers(), // سيستخدم cache تلقائياً
-            API.getLossOperations() // سيستخدم cache تلقائياً
+        // ✅ عند force = true، نستخدم skipCache لضمان الحصول على أحدث البيانات
+        const cacheOptions = force ? { skipCache: true } : {};
+        const [repairsResult, usersResult] = await Promise.all([
+            API.getRepairs(branchId, cacheOptions), // ✅ عند force، نستخدم skipCache
+            API.getUsers() // سيستخدم cache تلقائياً
         ]);
         
         if (repairsResult.success) {
@@ -1405,6 +1421,9 @@ async function loadRepairs(force = false) {
                 console.log('📊 [Repairs] بعد الفلترة:', repairs.length);
             }
             
+            // ✅ تسجيل الحالات للتحقق من التحديث
+            console.log('✅ [Repairs] البيانات المجلوبة من السيرفر:', repairs.map(r => ({ id: r.id, status: r.status })));
+            
             allRepairs = repairs;
             
             // ✅ تحسين: إعادة تطبيق قيمة الفرع المحدد على DOM بعد التحميل
@@ -1416,35 +1435,6 @@ async function loadRepairs(force = false) {
                 }
                 console.log(`✅ [Repairs] تم تحميل ${allRepairs.length} عملية من الفرع ${branchId}`);
             }
-        }
-        
-        if (lossOperationsResult.success) {
-            console.log('تم تحميل العمليات الخاسرة:', lossOperationsResult.data);
-            
-            // تحويل العمليات الخاسرة إلى تنسيق العمليات العادية
-            const lossOperations = lossOperationsResult.data.map(loss => ({
-                id: loss.id,
-                repair_number: loss.repair_number,
-                customer_name: loss.customer_name,
-                customer_phone: '', // العمليات الخاسرة قد لا تحتوي على رقم الهاتف
-                device_type: loss.device_type,
-                device_model: '',
-                problem: loss.problem,
-                cost: loss.loss_amount,
-                status: 'lost',
-                created_by: '',
-                created_at: loss.created_at,
-                loss_reason: loss.loss_reason,
-                loss_notes: loss.notes,
-                is_loss_operation: true // علامة للتمييز
-            }));
-            
-            console.log('تم تحويل العمليات الخاسرة:', lossOperations);
-            
-            // دمج العمليات العادية مع العمليات الخاسرة
-            allRepairs = [...allRepairs, ...lossOperations];
-            
-            console.log('إجمالي العمليات بعد الدمج:', allRepairs.length);
         }
         
         if (usersResult.success) {
@@ -1462,37 +1452,36 @@ async function loadRepairs(force = false) {
 
 // الحصول على اسم الفني من معرف المستخدم
 function getTechnicianName(userId) {
-    if (!userId || !allUsers || allUsers.length === 0) {
-        console.log('getTechnicianName: userId =', userId, 'allUsers =', allUsers);
+    if (!userId) {
         return 'غير محدد';
     }
     
-    const user = allUsers.find(u => u.id === userId || u.user_id === userId);
-    console.log('getTechnicianName: found user =', user);
-    return user ? user.name : 'غير محدد';
+    // ✅ إصلاح: التأكد من أن allUsers محمّل
+    if (!allUsers || allUsers.length === 0) {
+        console.warn('getTechnicianName: allUsers غير محمّل - userId =', userId);
+        return 'غير محدد';
+    }
+    
+    // ✅ إصلاح: البحث بشكل أكثر شمولاً (id, user_id, وكلاهما كسلسلة)
+    const userIdStr = String(userId);
+    const user = allUsers.find(u => {
+        const uId = u.id ? String(u.id) : '';
+        const uUserId = u.user_id ? String(u.user_id) : '';
+        return uId === userIdStr || uUserId === userIdStr;
+    });
+    
+    if (user && user.name) {
+        return user.name;
+    }
+    
+    console.warn('getTechnicianName: لم يتم العثور على المستخدم - userId =', userId);
+    return 'غير محدد';
 }
 
-// تحديث اسم الفني المستلم في القائمة المنسدلة
+// ✅ تحديث اسم الفني المستلم في القائمة المنسدلة (تم إزالة التحديد التلقائي)
 function updateTechnicianName() {
-    try {
-        const technicianSelect = document.getElementById('technicianSelect');
-        if (!technicianSelect) return;
-        
-        const currentUser = getCurrentUser();
-        if (!currentUser) return;
-        
-        // إذا كانت القائمة محملة بالفعل، حدد المستخدم الحالي
-        if (technicianSelect.options.length > 1) {
-            const userOption = technicianSelect.querySelector(`option[value="${currentUser.id}"]`) || 
-                              technicianSelect.querySelector(`option[value="${currentUser.user_id}"]`);
-            if (userOption) {
-                technicianSelect.value = currentUser.id || currentUser.user_id;
-            }
-        }
-        // إذا لم تكن القائمة محملة بعد، سيتم تحديد المستخدم الحالي تلقائياً في updateTechnicianSelect()
-    } catch (error) {
-        console.error('خطأ في تحديث اسم الفني:', error);
-    }
+    // ✅ تم إزالة التحديد التلقائي للمستخدم الحالي - يجب اختيار الفني يدوياً من النموذج
+    // هذه الدالة موجودة للتوافق فقط، لكنها لا تقوم بأي تحديد تلقائي
 }
 
 // التبديل بين أنواع الصيانة
@@ -1525,20 +1514,57 @@ function filterRepairs() {
     }
     
     const statusFilter = statusFilterElement.value;
+    const dateFromElement = document.getElementById('dateFromFilter');
+    const dateToElement = document.getElementById('dateToFilter');
+    const dateFrom = dateFromElement ? dateFromElement.value : '';
+    const dateTo = dateToElement ? dateToElement.value : '';
+    
     let filtered = allRepairs;
 
     // فلترة حسب نوع الصيانة أولاً
     filtered = filtered.filter(r => {
-        // تجاهل العمليات الخاسرة من فلترة النوع
-        if (r.is_loss_operation || r.status === 'lost') {
-            return true; // عرض العمليات الخاسرة في جميع الأقسام
-        }
         return (r.repair_type || 'soft') === currentRepairType;
     });
 
     // فلترة حسب الحالة
     if (statusFilter) {
         filtered = filtered.filter(r => r.status === statusFilter);
+    }
+
+    // فلترة حسب التاريخ
+    if (dateFrom || dateTo) {
+        filtered = filtered.filter(r => {
+            if (!r.created_at) return false;
+            
+            try {
+                const repairDate = new Date(r.created_at);
+                repairDate.setHours(0, 0, 0, 0); // إزالة الوقت للمقارنة
+                
+                if (dateFrom && dateTo) {
+                    // فلترة بين تاريخين
+                    const fromDate = new Date(dateFrom);
+                    fromDate.setHours(0, 0, 0, 0);
+                    const toDate = new Date(dateTo);
+                    toDate.setHours(23, 59, 59, 999); // نهاية اليوم
+                    return repairDate >= fromDate && repairDate <= toDate;
+                } else if (dateFrom) {
+                    // فلترة من تاريخ
+                    const fromDate = new Date(dateFrom);
+                    fromDate.setHours(0, 0, 0, 0);
+                    return repairDate >= fromDate;
+                } else if (dateTo) {
+                    // فلترة إلى تاريخ
+                    const toDate = new Date(dateTo);
+                    toDate.setHours(23, 59, 59, 999); // نهاية اليوم
+                    return repairDate <= toDate;
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('خطأ في فلترة التاريخ:', error);
+                return true; // في حالة الخطأ، نعرض العملية
+            }
+        });
     }
 
     displayRepairs(filtered);
@@ -1556,52 +1582,102 @@ function displayRepairs(repairs) {
     }
 
     tbody.innerHTML = paginated.data.map(repair => {
-        // تحديد إذا كانت العملية خاسرة
-        const isLossOperation = repair.is_loss_operation || repair.status === 'lost';
+        // ✅ إصلاح: التأكد من وجود حالة افتراضية
+        const repairStatus = repair.status || 'received';
+        // ✅ تسجيل الحالة للتحقق من التحديث - تسجيل جميع الحالات للتحقق
+        console.log('✅ [Repairs] عرض العملية:', repair.id, 'الحالة:', repairStatus, 'البيانات الكاملة:', repair);
+        const statusBadge = `<span class="status-badge" style="background: ${getStatusColor(repairStatus)}">${getStatusText(repairStatus)}</span>`;
         
-        console.log('العملية:', repair.repair_number, 'خاسرة:', isLossOperation);
+        // ✅ إصلاح: استخدام customer_price بدلاً من cost
+        const repairCost = repair.customer_price || repair.cost || 0;
         
-        // تنسيق مختلف للعمليات الخاسرة
-        const rowClass = isLossOperation ? 'loss-operation-row' : '';
-        const statusBadge = isLossOperation ? 
-            `<span class="status-badge" style="background: #dc3545; color: white;">
-                <i class="bi bi-exclamation-triangle"></i> خاسرة
-            </span>` :
-            `<span class="status-badge" style="background: ${getStatusColor(repair.status)}">${getStatusText(repair.status)}</span>`;
-        
-        // أزرار مختلفة للعمليات الخاسرة
-        const actionButtons = isLossOperation ? `
-            <button onclick="viewLossOperationDetails('${repair.id}')" class="btn btn-sm btn-icon" title="عرض التفاصيل">
-                <i class="bi bi-eye"></i>
-            </button>
-            <button onclick="deleteLossOperation('${repair.id}')" class="btn btn-sm btn-icon" title="حذف" data-permission="manager">
+        // قائمة الإجراءات المنسدلة
+        const deleteButtonHTML = hasPermission('manager') ? `
+            <div class="actions-dropdown-item delete-item" onclick="deleteRepair('${repair.id}'); closeActionsDropdown(event);">
                 <i class="bi bi-trash3"></i>
+                <div class="actions-dropdown-item-text">
+                    <span class="actions-dropdown-item-title">حذف</span>
+                    <span class="actions-dropdown-item-desc">حذف العملية من النظام</span>
+                </div>
+            </div>
+        ` : '';
+        
+        const actionButtons = `
+            <div class="actions-dropdown">
+                <button type="button" class="actions-dropdown-btn" onclick="toggleActionsDropdown(event, '${repair.id}')">
+                    <i class="bi bi-list"></i>
+                    <span>الإجراءات</span>
+                    <i class="bi bi-chevron-down" style="font-size: 0.8em;"></i>
             </button>
-        ` : `
-            <button onclick="printRepairReceipt('${repair.id}')" class="btn btn-sm btn-icon" title="طباعة الإيصال">
-                <i class="bi bi-receipt"></i>
-            </button>
-            <button onclick="generateBarcodeLabel('${repair.id}')" class="btn btn-sm btn-icon" title="باركود وملصق">
+                <div class="actions-dropdown-menu" id="actions-menu-${repair.id}">
+                    <div class="actions-dropdown-item" onclick="printRepairReceipt('${repair.id}'); closeActionsDropdown(event);">
+                        <i class="bi bi-receipt"></i>
+                        <div class="actions-dropdown-item-text">
+                            <span class="actions-dropdown-item-title">طباعة الإيصال</span>
+                            <span class="actions-dropdown-item-desc">طباعة إيصال استلام العملية</span>
+                        </div>
+                    </div>
+                    <div class="actions-dropdown-item" onclick="generateBarcodeLabel('${repair.id}'); closeActionsDropdown(event);">
                 <i class="bi bi-upc-scan"></i>
-            </button>
-            <button onclick="editRepair('${repair.id}')" class="btn btn-sm btn-icon" title="تعديل">
-                <i class="bi bi-pencil-square"></i>
-            </button>
-            <button onclick="deleteRepair('${repair.id}')" class="btn btn-sm btn-icon" title="حذف" data-permission="manager">
-                <i class="bi bi-trash3"></i>
-            </button>
+                        <div class="actions-dropdown-item-text">
+                            <span class="actions-dropdown-item-title">باركود وملصق</span>
+                            <span class="actions-dropdown-item-desc">إنشاء وطباعة باركود وملصق</span>
+                        </div>
+                    </div>
+                    <div class="actions-dropdown-item" onclick="openTrackingLinkForRepair('${repair.id}'); closeActionsDropdown(event);">
+                        <i class="bi bi-link-45deg"></i>
+                        <div class="actions-dropdown-item-text">
+                            <span class="actions-dropdown-item-title">رابط المتابعة</span>
+                            <span class="actions-dropdown-item-desc">إرسال رابط متابعة العملية للعميل</span>
+                        </div>
+                    </div>
+                    ${repairStatus !== 'cancelled' ? `
+                    <div class="actions-dropdown-item" onclick="editRepair('${repair.id}'); closeActionsDropdown(event);">
+                        <i class="bi bi-pencil-square"></i>
+                        <div class="actions-dropdown-item-text">
+                            <span class="actions-dropdown-item-title">تعديل</span>
+                            <span class="actions-dropdown-item-desc">تعديل بيانات العملية</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    <div class="actions-dropdown-item mobile-only" onclick="showRepairDetails('${repair.id}'); closeActionsDropdown(event);">
+                        <i class="bi bi-info-circle"></i>
+                        <div class="actions-dropdown-item-text">
+                            <span class="actions-dropdown-item-title">عرض التفاصيل</span>
+                            <span class="actions-dropdown-item-desc">عرض الحالة، الفني المستلم، والتاريخ</span>
+                        </div>
+                    </div>
+                    <div class="actions-dropdown-item" onclick="showRepairImage('${repair.id}'); closeActionsDropdown(event);">
+                        <i class="bi bi-image"></i>
+                        <div class="actions-dropdown-item-text">
+                            <span class="actions-dropdown-item-title">صورة الجهاز</span>
+                            <span class="actions-dropdown-item-desc">عرض صورة الجهاز الملتقطة أو المحفوظة</span>
+                        </div>
+                    </div>
+                    ${deleteButtonHTML}
+                </div>
+            </div>
         `;
 
+        // ✅ زر الاتصال برقم الهاتف
+        const phoneNumber = repair.customer_phone || '';
+        const cleanPhoneNumber = phoneNumber.replace(/\D/g, ''); // إزالة جميع الأحرف غير الرقمية
+        const phoneButton = phoneNumber ? 
+            `<a href="tel:${cleanPhoneNumber}" class="btn btn-sm btn-success" style="display: inline-flex; align-items: center; gap: 5px; text-decoration: none; padding: 5px 10px;" title="اتصال بـ ${phoneNumber}">
+                <i class="bi bi-telephone-fill"></i>
+            </a>` : 
+            '<span>-</span>';
+
         return `
-            <tr class="${rowClass}" data-repair-id="${repair.id}">
-                <td><strong>${repair.repair_number}</strong></td>
-                <td>${repair.customer_name}</td>
-                <td>${repair.customer_phone || '-'}</td>
-                <td>${repair.device_type} ${repair.device_model || ''}</td>
-                <td>${repair.problem}</td>
-                <td>${formatCurrency(repair.cost)}</td>
+            <tr data-repair-id="${repair.id}">
+                <td><strong>${repair.repair_number || '-'}</strong></td>
+                <td>${repair.customer_name || '-'}</td>
+                <td>${phoneButton}</td>
+                <td>${repair.device_type || ''} ${repair.device_model || ''}</td>
+                <td>${repair.problem || '-'}</td>
+                <td>${formatCurrency(repairCost)}</td>
                 <td>${statusBadge}</td>
-                <td><span class="technician-name">${getTechnicianName(repair.created_by)}</span></td>
+                <td><span class="technician-name">${repair.technician_name || getTechnicianName(repair.created_by) || 'غير محدد'}</span></td>
                 <td>${formatDate(repair.created_at)}</td>
                 <td>${actionButtons}</td>
             </tr>
@@ -1619,99 +1695,554 @@ function displayRepairs(repairs) {
     );
 
     hideByPermission();
+    
+    // ✅ إعداد event delegation لإغلاق القوائم المنسدلة عند النقر خارجها
+    setupActionsDropdownListeners();
+}
+
+// ✅ دوال إدارة قائمة الإجراءات المنسدلة
+function setupActionsDropdownListeners() {
+    // استخدام event delegation لإغلاق القوائم المنسدلة عند النقر خارجها
+    // يتم استدعاء هذه الدالة مرة واحدة فقط
+    if (window.actionsDropdownListenerSetup) return;
+    window.actionsDropdownListenerSetup = true;
+    
+    document.addEventListener('click', (e) => {
+        // التحقق من أن النقر ليس داخل قائمة منسدلة أو زرها
+        const dropdown = e.target.closest('.actions-dropdown');
+        if (!dropdown) {
+            // إغلاق جميع القوائم المنسدلة المفتوحة
+            closeAllActionsDropdowns();
+        }
+    });
+}
+
+function toggleActionsDropdown(event, repairId) {
+    // منع انتشار الحدث
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+    try {
+        const menuId = `actions-menu-${repairId}`;
+        const menu = document.getElementById(menuId);
+        
+        if (!menu) {
+            console.warn('القائمة المنسدلة غير موجودة:', menuId);
+            return;
+        }
+        
+        // إغلاق جميع القوائم المنسدلة الأخرى
+        closeAllActionsDropdowns(menuId);
+        
+        // تبديل حالة القائمة الحالية
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            // ✅ إعادة تعيين جميع الأنماط عند الإغلاق
+            menu.style.position = '';
+            menu.style.top = '';
+            menu.style.right = '';
+            menu.style.left = '';
+            menu.style.zIndex = '';
+            menu.style.maxHeight = '';
+            menu.style.overflowY = '';
+            menu.style.visibility = '';
+            menu.style.display = '';
+        } else {
+            // ✅ إصلاح: استخدام fixed positioning دائماً مع التحقق من حدود الشاشة
+            const dropdown = menu.closest('.actions-dropdown');
+            
+            if (dropdown) {
+                // ✅ إعادة تعيين جميع الأنماط أولاً لضمان عدم وجود قيم قديمة
+                menu.style.position = '';
+                menu.style.top = '';
+                menu.style.bottom = '';
+                menu.style.right = '';
+                menu.style.left = '';
+                menu.style.zIndex = '';
+                menu.style.maxHeight = '';
+                menu.style.overflowY = '';
+                menu.style.visibility = '';
+                menu.style.display = '';
+                
+                // حساب الموضع باستخدام fixed positioning
+                const dropdownRect = dropdown.getBoundingClientRect();
+                const padding = 10; // padding من حواف الشاشة
+                
+                // عرض القائمة بعد إظهارها مؤقتاً لحساب العرض الفعلي
+                menu.style.visibility = 'hidden';
+                menu.style.display = 'block';
+                menu.style.position = 'fixed';
+                const menuRect = menu.getBoundingClientRect();
+                const menuWidth = menuRect.width || 220;
+                const menuHeight = menuRect.height || 300;
+                menu.style.visibility = '';
+                
+                // حساب الموضع الأفقي (يمين)
+                let rightPosition = window.innerWidth - dropdownRect.right;
+                
+                // ✅ التحقق من أن القائمة لا تخرج من الشاشة على اليمين
+                if (rightPosition + menuWidth > window.innerWidth - padding) {
+                    // إذا كانت ستخرج، نضعها على اليسار بدلاً من اليمين
+                    menu.style.left = Math.max(padding, dropdownRect.left - menuWidth) + 'px';
+                    menu.style.right = 'auto';
+                } else {
+                    menu.style.right = Math.max(padding, rightPosition) + 'px';
+                    menu.style.left = 'auto';
+                }
+                
+                // ✅ حساب الموضع العمودي - فتح القائمة إلى الأعلى دائماً
+                let topPosition = dropdownRect.top - menuHeight - 5;
+                
+                // التأكد من أن القائمة لا تخرج من الأعلى
+                if (topPosition < padding) {
+                    // إذا لم يكن هناك مساحة كافية في الأعلى، نضعها في أعلى الشاشة
+                    topPosition = padding;
+                }
+                
+                // ✅ تطبيق الموضع بشكل صريح
+                menu.style.position = 'fixed';
+                menu.style.top = topPosition + 'px';
+                menu.style.bottom = 'auto'; // ✅ التأكد من إزالة bottom
+                menu.style.zIndex = '10001';
+                // ✅ حساب max-height بناءً على المساحة المتاحة في الأعلى
+                const availableHeight = dropdownRect.top - padding;
+                menu.style.maxHeight = Math.min(menuHeight, availableHeight) + 'px';
+                menu.style.overflowY = 'auto';
+            } else {
+                // Fallback: إذا لم يتم العثور على dropdown
+                menu.style.position = 'fixed';
+                menu.style.top = '50%';
+                menu.style.right = '50%';
+                menu.style.left = 'auto';
+                menu.style.zIndex = '10001';
+            }
+            
+            menu.classList.add('show');
+        }
+    } catch (error) {
+        console.error('خطأ في فتح/إغلاق القائمة المنسدلة:', error);
+    }
+}
+
+function closeActionsDropdown(event) {
+    // منع انتشار الحدث
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    // إغلاق جميع القوائم المنسدلة
+    closeAllActionsDropdowns();
+}
+
+function closeAllActionsDropdowns(exceptMenuId = null) {
+    try {
+        const allMenus = document.querySelectorAll('.actions-dropdown-menu');
+        allMenus.forEach(menu => {
+            if (exceptMenuId && menu.id === exceptMenuId) {
+                return; // عدم إغلاق القائمة المحددة
+            }
+            menu.classList.remove('show');
+            // ✅ إعادة تعيين جميع الأنماط عند الإغلاق
+            menu.style.position = '';
+            menu.style.top = '';
+            menu.style.right = '';
+            menu.style.left = '';
+            menu.style.zIndex = '';
+            menu.style.maxHeight = '';
+            menu.style.overflowY = '';
+            menu.style.visibility = '';
+            menu.style.display = '';
+        });
+    } catch (error) {
+        console.error('خطأ في إغلاق القوائم المنسدلة:', error);
+    }
+}
+
+// ✅ دالة لعرض تفاصيل العملية (الحالة، الفني المستلم، التاريخ)
+function showRepairDetails(repairId) {
+    try {
+        const repair = allRepairs.find(r => r.id === repairId);
+        if (!repair) {
+            showMessage('العملية غير موجودة', 'error');
+            return;
+        }
+        
+        const repairStatus = repair.status || 'received';
+        const statusText = getStatusText(repairStatus);
+        const statusColor = getStatusColor(repairStatus);
+        const technicianName = repair.technician_name || getTechnicianName(repair.created_by) || 'غير محدد';
+        const repairDate = formatDate(repair.created_at);
+        
+        // إنشاء modal للتفاصيل
+        const existingModal = document.getElementById('repairDetailsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        const detailsModal = document.createElement('div');
+        detailsModal.id = 'repairDetailsModal';
+        detailsModal.className = 'modal';
+        detailsModal.style.display = 'flex';
+        
+        detailsModal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px; width: 90%;">
+                <div class="modal-header">
+                    <h3>تفاصيل العملية #${repair.repair_number || repair.id}</h3>
+                    <button onclick="closeRepairDetailsModal()" class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 25px;">
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div class="detail-item" style="display: flex; flex-direction: column; gap: 8px; padding: 15px; background: var(--light-bg); border-radius: 8px;">
+                            <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em;">الحالة</label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="status-badge" style="background: ${statusColor}; color: var(--white); padding: 8px 16px; border-radius: 20px; font-size: 1em; font-weight: 500;">
+                                    ${statusText}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-item" style="display: flex; flex-direction: column; gap: 8px; padding: 15px; background: var(--light-bg); border-radius: 8px;">
+                            <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em;">الفني المستلم</label>
+                            <div style="font-size: 1.1em; color: var(--text-dark); font-weight: 500;">
+                                ${technicianName}
+                            </div>
+                        </div>
+                        
+                        <div class="detail-item" style="display: flex; flex-direction: column; gap: 8px; padding: 15px; background: var(--light-bg); border-radius: 8px;">
+                            <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em;">تاريخ العملية</label>
+                            <div style="font-size: 1.1em; color: var(--text-dark); font-weight: 500;">
+                                ${repairDate}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 20px 25px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                    <button onclick="closeRepairDetailsModal()" class="btn btn-secondary">إغلاق</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(detailsModal);
+        
+        // إغلاق modal عند النقر خارجها
+        detailsModal.addEventListener('click', (e) => {
+            if (e.target === detailsModal) {
+                closeRepairDetailsModal();
+            }
+        });
+        
+    } catch (error) {
+        console.error('خطأ في عرض تفاصيل العملية:', error);
+        showMessage('حدث خطأ أثناء عرض التفاصيل', 'error');
+    }
+}
+
+// ✅ دالة لإغلاق modal التفاصيل
+function closeRepairDetailsModal() {
+    const modal = document.getElementById('repairDetailsModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// ✅ دالة لعرض صورة الجهاز
+async function showRepairImage(repairId) {
+    try {
+        const repair = allRepairs.find(r => r.id === repairId);
+        if (!repair) {
+            showMessage('العملية غير موجودة', 'error');
+            return;
+        }
+        
+        // التحقق من وجود الصورة
+        const imageExists = await API.checkImageExists(repairId);
+        if (!imageExists) {
+            showMessage('لا توجد صورة محفوظة لهذه العملية', 'info');
+            return;
+        }
+        
+        // جلب مسار الصورة
+        const imagePath = API.getImagePath(repairId);
+        
+        // إنشاء modal لعرض الصورة
+        const existingModal = document.getElementById('repairImageModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        const imageModal = document.createElement('div');
+        imageModal.id = 'repairImageModal';
+        imageModal.className = 'modal';
+        imageModal.style.display = 'flex';
+        
+        imageModal.innerHTML = `
+            <div class="modal-content" style="max-width: 90%; width: 90%; max-height: 90vh; overflow: auto;">
+                <div class="modal-header">
+                    <h3>صورة الجهاز - العملية #${repair.repair_number || repair.id}</h3>
+                    <button onclick="closeRepairImageModal()" class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 25px; display: flex; justify-content: center; align-items: center; min-height: 300px;">
+                    <div style="text-align: center; width: 100%;">
+                        <img src="${imagePath}" 
+                             alt="صورة الجهاز" 
+                             style="max-width: 100%; max-height: 70vh; border-radius: 10px; box-shadow: var(--shadow); object-fit: contain;"
+                             onerror="this.parentElement.innerHTML='<p style=\'color: var(--danger-color); padding: 20px;\'>خطأ في تحميل الصورة</p>'"
+                             loading="lazy">
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 20px 25px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                    <button onclick="closeRepairImageModal()" class="btn btn-secondary">إغلاق</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(imageModal);
+        
+        // إغلاق modal عند النقر خارجها
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                closeRepairImageModal();
+            }
+        });
+        
+    } catch (error) {
+        console.error('خطأ في عرض صورة الجهاز:', error);
+        showMessage('حدث خطأ أثناء تحميل الصورة', 'error');
+    }
+}
+
+// ✅ دالة لإغلاق modal الصورة
+function closeRepairImageModal() {
+    const modal = document.getElementById('repairImageModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// توليد رقم عملية عشوائي من 6 أحرف (أرقام وحروف)
+function generateRandomRepairNumber() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 }
 
 async function showAddRepairModal() {
-    document.getElementById('repairModalTitle').textContent = 'إضافة عملية صيانة جديدة';
-    document.getElementById('repairForm').reset();
-    document.getElementById('repairId').value = '';
-    document.getElementById('selectedCustomerId').value = '';
-    removeImage(); // مسح الصورة السابقة
-    
-    // تحميل الماركات
-    await loadDeviceBrands();
-    
-    // تحديث اسم الفني المستلم
-    updateTechnicianName();
-    
-    // تحميل الفروع وملء القائمة (للمالك فقط)
-    const currentUser = getCurrentUser();
-    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
-    
-    // إعادة إظهار جميع الحقول المخفية عند التعديل
-    const branchGroup = document.getElementById('repairBranchGroup');
-    const customerType = document.getElementById('customerType');
-    const customerSource = document.getElementById('customerSource');
-    const customerSelectGroup = document.getElementById('customerSelectGroup');
-    const customerFieldsContainer = document.getElementById('customerFieldsContainer');
-    
-    // إظهار حقل نوع العميل
-    if (customerType && customerType.parentElement && customerType.parentElement.parentElement) {
-        customerType.parentElement.parentElement.style.display = 'flex';
-    }
-    
-    // تهيئة نوع العميل الافتراضي
-    if (customerType) {
-        customerType.value = 'retail';
-    }
-    
-    // تهيئة نوع الإدخال الافتراضي (عميل جديد)
-    if (customerSource) {
-        customerSource.value = 'new';
-    }
-    
-    // تطبيق حالة الإدخال الافتراضية
-    onCustomerSourceChange();
-    
-    // تطبيق تغييرات نوع العميل
-    onCustomerTypeChange(); // لتطبيق التغييرات
-    
-    // تهيئة الحالة الافتراضية
-    const statusSelect = document.getElementById('status');
-    if (statusSelect) {
-        statusSelect.value = 'received'; // تم الاستلام
-    }
-    
-    // إظهار حقل الفرع عند الإضافة (للمالك فقط)
-    if (branchGroup) {
-        if (isOwner) {
-            branchGroup.style.display = 'block';
-            await loadRepairBranches();
-            const branchSelect = document.getElementById('repairBranchSelect');
-            if (branchSelect) {
-                branchSelect.required = true;
-                // تحديد الفرع الأول كافتراضي
-                if (repairFirstBranchId && branchSelect.querySelector(`option[value="${repairFirstBranchId}"]`)) {
-                    branchSelect.value = repairFirstBranchId;
-                    await onRepairBranchChange();
-                }
-            }
-        } else {
-            branchGroup.style.display = 'none';
-            const branchSelect = document.getElementById('repairBranchSelect');
-            if (branchSelect) {
-                branchSelect.required = false;
-            }
-            // للموظفين: جلب عملاء فرعهم مباشرة
-            const branchId = currentUser.branch_id;
-            if (branchId) {
-                await loadRepairCustomers(branchId, 'retail');
-                await loadRepairTechnicians(branchId);
+    try {
+        // ✅ التحقق من وجود القسم أولاً
+        const repairsSection = document.getElementById('repairs-section');
+        if (!repairsSection) {
+            console.error('قسم الصيانة غير موجود. يرجى الانتقال إلى صفحة الصيانة أولاً.');
+            showMessage('خطأ: قسم الصيانة غير موجود. يرجى الانتقال إلى صفحة الصيانة أولاً.', 'error');
+            return;
+        }
+        
+        // ✅ التحقق من وجود العناصر قبل الوصول إليها
+        let repairModalTitle = document.getElementById('repairModalTitle');
+        let repairForm = document.getElementById('repairForm');
+        let repairModal = document.getElementById('repairModal');
+        
+        // ✅ إذا لم تكن العناصر موجودة، إعادة تحميل القسم
+        if (!repairModalTitle || !repairForm || !repairModal) {
+            console.warn('عناصر النموذج غير موجودة. إعادة تحميل قسم الصيانة...');
+            await loadRepairsSection();
+            
+            // ✅ إعادة المحاولة بعد التحميل
+            repairModalTitle = document.getElementById('repairModalTitle');
+            repairForm = document.getElementById('repairForm');
+            repairModal = document.getElementById('repairModal');
+            
+            if (!repairModalTitle || !repairForm || !repairModal) {
+                console.error('فشل تحميل عناصر النموذج بعد إعادة التحميل.');
+                showMessage('خطأ: فشل تحميل النموذج. يرجى إعادة تحميل الصفحة.', 'error');
+                return;
             }
         }
+        
+        repairModalTitle.textContent = 'إضافة عملية صيانة جديدة';
+        repairForm.reset();
+        
+        const repairIdInput = document.getElementById('repairId');
+        const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
+        if (repairIdInput) repairIdInput.value = '';
+        if (selectedCustomerIdInput) selectedCustomerIdInput.value = '';
+        
+        removeImage(); // مسح الصورة السابقة
+        
+        // توليد رقم عملية عشوائي تلقائياً
+        const repairNumberInput = document.getElementById('repairNumber');
+        if (repairNumberInput) {
+            repairNumberInput.value = generateRandomRepairNumber();
+        }
+        
+        // تحميل الماركات
+        await loadDeviceBrands();
+        
+        // ✅ تم إزالة updateTechnicianName() - الفني يتم اختياره يدوياً فقط من النموذج
+        
+        // تحميل الفروع وملء القائمة (للمالك فقط)
+        const currentUser = getCurrentUser();
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        
+        // ✅ إعادة إظهار جميع الحقول المخفية عند التعديل
+        const branchGroup = document.getElementById('repairBranchGroup');
+        const customerType = document.getElementById('customerType');
+        const customerSource = document.getElementById('customerSource');
+        const customerSelectGroup = document.getElementById('customerSelectGroup');
+        const customerFieldsContainer = document.getElementById('customerFieldsContainer');
+        
+        // ✅ إعادة إظهار حقول بيانات العميل
+        if (customerFieldsContainer) {
+            customerFieldsContainer.style.display = 'block';
+        }
+        
+        // ✅ إعادة إظهار حقول بيانات الجهاز
+        const deviceTypeGroup = document.getElementById('deviceType')?.parentElement;
+        if (deviceTypeGroup) {
+            deviceTypeGroup.style.display = 'block';
+        }
+        const deviceModelGroup = document.getElementById('deviceModel')?.parentElement;
+        if (deviceModelGroup) {
+            deviceModelGroup.style.display = 'block';
+        }
+        const accessoriesGroup = document.getElementById('accessories')?.parentElement;
+        if (accessoriesGroup) {
+            accessoriesGroup.style.display = 'block';
+        }
+        const problemGroup = document.getElementById('problem')?.parentElement;
+        if (problemGroup) {
+            problemGroup.style.display = 'block';
+        }
+        const repairTypeGroup = document.getElementById('repairType')?.parentElement;
+        if (repairTypeGroup) {
+            repairTypeGroup.style.display = 'block';
+        }
+        
+        // ✅ إعادة إظهار صورة الجهاز
+        const imageUploadGroup = document.querySelector('.image-upload-container')?.parentElement;
+        if (imageUploadGroup) {
+            imageUploadGroup.style.display = 'block';
+        }
+        
+        // ✅ إعادة إظهار رقم العملية
+        const repairNumberGroup = document.getElementById('repairNumber')?.parentElement;
+        if (repairNumberGroup) {
+            repairNumberGroup.style.display = 'block';
+        }
+        
+        // ✅ إعادة إظهار المبلغ المدفوع والمتبقي
+        const paidAmountGroup = document.getElementById('paidAmount')?.parentElement;
+        if (paidAmountGroup) {
+            paidAmountGroup.style.display = 'block';
+        }
+        const remainingAmountGroup = document.getElementById('remainingAmount')?.parentElement;
+        if (remainingAmountGroup) {
+            remainingAmountGroup.style.display = 'block';
+        }
+        
+        // ✅ إعادة إظهار الملاحظات
+        const notesGroup = document.getElementById('notes')?.parentElement;
+        if (notesGroup) {
+            notesGroup.style.display = 'block';
+        }
+        
+        // ✅ إخفاء تقرير الفحص عند الإضافة (يظهر فقط عند التعديل)
+        const inspectionReportGroup = document.getElementById('inspectionReportGroup');
+        if (inspectionReportGroup) {
+            inspectionReportGroup.style.display = 'none';
+        }
+        
+        // إظهار حقل نوع العميل
+        if (customerType && customerType.parentElement && customerType.parentElement.parentElement) {
+            customerType.parentElement.parentElement.style.display = 'flex';
+        }
+        
+        // ✅ إعادة إظهار حقل حالة العميل (حل نهائي للمشكلة)
+        if (customerSource && customerSource.parentElement) {
+            customerSource.parentElement.style.display = 'block';
+        }
+        
+        // تهيئة نوع العميل الافتراضي
+        if (customerType) {
+            customerType.value = 'retail';
+        }
+        
+        // تهيئة نوع الإدخال الافتراضي (عميل جديد)
+        if (customerSource) {
+            customerSource.value = 'new';
+        }
+        
+        // تطبيق حالة الإدخال الافتراضية
+        onCustomerSourceChange();
+        
+        // تطبيق تغييرات نوع العميل
+        onCustomerTypeChange(); // لتطبيق التغييرات
+        
+        // تهيئة الحالة الافتراضية
+        const statusSelect = document.getElementById('status');
+        if (statusSelect) {
+            statusSelect.value = 'received'; // تم الاستلام
+        }
+        
+        // إظهار حقل الفرع عند الإضافة (للمالك فقط)
+        if (branchGroup) {
+            if (isOwner) {
+                branchGroup.style.display = 'block';
+                await loadRepairBranches();
+                const branchSelect = document.getElementById('repairBranchSelect');
+                if (branchSelect) {
+                    branchSelect.required = true;
+                    // تحديد الفرع الأول كافتراضي
+                    if (repairFirstBranchId && branchSelect.querySelector(`option[value="${repairFirstBranchId}"]`)) {
+                        branchSelect.value = repairFirstBranchId;
+                        await onRepairBranchChange();
+                    }
+                }
+            } else {
+                branchGroup.style.display = 'none';
+                const branchSelect = document.getElementById('repairBranchSelect');
+                if (branchSelect) {
+                    branchSelect.required = false;
+                }
+                // للموظفين: جلب عملاء فرعهم مباشرة
+                const branchId = currentUser.branch_id;
+                if (branchId) {
+                    await loadRepairCustomers(branchId, 'retail');
+                    await loadRepairTechnicians(branchId);
+                }
+            }
+        }
+        
+        // ✅ مسح قيمة الفني المستلم قبل تحميل الفنيين (لضمان عدم التحديد التلقائي)
+        const technicianSelect = document.getElementById('technicianSelect');
+        if (technicianSelect) {
+            technicianSelect.value = '';
+        }
+        
+        // تحميل الفنيين حسب الفرع المحدد
+        const branchIdForTechnicians = getCurrentRepairBranchId();
+        await loadRepairTechnicians(branchIdForTechnicians);
+        
+        // ✅ التأكد من أن الفني غير محدد بعد التحميل
+        if (technicianSelect) {
+            technicianSelect.value = '';
+        }
+        
+        // مسح حقول العميل
+        clearCustomerFields();
+        
+        // مسح حقول أرقام الفواتير
+        setSparePartsInvoices([]);
+        
+        repairModal.style.display = 'flex';
+    } catch (error) {
+        console.error('خطأ في فتح نموذج إضافة العملية:', error);
+        showMessage('حدث خطأ أثناء فتح نموذج إضافة العملية. يرجى المحاولة مرة أخرى.', 'error');
     }
-    
-    // تحميل الفنيين حسب الفرع المحدد
-    const branchIdForTechnicians = getCurrentRepairBranchId();
-    await loadRepairTechnicians(branchIdForTechnicians);
-    
-    // مسح حقول العميل
-    clearCustomerFields();
-    
-    // مسح حقول أرقام الفواتير
-    setSparePartsInvoices([]);
-    
-    document.getElementById('repairModal').style.display = 'flex';
 }
 
 function closeRepairModal() {
@@ -1791,17 +2322,65 @@ function handleDeviceTypeChange(select) {
 
 // حساب المتبقي
 function calculateRemaining() {
-    const customerPrice = parseFloat(document.getElementById('customerPrice').value) || 0;
-    const paidAmount = parseFloat(document.getElementById('paidAmount').value) || 0;
-    const remaining = customerPrice - paidAmount;
-    document.getElementById('remainingAmount').value = remaining.toFixed(2);
+    try {
+        const customerPriceInput = document.getElementById('customerPrice');
+        const paidAmountInput = document.getElementById('paidAmount');
+        const remainingAmountInput = document.getElementById('remainingAmount');
+        
+        if (!customerPriceInput || !paidAmountInput || !remainingAmountInput) {
+            return;
+        }
+        
+        const customerPrice = parseFloat(customerPriceInput.value) || 0;
+        const paidAmount = parseFloat(paidAmountInput.value) || 0;
+        const remaining = Math.max(0, customerPrice - paidAmount); // التأكد من أن المتبقي لا يكون سالباً
+        remainingAmountInput.value = remaining.toFixed(2);
+    } catch (error) {
+        console.error('خطأ في حساب المتبقي:', error);
+    }
 }
 
 // تحويل الصورة إلى Base64
+// ✅ دالة لضغط الصورة بنسبة 50%
+function compressImage(imageDataUrl, quality = 0.5) {
+    return new Promise((resolve, reject) => {
+        try {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // تقليل الحجم إلى 50%
+                canvas.width = img.width * 0.5;
+                canvas.height = img.height * 0.5;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // تحويل إلى base64 بجودة مضغوطة
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = reject;
+            img.src = imageDataUrl;
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
 async function imageToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
+        reader.onload = async () => {
+            try {
+                // ✅ ضغط الصورة بنسبة 50% قبل الحفظ
+                const compressedImage = await compressImage(reader.result, 0.5);
+                resolve(compressedImage);
+            } catch (error) {
+                console.error('خطأ في ضغط الصورة:', error);
+                // في حالة الخطأ، نرجع الصورة الأصلية
+                resolve(reader.result);
+            }
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
@@ -1912,7 +2491,7 @@ async function openCamera() {
 }
 
 // التقاط الصورة من الكاميرا
-function capturePhoto() {
+async function capturePhoto() {
     const video = document.getElementById('cameraVideo');
     const canvas = document.getElementById('cameraCanvas');
     
@@ -1929,8 +2508,15 @@ function capturePhoto() {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
     
-    // تحويل إلى Base64 بجودة جيدة
-    selectedDeviceImage = canvas.toDataURL('image/jpeg', 0.85);
+    // ✅ تحويل إلى Base64 ثم ضغطها بنسبة 50%
+    const originalImage = canvas.toDataURL('image/jpeg', 1.0);
+    try {
+        selectedDeviceImage = await compressImage(originalImage, 0.5);
+    } catch (error) {
+        console.error('خطأ في ضغط الصورة:', error);
+        // في حالة الخطأ، نستخدم الصورة المضغوطة بجودة أقل
+        selectedDeviceImage = canvas.toDataURL('image/jpeg', 0.5);
+    }
     
     // إيقاف الكاميرا
     if (window.currentCameraStream) {
@@ -1988,6 +2574,96 @@ function removeImage() {
 async function saveRepair(event) {
     event.preventDefault();
 
+    const repairId = document.getElementById('repairId').value;
+    const isEditMode = !!repairId;
+    
+    // ✅ عند التعديل: إرسال فقط الحقول القابلة للتعديل
+    if (isEditMode) {
+        const repairData = {
+            id: repairId
+        };
+        
+        // ✅ الحقول القابلة للتعديل فقط:
+        // 1. الفني المستلم
+        const technicianSelect = document.getElementById('technicianSelect');
+        if (technicianSelect && technicianSelect.value) {
+            repairData.created_by = technicianSelect.value;
+        } else {
+            showMessage('يجب اختيار الفني المستلم', 'error');
+            return;
+        }
+        
+        // 2. السعر للعميل - إرساله دائماً
+        const customerPrice = document.getElementById('customerPrice').value.trim();
+        repairData.customer_price = customerPrice ? parseFloat(customerPrice) : 0;
+        
+        // 3. تكلفة الإصلاح - إرسالها دائماً
+        const repairCost = document.getElementById('repairCost').value.trim();
+        repairData.repair_cost = repairCost ? parseFloat(repairCost) : 0;
+        
+        // 4. اسم محل قطع الغيار - إرساله دائماً (حتى لو فارغ)
+        const partsStore = document.getElementById('partsStore').value.trim();
+        repairData.parts_store = partsStore || '';
+        
+        // 5. أرقام فواتير قطع الغيار - إرسالها دائماً
+        const sparePartsInvoices = getSparePartsInvoices();
+        repairData.spare_parts_invoices = (sparePartsInvoices && sparePartsInvoices.length > 0) ? sparePartsInvoices : [];
+        
+        // 6. تاريخ التسليم - إرساله دائماً (حتى لو فارغ)
+        const deliveryDate = document.getElementById('deliveryDate').value;
+        repairData.delivery_date = deliveryDate || null;
+        
+        // 7. الحالة (مهم جداً!) - إرسالها دائماً
+        const statusSelect = document.getElementById('status');
+        if (statusSelect && statusSelect.value) {
+            repairData.status = statusSelect.value;
+        } else {
+            // ✅ إرسال حالة افتراضية إذا لم يتم تحديدها
+            repairData.status = 'received';
+        }
+        console.log('✅ [Repairs] إرسال الحالة للتحديث:', repairData.status);
+        
+        // 8. Serial Number - إرساله دائماً (حتى لو فارغ)
+        const serialNumber = document.getElementById('serialNumber').value.trim();
+        repairData.serial_number = serialNumber || '';
+        
+        // 9. تقرير الفحص - إرساله دائماً (حتى لو فارغ)
+        const inspectionReportField = document.getElementById('inspectionReport');
+        if (inspectionReportField) {
+            repairData.inspection_report = inspectionReportField.value.trim() || null;
+        }
+        
+        // ✅ إرسال التعديلات
+        console.log('✅ [Repairs] بيانات التعديل المرسلة:', repairData);
+        const result = await API.updateRepair(repairData);
+        
+        if (result.success) {
+            showMessage(result.message || 'تم تعديل العملية بنجاح');
+            closeRepairModal();
+            
+            // ✅ مسح cache لضمان الحصول على أحدث البيانات
+            if (typeof API_CACHE !== 'undefined' && API_CACHE.clear) {
+                API_CACHE.clear();
+                console.log('✅ [Repairs] تم مسح cache بعد التعديل');
+            }
+            
+            // ✅ إجبار إعادة التحميل
+            isLoadingRepairs = false;
+            lastRepairsLoadTime = 0;
+            await loadRepairs(true);
+            
+            // تحديث لوحة التحكم
+            if (typeof loadDashboardData === 'function') {
+                await loadDashboardData();
+            }
+        } else {
+            showMessage(result.message || 'حدث خطأ أثناء تعديل العملية', 'error');
+        }
+        
+        return; // ✅ إنهاء الدالة هنا عند التعديل
+    }
+    
+    // ✅ عند الإضافة: الكود الأصلي
     // تحديد نوع الإدخال (عميل جديد / عميل مسجل)
     const customerSource = document.getElementById('customerSource')?.value || 'new';
     const customerType = document.getElementById('customerType')?.value || 'retail';
@@ -2049,7 +2725,31 @@ async function saveRepair(event) {
     // جلب أرقام فواتير قطع الغيار
     const sparePartsInvoices = getSparePartsInvoices();
     
+    // جلب رقم العملية من الحقل
+    const repairNumber = document.getElementById('repairNumber').value.trim();
+    
+    // ✅ حماية الملاحظة المحمية من التعديل
+    let notesValue = document.getElementById('notes').value.trim();
+    const protectedNote = "ملغي نتيجة طلب العميل";
+    
+    // إذا كانت في وضع التعديل وكانت الملاحظة المحمية موجودة في الملاحظات الحالية، يجب إبقاؤها
+    const currentRepairId = document.getElementById('repairId').value;
+    if (currentRepairId) {
+        const repair = allRepairs.find(r => r.id === currentRepairId);
+        if (repair && repair.notes && repair.notes.includes(protectedNote)) {
+            // إذا كانت الملاحظة الجديدة لا تحتوي على الملاحظة المحمية، أضفها
+            if (!notesValue.includes(protectedNote)) {
+                if (notesValue) {
+                    notesValue = notesValue + "\n\n" + protectedNote;
+                } else {
+                    notesValue = protectedNote;
+                }
+            }
+        }
+    }
+    
     const repairData = {
+        repair_number: repairNumber,
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_type: customerType,
@@ -2068,17 +2768,17 @@ async function saveRepair(event) {
         remaining_amount: parseFloat(document.getElementById('remainingAmount').value) || 0,
         delivery_date: document.getElementById('deliveryDate').value,
         status: document.getElementById('status').value,
-        notes: document.getElementById('notes').value.trim()
+        notes: notesValue
     };
     
-    // إضافة الفني المستلم من الـ select
+    // ✅ إضافة الفني المستلم من الـ select فقط (مطلوب)
     const technicianSelect = document.getElementById('technicianSelect');
-    if (technicianSelect && technicianSelect.value) {
-        repairData.created_by = technicianSelect.value;
-    } else {
-        // إذا لم يتم اختيار فني، استخدام المستخدم الحالي
-        repairData.created_by = currentUser?.id || currentUser?.user_id || '';
+    if (!technicianSelect || !technicianSelect.value) {
+        showMessage('يجب اختيار الفني المستلم', 'error');
+        return;
     }
+    // ✅ استخدام الفني المحدد في النموذج فقط (بدون أي تحديد تلقائي)
+    repairData.created_by = technicianSelect.value;
     
     // إضافة branch_id
     const branchId = getCurrentRepairBranchId();
@@ -2086,42 +2786,12 @@ async function saveRepair(event) {
         repairData.branch_id = branchId;
     }
 
-    const repairId = document.getElementById('repairId').value;
-    let result;
-
-    if (repairId) {
-        repairData.id = repairId;
-        result = await API.updateRepair(repairData);
-        
-        // رفع الصورة الجديدة إذا كانت موجودة
-        if (selectedDeviceImage && result.success) {
+    // ✅ إصلاح: إنشاء العميل الجديد قبل حفظ عملية الصيانة (فقط للعمليات الجديدة)
+    if (!repairId) {
+        const selectedCustomerId = document.getElementById('selectedCustomerId').value;
+        if (!selectedCustomerId) {
+            // عميل جديد - إنشاء عميل جديد أولاً
             try {
-                await API.uploadImage(repairId, selectedDeviceImage);
-                showMessage('تم حفظ الصورة بنجاح', 'success');
-            } catch (error) {
-                console.error('خطأ في رفع الصورة:', error);
-                showMessage('تم حفظ العملية ولكن حدث خطأ في رفع الصورة', 'warning');
-            }
-        }
-    } else {
-        result = await API.addRepair(repairData);
-        
-        // رفع الصورة الجديدة إذا كانت موجودة
-        if (selectedDeviceImage && result.success && result.data && result.data.id) {
-            try {
-                await API.uploadImage(result.data.id, selectedDeviceImage);
-                showMessage('تم حفظ الصورة بنجاح', 'success');
-            } catch (error) {
-                console.error('خطأ في رفع الصورة:', error);
-                showMessage('تم حفظ العملية ولكن حدث خطأ في رفع الصورة', 'warning');
-            }
-        }
-        
-        // حفظ العميل تلقائياً إذا كانت عملية جديدة (فقط إذا لم يكن محدداً من القائمة)
-        if (result.success) {
-            const selectedCustomerId = document.getElementById('selectedCustomerId').value;
-            if (!selectedCustomerId) {
-                // عميل جديد - إنشاء عميل جديد
                 const customerData = {
                     name: customerName,
                     phone: customerPhone,
@@ -2137,8 +2807,36 @@ async function saveRepair(event) {
                     customerData.branch_id = branchId;
                 }
                 
-                await API.addCustomer(customerData);
+                const customerResult = await API.addCustomer(customerData);
+                
+                if (customerResult && customerResult.success && customerResult.data && customerResult.data.id) {
+                    // ✅ إضافة customer_id إلى repairData قبل حفظ العملية
+                    repairData.customer_id = customerResult.data.id;
+                } else {
+                    console.warn('⚠️ تم إنشاء العميل لكن لم يتم الحصول على customer_id');
+                }
+            } catch (error) {
+                console.error('خطأ في إنشاء العميل:', error);
+                showMessage('حدث خطأ أثناء إنشاء العميل. يرجى المحاولة مرة أخرى', 'error');
+                return;
             }
+        } else {
+            // عميل موجود - استخدام customer_id المحدد
+            repairData.customer_id = selectedCustomerId;
+        }
+    }
+
+    // ✅ عند الإضافة فقط
+    let result = await API.addRepair(repairData);
+    
+    // رفع الصورة الجديدة إذا كانت موجودة
+    if (selectedDeviceImage && result.success && result.data && result.data.id) {
+        try {
+            await API.uploadImage(result.data.id, selectedDeviceImage);
+            showMessage('تم حفظ الصورة بنجاح', 'success');
+        } catch (error) {
+            console.error('خطأ في رفع الصورة:', error);
+            showMessage('تم حفظ العملية ولكن حدث خطأ في رفع الصورة', 'warning');
         }
     }
 
@@ -2153,6 +2851,15 @@ async function saveRepair(event) {
         
         await loadRepairs(true); // force = true بعد حفظ العملية
         
+        // ✅ التبديل إلى تبويب نوع الصيانة الصحيح (فقط للعمليات الجديدة)
+        // يجب أن يكون بعد loadRepairs حتى يتم تحميل البيانات أولاً
+        if (!repairId && result.data && result.data.repair_type) {
+            const savedRepairType = result.data.repair_type;
+            if (savedRepairType && savedRepairType !== currentRepairType) {
+                switchRepairType(savedRepairType);
+            }
+        }
+        
         // تحديث لوحة التحكم دائماً (حتى لو كنا في قسم آخر)
         if (typeof loadDashboardData === 'function') {
             await loadDashboardData();
@@ -2161,7 +2868,9 @@ async function saveRepair(event) {
         // ✅ إنشاء رابط التتبع وعرضه للعميل (فقط للعمليات الجديدة)
         if (!repairId && result.data && result.data.repair_number) {
             const trackingLink = generateRepairTrackingLink(result.data.repair_number);
-            showTrackingLinkModal(result.data.repair_number, trackingLink);
+            // جلب بيانات العملية الكاملة لإرسالها في رسالة الواتساب
+            const repairData = result.data;
+            showTrackingLinkModal(result.data.repair_number, trackingLink, repairData);
         }
     } else {
         showMessage(result.message, 'error');
@@ -2229,8 +2938,62 @@ function generateQRCodeFallback(data, size = 200) {
     }
 }
 
+// ✅ دالة لتحويل URL الصورة إلى base64 data URL (لتجنب مشاكل CORS)
+async function convertImageUrlToDataUrl(imageUrl) {
+    try {
+        // إذا كان بالفعل data URL، نرجعه كما هو
+        if (imageUrl.startsWith('data:')) {
+            return imageUrl;
+        }
+        
+        // محاولة تحميل الصورة وتحويلها إلى base64
+        return await new Promise((resolve, reject) => {
+            const img = new Image();
+            const timeout = setTimeout(() => {
+                reject(new Error('انتهت مهلة تحميل الصورة'));
+            }, 10000); // 10 ثواني timeout
+            
+            img.crossOrigin = 'anonymous'; // محاولة تجنب CORS
+            
+            img.onload = function() {
+                clearTimeout(timeout);
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // تحويل إلى base64
+                    const dataUrl = canvas.toDataURL('image/png');
+                    resolve(dataUrl);
+                } catch (error) {
+                    console.warn('خطأ في تحويل الصورة إلى base64، سيتم استخدام URL الأصلي:', error);
+                    // في حالة الفشل (مثل مشكلة CORS)، نرجع URL الأصلي
+                    resolve(imageUrl);
+                }
+            };
+            
+            img.onerror = function(error) {
+                clearTimeout(timeout);
+                console.warn('فشل تحميل الصورة من URL، سيتم استخدام URL الأصلي:', imageUrl);
+                // في حالة الفشل، نرجع URL الأصلي
+                resolve(imageUrl);
+            };
+            
+            // محاولة تحميل الصورة
+            img.src = imageUrl;
+        });
+    } catch (error) {
+        console.error('خطأ في تحويل URL الصورة إلى data URL:', error);
+        // في حالة الفشل، نرجع URL الأصلي
+        return imageUrl;
+    }
+}
+
 // ✅ دالة لعرض رابط التتبع في مودال
-function showTrackingLinkModal(repairNumber, trackingLink) {
+function showTrackingLinkModal(repairNumber, trackingLink, repairData = null) {
     try {
         // إنشاء مودال لعرض رابط التتبع
         const modal = document.createElement('div');
@@ -2238,67 +3001,129 @@ function showTrackingLinkModal(repairNumber, trackingLink) {
         modal.id = 'trackingLinkModal';
         modal.style.display = 'flex';
         modal.innerHTML = `
-            <div class="modal-content modal-sm">
+            <div class="modal-content" style="max-width: 600px;">
                 <div class="modal-header">
                     <h3><i class="bi bi-link-45deg"></i> رابط متابعة عملية الصيانة</h3>
                     <button onclick="closeTrackingLinkModal()" class="btn-close">&times;</button>
                 </div>
-                <div class="modal-body" style="padding: 20px;">
-                    <p style="margin-bottom: 15px; color: var(--text-dark);">
-                        <i class="bi bi-info-circle"></i> يمكنك مشاركة هذا الرابط مع العميل لمتابعة حالة عملية الصيانة رقم: <strong>${escapeHtmlForRepairs(repairNumber)}</strong>
-                    </p>
-                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
-                        <input 
-                            type="text" 
-                            id="trackingLinkInput" 
-                            value="${escapeHtmlForRepairs(trackingLink)}" 
-                            readonly 
-                            style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--light-bg); font-size: 0.9em;"
-                        >
-                        <button 
-                            onclick="copyTrackingLink()" 
-                            class="btn btn-primary"
-                            style="padding: 10px 20px;"
-                        >
-                            <i class="bi bi-clipboard"></i> نسخ
-                        </button>
+                <div class="modal-body" style="padding: 25px;">
+                    <div style="background: var(--light-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-right: 4px solid var(--primary-color);">
+                        <p style="margin: 0; color: var(--text-dark); font-size: 0.95em; line-height: 1.6;">
+                            <i class="bi bi-info-circle" style="color: var(--primary-color); margin-left: 8px;"></i>
+                            يمكنك مشاركة هذا الرابط مع العميل لمتابعة حالة عملية الصيانة
+                        </p>
+                        <p style="margin: 8px 0 0 0; color: var(--text-dark); font-weight: 600;">
+                            رقم العملية: <span style="color: var(--primary-color);">${escapeHtmlForRepairs(repairNumber)}</span>
+                        </p>
                     </div>
-                    <div style="display: flex; gap: 10px; justify-content: center;">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--text-dark); font-weight: 600; font-size: 0.9em;">
+                            <i class="bi bi-link-45deg"></i> رابط المتابعة:
+                        </label>
+                        <div style="display: flex; gap: 10px; align-items: stretch;">
+                            <input 
+                                type="text" 
+                                id="trackingLinkInput" 
+                                value="${escapeHtmlForRepairs(trackingLink)}" 
+                                readonly 
+                                style="flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--white); font-size: 0.9em; font-family: monospace; direction: ltr; text-align: left;"
+                            >
+                            <button 
+                                onclick="copyTrackingLink(event)" 
+                                class="btn btn-primary"
+                                style="padding: 12px 20px; white-space: nowrap; border-radius: 6px;"
+                                title="نسخ الرابط"
+                            >
+                                <i class="bi bi-clipboard"></i> نسخ
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                         <button 
                             onclick="openTrackingLink()" 
                             class="btn btn-secondary"
-                            style="padding: 10px 20px;"
+                            style="padding: 12px 24px; border-radius: 6px; flex: 1; min-width: 140px;"
                         >
                             <i class="bi bi-box-arrow-up-right"></i> فتح الرابط
                         </button>
+                        <button 
+                            onclick="sendTrackingLinkToWhatsApp()" 
+                            class="btn"
+                            style="padding: 12px 24px; border-radius: 6px; flex: 1; min-width: 140px; background: #25D366; color: white; border: none;"
+                            title="إرسال رابط المتابعة إلى العميل عبر واتساب"
+                        >
+                            <i class="bi bi-whatsapp"></i> إرسال للعميل
+                        </button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button onclick="closeTrackingLinkModal()" class="btn btn-secondary">إغلاق</button>
+                <div class="modal-footer" style="padding: 15px 25px; border-top: 1px solid var(--border-color);">
+                    <button onclick="closeTrackingLinkModal()" class="btn btn-secondary" style="padding: 10px 20px; border-radius: 6px;">إغلاق</button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(modal);
         
-        // حفظ الرابط في window للوصول إليه من الدوال
+        // حفظ البيانات في window للوصول إليها من الدوال
         window.currentTrackingLink = trackingLink;
+        window.currentRepairData = repairData;
+        window.currentRepairNumber = repairNumber;
     } catch (error) {
         console.error('خطأ في عرض رابط التتبع:', error);
+        showMessage('حدث خطأ أثناء عرض رابط المتابعة', 'error');
+    }
+}
+
+// ✅ دالة لفتح نموذج رابط المتابعة من قائمة الإجراءات
+function openTrackingLinkForRepair(repairId) {
+    try {
+        // البحث عن العملية في القائمة
+        const repair = allRepairs.find(r => r.id === repairId);
+        
+        if (!repair) {
+            showMessage('العملية غير موجودة', 'error');
+            return;
+        }
+        
+        if (!repair.repair_number) {
+            showMessage('رقم العملية غير متوفر', 'error');
+            return;
+        }
+        
+        // إنشاء رابط المتابعة
+        const trackingLink = generateRepairTrackingLink(repair.repair_number);
+        
+        if (!trackingLink) {
+            showMessage('فشل إنشاء رابط المتابعة', 'error');
+            return;
+        }
+        
+        // عرض النموذج
+        showTrackingLinkModal(repair.repair_number, trackingLink, repair);
+        
+    } catch (error) {
+        console.error('خطأ في فتح نموذج رابط المتابعة:', error);
+        showMessage('حدث خطأ أثناء فتح نموذج رابط المتابعة', 'error');
     }
 }
 
 // ✅ دالة لإغلاق مودال رابط التتبع
 function closeTrackingLinkModal() {
-    const modal = document.getElementById('trackingLinkModal');
-    if (modal) {
-        modal.remove();
+    try {
+        const modal = document.getElementById('trackingLinkModal');
+        if (modal) {
+            modal.remove();
+        }
+        window.currentTrackingLink = null;
+        window.currentRepairData = null;
+        window.currentRepairNumber = null;
+    } catch (error) {
+        console.error('خطأ في إغلاق مودال رابط التتبع:', error);
     }
-    window.currentTrackingLink = null;
 }
 
 // ✅ دالة لنسخ رابط التتبع
-function copyTrackingLink() {
+function copyTrackingLink(event) {
     try {
         const input = document.getElementById('trackingLinkInput');
         if (!input) return;
@@ -2310,7 +3135,22 @@ function copyTrackingLink() {
             showMessage('تم نسخ الرابط بنجاح', 'success');
             
             // تغيير نص الزر مؤقتاً
-            const copyBtn = event.target.closest('button');
+            let copyBtn = null;
+            
+            // محاولة الحصول على الزر من event إذا كان متاحاً
+            if (event && event.target) {
+                copyBtn = event.target.closest('button');
+            }
+            
+            // إذا لم نجد الزر من event، نبحث عنه بطريقة أخرى
+            if (!copyBtn) {
+                // البحث عن الزر الذي يحتوي على onclick="copyTrackingLink"
+                const buttons = document.querySelectorAll('button[onclick*="copyTrackingLink"]');
+                if (buttons.length > 0) {
+                    copyBtn = buttons[0];
+                }
+            }
+            
             if (copyBtn) {
                 const originalHTML = copyBtn.innerHTML;
                 copyBtn.innerHTML = '<i class="bi bi-check-circle"></i> تم النسخ';
@@ -2344,14 +3184,133 @@ function openTrackingLink() {
     }
 }
 
+// ✅ دالة لإرسال رابط المتابعة للعميل عبر واتساب
+async function sendTrackingLinkToWhatsApp() {
+    try {
+        const repairData = window.currentRepairData;
+        const repairNumber = window.currentRepairNumber;
+        const trackingLink = window.currentTrackingLink || document.getElementById('trackingLinkInput')?.value;
+        
+        if (!trackingLink) {
+            showMessage('رابط المتابعة غير متوفر', 'error');
+            return;
+        }
+        
+        // جلب بيانات العملية إذا لم تكن متوفرة
+        let repair = repairData;
+        if (!repair || !repair.customer_phone) {
+            // محاولة جلب بيانات العملية من allRepairs أو من API
+            if (typeof allRepairs !== 'undefined' && Array.isArray(allRepairs)) {
+                repair = allRepairs.find(r => r.repair_number === repairNumber);
+            }
+            
+            // إذا لم يتم العثور على البيانات محلياً، جلبها من API
+            if ((!repair || !repair.customer_phone) && repairNumber) {
+                try {
+                    const result = await API.request(`repairs.php?repair_number=${encodeURIComponent(repairNumber)}`, 'GET');
+                    if (result && result.success && result.data) {
+                        repair = Array.isArray(result.data) ? result.data[0] : result.data;
+                    }
+                } catch (apiError) {
+                    console.error('خطأ في جلب بيانات العملية:', apiError);
+                }
+            }
+        }
+        
+        if (!repair || !repair.customer_phone) {
+            showMessage('رقم هاتف العميل غير متوفر. يرجى التأكد من إدخال رقم الهاتف في بيانات العملية', 'warning');
+            return;
+        }
+        
+        // تنظيف رقم الهاتف وإضافة كود البلد "+2"
+        let phoneNumber = repair.customer_phone.toString().trim();
+        phoneNumber = phoneNumber.replace(/[\s\-\+\(\)]/g, '');
+        phoneNumber = '+2' + phoneNumber;
+        
+        // بناء رسالة الواتساب
+        const customerName = repair.customer_name || 'العميل';
+        const deviceType = repair.device_type || 'غير محدد';
+        const deviceModel = repair.device_model || '';
+        const statusText = getRepairStatusText(repair.status || 'pending');
+        const customerPrice = repair.customer_price || 0;
+        const paidAmount = repair.paid_amount || 0;
+        const remainingAmount = repair.remaining_amount || 0;
+        
+        // بناء نص الرسالة (مبسط للإرسال عبر واتساب)
+        let message = `السلام عليكم ${customerName}\n\n`;
+        message += `رقم الصيانة: ${repairNumber}\n`;
+        message += `نوع الجهاز: ${deviceType}${deviceModel ? ' - ' + deviceModel : ''}\n`;
+        
+        if (customerPrice > 0) {
+            message += `\nالتكلفة: ${customerPrice.toLocaleString()} ج.م\n`;
+            if (paidAmount > 0) {
+                message += `المدفوع: ${paidAmount.toLocaleString()} ج.م\n`;
+            }
+            if (remainingAmount > 0) {
+                message += `المتبقي: ${remainingAmount.toLocaleString()} ج.م\n`;
+            }
+        }
+        
+        message += `\nرابط متابعة الصيانة:\n`;
+        message += `${trackingLink}\n\n`;
+        message += `يمكنك متابعة حالة الصيانة من خلال الرابط أعلاه\n\n`;
+        message += `شكراً لتعاملك معنا`;
+        
+        // تشفير الرسالة للـ URL
+        const encodedMessage = encodeURIComponent(message);
+        
+        // إنشاء رابط واتساب
+        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+        
+        // فتح واتساب في نافذة جديدة
+        window.open(whatsappUrl, '_blank');
+        
+        showMessage('جارٍ فتح واتساب لإرسال الرسالة...', 'success');
+        
+    } catch (error) {
+        console.error('خطأ في إرسال رابط المتابعة عبر واتساب:', error);
+        showMessage('حدث خطأ أثناء محاولة إرسال الرسالة عبر واتساب', 'error');
+    }
+}
+
+// ✅ دالة مساعدة للحصول على نص حالة الصيانة
+function getRepairStatusText(status) {
+    const statusMap = {
+        'pending': 'قيد الانتظار',
+        'in_progress': 'قيد التنفيذ',
+        'diagnosis': 'قيد التشخيص',
+        'awaiting_parts': 'في انتظار قطع الغيار',
+        'awaiting_customer_approval': 'في انتظار موافقة العميل',
+        'completed': 'مكتملة',
+        'delivered': 'تم التسليم',
+        'cancelled': 'ملغاة',
+        'pickup': 'استلام'
+    };
+    return statusMap[status] || status;
+}
+
 // ✅ تصدير الدوال إلى window
 window.closeTrackingLinkModal = closeTrackingLinkModal;
 window.copyTrackingLink = copyTrackingLink;
 window.openTrackingLink = openTrackingLink;
+window.sendTrackingLinkToWhatsApp = sendTrackingLinkToWhatsApp;
+window.openTrackingLinkForRepair = openTrackingLinkForRepair;
+window.showAddRepairModal = showAddRepairModal;
+window.switchRepairType = switchRepairType;
 
 async function editRepair(id) {
     const repair = allRepairs.find(r => r.id === id);
     if (!repair) return;
+    
+    // ✅ منع التعديل على الطلبات الملغاة
+    if (repair.status === 'cancelled') {
+        if (typeof showMessage === 'function') {
+            showMessage('لا يمكن تعديل عملية صيانة ملغاة', 'error');
+        } else {
+            alert('لا يمكن تعديل عملية صيانة ملغاة');
+        }
+        return;
+    }
 
     // تحميل الماركات أولاً
     await loadDeviceBrands();
@@ -2359,6 +3318,7 @@ async function editRepair(id) {
     document.getElementById('repairModalTitle').textContent = 'تعديل عملية الصيانة';
     document.getElementById('repairId').value = repair.id;
     document.getElementById('selectedCustomerId').value = '';
+    document.getElementById('repairNumber').value = repair.repair_number || '';
     document.getElementById('customerName').value = repair.customer_name;
     document.getElementById('customerPhone').value = repair.customer_phone;
     
@@ -2412,13 +3372,21 @@ async function editRepair(id) {
     }
     setSparePartsInvoices(sparePartsInvoices);
     
-    document.getElementById('paidAmount').value = repair.paid_amount || 0;
-    document.getElementById('remainingAmount').value = repair.remaining_amount || 0;
     document.getElementById('deliveryDate').value = repair.delivery_date || '';
-    document.getElementById('status').value = repair.status;
-    document.getElementById('notes').value = repair.notes || '';
+    // ✅ إصلاح: التأكد من وجود حالة افتراضية
+    const statusSelect = document.getElementById('status');
+    if (statusSelect) {
+        statusSelect.value = repair.status || 'received';
+    }
     
-    // إخفاء حقول الفرع ونوع العميل واختيار العميل عند التعديل
+    // ✅ تحميل تقرير الفحص
+    const inspectionReportField = document.getElementById('inspectionReport');
+    if (inspectionReportField) {
+        inspectionReportField.value = repair.inspection_report || '';
+    }
+    
+    // ✅ إخفاء جميع الحقول غير القابلة للتعديل
+    // إخفاء حقول الفرع ونوع العميل
     const branchGroup = document.getElementById('repairBranchGroup');
     if (branchGroup) {
         branchGroup.style.display = 'none';
@@ -2441,11 +3409,109 @@ async function editRepair(id) {
     if (customerSelectGroup) {
         customerSelectGroup.style.display = 'none';
     }
+    // ✅ إزالة required من customerSelect عند التعديل لأنه مخفي
+    const customerSelect = document.getElementById('customerSelect');
+    if (customerSelect) {
+        customerSelect.required = false;
+    }
     
-    // إظهار حقول بيانات العميل فقط (بدون shop_name لأنها لا تُستخدم في التعديل)
+    // ✅ إخفاء حقول بيانات العميل وإزالة required منها
+    const customerFieldsContainer = document.getElementById('customerFieldsContainer');
+    if (customerFieldsContainer) {
+        customerFieldsContainer.style.display = 'none';
+    }
+    const customerName = document.getElementById('customerName');
+    if (customerName) {
+        customerName.required = false;
+    }
+    const customerPhone = document.getElementById('customerPhone');
+    if (customerPhone) {
+        customerPhone.required = false;
+    }
     const shopNameGroup = document.getElementById('shopNameGroup');
     if (shopNameGroup) {
         shopNameGroup.style.display = 'none';
+    }
+    
+    // ✅ إخفاء حقول بيانات الجهاز وإزالة required منها
+    const deviceTypeSelectForHide = document.getElementById('deviceType');
+    if (deviceTypeSelectForHide) {
+        deviceTypeSelectForHide.required = false;
+    }
+    const deviceTypeGroup = deviceTypeSelectForHide?.parentElement;
+    if (deviceTypeGroup) {
+        deviceTypeGroup.style.display = 'none';
+    }
+    const problemField = document.getElementById('problem');
+    if (problemField) {
+        problemField.required = false;
+    }
+    const deviceModelGroup = document.getElementById('deviceModel')?.parentElement;
+    if (deviceModelGroup) {
+        deviceModelGroup.style.display = 'none';
+    }
+    const accessoriesGroup = document.getElementById('accessories')?.parentElement;
+    if (accessoriesGroup) {
+        accessoriesGroup.style.display = 'none';
+    }
+    const problemGroup = document.getElementById('problem')?.parentElement;
+    if (problemGroup) {
+        problemGroup.style.display = 'none';
+    }
+    const repairTypeGroup = document.getElementById('repairType')?.parentElement;
+    if (repairTypeGroup) {
+        repairTypeGroup.style.display = 'none';
+    }
+    
+    // ✅ إخفاء صورة الجهاز
+    const imageUploadGroup = document.querySelector('.image-upload-container')?.parentElement;
+    if (imageUploadGroup) {
+        imageUploadGroup.style.display = 'none';
+    }
+    
+    // ✅ إخفاء رقم العملية وإزالة required منه
+    const repairNumberField = document.getElementById('repairNumber');
+    if (repairNumberField) {
+        repairNumberField.required = false;
+    }
+    const repairNumberGroup = repairNumberField?.parentElement;
+    if (repairNumberGroup) {
+        repairNumberGroup.style.display = 'none';
+    }
+    
+    // ✅ إخفاء المبلغ المدفوع والمتبقي
+    const paidAmountGroup = document.getElementById('paidAmount')?.parentElement;
+    if (paidAmountGroup) {
+        paidAmountGroup.style.display = 'none';
+    }
+    const remainingAmountGroup = document.getElementById('remainingAmount')?.parentElement;
+    if (remainingAmountGroup) {
+        remainingAmountGroup.style.display = 'none';
+    }
+    
+    // ✅ إخفاء الملاحظات
+    const notesGroup = document.getElementById('notes')?.parentElement;
+    if (notesGroup) {
+        notesGroup.style.display = 'none';
+    }
+    
+    // ✅ إظهار الحقول القابلة للتعديل فقط:
+    // - الفني المستلم (technicianSelect) - سيتم إظهاره تلقائياً
+    // - السعر للعميل (customerPrice) - سيتم إظهاره تلقائياً
+    // - تكلفة الإصلاح (repairCost) - سيتم إظهاره تلقائياً
+    // - اسم محل قطع الغيار (partsStore) - سيتم إظهاره تلقائياً
+    // - أرقام فواتير قطع الغيار (sparePartsInvoicesContainer) - سيتم إظهاره تلقائياً
+    // - تاريخ التسليم (deliveryDate) - سيتم إظهاره تلقائياً
+    // - الحالة (status) - سيتم إظهاره تلقائياً
+    // - Serial Number (serialNumber) - يجب إظهاره
+    // - تقرير الفحص (inspectionReport) - يجب إظهاره
+    const serialNumberGroup = document.getElementById('serialNumber')?.parentElement;
+    if (serialNumberGroup) {
+        serialNumberGroup.style.display = 'block';
+    }
+    const inspectionReportGroup = document.getElementById('inspectionReportGroup');
+    if (inspectionReportGroup) {
+        inspectionReportGroup.style.display = 'block';
     }
     
     // عرض الصورة الموجودة إن وجدت
@@ -2466,15 +3532,31 @@ async function editRepair(id) {
     
     // تحديث dropdown الفني المستلم
     const branchIdForEdit = repair.branch_id || null;
-    await loadRepairTechnicians(branchIdForEdit);
+    // ✅ استخدام preserveValue = true عند التعديل للحفاظ على قيمة الفني المحددة
+    await loadRepairTechnicians(branchIdForEdit, true);
     
-    // تحديد الفني المستلم من العملية
+    // ✅ إصلاح: تحديد الفني المستلم من العملية بشكل أفضل
     const technicianSelect = document.getElementById('technicianSelect');
     if (technicianSelect && repair.created_by) {
-        if (technicianSelect.querySelector(`option[value="${repair.created_by}"]`)) {
-            technicianSelect.value = repair.created_by;
+        const createdById = String(repair.created_by);
+        // البحث عن الخيار المطابق
+        const matchingOption = Array.from(technicianSelect.options).find(option => {
+            return option.value === createdById || String(option.value) === createdById;
+        });
+        
+        if (matchingOption) {
+            technicianSelect.value = matchingOption.value;
+        } else {
+            console.warn('editRepair: لم يتم العثور على الفني في القائمة - created_by =', repair.created_by);
+            // إذا لم يتم العثور على الفني، نحدد القيمة الأولى المتاحة
+            if (technicianSelect.options.length > 1) {
+                technicianSelect.selectedIndex = 1; // تخطي الخيار الأول (جاري التحميل...)
+            }
         }
     }
+    
+    // ✅ إصلاح: إعادة حساب المتبقي بعد تحميل القيم
+    calculateRemaining();
     
     document.getElementById('repairModal').style.display = 'flex';
 }
@@ -2507,11 +3589,40 @@ async function printRepairReceipt(id) {
     const repair = allRepairs.find(r => r.id === id);
     if (!repair) return;
 
-    // جلب إعدادات المحل من ملف settings.json
+    // ✅ جلب بيانات الفرع المرتبط بالعملية
+    let branchData = null;
+    let branchSettings = null;
+    
+    if (repair.branch_id) {
+        try {
+            // جلب بيانات الفرع
+            const branchResponse = await API.request(`branches.php?id=${repair.branch_id}`, 'GET');
+            if (branchResponse && branchResponse.success && branchResponse.data) {
+                branchData = Array.isArray(branchResponse.data) ? branchResponse.data[0] : branchResponse.data;
+                console.log('تم جلب بيانات الفرع:', branchData);
+            }
+            
+            // جلب إعدادات الفرع
+            if (branchData) {
+                const branchSettingsResponse = await API.request(`settings.php?branch_id=${repair.branch_id}`, 'GET');
+                if (branchSettingsResponse && branchSettingsResponse.success && branchSettingsResponse.data) {
+                    branchSettings = branchSettingsResponse.data;
+                    console.log('تم جلب إعدادات الفرع:', branchSettings);
+                }
+            }
+        } catch (error) {
+            console.log('خطأ في جلب بيانات الفرع، سيتم استخدام الإعدادات العامة:', error);
+        }
+    }
+    
+    // ✅ جلب إعدادات المحل العامة (fallback)
     let shopSettings = {
         shop_name: 'محل صيانة الهواتف',
         shop_phone: '01000000000',
-        shop_address: 'القاهرة، مصر'
+        shop_address: 'القاهرة، مصر',
+        shop_logo: '',
+        currency: 'ج.م',
+        whatsapp_number: ''
     };
     
     try {
@@ -2523,6 +3634,14 @@ async function printRepairReceipt(id) {
     } catch (error) {
         console.log('لم يتم تحميل إعدادات المحل، سيتم استخدام القيم الافتراضية:', error);
     }
+    
+    // ✅ استخدام إعدادات الفرع إذا كانت متوفرة، وإلا استخدام الإعدادات العامة
+    const finalShopName = (branchSettings && branchSettings.shop_name) || (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
+    const finalShopPhone = (branchSettings && branchSettings.shop_phone) || (branchData && branchData.phone) || shopSettings.shop_phone || '';
+    const finalShopAddress = (branchSettings && branchSettings.shop_address) || (branchData && branchData.address) || shopSettings.shop_address || '';
+    const finalShopLogo = (branchSettings && branchSettings.shop_logo) || (branchData && branchData.logo) || shopSettings.shop_logo || '';
+    const currency = (branchSettings && branchSettings.currency) || shopSettings.currency || 'ج.م';
+    const whatsappNumber = (branchSettings && branchSettings.whatsapp_number) || shopSettings.whatsapp_number || '';
 
     // ✅ إنشاء رابط التتبع
     const trackingLink = generateRepairTrackingLink(repair.repair_number);
@@ -2545,109 +3664,830 @@ async function printRepairReceipt(id) {
         hasImage = false;
     }
 
-    const printWindow = window.open('', '', 'width=800,height=600');
+    // ✅ تحضير الشعار - نفس طريقة POS مع fallback paths
+    let logoHtml = '';
+    const defaultLogoPath = 'vertopal.com_photo_5922357566287580087_y.png';
+    const fallbackLogoPath1 = 'photo_5922357566287580087_y.jpg';
+    const fallbackLogoPath2 = 'icons/icon-192x192.png';
+    
+    const createLogoHtml = (src, alt = 'شعار المحل') => {
+        return `<img src="${src}" alt="${alt}" class="invoice-logo" style="max-width: 500px; max-height: 500px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;
+    };
+    
+    if (finalShopLogo && finalShopLogo.trim() !== '') {
+        logoHtml = createLogoHtml(finalShopLogo);
+    } else {
+        logoHtml = createLogoHtml(defaultLogoPath);
+    }
+    
+    // ✅ دالة formatPrice (نفس POS)
+    const formatPrice = (price) => {
+        return parseFloat(price || 0).toFixed(2);
+    };
+    
+    // ✅ تحضير اسم الفني
+    const technicianName = repair.technician_name || getTechnicianName(repair.created_by) || 'غير محدد';
+    
+    // ✅ تحضير اسم الفرع
+    const branchName = (branchData && branchData.name) || 'غير محدد';
+    
+    // ✅ فتح نافذة الطباعة
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+        showMessage('يرجى السماح بالنوافذ المنبثقة لطباعة الإيصال', 'error');
+        return;
+    }
+    
+    // ✅ كتابة HTML مباشرة
+    printWindow.document.open('text/html', 'replace');
     printWindow.document.write(`
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
-            <link rel="stylesheet" href="css/print.css">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} - ${repair.repair_number}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+            <style>
+                /* ✅ إضافة CSS Variables للطباعة */
+                :root {
+                    --primary-color: #2196F3;
+                    --secondary-color: #64B5F6;
+                    --text-dark: #333;
+                    --text-light: #666;
+                    --border-color: #ddd;
+                    --light-bg: #f5f5f5;
+                    --white: #ffffff;
+                }
+                
+                /* ✅ التأكد من ظهور المحتوى */
+                body {
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                }
+                
+                .invoice-wrapper {
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    display: block !important;
+                }
+                
+                .invoice-wrapper > * {
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    display: block !important;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Cairo', 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #f5f5f5;
+                    padding: 20px;
+                    color: #333;
+                    margin: 0;
+                    direction: rtl;
+                }
+                
+                /* ✅ أنماط invoice-wrapper الأساسية */
+                .invoice-wrapper {
+                    direction: rtl;
+                    font-family: 'Cairo', 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #ffffff;
+                    color: #333;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                    border-radius: 16px;
+                    font-size: 16px;
+                    line-height: 1.7;
+                }
+                
+                .invoice-logo-section {
+                    text-align: center;
+                    margin-bottom: 3px;
+                    margin-top: 0;
+                    padding: 2px 0;
+                }
+                
+                .invoice-logo {
+                    max-width: 500px;
+                    max-height: 500px;
+                    width: auto;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                }
+                
+                .invoice-header {
+                    text-align: center;
+                    margin-bottom: 15px;
+                    padding-bottom: 8px;
+                    border-bottom: 3px solid #2196F3;
+                }
+                
+                .invoice-shop-name {
+                    font-size: 2.2em;
+                    font-weight: 700;
+                    color: #2196F3;
+                    margin-bottom: 12px;
+                }
+                
+                .invoice-shop-info {
+                    color: #666;
+                    line-height: 1.8;
+                    font-size: 1.05em;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    align-items: center;
+                }
+                
+                .invoice-shop-info div {
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .invoice-details {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+                    border-radius: 12px;
+                    border: 1px solid #e0e0e0;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                }
+                
+                .invoice-details-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+                
+                .invoice-details-row > div {
+                    color: #333;
+                    font-size: 1.05em;
+                    padding: 12px 15px;
+                    background: var(--white, #ffffff);
+                    border-radius: 8px;
+                    border-right: 3px solid var(--primary-color, #2196F3);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+                }
+                
+                .invoice-details-row strong {
+                    color: var(--primary-color, #2196F3);
+                    font-weight: 600;
+                    margin-left: 8px;
+                }
+                
+                .invoice-extra-info {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+                    border-radius: 12px;
+                    border: 1px solid #e0e0e0;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                }
+                
+                .invoice-extra-info-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+                
+                .invoice-extra-info-row > div {
+                    color: #333;
+                    font-size: 1.05em;
+                    padding: 12px 15px;
+                    background: var(--white, #ffffff);
+                    border-radius: 8px;
+                    border-right: 3px solid var(--primary-color, #2196F3);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+                }
+                
+                .invoice-extra-info-row strong {
+                    color: var(--primary-color, #2196F3);
+                    font-weight: 600;
+                    margin-left: 8px;
+                }
+                
+                .invoice-summary {
+                    margin-top: 25px;
+                    padding: 25px;
+                    background: #f8f9fa;
+                    border-radius: 12px;
+                }
+                
+                .invoice-summary .summary-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 15px;
+                    font-size: 1.1em;
+                    padding: 10px 0;
+                }
+                
+                .invoice-summary .summary-row.total {
+                    font-size: 1.9em;
+                    font-weight: 800;
+                    color: #2196F3;
+                    padding: 20px 0;
+                    border-top: 3px solid #2196F3;
+                    margin-top: 20px;
+                }
+                
+                /* ✅ Responsive Design للجوال */
+                @media (max-width: 768px) {
+                    .invoice-details-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                    
+                    .invoice-details {
+                        padding: 15px !important;
+                    }
+                    
+                    .invoice-extra-info {
+                        padding: 15px !important;
+                    }
+                    
+                    .invoice-extra-info-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                }
+                
+                .invoice-delivery-date {
+                    text-align: center;
+                    margin: 15px 0;
+                    padding: 15px;
+                    background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%);
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+                    page-break-inside: avoid;
+                }
+                
+                .invoice-delivery-date > div:first-child {
+                    color: var(--white, #ffffff);
+                    font-size: 0.95em;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                }
+                
+                .invoice-delivery-date > div:last-child {
+                    color: var(--white, #ffffff);
+                    font-size: 1.3em;
+                    font-weight: 700;
+                    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                }
+                
+                .invoice-summary hr {
+                    margin: 18px 0;
+                    border: none;
+                    border-top: 2px solid #e0e0e0;
+                }
+                
+                .invoice-terms {
+                    margin-top: 30px;
+                    padding: 20px;
+                    background: #fff9e6;
+                    border: 2px solid var(--warning-color, #FFA500);
+                    border-radius: 8px;
+                    page-break-inside: avoid;
+                }
+                
+                .invoice-terms h4 {
+                    color: var(--warning-color, #FFA500);
+                    margin-bottom: 15px;
+                    font-size: 1.1em;
+                    font-weight: 700;
+                    text-align: center;
+                }
+                
+                .invoice-terms ul {
+                    margin: 0;
+                    padding-right: 25px;
+                    color: var(--text-dark, #333);
+                    line-height: 2;
+                    font-size: 0.95em;
+                }
+                
+                .invoice-terms li {
+                    margin-bottom: 8px;
+                }
+                
+                .invoice-qrcode {
+                    text-align: center;
+                    margin: 30px 0;
+                    padding: 0;
+                }
+                
+                .invoice-qrcode img {
+                    max-width: 250px;
+                    width: 250px;
+                    height: 250px;
+                    margin: 0 auto;
+                    display: block;
+                }
+                
+                .invoice-footer {
+                    text-align: center;
+                    margin-top: 35px;
+                    padding-top: 25px;
+                    border-top: 2px solid #2196F3;
+                    color: #666;
+                    font-size: 1.2em;
+                    font-weight: 600;
+                }
+                
+                .no-print {
+                    display: block !important;
+                    text-align: center;
+                    margin-top: 20px;
+                    display: flex;
+                    gap: 10px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+                
+                .no-print button {
+                    padding: 10px 20px;
+                    background: var(--primary-color, #2196F3);
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.3s ease;
+                }
+                
+                .no-print button:hover {
+                    background: var(--secondary-color, #64B5F6);
+                    transform: translateY(-2px);
+                }
+                
+                .no-print button:last-child {
+                    background: var(--secondary-color, #64B5F6);
+                }
+                
+                .no-print button:last-child:hover {
+                    background: var(--primary-color, #2196F3);
+                }
+                
+                @media print {
+                    @page {
+                        margin: 0;
+                        size: 80mm auto;
+                    }
+                    
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 80mm !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                    }
+                    
+                    .no-print {
+                        display: none !important;
+                    }
+                    
+                    .invoice-wrapper {
+                        width: 80mm !important;
+                        max-width: 80mm !important;
+                        margin: 0 !important;
+                        padding: 8px 4px !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        border-radius: 0 !important;
+                        background: white !important;
+                        height: auto !important;
+                        min-height: auto !important;
+                        max-height: none !important;
+                        overflow: visible !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                        box-sizing: border-box !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: block !important;
+                    }
+                    
+                    /* ✅ التأكد من ظهور جميع العناصر */
+                    .invoice-wrapper > *:not(.invoice-extra-info) {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: block !important;
+                    }
+                    
+                    .invoice-logo-section,
+                    .invoice-header,
+                    .invoice-details,
+                    .invoice-summary,
+                    .invoice-terms,
+                    .invoice-qrcode,
+                    .invoice-footer {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: block !important;
+                    }
+                    
+                    .invoice-extra-info {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                    }
+                    
+                    .invoice-extra-info-row {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: grid !important;
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                    
+                    .invoice-wrapper * {
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    
+                    .invoice-logo-section {
+                        padding-top: 0 !important;
+                        padding-bottom: 0 !important;
+                        margin-top: 0 !important;
+                        margin-bottom: 2px !important;
+                        background: white !important;
+                        box-shadow: none !important;
+                        text-align: center !important;
+                        page-break-inside: avoid !important;
+                    }
+                    
+                    .invoice-logo {
+                        max-width: 60mm !important;
+                        max-height: 40mm !important;
+                        width: auto !important;
+                        height: auto !important;
+                        display: block !important;
+                        margin: 0 auto 0 auto !important;
+                        padding: 0 !important;
+                    }
+                    
+                    .invoice-header {
+                        border-bottom: 2px solid #2196F3 !important;
+                        padding: 5px 0 !important;
+                        margin-top: 2px !important;
+                        margin-bottom: 8px !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                    }
+                    
+                    .invoice-header h2 {
+                        font-size: 1em !important;
+                        margin: 5px 0 !important;
+                    }
+                    
+                    .invoice-shop-info {
+                        font-size: 0.75em !important;
+                    }
+                    
+                    .invoice-shop-info div {
+                        font-size: 0.75em !important;
+                    }
+                    
+                    .invoice-details {
+                        padding: 8px !important;
+                        margin-bottom: 8px !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                        box-shadow: none !important;
+                        border: 1px solid #ddd !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-details-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 5px !important;
+                    }
+                    
+                    .invoice-details-row > div {
+                        font-size: 0.8em !important;
+                        padding: 6px 8px !important;
+                    }
+                    
+                    .invoice-extra-info {
+                        padding: 8px !important;
+                        margin-bottom: 8px !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                        box-shadow: none !important;
+                        border: 1px solid #ddd !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-extra-info-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 5px !important;
+                    }
+                    
+                    .invoice-extra-info-row > div {
+                        font-size: 0.8em !important;
+                        padding: 6px 8px !important;
+                    }
+                    
+                    .invoice-extra-info > div:not(.invoice-extra-info-row) {
+                        font-size: 0.8em !important;
+                        padding: 6px 8px !important;
+                    }
+                    
+                    .invoice-delivery-date {
+                        margin: 15px 0 !important;
+                        padding: 15px !important;
+                        background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%) !important;
+                        border-radius: 8px !important;
+                        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3) !important;
+                        page-break-inside: avoid !important;
+                    }
+                    
+                    .invoice-delivery-date {
+                        padding: 10px !important;
+                        margin: 10px 0 !important;
+                    }
+                    
+                    .invoice-delivery-date > div:first-child {
+                        font-size: 0.75em !important;
+                        margin-bottom: 5px !important;
+                    }
+                    
+                    .invoice-delivery-date > div:last-child {
+                        font-size: 0.95em !important;
+                    }
+                    
+                    .invoice-summary {
+                        padding: 8px !important;
+                        margin: 8px 0 !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                        page-break-before: avoid !important;
+                        box-shadow: none !important;
+                        border: 1px solid #ddd !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-summary .summary-row {
+                        font-size: 0.9em !important;
+                        margin-bottom: 5px !important;
+                    }
+                    
+                    .invoice-summary .summary-row.total {
+                        font-size: 1.1em !important;
+                        padding: 8px 0 !important;
+                    }
+                    
+                    .invoice-qrcode {
+                        page-break-inside: avoid !important;
+                        page-break-before: avoid !important;
+                        page-break-after: avoid !important;
+                        margin: 8px 0 !important;
+                        padding: 0 !important;
+                        display: block !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        text-align: center !important;
+                    }
+                    
+                    .invoice-qrcode img {
+                        max-width: 45mm !important;
+                        width: 45mm !important;
+                        height: 45mm !important;
+                        display: block !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        margin: 0 auto !important;
+                    }
+                    
+                    .invoice-qrcode p {
+                        font-size: 0.7em !important;
+                        margin-top: 3px !important;
+                    }
+                    
+                    .invoice-terms {
+                        margin: 10px 0 !important;
+                        padding: 10px !important;
+                        font-size: 0.7em !important;
+                        page-break-inside: avoid !important;
+                        background: #fff9e6 !important;
+                        border: 1px solid #FFA500 !important;
+                    }
+                    
+                    .invoice-terms h4 {
+                        font-size: 0.8em !important;
+                        margin-bottom: 6px !important;
+                    }
+                    
+                    .invoice-terms ul {
+                        padding-right: 20px !important;
+                        line-height: 1.5 !important;
+                        font-size: 0.7em !important;
+                    }
+                    
+                    .invoice-terms li {
+                        font-size: 0.7em !important;
+                        margin-bottom: 4px !important;
+                    }
+                    
+                    .invoice-footer {
+                        margin: 10px 0 0 0 !important;
+                        padding-top: 10px !important;
+                        font-size: 0.8em !important;
+                        page-break-inside: avoid !important;
+                        box-shadow: none !important;
+                        border-top: 2px solid #2196F3 !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-footer div {
+                        font-size: 0.8em !important;
+                    }
+                    
+                    .repair-device-image {
+                        max-width: 100% !important;
+                        max-height: 150px !important;
+                        width: auto !important;
+                        height: auto !important;
+                        display: block !important;
+                        margin: 5px auto !important;
+                        border: 1px solid #ddd !important;
+                        border-radius: 5px !important;
+                        page-break-inside: avoid !important;
+                    }
+                }
+            </style>
         </head>
-        <body>
-            <div class="receipt">
-                <div class="receipt-header">
-                    ${shopSettings.shop_logo ? `<div style="text-align: center; margin-bottom: 15px;"><img src="${shopSettings.shop_logo}" alt="شعار المحل" style="max-height: 60px; max-width: 200px;" loading="lazy" decoding="async" width="200" height="60"></div>` : ''}
-                    <h1>${shopSettings.shop_name}</h1>
-                    <h2>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} جهاز</h2>
-                    ${shopSettings.shop_address ? `<p style="color: #666; margin: 5px 0;">${shopSettings.shop_address}</p>` : ''}
-                    ${shopSettings.shop_phone ? `<p style="color: #666; margin: 5px 0;">${shopSettings.shop_phone}</p>` : ''}
+        <body style="margin: 0; padding: 0; background: #f5f5f5; direction: rtl;">
+            <div class="invoice-wrapper" style="background: white; padding: 20px; margin: 20px auto; max-width: 800px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 16px;">
+                <!-- Logo Section -->
+                ${logoHtml ? `<div class="invoice-logo-section" style="text-align: center; margin-top: 0; margin-bottom: 2px; padding: 2px 0;">${logoHtml}</div>` : ''}
+                
+                <!-- Shop Info -->
+                <div class="invoice-header">
+                    <div class="invoice-shop-info">
+                        ${finalShopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${finalShopAddress}</div>` : ''}
+                        ${whatsappNumber ? `<div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${whatsappNumber}</div>` : ''}
+                        ${finalShopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${finalShopPhone}</div>` : ''}
                 </div>
-                <div class="receipt-info">
-                    <p><strong>رقم العملية:</strong> ${repair.repair_number}</p>
-                    <p><strong>التاريخ:</strong> ${formatDateTime(repair.created_at)}</p>
-                </div>
-                <div class="receipt-section">
-                    <h3>بيانات العميل</h3>
-                    <p><strong>الاسم:</strong> ${repair.customer_name}</p>
-                    <p><strong>الهاتف:</strong> ${repair.customer_phone}</p>
-                </div>
-                <div class="receipt-section">
-                    <h3>بيانات الجهاز</h3>
-                    <p><strong>النوع:</strong> ${repair.device_type}</p>
-                    <p><strong>الموديل:</strong> ${repair.device_model || '-'}</p>
-                    <p><strong>الرقم التسلسلي:</strong> ${repair.serial_number || '-'}</p>
-                    <p><strong>المشكلة:</strong> ${repair.problem}</p>
-                    <p><strong>الملحقات:</strong> ${repair.accessories || '-'}</p>
-                </div>
-                <div class="receipt-section">
-                    <h3>التكلفة والدفع</h3>
-                    <p><strong>سعر الصيانة:</strong> ${formatCurrency(repair.customer_price || repair.cost)}  ${shopSettings.currency || 'ج.م'}</p>
-                    <p><strong>المبلغ المدفوع مقدماً:</strong> ${formatCurrency(repair.paid_amount || 0)}  ${shopSettings.currency || 'ج.م'}</p>
-                    <p><strong>المبلغ المتبقي:</strong> ${formatCurrency(repair.remaining_amount || 0)}  ${shopSettings.currency || 'ج.م'}</p>
-                </div>
-                <div class="receipt-section">
-                    <h3>موعد الاستلام المتوقع</h3>
-                    <p><strong>التاريخ:</strong> ${formatDate(repair.delivery_date) || '-'}</p>
-                </div>
-                <div class="receipt-section">
-                    <h3>ملاحظات</h3>
-                    <p>${repair.notes || '-'}</p>
+                    <h2 style="margin: 10px 0; color: var(--primary-color, #2196F3); font-size: 1.2em; font-weight: 700;">إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} جهاز</h2>
                 </div>
                 
-                ${hasImage ? `<div class="receipt-section">
-                    <h3>صورة الجهاز</h3>
-                    <div style="text-align: center; margin: 10px 0;">
-                        <img src="${API.getImagePath(repair.id)}" alt="صورة الجهاز" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 5px;" loading="lazy" decoding="async" width="200" height="200">
+                <!-- Invoice Details -->
+                <div class="invoice-details">
+                    <div class="invoice-details-row">
+                        <div><strong>العميل:</strong> ${repair.customer_name || '-'}</div>
+                        <div><strong>الهاتف:</strong> ${repair.customer_phone || '-'}</div>
+                </div>
+                    <div class="invoice-details-row">
+                        <div><strong>رقم العملية:</strong> ${repair.repair_number || '-'}</div>
+                        <div><strong>التاريخ:</strong> ${formatDateTime(repair.created_at)}</div>
+                </div>
+                </div>
+                
+               
+                <!-- Device Info -->
+                <div class="invoice-extra-info">
+                    <div class="invoice-extra-info-row">
+                        <div><strong>نوع الجهاز:</strong> ${repair.device_type || '-'}</div>
+                        <div><strong>الموديل:</strong> ${repair.device_model || '-'}</div>
                     </div>
-                </div>` : ''}
-                
-                <div class="receipt-footer">
-                    <p>شكراً لثقتكم</p>
-                    ${repair.status === 'delivered' && repair.delivered_at ? `<p><small>تاريخ التسليم: ${formatDateTime(repair.delivered_at)}</small></p>` : ''}
+                    <div class="invoice-extra-info-row">
+                        <div><strong>الرقم التسلسلي:</strong> ${repair.serial_number || '-'}</div>
+                        <div><strong>المشكلة:</strong> ${repair.problem || '-'}</div>
+                    </div>
+                    ${repair.accessories ? `
+                    <div class="invoice-extra-info-row">
+                        <div><strong>الملحقات:</strong> ${repair.accessories}</div>
+                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
+                    </div>
+                    ` : `
+                    <div class="invoice-extra-info-row">
+                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
+                        <div></div>
+                    </div>
+                    `}
                 </div>
                 
-                <!-- ✅ QR Code لمتابعة عملية الصيانة -->
-                <div class="receipt-section" style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #ddd;">
-                    <h3 style="margin-bottom: 10px; color: var(--primary-color, #2196F3);">
-                        <i class="bi bi-qr-code-scan"></i> متابعة حالة الصيانة
-                    </h3>
-                    <p style="margin-bottom: 15px; font-size: 0.9em; color: #666;">
-                        امسح الباركود لمتابعة حالة عملية الصيانة
-                    </p>
-                    <div style="display: inline-block; padding: 15px; background: white; border: 2px solid #ddd; border-radius: 10px;">
-                        <img src="${qrCodeImage}" alt="QR Code لمتابعة الصيانة" style="max-width: 200px; max-height: 200px; width: 200px; height: 200px; display: block;" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(trackingLink)}';">
+                ${repair.delivery_date ? `
+                <!-- Delivery Date Section -->
+                <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);">
+                    <div style="color: var(--white, #ffffff); font-size: 0.95em; font-weight: 600; margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                        <i class="bi bi-calendar-check-fill" style="margin-left: 6px;"></i> موعد الاستلام المتوقع
                     </div>
-                    <p style="margin-top: 10px; font-size: 0.85em; color: #999;">
-                        رقم العملية: ${repair.repair_number}
-                    </p>
+                    <div style="color: var(--white, #ffffff); font-size: 1.3em; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+                        ${formatDate(repair.delivery_date)}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- Summary -->
+                <div class="invoice-summary">
+                    <div class="summary-row">
+                        <span>تكلفة الصيانة:</span>
+                        <span>${formatPrice(repair.customer_price || repair.cost || 0)} ${currency}</span>
+                    </div>
+                    ${(repair.paid_amount && parseFloat(repair.paid_amount) > 0) ? `
+                    <div class="summary-row">
+                        <span>المبلغ المدفوع:</span>
+                        <span>${formatPrice(repair.paid_amount)} ${currency}</span>
+                    </div>
+                    ` : ''}
+                    ${(repair.remaining_amount && parseFloat(repair.remaining_amount) > 0) ? `
+                    <div class="summary-row">
+                        <span> المتبقي:</span>
+                        <span>${formatPrice(repair.remaining_amount)} ${currency}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                ${repair.notes ? `
+                <div class="invoice-extra-info" style="margin-top: 10px;">
+                    <div><strong>ملاحظات:</strong> ${repair.notes}</div>
+                    </div>
+                ` : ''}
+                
+                ${repair.status === 'delivered' && repair.delivered_at ? `
+                <div class="invoice-extra-info" style="margin-top: 10px;">
+                    <div><strong>تاريخ التسليم:</strong> ${formatDateTime(repair.delivered_at)}</div>
+                </div>
+                ` : ''}
+                
+                <!-- QR Code -->
+                <div class="invoice-qrcode">
+                    <br>
+                    <img src="${qrCodeImage}" alt="QR Code لمتابعة الصيانة" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(trackingLink)}';">
+                    <p style="margin-top: 5px; font-size: 1em; color: #666;">يمكنك مسح ال qr code لمتابعة الصيانه بشكل لحظي</p>
+                    <br>
+            </div>
+                
+                <!-- Terms & Conditions -->
+                <div class="invoice-terms" style="margin-top: 30px; padding: 20px; background: #fff9e6; border: 2px solid var(--warning-color, #FFA500); border-radius: 8px;">
+                    <h4 style="color: var(--warning-color, #FFA500); margin-bottom: 15px; font-size: 1.1em; font-weight: 700; text-align: center;">
+                        <i class="bi bi-exclamation-triangle-fill" style="margin-left: 8px;"></i> شروط وأحكام مهمة
+                    </h4>
+                    <ul style="margin: 0; padding-right: 25px; color: var(--text-dark, #333); line-height: 2; font-size: 0.95em;">
+                        <li>المحل غير مسئول عن الجهاز بعد مرور شهر من تاريخ الاستلام</li>
+                        <li>ضمان البورد ٧ أيام فقط في حالة التغيير</li>
+                        <li>في حال الالغاء او عدم اتمام عملية الصيانه بناءا علي طلبكم بعد الفحص يتم دفع رسوم الفحص التي يحددها فني المسؤوليين في المكان</li>
+                        <li>المحل غير مسؤول عن اي عطل يظهر في الجهاز بعد عملية الصيانه غير العطل المتفق عليه</li>
+                        <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
+                    </ul>
+            </div>
+                
+                <!-- Footer -->
+                <div class="invoice-footer">
+                    <div>شكراً لثقتكم</div>
                 </div>
             </div>
-            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            
+            <div class="no-print">
+                <button onclick="window.print()">
                     <i class="bi bi-printer"></i> طباعة
                 </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                <button onclick="window.history.back() || window.close()">
                     <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
-            <style>
-                .no-print { display: block !important; }
-                @media print {
-                    .no-print { display: none !important; }
-                }
-            </style>
-            <script>
-                window.onload = function() {
-                    window.print();
-                }
-            </script>
         </body>
         </html>
     `);
     printWindow.document.close();
+    
+    // ✅ التأكد من تحميل الصفحة
+    setTimeout(() => {
+        if (printWindow && !printWindow.closed) {
+            printWindow.focus();
+        }
+    }, 100);
 }
 
-// وظائف الباركود والملصق الصغير
+// وظائف QR Code والملصق المحسّن
 async function generateBarcodeLabel(repairId) {
     const repair = allRepairs.find(r => r.id === repairId);
     if (!repair) {
@@ -2656,152 +4496,619 @@ async function generateBarcodeLabel(repairId) {
     }
 
     try {
-        // إنشاء الباركود
-        const barcodeImage = window.barcodeGenerator.generateBarcode(repair.repair_number, 200, 80);
+        // إنشاء رابط التتبع
+        const trackingLink = generateRepairTrackingLink(repair.repair_number);
+        if (!trackingLink) {
+            showMessage('فشل إنشاء رابط التتبع', 'error');
+            return;
+        }
         
-        // إنشاء الملصق الصغير
-        const labelImage = window.smallLabelGenerator.generateLabel(repair, 300, 150);
+        // إنشاء QR Code للرابط
+        let qrCodeImage = '';
+        try {
+            qrCodeImage = await generateRepairTrackingQRCode(trackingLink);
+            if (!qrCodeImage) {
+                throw new Error('فشل إنشاء QR Code');
+            }
+        } catch (error) {
+            console.error('خطأ في إنشاء QR Code:', error);
+            qrCodeImage = generateQRCodeFallback(trackingLink, 200);
+        }
         
-        // إنشاء الملصق المتقدم
-        const advancedLabelImage = window.smallLabelGenerator.generateAdvancedLabel(repair, 400, 200);
+        // ✅ تحويل QR Code إلى data URL إذا كان URL خارجي
+        if (qrCodeImage && !qrCodeImage.startsWith('data:')) {
+            try {
+                qrCodeImage = await convertImageUrlToDataUrl(qrCodeImage);
+            } catch (error) {
+                console.warn('فشل تحويل QR Code URL إلى data URL، سيتم استخدام URL الأصلي:', error);
+            }
+        }
+        
+        // إنشاء الملصق المحسّن مع QR Code وبيانات العملية
+        let labelImage = null;
+        try {
+            labelImage = await generateQRCodeLabel(repair, qrCodeImage);
+        } catch (error) {
+            console.error('خطأ في إنشاء الملصق:', error);
+            showMessage('تم إنشاء QR Code بنجاح، لكن فشل إنشاء الملصق. يمكنك طباعة QR Code فقط.', 'warning');
+            // نعرض QR Code فقط حتى لو فشل إنشاء الملصق
+            labelImage = null;
+        }
         
         // عرض النتائج
-        showBarcodeModal(barcodeImage, labelImage, advancedLabelImage, repair);
+        showQRCodeModal(qrCodeImage, labelImage, repair);
         
     } catch (error) {
-        console.error('خطأ في إنشاء الباركود:', error);
-        showMessage('خطأ في إنشاء الباركود', 'error');
+        console.error('خطأ في إنشاء QR Code:', error);
+        showMessage('خطأ في إنشاء QR Code والملصق: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
 }
 
-function showBarcodeModal(barcodeImage, labelImage, advancedLabelImage, repair) {
-    // إنشاء modal للباركود
-    const barcodeModal = document.createElement('div');
-    barcodeModal.className = 'modal';
-    barcodeModal.style.display = 'flex';
-    barcodeModal.innerHTML = `
-        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header">
-                <h2><i class="bi bi-upc-scan"></i> باركود وملصق العملية - ${repair.repair_number}</h2>
-                <button onclick="closeBarcodeModal()" class="btn-close">&times;</button>
+// ✅ دالة جديدة لإنشاء ملصق محسّن مع QR Code وبيانات العملية
+async function generateQRCodeLabel(repair, qrCodeImage) {
+    try {
+        // ✅ تحويل QR Code URL إلى data URL لتجنب مشاكل CORS
+        let qrCodeDataUrl = qrCodeImage;
+        if (!qrCodeImage.startsWith('data:')) {
+            try {
+                qrCodeDataUrl = await convertImageUrlToDataUrl(qrCodeImage);
+            } catch (error) {
+                console.warn('فشل تحويل QR Code URL إلى data URL، سيتم استخدام URL الأصلي:', error);
+                qrCodeDataUrl = qrCodeImage;
+            }
+        }
+        
+        const canvas = document.createElement('canvas');
+        const width = 650; // عرض مناسب للملصق
+        const height = 350; // الارتفاع
+        const scale = 2; // دقة مضاعفة للجودة العالية
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext('2d');
+        
+        // تحسين جودة الرسم
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        const scaledWidth = width * scale;
+        const scaledHeight = height * scale;
+        
+        // تنظيف الخلفية
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, scaledWidth, scaledHeight);
+        
+        // رسم الحدود
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4 * scale;
+        ctx.strokeRect(2 * scale, 2 * scale, scaledWidth - 4 * scale, scaledHeight - 4 * scale);
+        
+        // رسم QR Code على اليسار
+        const qrSize = 220 * scale; // زيادة حجم QR Code قليلاً
+        const qrX = 25 * scale;
+        const qrY = 40 * scale;
+        const qrEndX = qrX + qrSize; // نهاية QR Code
+        
+        // تحميل صورة QR Code مع معالجة أخطاء محسّنة
+        const qrImg = new Image();
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('انتهت مهلة تحميل صورة QR Code'));
+            }, 15000); // 15 ثانية timeout
+            
+            qrImg.onload = () => {
+                clearTimeout(timeout);
+                try {
+                    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+                    resolve();
+                } catch (error) {
+                    console.error('خطأ في رسم QR Code على Canvas:', error);
+                    reject(error);
+                }
+            };
+            
+            qrImg.onerror = (error) => {
+                clearTimeout(timeout);
+                console.error('فشل تحميل صورة QR Code:', error);
+                // إذا كان URL خارجي وفشل التحميل، نرسم رسالة بديلة
+                ctx.fillStyle = '#ff0000';
+                ctx.font = `bold ${16 * scale}px "Cairo", Arial, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('فشل تحميل QR Code', qrX + qrSize / 2, qrY + qrSize / 2);
+                reject(error);
+            };
+            
+            // محاولة تحميل الصورة
+            if (qrCodeDataUrl.startsWith('data:') || qrCodeDataUrl.startsWith('http://') || qrCodeDataUrl.startsWith('https://')) {
+                qrImg.crossOrigin = 'anonymous'; // محاولة تجنب CORS
+                qrImg.src = qrCodeDataUrl;
+            } else {
+                reject(new Error('مسار QR Code غير صحيح'));
+            }
+        });
+        
+        // رسم البيانات على اليمين - بعد QR Code بمسافة كافية
+        // النص العربي يبدأ من اليمين (RTL)
+        const marginFromQR = 40 * scale; // زيادة المسافة بين QR Code والنص
+        const marginRight = 25 * scale; // المسافة من الحافة اليمنى
+        const textStartX = scaledWidth - marginRight; // نقطة بداية النص من اليمين
+        const dataY = 40 * scale;
+        const lineHeight = 28 * scale; // lineHeight مناسب لحجم الخط الأصغر
+        let currentY = dataY;
+        
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'right'; // النص العربي من اليمين
+        ctx.textBaseline = 'top';
+        
+        // استخدام خط Cairo للوضوح (Canvas سيستخدم الخط المتاح في النظام)
+        // ملاحظة: Canvas لا يستطيع تحميل خطوط الويب مباشرة، لكن سيستخدم Cairo إذا كان مثبتاً في النظام
+        const fontFamily = '"Cairo", "Tajawal", Arial, "Segoe UI", sans-serif';
+        
+        // عنوان الملصق
+        ctx.font = `bold ${18 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        ctx.fillText('ملصق الجهاز', textStartX, currentY);
+        currentY += lineHeight + (10 * scale);
+        
+        // رقم العملية
+        ctx.font = `bold ${16 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        ctx.fillText(`رقم العملية: ${repair.repair_number}`, textStartX, currentY);
+        currentY += lineHeight + (6 * scale);
+        
+        // بيانات العميل
+        ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        ctx.fillText(`العميل: ${repair.customer_name || 'غير محدد'}`, textStartX, currentY);
+        currentY += lineHeight;
+        
+        if (repair.customer_phone) {
+            ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+            ctx.fillText(`الهاتف: ${repair.customer_phone}`, textStartX, currentY);
+            currentY += lineHeight;
+        }
+        
+        // نوع الجهاز
+        const deviceText = `الجهاز: ${repair.device_type || ''} ${repair.device_model || ''}`.trim();
+        ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        ctx.fillText(deviceText || 'الجهاز: غير محدد', textStartX, currentY);
+        currentY += lineHeight + (6 * scale);
+        
+        // المشكلة
+        ctx.font = `bold ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        ctx.fillText('المشكلة:', textStartX, currentY);
+        currentY += lineHeight;
+        
+        ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        const problemText = repair.problem || 'غير محدد';
+        // حساب العرض المتاح للنص: من بداية النص (textStartX) إلى نهاية QR Code + margin
+        const maxTextWidth = textStartX - (qrEndX + marginFromQR); // العرض المتاح للنص
+        const words = problemText.split(' ');
+        let line = '';
+        for (let word of words) {
+            const testLine = line + word + ' ';
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxTextWidth && line !== '') {
+                ctx.fillText(line.trim(), textStartX, currentY);
+                currentY += lineHeight;
+                line = word + ' ';
+            } else {
+                line = testLine;
+            }
+        }
+        if (line) {
+            ctx.fillText(line.trim(), textStartX, currentY);
+            currentY += lineHeight;
+        }
+        
+        currentY += (5 * scale);
+        
+        // تاريخ التسليم المتوقع (بدلاً من تاريخ الإنشاء)
+        if (repair.delivery_date) {
+            ctx.font = `bold ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+            ctx.fillText('موعد التسليم المتوقع:', textStartX, currentY);
+            currentY += lineHeight;
+            
+            ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+            const deliveryDate = new Date(repair.delivery_date).toLocaleDateString('ar-EG');
+            ctx.fillText(deliveryDate, textStartX, currentY);
+        } else {
+            ctx.font = `bold ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+            ctx.fillText('موعد التسليم المتوقع:', textStartX, currentY);
+            currentY += lineHeight;
+            
+            ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+            ctx.fillText('لم يتم تحديده', textStartX, currentY);
+        }
+        
+        // تحويل إلى الحجم الأصلي مع الحفاظ على الجودة
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = width;
+        finalCanvas.height = height;
+        const finalCtx = finalCanvas.getContext('2d');
+        finalCtx.imageSmoothingEnabled = true;
+        finalCtx.imageSmoothingQuality = 'high';
+        finalCtx.drawImage(canvas, 0, 0, width, height);
+        
+        return finalCanvas.toDataURL('image/png', 1.0);
+        
+    } catch (error) {
+        console.error('خطأ في إنشاء الملصق:', error);
+        throw error;
+    }
+}
+
+// ✅ دالة لعرض QR Code والملصق المحسّن
+function showQRCodeModal(qrCodeImage, labelImage, repair) {
+    // إزالة أي modal موجود مسبقاً
+    const existingModal = document.querySelector('.qr-code-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // إنشاء modal جديد
+    const qrCodeModal = document.createElement('div');
+    qrCodeModal.className = 'modal qr-code-modal';
+    qrCodeModal.style.display = 'flex';
+    
+    // تنظيف بيانات العملية لعرضها مع استخدام escape للسلامة
+    const repairNumber = escapeHtml(repair.repair_number || 'غير محدد');
+    const customerName = escapeHtml(repair.customer_name || 'غير محدد');
+    const customerPhone = escapeHtml(repair.customer_phone || 'غير محدد');
+    const deviceType = escapeHtml(repair.device_type || '');
+    const deviceModel = escapeHtml(repair.device_model || '');
+    const deviceText = `${deviceType} ${deviceModel}`.trim() || 'غير محدد';
+    const problem = escapeHtml(repair.problem || 'غير محدد');
+    const createdDate = repair.created_at ? new Date(repair.created_at).toLocaleDateString('ar-EG', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    }) : 'غير محدد';
+    const deliveryDate = repair.delivery_date ? new Date(repair.delivery_date).toLocaleDateString('ar-EG', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    }) : 'لم يتم تحديده';
+    const status = repair.status || 'قيد المعالجة';
+    const statusText = {
+        'pending': 'قيد الانتظار',
+        'in_progress': 'قيد المعالجة',
+        'completed': 'مكتملة',
+        'delivered': 'تم التسليم',
+        'cancelled': 'ملغاة'
+    }[status] || status;
+    
+    qrCodeModal.innerHTML = `
+        <style>
+            .qr-code-modal-content {
+                max-width: 900px !important;
+            }
+            .qr-code-modal-content::-webkit-scrollbar {
+                width: 10px;
+            }
+            .qr-code-modal-content::-webkit-scrollbar-track {
+                background: var(--light-bg);
+                border-radius: 5px;
+            }
+            .qr-code-modal-content::-webkit-scrollbar-thumb {
+                background: var(--primary-color);
+                border-radius: 5px;
+            }
+            .qr-code-modal-content::-webkit-scrollbar-thumb:hover {
+                background: var(--secondary-color);
+            }
+            @media (max-width: 768px) {
+                .qr-code-modal-content {
+                    max-width: 95% !important;
+                    margin: 10px !important;
+                }
+                .qr-code-modal-content .modal-header h2 {
+                    font-size: 1.2em !important;
+                }
+                .qr-code-modal-content .modal-body {
+                    padding: 20px !important;
+                }
+                .qr-code-section, .label-section {
+                    padding: 20px !important;
+                }
+                .qr-code-container img {
+                    max-width: 200px !important;
+                }
+                .repair-info-section div {
+                    grid-template-columns: 1fr !important;
+                }
+                .modal-footer {
+                    flex-direction: column !important;
+                }
+                .modal-footer button {
+                    width: 100% !important;
+                }
+            }
+            @media (max-width: 576px) {
+                .qr-code-container img {
+                    max-width: 150px !important;
+                }
+                .modal-header h2 {
+                    font-size: 1em !important;
+                    line-height: 1.4 !important;
+                }
+            }
+        </style>
+        <div class="modal-content qr-code-modal-content" style="max-width: 900px; max-height: 95vh; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: var(--primary-color) var(--light-bg);">
+            <div class="modal-header" style="background: var(--primary-color); color: var(--white); border-radius: 8px 8px 0 0; padding: 20px;">
+                <h2 style="margin: 0; color: var(--white); font-size: 1.5em;">
+                    <i class="bi bi-qr-code-scan"></i> QR Code وملصق العملية - ${repairNumber}
+                </h2>
+                <button onclick="closeQRCodeModal()" class="btn-close" style="color: var(--white); font-size: 28px; background: transparent; border: none; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">&times;</button>
             </div>
             
-            <div class="modal-body">
-                <div class="barcode-section">
-                    <h3><i class="bi bi-upc"></i> الباركود الرقمي</h3>
-                    <div class="barcode-container" style="text-align: center; margin: 20px 0;">
-                        <img src="${barcodeImage}" alt="باركود ${repair.repair_number}" style="border: 1px solid #ddd; padding: 10px; background: white;">
-                        <p style="margin-top: 10px; font-size: 14px; color: #666;">رقم العملية: ${repair.repair_number}</p>
-                        <button onclick="printBarcode('${barcodeImage}', '${repair.repair_number}')" class="btn btn-primary btn-sm">
-                            <i class="bi bi-printer-fill"></i> طباعة الباركود
-                        </button>
+            <div class="modal-body" style="padding: 30px;">
+                <!-- QR Code Section -->
+                <div class="qr-code-section" style="background: var(--white); border: 2px solid var(--border-color); border-radius: 12px; padding: 30px; margin-bottom: 30px; text-align: center; box-shadow: var(--shadow);">
+                    <h3 style="color: var(--primary-color); margin-bottom: 20px; font-size: 1.3em;">
+                        <i class="bi bi-qr-code"></i> QR Code للعملية
+                    </h3>
+                    <div class="qr-code-container" style="display: inline-block; padding: 20px; background: var(--white); border: 2px solid var(--border-color); border-radius: 8px;">
+                        <img src="${qrCodeImage}" alt="QR Code ${repairNumber}" style="max-width: 250px; height: auto; display: block;">
+                        <p style="margin-top: 15px; font-size: 0.95em; color: var(--text-light); font-weight: bold;">
+                            رقم العملية: ${repairNumber}
+                        </p>
                     </div>
+                    <p style="margin-top: 15px; font-size: 0.9em; color: var(--text-light); line-height: 1.6;">
+                        يمكنك مسح QR Code لمتابعة حالة العملية
+                    </p>
+                    <button onclick="printQRCode('${qrCodeImage}', '${repairNumber}')" class="btn btn-primary" style="margin-top: 20px; padding: 12px 30px; font-size: 1em; border: none; border-radius: 8px; cursor: pointer; background: var(--primary-color); color: var(--white); display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-printer-fill"></i> طباعة QR Code
+                        </button>
                 </div>
                 
-                <hr style="margin: 30px 0;">
-                
-                <div class="label-section">
-                    <h3><i class="bi bi-tag-fill"></i> الملصق الصغير</h3>
-                    <div class="label-container" style="text-align: center; margin: 20px 0;">
-                        <img src="${labelImage}" alt="ملصق ${repair.repair_number}" style="border: 1px solid #ddd; padding: 10px; background: white;">
-                        <p style="margin-top: 10px; font-size: 14px; color: #666;">ملصق يحتوي على بيانات المشكلة وتاريخ التسليم</p>
-                        <button onclick="printLabel('${labelImage}', '${repair.repair_number}')" class="btn btn-primary btn-sm">
+                <!-- Label Section -->
+                ${labelImage ? `
+                <div class="label-section" style="background: var(--white); border: 2px solid var(--border-color); border-radius: 12px; padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow);">
+                    <h3 style="color: var(--primary-color); margin-bottom: 20px; font-size: 1.3em; text-align: center;">
+                        <i class="bi bi-tag-fill"></i> الملصق
+                    </h3>
+                    <div class="label-container" style="text-align: center;">
+                        <div style="display: inline-block; padding: 15px; background: var(--light-bg); border-radius: 8px;">
+                            <img src="${labelImage}" alt="ملصق ${repairNumber}" style="max-width: 100%; height: auto; border: 2px solid var(--border-color); border-radius: 8px;">
+                        </div>
+                        <p style="margin-top: 15px; font-size: 0.95em; color: var(--text-light); line-height: 1.6;">
+                            ملصق يحتوي على QR Code وبيانات العملية الكاملة
+                        </p>
+                        <button onclick="printLabel('${labelImage}', '${repairNumber}')" class="btn btn-primary" style="margin-top: 20px; padding: 12px 30px; font-size: 1em; border: none; border-radius: 8px; cursor: pointer; background: var(--primary-color); color: var(--white); display: inline-flex; align-items: center; gap: 8px;">
                             <i class="bi bi-printer-fill"></i> طباعة الملصق
                         </button>
                     </div>
                 </div>
+                ` : `
+                <div class="label-section" style="background: var(--white); border: 2px solid var(--border-color); border-radius: 12px; padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow);">
+                    <h3 style="color: var(--warning-color); margin-bottom: 20px; font-size: 1.3em; text-align: center;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> تحذير
+                    </h3>
+                    <div class="label-container" style="text-align: center;">
+                        <p style="margin-top: 15px; font-size: 0.95em; color: var(--text-light); line-height: 1.6;">
+                            فشل إنشاء الملصق. يمكنك استخدام QR Code فقط للطباعة.
+                        </p>
+                    </div>
+                </div>
+                `}
                 
-                <hr style="margin: 30px 0;">
-                
-                <div class="advanced-label-section">
-                    <h3><i class="bi bi-qr-code-scan"></i> الملصق المتقدم</h3>
-                    <div class="advanced-label-container" style="text-align: center; margin: 20px 0;">
-                        <img src="${advancedLabelImage}" alt="ملصق متقدم ${repair.repair_number}" style="border: 1px solid #ddd; padding: 10px; background: white;">
-                        <p style="margin-top: 10px; font-size: 14px; color: #666;">ملصق متقدم مع QR Code وبيانات شاملة</p>
-                        <button onclick="printAdvancedLabel('${advancedLabelImage}', '${repair.repair_number}')" class="btn btn-primary btn-sm">
-                            <i class="bi bi-printer-fill"></i> طباعة الملصق المتقدم
-                        </button>
+                <!-- Repair Info Section -->
+                <div class="repair-info-section" style="background: var(--light-bg); border-right: 4px solid var(--primary-color); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                    <h4 style="color: var(--primary-color); margin-bottom: 15px; font-size: 1.1em;">
+                        <i class="bi bi-info-circle-fill"></i> بيانات العملية
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; font-size: 0.95em; word-break: break-word;">
+                        <div><strong style="color: var(--text-dark);">العميل:</strong> <span style="color: var(--text-light);">${customerName}</span></div>
+                        <div><strong style="color: var(--text-dark);">الهاتف:</strong> <span style="color: var(--text-light);">${customerPhone}</span></div>
+                        <div><strong style="color: var(--text-dark);">الجهاز:</strong> <span style="color: var(--text-light);">${deviceText}</span></div>
+                        <div><strong style="color: var(--text-dark);">المشكلة:</strong> <span style="color: var(--text-light);">${problem}</span></div>
+                        <div><strong style="color: var(--text-dark);">تاريخ الإنشاء:</strong> <span style="color: var(--text-light);">${createdDate}</span></div>
+                        <div><strong style="color: var(--text-dark);">موعد التسليم:</strong> <span style="color: var(--text-light);">${deliveryDate}</span></div>
+                        <div><strong style="color: var(--text-dark);">الحالة:</strong> <span style="color: var(--primary-color); font-weight: bold;">${statusText}</span></div>
                     </div>
                 </div>
                 
-                <div class="info-section" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 20px;">
-                    <h4><i class="bi bi-info-circle-fill"></i> معلومات مهمة:</h4>
-                    <ul style="margin: 10px 0; padding-right: 20px;">
-                        <li>الباركود يمكن طباعته على ملصقات صغيرة</li>
-                        <li>الملصق الصغير مناسب للجهاز نفسه</li>
-                        <li>الملصق المتقدم مناسب للملفات والوثائق</li>
+                <!-- Info Section -->
+                <div class="info-section" style="background: var(--white); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-top: 20px;">
+                    <h4 style="color: var(--primary-color); margin-bottom: 15px; font-size: 1.1em;">
+                        <i class="bi bi-lightbulb-fill"></i> معلومات مهمة
+                    </h4>
+                    <ul style="margin: 0; padding-right: 25px; color: var(--text-light); line-height: 2;">
+                        <li>QR Code يمكن طباعته على ملصقات صغيرة للجهاز</li>
+                        <li>الملصق مناسب للطباعة على ورق عادي أو ملصقات</li>
                         <li>جميع الصور عالية الجودة ومناسبة للطباعة</li>
+                        <li>QR Code يحتوي على رابط متابعة العملية</li>
                     </ul>
                 </div>
             </div>
             
-            <div class="modal-footer">
-                <button onclick="downloadAllBarcodes('${barcodeImage}', '${labelImage}', '${advancedLabelImage}', '${repair.repair_number}')" class="btn btn-success">
+            <div class="modal-footer" style="padding: 20px; background: var(--light-bg); border-top: 2px solid var(--border-color); border-radius: 0 0 8px 8px; display: flex; gap: 15px; justify-content: flex-end; flex-wrap: wrap;">
+                ${labelImage ? `
+                <button onclick="downloadQRCodeAndLabel('${qrCodeImage}', '${labelImage}', '${repairNumber}')" class="btn btn-success" style="padding: 12px 25px; font-size: 1em; border: none; border-radius: 8px; cursor: pointer; background: var(--success-color); color: var(--white); display: inline-flex; align-items: center; gap: 8px;">
                     <i class="bi bi-download"></i> تحميل الكل
                 </button>
-                <button onclick="closeBarcodeModal()" class="btn btn-secondary">
+                ` : `
+                <button onclick="downloadImage('${qrCodeImage}', 'qrcode_${repairNumber}.png')" class="btn btn-success" style="padding: 12px 25px; font-size: 1em; border: none; border-radius: 8px; cursor: pointer; background: var(--success-color); color: var(--white); display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-download"></i> تحميل QR Code
+                </button>
+                `}
+                <button onclick="closeQRCodeModal()" class="btn btn-secondary" style="padding: 12px 25px; font-size: 1em; border: none; border-radius: 8px; cursor: pointer; background: var(--text-light); color: var(--white); display: inline-flex; align-items: center; gap: 8px;">
                     <i class="bi bi-x-circle-fill"></i> إغلاق
                 </button>
             </div>
         </div>
     `;
     
-    document.body.appendChild(barcodeModal);
+    document.body.appendChild(qrCodeModal);
+    
+    // إضافة تأثير click خارج النموذج للإغلاق
+    qrCodeModal.addEventListener('click', (e) => {
+        if (e.target === qrCodeModal) {
+            closeQRCodeModal();
+        }
+    });
 }
 
-function closeBarcodeModal() {
-    const modal = document.querySelector('.modal');
+// ✅ دالة لإغلاق QR Code Modal
+function closeQRCodeModal() {
+    const modal = document.querySelector('.qr-code-modal');
     if (modal) {
         modal.remove();
     }
 }
 
-function printBarcode(barcodeImage, repairNumber) {
-    const printWindow = window.open('', '', 'width=400,height=300');
+// ✅ دالة لطباعة QR Code
+function printQRCode(qrCodeImage, repairNumber) {
+    try {
+        const printWindow = window.open('', '', 'width=500,height=500');
+        if (!printWindow) {
+            showMessage('يرجى السماح بفتح النوافذ المنبثقة للطباعة', 'warning');
+            return;
+        }
+        
     printWindow.document.write(`
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
-            <title>طباعة الباركود - ${repairNumber}</title>
+                <title>طباعة QR Code - ${repairNumber}</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
-                body { margin: 0; padding: 20px; text-align: center; font-family: Arial, sans-serif; }
-                .barcode-container { margin: 20px 0; }
-                img { max-width: 100%; height: auto; }
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        margin: 0; 
+                        padding: 30px; 
+                        text-align: center; 
+                        font-family: 'Cairo', 'Tajawal', Arial, sans-serif; 
+                        background: #f5f5f5;
+                    }
+                    .qr-container { 
+                        background: white;
+                        padding: 40px;
+                        border-radius: 12px;
+                        display: inline-block;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        margin: 20px 0;
+                    }
+                    .qr-container h3 {
+                        color: #2196F3;
+                        margin-bottom: 20px;
+                        font-size: 1.5em;
+                    }
+                    .qr-code-wrapper {
+                        padding: 20px;
+                        background: white;
+                        border: 2px solid #ddd;
+                        border-radius: 8px;
+                        display: inline-block;
+                        margin: 20px 0;
+                    }
+                    img { 
+                        max-width: 300px; 
+                        height: auto; 
+                        display: block;
+                    }
+                    .repair-number {
+                        margin-top: 15px;
+                        font-size: 1.2em;
+                        font-weight: bold;
+                        color: #333;
+                    }
+                    .no-print { 
+                        text-align: center; 
+                        margin-top: 30px; 
+                        display: flex; 
+                        gap: 15px; 
+                        justify-content: center; 
+                        flex-wrap: wrap; 
+                    }
+                    button {
+                        padding: 12px 25px; 
+                        border: none; 
+                        border-radius: 8px; 
+                        cursor: pointer; 
+                        font-size: 1em;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        font-family: inherit;
+                    }
+                    .btn-print {
+                        background: #2196F3; 
+                        color: white;
+                    }
+                    .btn-print:hover {
+                        background: #1976D2;
+                    }
+                    .btn-close {
+                        background: #666; 
+                        color: white;
+                    }
+                    .btn-close:hover {
+                        background: #555;
+                    }
                 @media print {
-                    body { margin: 0; }
+                        body { 
+                            background: white;
+                            padding: 20px;
+                        }
                     .no-print { display: none; }
+                        .qr-container {
+                            box-shadow: none;
+                            border: none;
+                        }
                 }
             </style>
         </head>
         <body>
-            <div class="barcode-container">
-                <h3>باركود العملية: ${repairNumber}</h3>
-                <img src="${barcodeImage}" alt="باركود ${repairNumber}">
-                <p>رقم العملية: ${repairNumber}</p>
+                <div class="qr-container">
+                    <h3><i class="bi bi-qr-code-scan"></i> QR Code العملية</h3>
+                    <div class="qr-code-wrapper">
+                        <img src="${qrCodeImage}" alt="QR Code ${repairNumber}" onerror="this.onerror=null; this.src='${qrCodeImage}';">
+                        <p class="repair-number">رقم العملية: ${repairNumber}</p>
             </div>
-            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    <p style="margin-top: 15px; color: #666; font-size: 0.95em;">
+                        يمكنك مسح QR Code لمتابعة حالة العملية
+                    </p>
+                </div>
+                <div class="no-print">
+                    <button onclick="window.print()" class="btn-print">
                     <i class="bi bi-printer"></i> طباعة
                 </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-arrow-right"></i> رجوع
+                    <button onclick="window.close()" class="btn-close">
+                        <i class="bi bi-x-circle"></i> إغلاق
                 </button>
             </div>
             <script>
                 window.onload = function() {
-                    setTimeout(() => window.print(), 500);
+                        setTimeout(() => {
+                            window.print();
+                        }, 300);
                 }
             </script>
         </body>
         </html>
     `);
     printWindow.document.close();
+        
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                printWindow.focus();
+            }
+        }, 100);
+        
+    } catch (error) {
+        console.error('خطأ في طباعة QR Code:', error);
+        showMessage('حدث خطأ أثناء الطباعة', 'error');
+    }
 }
 
+// ✅ دالة لطباعة الملصق المحسّن
 function printLabel(labelImage, repairNumber) {
-    const printWindow = window.open('', '', 'width=400,height=300');
+    try {
+        const printWindow = window.open('', '', 'width=700,height=600');
+        if (!printWindow) {
+            showMessage('يرجى السماح بفتح النوافذ المنبثقة للطباعة', 'warning');
+            return;
+        }
+        
     printWindow.document.write(`
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -2810,37 +5117,115 @@ function printLabel(labelImage, repairNumber) {
             <title>طباعة الملصق - ${repairNumber}</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <style>
-                body { margin: 0; padding: 20px; text-align: center; font-family: Arial, sans-serif; }
-                .label-container { margin: 20px 0; }
-                img { max-width: 100%; height: auto; }
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        margin: 0; 
+                        padding: 30px; 
+                        text-align: center; 
+                        font-family: 'Cairo', 'Tajawal', Arial, sans-serif; 
+                        background: #f5f5f5;
+                    }
+                    .label-container { 
+                        background: white;
+                        padding: 40px;
+                        border-radius: 12px;
+                        display: inline-block;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        margin: 20px 0;
+                    }
+                    .label-container h3 {
+                        color: #2196F3;
+                        margin-bottom: 20px;
+                        font-size: 1.5em;
+                    }
+                    img { 
+                        max-width: 100%; 
+                        height: auto; 
+                        display: block;
+                        border: 2px solid #ddd;
+                        border-radius: 8px;
+                    }
+                    .no-print { 
+                        text-align: center; 
+                        margin-top: 30px; 
+                        display: flex; 
+                        gap: 15px; 
+                        justify-content: center; 
+                        flex-wrap: wrap; 
+                    }
+                    button {
+                        padding: 12px 25px; 
+                        border: none; 
+                        border-radius: 8px; 
+                        cursor: pointer; 
+                        font-size: 1em;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        font-family: inherit;
+                    }
+                    .btn-print {
+                        background: #2196F3; 
+                        color: white;
+                    }
+                    .btn-print:hover {
+                        background: #1976D2;
+                    }
+                    .btn-close {
+                        background: #666; 
+                        color: white;
+                    }
+                    .btn-close:hover {
+                        background: #555;
+                    }
                 @media print {
-                    body { margin: 0; }
+                        body { 
+                            background: white;
+                            padding: 20px;
+                        }
                     .no-print { display: none; }
+                        .label-container {
+                            box-shadow: none;
+                            border: none;
+                        }
                 }
             </style>
         </head>
         <body>
             <div class="label-container">
-                <h3>ملصق العملية: ${repairNumber}</h3>
-                <img src="${labelImage}" alt="ملصق ${repairNumber}">
+                    <h3><i class="bi bi-tag-fill"></i> ملصق العملية: ${repairNumber}</h3>
+                    <img src="${labelImage}" alt="ملصق ${repairNumber}" onerror="this.onerror=null; this.src='${labelImage}';">
             </div>
-            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                <div class="no-print">
+                    <button onclick="window.print()" class="btn-print">
                     <i class="bi bi-printer"></i> طباعة
                 </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-arrow-right"></i> رجوع
+                    <button onclick="window.close()" class="btn-close">
+                        <i class="bi bi-x-circle"></i> إغلاق
                 </button>
             </div>
             <script>
                 window.onload = function() {
-                    setTimeout(() => window.print(), 500);
+                        setTimeout(() => {
+                            window.print();
+                        }, 300);
                 }
             </script>
         </body>
         </html>
     `);
     printWindow.document.close();
+        
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                printWindow.focus();
+            }
+        }, 100);
+        
+    } catch (error) {
+        console.error('خطأ في طباعة الملصق:', error);
+        showMessage('حدث خطأ أثناء الطباعة', 'error');
+    }
 }
 
 function printAdvancedLabel(advancedLabelImage, repairNumber) {
@@ -2886,17 +5271,26 @@ function printAdvancedLabel(advancedLabelImage, repairNumber) {
     printWindow.document.close();
 }
 
-function downloadAllBarcodes(barcodeImage, labelImage, advancedLabelImage, repairNumber) {
-    // تحميل الباركود
-    downloadImage(barcodeImage, `barcode_${repairNumber}.png`);
-    
-    // تحميل الملصق الصغير
-    setTimeout(() => downloadImage(labelImage, `label_${repairNumber}.png`), 500);
-    
-    // تحميل الملصق المتقدم
-    setTimeout(() => downloadImage(advancedLabelImage, `advanced_label_${repairNumber}.png`), 1000);
-    
-    showMessage('تم بدء تحميل جميع الصور', 'success');
+// ✅ دالة لتحميل QR Code والملصق
+function downloadQRCodeAndLabel(qrCodeImage, labelImage, repairNumber) {
+    try {
+        // تحميل QR Code
+        downloadImage(qrCodeImage, `qrcode_${repairNumber}.png`);
+        
+        // تحميل الملصق إذا كان متوفراً
+        if (labelImage) {
+            setTimeout(() => {
+                downloadImage(labelImage, `label_${repairNumber}.png`);
+                showMessage('تم تحميل QR Code والملصق بنجاح', 'success');
+            }, 500);
+        } else {
+            showMessage('تم تحميل QR Code بنجاح', 'success');
+        }
+        
+    } catch (error) {
+        console.error('خطأ في تحميل الصور:', error);
+        showMessage('حدث خطأ أثناء تحميل الصور', 'error');
+    }
 }
 
 function downloadImage(imageData, filename) {
@@ -2917,23 +5311,23 @@ async function checkAndShowImage(repairId) {
     }
 }
 
-// قارئ الباركود
+// ✅ قارئ QR Code لإيصال الاستلام
 async function openBarcodeScanner() {
     // التحقق من وجود ماسح مفتوح بالفعل
     if (isScannerOpen) {
         console.log('يوجد ماسح مفتوح بالفعل');
-        showMessage('قارئ الباركود مفتوح بالفعل', 'info');
+        showMessage('قارئ QR Code مفتوح بالفعل', 'info');
         return;
     }
     
     const existingModal = document.getElementById('barcodeScannerModal');
     if (existingModal) {
         console.log('يوجد ماسح مفتوح بالفعل');
-        showMessage('قارئ الباركود مفتوح بالفعل', 'info');
+        showMessage('قارئ QR Code مفتوح بالفعل', 'info');
         return;
     }
     
-    // إغلاق أي modal مفتوح قبل فتح قارئ الباركود
+    // إغلاق أي modal مفتوح قبل فتح قارئ QR Code
     const openModals = document.querySelectorAll('.modal');
     openModals.forEach(modal => {
         if (modal.id !== 'barcodeScannerModal') {
@@ -2947,12 +5341,18 @@ async function openBarcodeScanner() {
         return;
     }
     
-    // تحميل Quagga أولاً إذا لم يكن محملاً
-    if (typeof Quagga === 'undefined' && typeof window.loadQuagga === 'function') {
-        try {
-            await window.loadQuagga();
-        } catch (error) {
-            showMessage('فشل تحميل مكتبة الباركود', 'error');
+    // ✅ تحميل Html5Qrcode بدلاً من Quagga
+    if (typeof Html5Qrcode === 'undefined') {
+        if (typeof window.loadHtml5Qrcode === 'function') {
+            try {
+                await window.loadHtml5Qrcode();
+            } catch (error) {
+                console.error('Error loading html5-qrcode:', error);
+                showMessage('فشل تحميل مكتبة قراءة QR Code', 'error');
+                return;
+            }
+        } else {
+            showMessage('مكتبة قراءة QR Code غير متاحة', 'error');
             return;
         }
     }
@@ -2972,23 +5372,33 @@ async function openBarcodeScanner() {
         <div class="modal-content" style="max-width: 650px; padding: 0; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
             <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%); color: white; border-radius: 12px 12px 0 0; padding: 25px 30px; border-bottom: none;">
                 <h2 style="margin: 0; color: white; font-size: 1.5em; font-weight: 700; display: flex; align-items: center; gap: 10px;">
-                    <i class="bi bi-upc-scan" style="font-size: 1.3em;"></i> قارئ الباركود
+                    <i class="bi bi-qr-code-scan" style="font-size: 1.3em;"></i> قارئ QR Code لإيصال الاستلام
                 </h2>
                 <button onclick="closeBarcodeScanner()" class="btn-close" style="color: white; font-size: 1.8em; opacity: 0.9; transition: all 0.3s ease;" onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)';" onmouseout="this.style.opacity='0.9'; this.style.transform='scale(1)';">&times;</button>
             </div>
             <div class="modal-body" style="padding: 30px;">
                 <div id="barcode-scanner-container" style="text-align: center;">
-                    <div id="scanner-area" style="width: 100%; min-height: 350px; background: linear-gradient(135deg, var(--light-bg, #f5f5f5) 0%, #fafafa 100%); border: 2px dashed var(--border-color, #ddd); border-radius: 12px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 25px; overflow: hidden; box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);">
-                        <div style="text-align: center; color: var(--text-light, #666); z-index: 1;">
-                            <i class="bi bi-camera" style="font-size: 3em; margin-bottom: 15px; display: block; color: var(--primary-color, #2196F3); opacity: 0.7;"></i>
-                            <p style="font-size: 1.1em; font-weight: 500; color: var(--text-dark, #333);">جاري تحميل قارئ الباركود...</p>
+                    <div id="scanner-area" style="width: 100%; min-height: 400px; background: var(--light-bg, #f5f5f5); border-radius: 15px; overflow: hidden; position: relative; margin-bottom: 25px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+                        <div id="scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; color: var(--text-dark);">
+                            <i class="bi bi-camera" style="font-size: 3em; color: var(--primary-color, #2196F3); margin-bottom: 15px; display: block; animation: pulse 2s infinite;"></i>
+                            <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark, #333);">جاري تحميل قارئ QR Code...</p>
+                            <p style="font-size: 0.9em; color: var(--text-light, #666); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا</p>
+                        </div>
+                        <div id="scanner-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;">
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; border: 3px solid var(--primary-color, #2196F3); border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5), 0 0 30px rgba(33, 150, 243, 0.5);"></div>
+                            <div style="position: absolute; top: calc(50% - 125px); left: calc(50% - 125px); width: 250px; height: 250px;">
+                                <div style="position: absolute; top: 0; left: 0; width: 30px; height: 30px; border-top: 4px solid var(--primary-color, #2196F3); border-right: 4px solid var(--primary-color, #2196F3); border-radius: 5px 20px 0 0;"></div>
+                                <div style="position: absolute; top: 0; right: 0; width: 30px; height: 30px; border-top: 4px solid var(--primary-color, #2196F3); border-left: 4px solid var(--primary-color, #2196F3); border-radius: 20px 5px 0 0;"></div>
+                                <div style="position: absolute; bottom: 0; left: 0; width: 30px; height: 30px; border-bottom: 4px solid var(--primary-color, #2196F3); border-right: 4px solid var(--primary-color, #2196F3); border-radius: 0 0 20px 5px;"></div>
+                                <div style="position: absolute; bottom: 0; right: 0; width: 30px; height: 30px; border-bottom: 4px solid var(--primary-color, #2196F3); border-left: 4px solid var(--primary-color, #2196F3); border-radius: 0 0 5px 20px;"></div>
+                            </div>
                         </div>
                     </div>
                     <div id="scanner-result" style="margin-top: 20px; display: none; animation: slideDown 0.3s ease;">
                         <div style="padding: 20px; border-radius: 12px; background: linear-gradient(135deg, var(--success-color, #4CAF50) 0%, #66BB6A 100%); color: white; border: none; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
                                 <i class="bi bi-check-circle" style="font-size: 2em;"></i>
-                                <h4 style="margin: 0; font-size: 1.3em; font-weight: 700;">تم العثور على الباركود!</h4>
+                                <h4 style="margin: 0; font-size: 1.3em; font-weight: 700;">تم قراءة QR Code بنجاح!</h4>
                             </div>
                             <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px; backdrop-filter: blur(10px);">
                                 <p style="margin: 0 0 8px 0; font-size: 0.95em; opacity: 0.9;">رقم العملية:</p>
@@ -3030,14 +5440,30 @@ async function openBarcodeScanner() {
                     transform: translateY(0);
                 }
             }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+            
+            #scanner-area video {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border-radius: 15px;
+            }
+            
+            #scanner-area canvas {
+                display: none;
+            }
         </style>
     `;
     
     document.body.appendChild(scannerModal);
     
-    // بدء تشغيل قارئ الباركود مع تأخير لضمان تحميل العناصر
+    // ✅ بدء تشغيل قارئ QR Code مع تأخير لضمان تحميل العناصر
     setTimeout(() => {
-        initializeBarcodeScanner();
+        initializeQRCodeScanner();
     }, 200);
     
     // إضافة مراقب لضمان عدم إغلاق النافذة أثناء تشغيل الكاميرا
@@ -3050,323 +5476,244 @@ async function openBarcodeScanner() {
     });
 }
 
-async function initializeBarcodeScanner() {
+// ✅ دالة لاستخراج رقم العملية من رابط التتبع
+function extractRepairNumberFromTrackingLink(url) {
+    try {
+        // محاولة تحليل الرابط
+        const urlObj = new URL(url);
+        const repairNumber = urlObj.searchParams.get('repair_number');
+        if (repairNumber) {
+            return decodeURIComponent(repairNumber);
+        }
+        
+        // إذا لم يكن هناك repair_number في URL، حاول البحث عنه في النص
+        const match = url.match(/repair_number=([^&]+)/);
+        if (match && match[1]) {
+            return decodeURIComponent(match[1]);
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('خطأ في استخراج رقم العملية من الرابط:', error);
+        // إذا فشل التحليل، حاول البحث عن repair_number في النص
+        const match = url.match(/repair_number=([^&?]+)/);
+        if (match && match[1]) {
+            return decodeURIComponent(match[1]);
+        }
+        return null;
+    }
+}
+
+// متغير لحفظ مثيل QR Code Scanner
+let qrCodeScannerInstance = null;
+
+// ✅ دالة تهيئة قارئ QR Code
+async function initializeQRCodeScanner() {
     const scannerArea = document.getElementById('scanner-area');
-    if (!scannerArea) return;
+    const loadingDiv = document.getElementById('scanner-loading');
+    
+    if (!scannerArea) {
+        console.error('scanner-area element not found');
+        return;
+    }
 
-    // إضافة مؤشر التحميل مع تصميم محسن
-    scannerArea.innerHTML = `
-        <div style="text-align: center; color: var(--text-light, #666); padding: 40px 20px;">
-            <i class="bi bi-camera" style="font-size: 3.5em; margin-bottom: 20px; display: block; color: var(--primary-color, #2196F3); opacity: 0.8; animation: pulse 2s ease-in-out infinite;"></i>
-            <p style="font-size: 1.2em; font-weight: 600; color: var(--text-dark, #333); margin-bottom: 10px;">جاري تحميل مكتبة الباركود...</p>
-            <div style="width: 200px; height: 4px; background: var(--light-bg, #e0e0e0); border-radius: 2px; margin: 20px auto; overflow: hidden;">
-                <div style="width: 60%; height: 100%; background: var(--primary-color, #2196F3); border-radius: 2px; animation: loading 1.5s ease-in-out infinite;"></div>
-            </div>
-        </div>
-        <style>
-            @keyframes pulse {
-                0%, 100% { opacity: 0.8; transform: scale(1); }
-                50% { opacity: 1; transform: scale(1.05); }
-            }
-            @keyframes loading {
-                0% { transform: translateX(-100%); }
-                100% { transform: translateX(250%); }
-            }
-        </style>
-    `;
+    // إخفاء رسالة التحميل
+    if (loadingDiv) {
+        loadingDiv.style.display = 'none';
+    }
 
-    // تحميل Quagga إذا لم يكن محملاً
-    if (typeof Quagga === 'undefined') {
-        if (typeof window.loadQuagga === 'function') {
-            try {
-                await window.loadQuagga();
-            } catch (error) {
-                scannerArea.innerHTML = `
-                    <div style="text-align: center; color: var(--danger-color, #f44336); padding: 20px;">
-                        <i class="bi bi-exclamation-triangle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
-                        <p style="font-size: 1.1em; font-weight: 500;">خطأ: فشل تحميل مكتبة الباركود</p>
-                    </div>
-                `;
-                const errorDiv = document.getElementById('scanner-error');
-                const errorMessage = document.getElementById('scanner-error-message');
-                if (errorDiv && errorMessage) {
-                    errorMessage.textContent = 'فشل تحميل مكتبة الباركود. يرجى إعادة المحاولة.';
-                    errorDiv.style.display = 'block';
-                }
-                console.error('Failed to load Quagga:', error);
-                return;
+    try {
+        // ✅ إنشاء مثيل Html5Qrcode Scanner
+        qrCodeScannerInstance = new Html5Qrcode("scanner-area");
+        
+        // إعدادات المسح
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            disableFlip: false
+        };
+        
+        // إضافة supportedScanTypes إذا كان متاحاً
+        if (typeof Html5QrcodeScanType !== 'undefined') {
+            config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
+        }
+        
+        // ✅ بدء المسح
+        await qrCodeScannerInstance.start(
+            { facingMode: "environment" }, // استخدام الكاميرا الخلفية
+            config,
+            (decodedText, decodedResult) => {
+                // ✅ معالج نجاح قراءة QR Code
+                handleQRCodeScanned(decodedText);
+            },
+            (errorMessage) => {
+                // تجاهل الأخطاء المستمرة أثناء المسح (طبيعي)
             }
-        } else {
-            scannerArea.innerHTML = `
+        );
+        
+    } catch (error) {
+        console.error('خطأ في بدء قارئ QR Code:', error);
+        const errorDiv = document.getElementById('scanner-error');
+        const errorMessage = document.getElementById('scanner-error-message');
+        if (errorDiv && errorMessage) {
+            errorMessage.textContent = 'حدث خطأ أثناء بدء تشغيل قارئ QR Code. يرجى التأكد من منح إذن الوصول للكاميرا.';
+            errorDiv.style.display = 'block';
+        }
+        
+        if (loadingDiv) {
+            loadingDiv.style.display = 'block';
+            loadingDiv.innerHTML = `
                 <div style="text-align: center; color: var(--danger-color, #f44336); padding: 20px;">
                     <i class="bi bi-exclamation-triangle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
-                    <p style="font-size: 1.1em; font-weight: 500;">خطأ: مكتبة الباركود غير متاحة</p>
+                    <p style="font-size: 1.1em; font-weight: 500;">خطأ في بدء الكاميرا</p>
                 </div>
             `;
-            const errorDiv = document.getElementById('scanner-error');
-            const errorMessage = document.getElementById('scanner-error-message');
-            if (errorDiv && errorMessage) {
-                errorMessage.textContent = 'مكتبة الباركود غير متاحة. يرجى التأكد من تحميل المكتبة.';
-                errorDiv.style.display = 'block';
-            }
-            return;
         }
     }
+}
+
+// ✅ دالة معالجة قراءة QR Code
+async function handleQRCodeScanned(decodedText) {
+    console.log('تم قراءة QR Code:', decodedText);
     
-    scannerArea.innerHTML = `
-        <div style="text-align: center; color: var(--text-light, #666); padding: 40px 20px;">
-            <i class="bi bi-camera-video" style="font-size: 3.5em; margin-bottom: 20px; display: block; color: var(--primary-color, #2196F3); opacity: 0.8; animation: pulse 2s ease-in-out infinite;"></i>
-            <p style="font-size: 1.2em; font-weight: 600; color: var(--text-dark, #333); margin-bottom: 10px;">جاري تحميل الكاميرا...</p>
-            <div style="width: 200px; height: 4px; background: var(--light-bg, #e0e0e0); border-radius: 2px; margin: 20px auto; overflow: hidden;">
-                <div style="width: 60%; height: 100%; background: var(--primary-color, #2196F3); border-radius: 2px; animation: loading 1.5s ease-in-out infinite;"></div>
-            </div>
-        </div>
-    `;
-
-    // إعدادات محسنة للكاميرا
-    const config = {
-        inputStream: {
-            name: "Live",
-            type: "LiveStream",
-            target: scannerArea,
-            constraints: {
-                width: { min: 320, ideal: 640, max: 1280 },
-                height: { min: 240, ideal: 480, max: 720 },
-                facingMode: "environment",
-                aspectRatio: { min: 1, max: 2 }
-            },
-            singleChannel: false
-        },
-        decoder: {
-            readers: [
-                "code_128_reader",
-                "ean_reader",
-                "ean_8_reader",
-                "code_39_reader",
-                "code_39_vin_reader",
-                "codabar_reader",
-                "upc_reader",
-                "upc_e_reader",
-                "i2of5_reader"
-            ],
-            debug: {
-                showCanvas: false,
-                showPatches: false,
-                showFoundPatches: false,
-                showSkeleton: false,
-                showLabels: false,
-                showPatchLabels: false,
-                showBoundingBox: false,
-                showBoundingBoxes: false
-            }
-        },
-        locate: true,
-        locator: {
-            patchSize: "medium",
-            halfSample: true
-        },
-        numOfWorkers: 2,
-        frequency: 10,
-        area: { // تحديد منطقة المسح
-            top: "20%",
-            right: "20%",
-            left: "20%",
-            bottom: "20%"
-        }
-    };
-
-    // محاولة تشغيل الماسح مع إعادة المحاولة
-    let attempts = 0;
-    const maxAttempts = 3;
-
-    function tryInit() {
-        attempts++;
-        
-        Quagga.init(config, function(err) {
-            if (err) {
-                console.error(`محاولة ${attempts}: خطأ في تشغيل قارئ الباركود:`, err);
-                
-                if (attempts < maxAttempts) {
-                    // إعادة المحاولة مع إعدادات أبسط
-                    scannerArea.innerHTML = `
-                        <div style="text-align: center; color: var(--text-light, #666); padding: 40px 20px;">
-                            <i class="bi bi-arrow-clockwise" style="font-size: 3.5em; margin-bottom: 20px; display: block; color: var(--warning-color, #FFA500); animation: spin 1s linear infinite;"></i>
-                            <p style="font-size: 1.2em; font-weight: 600; color: var(--text-dark, #333); margin-bottom: 10px;">إعادة المحاولة ${attempts}/${maxAttempts}...</p>
-                            <div style="width: 200px; height: 4px; background: var(--light-bg, #e0e0e0); border-radius: 2px; margin: 20px auto; overflow: hidden;">
-                                <div style="width: 60%; height: 100%; background: var(--warning-color, #FFA500); border-radius: 2px; animation: loading 1.5s ease-in-out infinite;"></div>
-                            </div>
-                        </div>
-                        <style>
-                            @keyframes spin {
-                                from { transform: rotate(0deg); }
-                                to { transform: rotate(360deg); }
-                            }
-                        </style>
-                    `;
-                    
-                    setTimeout(() => {
-                        // تبسيط الإعدادات في المحاولات التالية
-                        if (attempts > 1) {
-                            config.inputStream.constraints = {
-                                width: 320,
-                                height: 240,
-                                facingMode: "environment"
-                            };
-                        }
-                        tryInit();
-                    }, 2000);
-                } else {
-                    // فشل في جميع المحاولات
-                    scannerArea.innerHTML = `
-                        <div style="text-align: center; padding: 30px 20px; color: var(--danger-color, #f44336);">
-                            <i class="bi bi-exclamation-triangle" style="font-size: 3em; margin-bottom: 20px; display: block; color: var(--danger-color, #f44336);"></i>
-                            <h4 style="margin-bottom: 20px; font-size: 1.3em; font-weight: 700; color: var(--text-dark, #333);">خطأ في تشغيل الكاميرا</h4>
-                            <div style="background: rgba(244, 67, 54, 0.1); padding: 20px; border-radius: 10px; border-right: 4px solid var(--danger-color, #f44336); text-align: right; margin-bottom: 20px;">
-                                <p style="margin-bottom: 15px; font-weight: 600; color: var(--text-dark, #333);">تأكد من:</p>
-                                <ul style="text-align: right; margin: 0; padding-right: 20px; list-style-type: disc; color: var(--text-dark, #333); line-height: 2;">
-                                    <li>منح إذن الوصول للكاميرا</li>
-                                    <li>استخدام HTTPS</li>
-                                    <li>وجود كاميرا خلفية</li>
-                                </ul>
-                            </div>
-                        </div>
-                    `;
-                    const errorDiv = document.getElementById('scanner-error');
-                    const errorMessage = document.getElementById('scanner-error-message');
-                    if (errorDiv && errorMessage) {
-                        errorMessage.innerHTML = 'فشل تشغيل الكاميرا بعد عدة محاولات. يرجى التأكد من منح إذن الوصول للكاميرا واستخدام HTTPS.';
-                        errorDiv.style.display = 'block';
-                    }
-                }
-                return;
-            }
-            
-            // نجح التشغيل
-            console.log('تم تشغيل قارئ الباركود بنجاح');
-            scannerArea.innerHTML = '';
-            
-            try {
-                Quagga.start();
-                
-                // إضافة مؤشر المسح
-                const scanIndicator = document.createElement('div');
-                scanIndicator.style.cssText = `
-                    position: absolute;
-                    bottom: 10px;
-                    right: 10px;
-                    background: rgba(33, 150, 243, 0.9);
-                    color: white;
-                    padding: 5px 10px;
-                    border-radius: 5px;
-                    font-size: 12px;
-                    z-index: 1000;
-                `;
-                scanIndicator.innerHTML = '<i class="bi bi-camera-video"></i> الكاميرا نشطة';
-                scannerArea.appendChild(scanIndicator);
-                
-                // تم إزالة مراقب الاستقرار لتجنب الحلقة اللانهائية
-                console.log('تم تشغيل قارئ الباركود بنجاح');
-                
-            } catch (startError) {
-                console.error('خطأ في بدء الماسح:', startError);
-                scannerArea.innerHTML = `
-                    <div style="text-align: center; color: var(--danger-color, #f44336); padding: 20px;">
-                        <i class="bi bi-exclamation-triangle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
-                        <p style="font-size: 1.1em; font-weight: 500;">خطأ في بدء الماسح</p>
-                    </div>
-                `;
-                const errorDiv = document.getElementById('scanner-error');
-                const errorMessage = document.getElementById('scanner-error-message');
-                if (errorDiv && errorMessage) {
-                    errorMessage.textContent = 'حدث خطأ أثناء بدء تشغيل الماسح. يرجى إعادة المحاولة.';
-                    errorDiv.style.display = 'block';
-                }
-                return;
-            }
-            
-            // الاستماع لنتائج الباركود
-            Quagga.onDetected(function(data) {
-                const code = data.codeResult.code;
-                console.log('تم قراءة الباركود:', code);
-                
-                // إيقاف الماسح بأمان
-                try {
-                    Quagga.stop();
-                } catch (stopError) {
-                    console.log('خطأ في إيقاف الماسح:', stopError);
-                }
-                
-                // إخفاء رسالة الخطأ إن وجدت
-                const errorDiv = document.getElementById('scanner-error');
-                if (errorDiv) {
-                    errorDiv.style.display = 'none';
-                }
-                
-                // البحث عن العملية مباشرة
-                const repair = allRepairs.find(r => r.repair_number === code);
-                
-                if (repair) {
-                    // تمييز العملية في الجدول
-                    highlightRepairInTable(repair.id);
-                    
-                    // إغلاق قارئ الباركود تلقائياً
-                    setTimeout(() => {
-                        closeBarcodeScanner();
-                        showMessage(`تم العثور على العملية: ${repair.customer_name}`, 'success');
-                    }, 1000);
-                } else {
-                    // عرض رسالة عدم وجود العملية
-                    const resultDiv = document.getElementById('scanner-result');
-                    const numberSpan = document.getElementById('scanned-repair-number');
-                    if (resultDiv && numberSpan) {
-                        numberSpan.textContent = code;
-                        resultDiv.style.display = 'block';
-                    }
-                }
-                
-                // حفظ رقم العملية للبحث
-                window.scannedRepairNumber = code;
-            });
+    // إيقاف الماسح
+    if (qrCodeScannerInstance) {
+        qrCodeScannerInstance.stop().then(() => {
+            console.log('تم إيقاف قارئ QR Code');
+        }).catch((err) => {
+            console.error('خطأ في إيقاف قارئ QR Code:', err);
         });
     }
-
-    // بدء المحاولة الأولى
-    tryInit();
+    
+    // إخفاء رسالة الخطأ إن وجدت
+    const errorDiv = document.getElementById('scanner-error');
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+    }
+    
+    // ✅ استخراج رقم العملية من رابط التتبع
+    const repairNumber = extractRepairNumberFromTrackingLink(decodedText);
+    
+    if (!repairNumber) {
+        // إذا لم يتم العثور على رقم العملية، عرض رسالة خطأ
+        const errorDiv = document.getElementById('scanner-error');
+        const errorMessage = document.getElementById('scanner-error-message');
+        if (errorDiv && errorMessage) {
+            errorMessage.textContent = 'QR Code غير صحيح. يرجى التأكد من أنه QR Code إيصال الاستلام.';
+            errorDiv.style.display = 'block';
+        }
+        return;
+    }
+    
+    console.log('رقم العملية المستخرج:', repairNumber);
+    
+    // ✅ البحث عن العملية في الجدول
+    const repair = allRepairs.find(r => r.repair_number === repairNumber);
+    
+    if (repair) {
+        // عرض رسالة النجاح
+        const resultDiv = document.getElementById('scanner-result');
+        const numberSpan = document.getElementById('scanned-repair-number');
+        if (resultDiv && numberSpan) {
+            numberSpan.textContent = repairNumber;
+            resultDiv.style.display = 'block';
+        }
+        
+        // حفظ رقم العملية للبحث
+        window.scannedRepairNumber = repairNumber;
+        
+        // ✅ إغلاق قارئ QR Code أولاً لتجنب مشاكل overlay
+        closeBarcodeScanner();
+        
+        // ✅ التأكد من وجود النموذج قبل التبديل
+        const repairModal = document.getElementById('repairModal');
+        if (!repairModal) {
+            console.warn('النموذج غير موجود، إعادة تحميل القسم...');
+            await loadRepairsSection();
+        }
+        
+        // ✅ التبديل إلى القسم المناسب للعملية (سوفت/هارد/فاست)
+        if (repair.repair_type) {
+            switchRepairType(repair.repair_type);
+        }
+        
+        // ✅ انتظار أطول لضمان تحميل الجدول بعد التبديل وإعادة الرسم
+        setTimeout(() => {
+            // ✅ تمييز العملية في الجدول تلقائياً باللون الأصفر
+            highlightRepairInTable(repair.id);
+            
+            // عرض رسالة النجاح
+            showMessage(`تم العثور على العملية: ${repair.customer_name}`, 'success');
+        }, 500);
+    } else {
+        // عرض رسالة عدم وجود العملية
+        const resultDiv = document.getElementById('scanner-result');
+        const numberSpan = document.getElementById('scanned-repair-number');
+        if (resultDiv && numberSpan) {
+            numberSpan.textContent = repairNumber;
+            resultDiv.style.display = 'block';
+        }
+        
+        // حفظ رقم العملية للبحث
+        window.scannedRepairNumber = repairNumber;
+    }
 }
 
 function closeBarcodeScanner() {
-    console.log('إغلاق قارئ الباركود');
+    console.log('إغلاق قارئ QR Code');
     
     // تعيين حالة الماسح كمغلق
     isScannerOpen = false;
     
-    // تم إزالة مراقب الاستقرار
-    
-    // إيقاف الماسح بأمان
+    // ✅ إيقاف قارئ QR Code بأمان
     try {
-        if (typeof Quagga !== 'undefined') {
-            Quagga.stop();
-            Quagga.offDetected(); // إزالة مستمعي الأحداث
+        if (qrCodeScannerInstance) {
+            qrCodeScannerInstance.stop().then(() => {
+                console.log('تم إيقاف قارئ QR Code');
+                qrCodeScannerInstance.clear();
+                qrCodeScannerInstance = null;
+            }).catch((err) => {
+                console.log('تم إيقاف قارئ QR Code بالفعل أو خطأ في الإيقاف:', err);
+                qrCodeScannerInstance = null;
+            });
         }
     } catch (e) {
-        console.log('تم إيقاف الماسح بالفعل أو خطأ في الإيقاف:', e);
+        console.log('خطأ في إيقاف قارئ QR Code:', e);
+        qrCodeScannerInstance = null;
     }
     
-    // إزالة النافذة
+    // ✅ إزالة النافذة بشكل كامل مع التأكد من إزالة جميع overlays
     const modal = document.getElementById('barcodeScannerModal');
     if (modal) {
+        // إخفاء modal أولاً
+        modal.style.display = 'none';
+        // إزالة modal من DOM
         modal.remove();
     }
     
-    // تنظيف المتغيرات المؤقتة
+    // ✅ التأكد من إزالة أي modal آخر قد يكون عالقاً
+    const allModals = document.querySelectorAll('.modal');
+    allModals.forEach(m => {
+        if (m.id === 'barcodeScannerModal' || m.classList.contains('barcode-scanner-modal')) {
+            m.style.display = 'none';
+            m.remove();
+        }
+    });
+    
+    // ✅ تنظيف المتغيرات المؤقتة
     if (window.scannedRepairNumber) {
         delete window.scannedRepairNumber;
     }
+    
+    // ✅ إعادة تفعيل التفاعل مع الصفحة
+    document.body.style.pointerEvents = '';
+    document.body.style.overflow = '';
 }
 
-// دالة إعادة المحاولة
+// ✅ دالة إعادة المحاولة
 function retryBarcodeScanner() {
-    console.log('إعادة محاولة تشغيل قارئ الباركود');
+    console.log('إعادة محاولة تشغيل قارئ QR Code');
     
     // التحقق من أن الماسح مفتوح
     if (!isScannerOpen) {
@@ -3374,22 +5721,43 @@ function retryBarcodeScanner() {
         return;
     }
     
-    // تم إزالة مراقب الاستقرار
+    // إخفاء رسائل النتائج والخطأ
+    const resultDiv = document.getElementById('scanner-result');
+    const errorDiv = document.getElementById('scanner-error');
+    if (resultDiv) resultDiv.style.display = 'none';
+    if (errorDiv) errorDiv.style.display = 'none';
     
     // إيقاف الماسح الحالي فقط بدون إغلاق النافذة
     try {
-        if (typeof Quagga !== 'undefined') {
-            Quagga.stop();
-            Quagga.offDetected();
+        if (qrCodeScannerInstance) {
+            qrCodeScannerInstance.stop().then(() => {
+                qrCodeScannerInstance.clear();
+                qrCodeScannerInstance = null;
+                // إعادة تشغيل الماسح بعد تأخير قصير
+                setTimeout(() => {
+                    initializeQRCodeScanner();
+                }, 500);
+            }).catch((e) => {
+                console.log('خطأ في إيقاف قارئ QR Code:', e);
+                qrCodeScannerInstance = null;
+                // إعادة المحاولة على أي حال
+                setTimeout(() => {
+                    initializeQRCodeScanner();
+                }, 500);
+            });
+        } else {
+            // إذا لم يكن هناك مثيل، ابدأ مباشرة
+            setTimeout(() => {
+                initializeQRCodeScanner();
+            }, 500);
         }
     } catch (e) {
-        console.log('خطأ في إيقاف الماسح:', e);
+        console.log('خطأ في إعادة المحاولة:', e);
+        qrCodeScannerInstance = null;
+        setTimeout(() => {
+            initializeQRCodeScanner();
+        }, 500);
     }
-    
-    // إعادة تشغيل الماسح بعد تأخير قصير
-    setTimeout(() => {
-        initializeBarcodeScanner();
-    }, 500);
 }
 
 function searchRepairByNumber() {
@@ -3400,10 +5768,20 @@ function searchRepairByNumber() {
     const repair = allRepairs.find(r => r.repair_number === repairNumber);
     
     if (repair) {
-        // تمييز العملية في الجدول
-        highlightRepairInTable(repair.id);
+        // ✅ إغلاق قارئ QR Code أولاً لتجنب مشاكل overlay
         closeBarcodeScanner();
-        showMessage(`تم العثور على العملية: ${repair.customer_name}`, 'success');
+        
+        // ✅ التبديل إلى القسم المناسب للعملية (سوفت/هارد/فاست)
+        if (repair.repair_type) {
+            switchRepairType(repair.repair_type);
+        }
+        
+        // ✅ انتظار أطول لضمان تحميل الجدول بعد التبديل وإعادة الرسم
+        setTimeout(() => {
+            // تمييز العملية في الجدول باللون الأصفر
+            highlightRepairInTable(repair.id);
+            showMessage(`تم العثور على العملية: ${repair.customer_name}`, 'success');
+        }, 500);
     } else {
         showMessage('لم يتم العثور على العملية بهذا الرقم', 'error');
     }
@@ -3425,225 +5803,6 @@ function highlightRepairInTable(repairId) {
     });
 }
 
-// نموذج العمليات الخاسرة
-function showLossOperationModal() {
-    const lossModal = document.createElement('div');
-    lossModal.className = 'modal';
-    lossModal.style.display = 'flex';
-    lossModal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="bi bi-exclamation-triangle"></i> تسجيل عملية خاسرة</h2>
-                <button onclick="closeLossOperationModal()" class="btn-close">&times;</button>
-            </div>
-            <form id="lossOperationForm" onsubmit="saveLossOperation(event)">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="lossRepairNumber">رقم العملية</label>
-                        <input type="text" id="lossRepairNumber" placeholder="رقم العملية الخاسرة" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="lossCustomerName">اسم العميل</label>
-                        <input type="text" id="lossCustomerName" placeholder="اسم العميل" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="lossDeviceType">نوع الجهاز</label>
-                        <input type="text" id="lossDeviceType" placeholder="مثال: iPhone 12" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="lossProblem">تفاصيل المشكلة</label>
-                        <textarea id="lossProblem" rows="3" placeholder="وصف تفصيلي للمشكلة التي أدت للخسارة" required></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="lossAmount">تكلفة الخسارة (ج.م)</label>
-                        <input type="number" id="lossAmount" step="0.01" min="0" placeholder="0.00" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="lossReason">سبب الخسارة</label>
-                        <select id="lossReason" required>
-                            <option value="">اختر سبب الخسارة</option>
-                            <option value="device_damage">تلف الجهاز أثناء الإصلاح</option>
-                            <option value="wrong_diagnosis">خطأ في التشخيص</option>
-                            <option value="missing_parts">فقدان قطع غيار</option>
-                            <option value="customer_dispute">نزاع مع العميل</option>
-                            <option value="technical_error">خطأ تقني</option>
-                            <option value="other">أسباب أخرى</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="lossNotes">ملاحظات إضافية</label>
-                        <textarea id="lossNotes" rows="2" placeholder="ملاحظات إضافية حول الخسارة"></textarea>
-                    </div>
-                </div>
-                
-                <div class="modal-footer">
-                    <button type="button" onclick="closeLossOperationModal()" class="btn btn-secondary">إلغاء</button>
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-exclamation-triangle"></i> تسجيل الخسارة
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
-    
-    document.body.appendChild(lossModal);
-}
-
-function closeLossOperationModal() {
-    const modal = document.querySelector('.modal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-async function saveLossOperation(event) {
-    event.preventDefault();
-    
-    const lossData = {
-        repair_number: document.getElementById('lossRepairNumber').value.trim(),
-        customer_name: document.getElementById('lossCustomerName').value.trim(),
-        device_type: document.getElementById('lossDeviceType').value.trim(),
-        problem: document.getElementById('lossProblem').value.trim(),
-        loss_amount: parseFloat(document.getElementById('lossAmount').value),
-        loss_reason: document.getElementById('lossReason').value,
-        notes: document.getElementById('lossNotes').value.trim(),
-        status: 'lost',
-        created_at: new Date().toISOString()
-    };
-    
-    // التحقق من البيانات المطلوبة
-    if (!lossData.repair_number || !lossData.customer_name || !lossData.device_type || 
-        !lossData.problem || !lossData.loss_amount || !lossData.loss_reason) {
-        showMessage('جميع الحقول المطلوبة يجب أن تكون مملوءة', 'error');
-        return;
-    }
-    
-    try {
-        const result = await API.addLossOperation(lossData);
-        
-        if (result.success) {
-            showMessage('تم تسجيل العملية الخاسرة بنجاح', 'success');
-            closeLossOperationModal();
-            await loadRepairs();
-            
-            // تحديث لوحة التحكم
-            if (typeof loadDashboardData === 'function') {
-                await loadDashboardData();
-            }
-        } else {
-            showMessage(result.message, 'error');
-        }
-    } catch (error) {
-        console.error('خطأ في حفظ العملية الخاسرة:', error);
-        showMessage('خطأ في حفظ العملية الخاسرة', 'error');
-    }
-}
-
-// عرض تفاصيل العملية الخاسرة
-function viewLossOperationDetails(lossId) {
-    const lossOperation = allRepairs.find(r => r.id === lossId && r.is_loss_operation);
-    if (!lossOperation) {
-        showMessage('لم يتم العثور على العملية الخاسرة', 'error');
-        return;
-    }
-    
-    const detailsModal = document.createElement('div');
-    detailsModal.className = 'modal';
-    detailsModal.style.display = 'flex';
-    detailsModal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="bi bi-exclamation-triangle"></i> تفاصيل العملية الخاسرة</h2>
-                <button onclick="closeLossDetailsModal()" class="btn-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="loss-details">
-                    <div class="detail-row">
-                        <label>رقم العملية:</label>
-                        <span>${lossOperation.repair_number}</span>
-                    </div>
-                    <div class="detail-row">
-                        <label>اسم العميل:</label>
-                        <span>${lossOperation.customer_name}</span>
-                    </div>
-                    <div class="detail-row">
-                        <label>نوع الجهاز:</label>
-                        <span>${lossOperation.device_type}</span>
-                    </div>
-                    <div class="detail-row">
-                        <label>المشكلة:</label>
-                        <span>${lossOperation.problem}</span>
-                    </div>
-                    <div class="detail-row">
-                        <label>تكلفة الخسارة:</label>
-                        <span class="loss-amount">${formatCurrency(lossOperation.cost)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <label>سبب الخسارة:</label>
-                        <span>${getLossReasonText(lossOperation.loss_reason)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <label>التاريخ:</label>
-                        <span>${formatDate(lossOperation.created_at)}</span>
-                    </div>
-                    ${lossOperation.loss_notes ? `
-                    <div class="detail-row">
-                        <label>ملاحظات:</label>
-                        <span>${lossOperation.loss_notes}</span>
-                    </div>
-                    ` : ''}
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button onclick="closeLossDetailsModal()" class="btn btn-secondary">إغلاق</button>
-                <button onclick="deleteLossOperation('${lossOperation.id}')" class="btn btn-danger" data-permission="manager">
-                    <i class="bi bi-trash3"></i> حذف العملية
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(detailsModal);
-}
-
-// إغلاق نافذة تفاصيل العملية الخاسرة
-function closeLossDetailsModal() {
-    const modal = document.querySelector('.modal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-// حذف العملية الخاسرة
-async function deleteLossOperation(lossId) {
-    if (!confirmAction('هل أنت متأكد من حذف هذه العملية الخاسرة؟')) return;
-    
-    try {
-        const result = await API.deleteLossOperation(lossId);
-        
-        if (result.success) {
-            showMessage('تم حذف العملية الخاسرة بنجاح', 'success');
-            closeLossDetailsModal();
-            await loadRepairs(true); // force = true بعد حذف العملية الخاسرة
-            
-            // تحديث لوحة التحكم
-            if (typeof loadDashboardData === 'function') {
-                await loadDashboardData();
-            }
-        } else {
-            showMessage(result.message, 'error');
-        }
-    } catch (error) {
-        console.error('خطأ في حذف العملية الخاسرة:', error);
-        showMessage('خطأ في حذف العملية الخاسرة', 'error');
-    }
-}
 
 // الحصول على نص سبب الخسارة
 function getLossReasonText(reason) {
@@ -3790,4 +5949,5 @@ window.onCustomerSelectChange = onCustomerSelectChange;
 window.addInvoiceField = addInvoiceField;
 window.removeInvoiceField = removeInvoiceField;
 window.handleDeviceTypeChange = handleDeviceTypeChange;
+window.printRepairReceipt = printRepairReceipt;
 

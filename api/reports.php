@@ -18,11 +18,14 @@ if ($method === 'GET') {
     $totalRepairCosts = 0;
     
     // بناء استعلام العمليات المسلمة
+    // ✅ تحسين: استخدام delivery_date إذا كان موجوداً، وإلا استخدام updated_at عند تغيير الحالة إلى delivered، وإلا created_at
     if ($type === 'daily') {
         $repairsQuery = "SELECT * FROM repairs 
                         WHERE status = 'delivered' 
-                        AND (DATE(delivery_date) = ? OR (delivery_date IS NULL AND DATE(created_at) = ?))";
-        $repairsParams = [$startDate, $startDate];
+                        AND (DATE(delivery_date) = ? 
+                             OR (delivery_date IS NULL AND DATE(updated_at) = ?)
+                             OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) = ?))";
+        $repairsParams = [$startDate, $startDate, $startDate];
         
         // إضافة فلترة الفرع إذا كان محدد
         if ($branchId) {
@@ -33,8 +36,9 @@ if ($method === 'GET') {
         $repairsQuery = "SELECT * FROM repairs 
                         WHERE status = 'delivered' 
                         AND (DATE_FORMAT(delivery_date, '%Y-%m') = DATE_FORMAT(?, '%Y-%m') 
-                             OR (delivery_date IS NULL AND DATE_FORMAT(created_at, '%Y-%m') = DATE_FORMAT(?, '%Y-%m')))";
-        $repairsParams = [$startDate, $startDate];
+                             OR (delivery_date IS NULL AND DATE_FORMAT(updated_at, '%Y-%m') = DATE_FORMAT(?, '%Y-%m'))
+                             OR (delivery_date IS NULL AND updated_at IS NULL AND DATE_FORMAT(created_at, '%Y-%m') = DATE_FORMAT(?, '%Y-%m')))";
+        $repairsParams = [$startDate, $startDate, $startDate];
         
         // إضافة فلترة الفرع إذا كان محدد
         if ($branchId) {
@@ -45,8 +49,9 @@ if ($method === 'GET') {
         $repairsQuery = "SELECT * FROM repairs 
                         WHERE status = 'delivered' 
                         AND ((delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                             OR (delivery_date IS NULL AND DATE(created_at) BETWEEN ? AND ?))";
-        $repairsParams = [$startDate, $endDate, $startDate, $endDate];
+                             OR (delivery_date IS NULL AND DATE(updated_at) BETWEEN ? AND ?)
+                             OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?))";
+        $repairsParams = [$startDate, $endDate, $startDate, $endDate, $startDate, $endDate];
         
         // إضافة فلترة الفرع إذا كان محدد
         if ($branchId) {

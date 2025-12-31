@@ -853,6 +853,21 @@ function closeCustomerModal() {
 async function saveCustomer(event) {
     event.preventDefault();
 
+    // ✅ إصلاح: إزالة required من الحقول المخفية قبل التحقق من صحة النموذج
+    const branchGroup = document.getElementById('customerBranchGroup');
+    const branchSelect = document.getElementById('customerBranchSelect');
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    
+    // التأكد من أن الحقل المطلوب مرئي فقط عندما يكون المستخدم مالكاً
+    if (branchGroup && branchSelect) {
+        if (isOwner && branchGroup.style.display !== 'none') {
+            branchSelect.required = true;
+        } else {
+            branchSelect.required = false;
+        }
+    }
+
     // التحقق من الحقول المطلوبة
     const name = document.getElementById('custName').value.trim();
     const phone = document.getElementById('custPhone').value.trim();
@@ -870,6 +885,15 @@ async function saveCustomer(event) {
         return;
     }
     
+    // ✅ التحقق من حقل الفرع إذا كان مرئياً ومطلوباً
+    if (isOwner && branchSelect && branchSelect.required && branchGroup.style.display !== 'none') {
+        if (!branchSelect.value || branchSelect.value === '') {
+            showMessage('يرجى اختيار الفرع', 'error');
+            branchSelect.focus();
+            return;
+        }
+    }
+    
     const customerData = {
         name: name,
         phone: phone,
@@ -879,13 +903,8 @@ async function saveCustomer(event) {
     };
 
     // إضافة branch_id للمالك فقط
-    const currentUser = getCurrentUser();
-    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
-    if (isOwner) {
-        const branchSelect = document.getElementById('customerBranchSelect');
-        if (branchSelect && branchSelect.value) {
-            customerData.branch_id = branchSelect.value;
-        }
+    if (isOwner && branchSelect && branchSelect.value) {
+        customerData.branch_id = branchSelect.value;
     }
 
     const customerId = document.getElementById('customerId').value;
@@ -927,6 +946,35 @@ async function editCustomer(id) {
     document.getElementById('custShopName').value = customer.shop_name || '';
     
     toggleShopNameField();
+    
+    // ✅ إصلاح: التحقق من حالة حقل الفرع قبل فتح النموذج
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    const branchGroup = document.getElementById('customerBranchGroup');
+    const branchSelect = document.getElementById('customerBranchSelect');
+    
+    // تحميل الفروع إذا لم تكن محملة
+    if (customerBranches.length === 0) {
+        await loadCustomerBranches();
+    }
+    
+    if (branchGroup && branchSelect) {
+        if (isOwner) {
+            branchGroup.style.display = 'block';
+            branchSelect.required = true;
+            // تعيين قيمة الفرع الحالي للعميل إذا كان موجوداً
+            if (customer.branch_id) {
+                branchSelect.value = customer.branch_id;
+            } else if (firstBranchId) {
+                branchSelect.value = firstBranchId;
+            }
+        } else {
+            branchGroup.style.display = 'none';
+            branchSelect.required = false;
+            branchSelect.value = '';
+        }
+    }
+    
     document.getElementById('customerModal').style.display = 'flex';
 }
 
@@ -969,6 +1017,27 @@ async function viewCustomerProfile(customerId) {
         } catch (error) {
             console.error('❌ خطأ في استدعاء API.getCustomerSales:', error);
             showMessage('حدث خطأ أثناء جلب بيانات العميل: ' + (error.message || 'خطأ غير معروف'), 'error');
+        }
+        
+        // Load customer repairs - فقط صيانات هذا العميل
+        let repairs = [];
+        try {
+            const repairsResult = await API.getCustomerRepairs(customerId);
+            
+            // Error handling: التحقق من نجاح الطلب
+            if (!repairsResult) {
+                console.warn('⚠️ repairsResult is null or undefined');
+            } else if (!repairsResult.success) {
+                console.warn('⚠️ خطأ في جلب صيانات العميل:', repairsResult?.message || 'خطأ غير معروف');
+            } else if (!Array.isArray(repairsResult.data)) {
+                console.warn('⚠️ repairsResult.data is not an array:', repairsResult.data);
+            } else {
+                repairs = repairsResult.data;
+                console.log('✅ تم جلب ' + repairs.length + ' عملية صيانة للعميل');
+            }
+        } catch (error) {
+            console.warn('⚠️ خطأ في استدعاء API.getCustomerRepairs:', error);
+            // لا نوقف العملية، فقط نسجل التحذير
         }
         
         // Load customer rating
@@ -1505,10 +1574,170 @@ async function viewCustomerProfile(customerId) {
             }
         }
         
+        // Repairs History Section
+        const repairsSection = document.createElement('div');
+        repairsSection.className = 'customer-sales-section';
+        
+        const repairsHeader = document.createElement('h3');
+        repairsHeader.innerHTML = `
+            <div class="section-icon">
+                <i class="bi bi-tools"></i>
+            </div>
+            <span>سجل الصيانات</span>
+            ${repairs.length > 0 ? `<span class="section-badge">${repairs.length}</span>` : ''}
+        `;
+        
+        if (repairs.length === 0) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'customer-sales-empty';
+            emptyState.innerHTML = `
+                <i class="bi bi-inbox"></i>
+                <p>لا توجد عمليات صيانة مسجلة لهذا العميل</p>
+            `;
+            repairsSection.appendChild(repairsHeader);
+            repairsSection.appendChild(emptyState);
+        } else {
+            // إضافة حقول البحث
+            const searchBar = document.createElement('div');
+            searchBar.className = 'filters-bar';
+            searchBar.style.cssText = 'margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;';
+            searchBar.innerHTML = `
+                <input type="text" id="repairsSearchNumber" placeholder="بحث برقم العملية..." class="search-input" style="flex: 1; min-width: 200px;">
+                <input type="date" id="repairsSearchDate" placeholder="اختر التاريخ" class="search-input" style="flex: 0 0 auto; max-width: 150px; font-size: 14px;">
+            `;
+            
+            // Build repairs table
+            const tableContainer = document.createElement('div');
+            tableContainer.className = 'table-container customer-sales-table';
+            tableContainer.style.cssText = 'overflow-x: auto; -webkit-overflow-scrolling: touch;';
+            
+            const table = document.createElement('table');
+            table.className = 'data-table';
+            
+            // Build table header
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>رقم العملية</th>
+                    <th>نوع الجهاز</th>
+                    <th>المشكلة</th>
+                    <th>التاريخ</th>
+                    <th style="text-align: right;">التكلفة</th>
+                    <th>الحالة</th>
+                    <th style="text-align: center;">الإجراءات</th>
+                </tr>
+            `;
+            
+            // Build table body
+            const tbody = document.createElement('tbody');
+            tbody.id = 'customerRepairsTableBody';
+            
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            
+            table.style.minWidth = '700px';
+            
+            tableContainer.appendChild(table);
+            
+            // إضافة pagination container
+            const paginationContainer = document.createElement('div');
+            paginationContainer.className = 'pagination';
+            paginationContainer.id = 'customerRepairsPagination';
+            
+            repairsSection.appendChild(repairsHeader);
+            repairsSection.appendChild(searchBar);
+            repairsSection.appendChild(tableContainer);
+            repairsSection.appendChild(paginationContainer);
+            
+            // حفظ بيانات الصيانات للبحث والتصفح
+            window.currentCustomerRepairs = repairs;
+            window._originalCustomerRepairs = repairs;
+            window.currentRepairsPage = 1;
+            window.repairsPerPage = 5;
+            
+            // إضافة event listeners للبحث
+            setTimeout(() => {
+                const numberSearchInput = document.getElementById('repairsSearchNumber');
+                const dateSearchInput = document.getElementById('repairsSearchDate');
+                
+                if (numberSearchInput) {
+                    if (numberSearchInput._searchHandler) {
+                        numberSearchInput.removeEventListener('input', numberSearchInput._searchHandler);
+                    }
+                    
+                    numberSearchInput._searchHandler = function() {
+                        const query = this.value.toLowerCase().trim();
+                        const originalRepairs = window._originalCustomerRepairs || [];
+                        
+                        let filtered = originalRepairs.filter(repair => {
+                            const repairNumber = String(repair.repair_number || repair.id || '').toLowerCase();
+                            return repairNumber.includes(query);
+                        });
+                        
+                        const dateInput = document.getElementById('repairsSearchDate');
+                        if (dateInput && dateInput.value) {
+                            const searchDate = dateInput.value;
+                            filtered = filtered.filter(repair => {
+                                if (!repair.created_at) return false;
+                                const repairDate = new Date(repair.created_at).toISOString().split('T')[0];
+                                return repairDate === searchDate;
+                            });
+                        }
+                        
+                        window.currentRepairsPage = 1;
+                        window.currentCustomerRepairs = filtered;
+                        displayRepairsWithPagination(filtered);
+                    };
+                    
+                    numberSearchInput.addEventListener('input', numberSearchInput._searchHandler);
+                }
+                
+                if (dateSearchInput) {
+                    if (dateSearchInput._searchHandler) {
+                        dateSearchInput.removeEventListener('change', dateSearchInput._searchHandler);
+                    }
+                    
+                    dateSearchInput._searchHandler = function() {
+                        const searchDate = this.value;
+                        const originalRepairs = window._originalCustomerRepairs || [];
+                        
+                        let filtered = originalRepairs.filter(repair => {
+                            if (!repair.created_at) return false;
+                            const repairDate = new Date(repair.created_at).toISOString().split('T')[0];
+                            return repairDate === searchDate;
+                        });
+                        
+                        const numberInput = document.getElementById('repairsSearchNumber');
+                        if (numberInput && numberInput.value.trim()) {
+                            const query = numberInput.value.toLowerCase().trim();
+                            filtered = filtered.filter(repair => {
+                                const repairNumber = String(repair.repair_number || repair.id || '').toLowerCase();
+                                return repairNumber.includes(query);
+                            });
+                        }
+                        
+                        window.currentRepairsPage = 1;
+                        window.currentCustomerRepairs = filtered;
+                        displayRepairsWithPagination(filtered);
+                    };
+                    
+                    dateSearchInput.addEventListener('change', dateSearchInput._searchHandler);
+                }
+            }, 50);
+            
+            // عرض الصيانات
+            if (repairs && repairs.length > 0) {
+                setTimeout(() => {
+                    displayRepairsWithPagination(repairs);
+                }, 100);
+            }
+        }
+        
         // Assemble all parts
         body.appendChild(customerInfoCard);
         body.appendChild(statsGrid);
         body.appendChild(salesSection);
+        body.appendChild(repairsSection);
         
         content.appendChild(header);
         content.appendChild(body);
@@ -3981,6 +4210,181 @@ function filterAndDisplaySales(allSales, resetPage = true) {
     
     // عرض الفواتير المفلترة
     displaySalesWithPagination(filtered);
+}
+
+// دالة لعرض الصيانات مع pagination
+function displayRepairsWithPagination(allRepairs) {
+    const tbody = document.getElementById('customerRepairsTableBody');
+    if (!tbody) {
+        console.error('❌ customerRepairsTableBody not found');
+        return;
+    }
+    
+    // Error handling: التأكد من أن allRepairs هو array
+    if (!Array.isArray(allRepairs)) {
+        console.error('❌ allRepairs is not an array:', allRepairs);
+        if (Array.isArray(window.currentCustomerRepairs)) {
+            allRepairs = window.currentCustomerRepairs;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger-color);">خطأ في عرض البيانات: البيانات غير صحيحة</td></tr>';
+            return;
+        }
+    }
+    
+    if (!allRepairs) {
+        console.error('❌ allRepairs is null or undefined');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger-color);">خطأ: لا توجد بيانات للعرض</td></tr>';
+        return;
+    }
+    
+    // التأكد من أن paginate function موجودة
+    if (typeof paginate !== 'function') {
+        console.error('❌ paginate function is not defined!');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--danger-color);">خطأ: دالة paginate غير موجودة</td></tr>';
+        return;
+    }
+    
+    const currentPage = window.currentRepairsPage || 1;
+    const perPage = window.repairsPerPage || 5;
+    
+    const paginated = paginate(allRepairs, currentPage, perPage);
+    
+    if (paginated.data.length === 0) {
+        if (allRepairs.length > 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد عمليات في الصفحة ${currentPage} من ${paginated.totalPages}</td></tr>`;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد عمليات صيانة مسجلة لهذا العميل</td></tr>';
+        }
+        
+        const paginationContainer = document.getElementById('customerRepairsPagination');
+        if (paginationContainer) {
+            paginationContainer.innerHTML = '';
+        }
+        return;
+    }
+    
+    // Helper functions (استخدام الدوال من repairs.js إذا كانت متاحة، وإلا استخدام fallback)
+    const formatDateFunc = typeof formatDate === 'function' ? formatDate : (dateString) => {
+        if (!dateString) return '-';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ar-EG', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit',
+                timeZone: 'Africa/Cairo'
+            });
+        } catch (e) {
+            return '-';
+        }
+    };
+    
+    const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
+        const num = parseFloat(amount || 0);
+        return isNaN(num) ? '0.00' : num.toFixed(2);
+    };
+    
+    const getStatusColorFunc = typeof getStatusColor === 'function' ? getStatusColor : (status) => {
+        const colors = {
+            'received': '#2196F3',
+            'pending': '#FFA500',
+            'in_progress': '#2196F3',
+            'ready': '#4CAF50',
+            'delivered': '#4CAF50',
+            'cancelled': '#f44336',
+            'lost': '#f44336'
+        };
+        return colors[status] || '#999';
+    };
+    
+    const getStatusTextFunc = typeof getStatusText === 'function' ? getStatusText : (status) => {
+        const statuses = {
+            'received': 'تم الاستلام',
+            'pending': 'قيد الانتظار',
+            'in_progress': 'قيد الإصلاح',
+            'ready': 'جاهز',
+            'delivered': 'تم التسليم',
+            'cancelled': 'ملغي',
+            'lost': 'مفقود'
+        };
+        return statuses[status] || status || '-';
+    };
+    
+    // بناء HTML للصيانات
+    const fragment = document.createDocumentFragment();
+    
+    paginated.data.forEach((repair) => {
+        try {
+            const repairNumber = repair.repair_number || repair.id || 'غير محدد';
+            const deviceType = repair.device_type || '-';
+            const problem = repair.problem || '-';
+            const date = formatDateFunc(repair.created_at);
+            const cost = parseFloat(repair.customer_price || repair.cost || 0);
+            const status = repair.status || 'received';
+            const statusColor = getStatusColorFunc(status);
+            const statusText = getStatusTextFunc(status);
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <strong class="invoice-number-text">${escapeHtml(repairNumber)}</strong>
+                </td>
+                <td>${escapeHtml(deviceType)}</td>
+                <td>${escapeHtml(problem)}</td>
+                <td>
+                    <div class="invoice-date-cell">
+                        <i class="bi bi-calendar3"></i>
+                        <span>${date}</span>
+                    </div>
+                </td>
+                <td style="text-align: right;">
+                    <strong class="invoice-final-amount">
+                        ${formatCurrencyFunc(cost)} <span class="invoice-amount-currency">ج.م</span>
+                    </strong>
+                </td>
+                <td>
+                    <span class="status-badge" style="background: ${statusColor}">${statusText}</span>
+                </td>
+                <td style="text-align: center;">
+                    <div class="invoice-actions">
+                        <button onclick="printRepairReceipt('${escapeHtml(repair.id)}')" class="btn-invoice-action btn-invoice-pdf">
+                            <i class="bi bi-printer"></i> طباعة الإيصال
+                        </button>
+                    </div>
+                </td>
+            `;
+            fragment.appendChild(row);
+        } catch (error) {
+            console.error('❌ خطأ في معالجة عملية صيانة:', error, repair);
+        }
+    });
+    
+    // مسح tbody وإضافة fragment
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
+    
+    // عرض pagination
+    const paginationContainer = document.getElementById('customerRepairsPagination');
+    if (paginationContainer) {
+        createPaginationButtons(
+            paginationContainer,
+            paginated.totalPages,
+            window.currentRepairsPage || 1,
+            (page) => {
+                window.currentRepairsPage = page;
+                let repairsToDisplay = window.currentCustomerRepairs || [];
+                displayRepairsWithPagination(repairsToDisplay);
+            }
+        );
+    }
+}
+
+// التأكد من أن printRepairReceipt متاحة
+if (typeof window !== 'undefined' && typeof printRepairReceipt === 'undefined') {
+    // إذا لم تكن متاحة، نضيف دالة fallback
+    window.printRepairReceipt = function(repairId) {
+        showMessage('دالة طباعة الإيصال غير متاحة. يرجى الانتقال إلى صفحة الصيانة.', 'warning');
+    };
 }
 
 

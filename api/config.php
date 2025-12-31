@@ -152,9 +152,6 @@ define('BACKUP_DIR', __DIR__ . '/../backups/');
 // تحميل ملف قاعدة البيانات
 require_once __DIR__ . '/database.php';
 
-// تحميل ملف تنظيف الفواتير التلقائي
-require_once __DIR__ . '/invoice-cleanup.php';
-
 // ✅ تهيئة قاعدة البيانات تلقائياً عند أول زيارة (مرة واحدة فقط)
 if (file_exists(__DIR__ . '/init-database.php')) {
     require_once __DIR__ . '/init-database.php';
@@ -236,8 +233,6 @@ if (!isset($_SESSION['db_setup_checked'])) {
         $_SESSION['db_setup_checked'] = true;
     }
 }
-
-// ✅ تم نقل تعريف DATA_DIR و BACKUP_DIR إلى الأعلى (قبل تحميل invoice-cleanup.php)
 
 // دوال مساعدة
 function generateId() {
@@ -524,12 +519,6 @@ if (!isset($_SESSION['system_initialized'])) {
         // لا نوقف التنفيذ، فقط نسجل الخطأ
     }
 }
-
-// جدولة تنظيف الفواتير القديمة (معطل - تم إيقاف النظام)
-// يتم تنفيذ cleanup بعد إرسال الاستجابة (async) لضمان عدم التأثير على المستخدم
-// if (function_exists('scheduleInvoiceCleanupIfNeeded')) {
-//     scheduleInvoiceCleanupIfNeeded();
-// }
 ?>
 
 

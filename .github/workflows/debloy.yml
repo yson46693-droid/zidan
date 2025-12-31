@@ -34,10 +34,10 @@ jobs:
         with:
           server: 213.239.220.209
           username: osama74
-          password: SDbdpuKq3p&ha^69
+          password: LVcWhvv8m8*se!h3
           protocol: ftp
           port: 21
           security: loose
           timeout: 120000
-          server-dir: /httpdocs/zidan/
+          server-dir: /httpdocs/z/
           dangerous-clean-slate: false

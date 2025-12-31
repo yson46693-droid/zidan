@@ -51,19 +51,52 @@ if ($method === 'GET') {
     // بناء الاستعلام: جلب الفنيين المرتبطين بالفرع + المالكين (إذا طُلب)
     if ($includeAdmins) {
         if ($branchId) {
-            // جلب الفنيين والمالكين
-            $technicians = dbSelect(
-                "SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at
-                 FROM users u
-                 LEFT JOIN branches b ON u.branch_id = b.id
-                 WHERE (u.role = 'technician' AND u.branch_id = ?) OR u.role = 'admin'
-                 ORDER BY u.role DESC, u.name ASC",
-                [$branchId]
+            // ✅ جلب الفنيين والمالكين - جلب admin المرتبطين بالفرع + admin غير المرتبطين بفرع (للفرع الأول)
+            // للتحقق من أن هذا الفرع الأول، نتحقق من ترتيب الفروع
+            $firstBranch = dbSelect(
+                "SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1",
+                []
             );
+            $isFirstBranch = false;
+            if ($firstBranch && is_array($firstBranch) && count($firstBranch) > 0) {
+                $firstBranchId = $firstBranch[0]['id'] ?? null;
+                $isFirstBranch = ($firstBranchId === $branchId);
+            }
+            
+            // ✅ التحقق من وجود عمود avatar
+            $hasAvatar = dbColumnExists('users', 'avatar');
+            $avatarField = $hasAvatar ? ', u.avatar' : '';
+            
+            if ($isFirstBranch) {
+                // ✅ الفرع الأول: جلب الفنيين المرتبطين + admin المرتبطين + admin غير المرتبطين بفرع
+                $technicians = dbSelect(
+                    "SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at{$avatarField}
+                     FROM users u
+                     LEFT JOIN branches b ON u.branch_id = b.id
+                     WHERE (u.role = 'technician' AND u.branch_id = ?) 
+                        OR (u.role = 'admin' AND u.branch_id = ?)
+                        OR (u.role = 'admin' AND u.branch_id IS NULL)
+                     ORDER BY u.role DESC, u.name ASC",
+                    [$branchId, $branchId]
+                );
+            } else {
+                // الفروع الأخرى: جلب الفنيين والمالكين المرتبطين بالفرع فقط
+                $technicians = dbSelect(
+                    "SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at{$avatarField}
+                     FROM users u
+                     LEFT JOIN branches b ON u.branch_id = b.id
+                     WHERE (u.role = 'technician' AND u.branch_id = ?) OR (u.role = 'admin' AND u.branch_id = ?)
+                     ORDER BY u.role DESC, u.name ASC",
+                    [$branchId, $branchId]
+                );
+            }
         } else {
             // جلب المالكين فقط (عندما لا يكون هناك branch_id)
+            // ✅ التحقق من وجود عمود avatar
+            $hasAvatar = dbColumnExists('users', 'avatar');
+            $avatarField = $hasAvatar ? ', u.avatar' : '';
             $technicians = dbSelect(
-                "SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at
+                "SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at{$avatarField}
                  FROM users u
                  LEFT JOIN branches b ON u.branch_id = b.id
                  WHERE u.role = 'admin'

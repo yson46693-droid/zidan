@@ -110,6 +110,20 @@ if (preg_match('/\.php$/', $requestPath) && file_exists($filePath) && is_file($f
     return false; // Let PHP handle it
 }
 
+// ✅ Handle API requests without .php extension (e.g., api/settings -> api/settings.php)
+if (preg_match('/^\/api\//', $requestPath) && !preg_match('/\.php$/', $requestPath)) {
+    $phpPath = __DIR__ . $requestPath . '.php';
+    if (file_exists($phpPath) && is_file($phpPath)) {
+        // Update the request path to include .php
+        $_SERVER['SCRIPT_NAME'] = $requestPath . '.php';
+        $_SERVER['PHP_SELF'] = $requestPath . '.php';
+        $_SERVER['REQUEST_URI'] = $requestPath . '.php' . (isset($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '');
+        // Include the PHP file
+        include $phpPath;
+        return true;
+    }
+}
+
 // If the request is for a file that exists, serve it directly
 // ✅ IMPORTANT: Skip sw.js and PHP files here (already handled above)
 if ($requestPath !== '/' && 

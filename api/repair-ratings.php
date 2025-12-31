@@ -34,7 +34,92 @@ function createRepairRatingsTable() {
 if ($method === 'GET') {
     $repairId = $_GET['repair_id'] ?? null;
     $repairNumber = $_GET['repair_number'] ?? null;
+    $technicianId = $_GET['technician_id'] ?? null;
     
+    // ✅ إذا كان هناك technician_id، جلب تقييمات الفني
+    if ($technicianId) {
+        // ✅ التحقق من وجود parameter "detailed" - إذا كان موجوداً، جلب التفاصيل (يتطلب auth)
+        $detailed = isset($_GET['detailed']) && $_GET['detailed'] === 'true';
+        
+        if ($detailed) {
+            // جلب جميع التقييمات التفصيلية (للمالك في dashboard) - يتطلب auth
+            checkAuth();
+            
+            $ratings = dbSelect(
+                "SELECT rr.*, r.repair_number, r.customer_name, r.customer_phone, r.created_at as repair_created_at
+                 FROM repair_ratings rr
+                 INNER JOIN repairs r ON rr.repair_id = r.id
+                 WHERE r.created_by = ?
+                 ORDER BY rr.created_at DESC",
+                [$technicianId]
+            );
+            
+            if ($ratings === false) {
+                response(false, 'خطأ في قراءة التقييمات', null, 500);
+            }
+            
+            if (!$ratings || !is_array($ratings)) {
+                response(true, 'لا توجد تقييمات', []);
+            }
+            
+            response(true, '', $ratings);
+        } else {
+            // ✅ جلب التقييم التراكمي فقط (لصفحة تتبع الصيانة العامة) - بدون auth
+            // جلب التقييمات التلقائية من repair_ratings
+            $rating = dbSelectOne(
+                "SELECT 
+                    AVG(rr.technician_rating) as avg_rating,
+                    COUNT(rr.id) as total_ratings
+                 FROM repair_ratings rr
+                 INNER JOIN repairs r ON rr.repair_id = r.id
+                 WHERE r.created_by = ?",
+                [$technicianId]
+            );
+            
+            // جلب التقييم اليدوي (من المالك)
+            $manualRating = dbSelectOne(
+                "SELECT rating FROM technician_manual_ratings 
+                 WHERE technician_id = ? 
+                 ORDER BY created_at DESC LIMIT 1",
+                [$technicianId]
+            );
+            
+            if ($rating === false) {
+                response(false, 'خطأ في قراءة التقييم', null, 500);
+            }
+            
+            $finalRating = 0;
+            $totalRatings = 0;
+            
+            if ($rating && isset($rating['avg_rating']) && $rating['avg_rating'] !== null) {
+                $autoRating = round(floatval($rating['avg_rating']), 2);
+                $totalRatings = intval($rating['total_ratings']);
+                
+                // إذا كان هناك تقييم يدوي، دمجه مع التقييم التلقائي (70% تلقائي + 30% يدوي)
+                if ($manualRating && isset($manualRating['rating'])) {
+                    $manualRatingValue = intval($manualRating['rating']);
+                    $finalRating = round(($autoRating * 0.7) + ($manualRatingValue * 0.3), 2);
+                } else {
+                    $finalRating = $autoRating;
+                }
+            } else {
+                // إذا لم يكن هناك تقييمات تلقائية، استخدام التقييم اليدوي فقط
+                if ($manualRating && isset($manualRating['rating'])) {
+                    $finalRating = intval($manualRating['rating']);
+                } else {
+                    $finalRating = 0;
+                }
+                $totalRatings = 0;
+            }
+            
+            response(true, '', [
+                'avg_rating' => $finalRating,
+                'total_ratings' => $totalRatings
+            ]);
+        }
+    }
+    
+    // ✅ إذا كان هناك repair_id أو repair_number، جلب تقييم العملية
     if (!$repairId && !$repairNumber) {
         response(false, 'معرف العملية أو رقم العملية مطلوب', null, 400);
     }
@@ -113,29 +198,8 @@ if ($method === 'POST') {
     );
     
     if ($existingRating) {
-        // تحديث التقييم الموجود
-        $result = dbExecute(
-            "UPDATE repair_ratings SET 
-                repair_id = ?,
-                repair_rating = ?,
-                technician_rating = ?,
-                comment = ?,
-                updated_at = NOW()
-            WHERE id = ?",
-            [
-                $repairId ?: null,
-                $repairRating,
-                $technicianRating,
-                $comment ?: null,
-                $existingRating['id']
-            ]
-        );
-        
-        if ($result === false) {
-            response(false, 'خطأ في تحديث التقييم', null, 500);
-        }
-        
-        $ratingId = $existingRating['id'];
+        // ✅ التقييم يكون مرة واحدة فقط - رفض التحديث
+        response(false, 'تم إرسال التقييم مسبقاً. لا يمكن تعديل التقييم.', null, 400);
     } else {
         // إضافة تقييم جديد
         $ratingId = generateId();

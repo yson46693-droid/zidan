@@ -324,9 +324,14 @@ function displaySpareParts(parts) {
                             </button>
                         ` : ''}
                     ` : canRequestInventoryItem() ? `
-                        <button onclick="requestInventoryItem('spare_part', '${part.id}', '${part.brand} ${part.model}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
-                            <i class="bi bi-cart-plus"></i> طلب قطعة غيار
-                        </button>
+                        <div style="display: flex; gap: 8px; width: 100%;">
+                            <button onclick="requestInventoryItem('spare_part', '${part.id}', '${part.brand} ${part.model}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
+                                <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
+                            </button>
+                            <button onclick="showInventoryItemDetails('spare_part', '${part.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
+                                <i class="bi bi-info-circle"></i> عرض التفاصيل
+                            </button>
+                        </div>
                     ` : ''}
                 </div>
             </div>
@@ -804,9 +809,14 @@ function displayAccessories(accessories) {
                             </button>
                         ` : ''}
                     ` : canRequestInventoryItem() ? `
-                        <button onclick="requestInventoryItem('accessory', '${cleanAccessoryId}', '${cleanName}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
-                            <i class="bi bi-cart-plus"></i> طلب قطعة غيار
-                        </button>
+                        <div style="display: flex; gap: 8px; width: 100%;">
+                            <button onclick="requestInventoryItem('accessory', '${cleanAccessoryId}', '${cleanName}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
+                                <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
+                            </button>
+                            <button onclick="showInventoryItemDetails('accessory', '${cleanAccessoryId}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
+                                <i class="bi bi-info-circle"></i> عرض التفاصيل
+                            </button>
+                        </div>
                     ` : ''}
                 </div>
             </div>
@@ -1154,13 +1164,23 @@ function displayPhones(phones) {
                         `}
                     ` : canRequestInventoryItem() ? `
                         ${isSoldOut ? `
-                            <button disabled class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%; opacity: 0.5; cursor: not-allowed; pointer-events: none;">
-                                <i class="bi bi-cart-plus"></i> طلب قطعة غيار
-                            </button>
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <button disabled class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1; opacity: 0.5; cursor: not-allowed; pointer-events: none;">
+                                    <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
+                                </button>
+                                <button onclick="event.stopPropagation(); showInventoryItemDetails('phone', '${phone.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
+                                    <i class="bi bi-info-circle"></i> عرض التفاصيل
+                                </button>
+                            </div>
                         ` : `
-                            <button onclick="event.stopPropagation(); requestInventoryItem('phone', '${phone.id}', '${phone.brand} ${phone.model}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
-                                <i class="bi bi-cart-plus"></i> طلب قطعة غيار
-                            </button>
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <button onclick="event.stopPropagation(); requestInventoryItem('phone', '${phone.id}', '${phone.brand} ${phone.model}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
+                                    <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
+                                </button>
+                                <button onclick="event.stopPropagation(); showInventoryItemDetails('phone', '${phone.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
+                                    <i class="bi bi-info-circle"></i> عرض التفاصيل
+                                </button>
+                            </div>
                         `}
                     ` : ''}
                 </div>

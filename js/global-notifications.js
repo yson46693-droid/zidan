@@ -295,11 +295,23 @@ class GlobalNotificationManager {
             const result = await API.request(`get_messages.php?last_id=${this.lastMessageId}`, 'GET', null, { silent: true });
             this.pendingCheck = false;
             
+            // ✅ تجاهل خطأ 401 (غير مصرح) - يعني أن المستخدم غير مسجل دخول
+            if (result && result.status === 401) {
+                // المستخدم غير مسجل دخول - إيقاف النظام
+                this.stop();
+                return;
+            }
+            
             if (result && result.success && result.data && result.data.length > 0) {
                 this.processMessages(result.data);
             }
         } catch (error) {
             this.pendingCheck = false;
+            // ✅ تجاهل خطأ 401 بشكل صامت
+            if (error && error.status === 401) {
+                this.stop();
+                return;
+            }
             console.error('خطأ في التحقق من الرسائل الجديدة:', error);
         }
     }
@@ -488,6 +500,13 @@ class GlobalNotificationManager {
     // حفظ الإشعار في localStorage للتحميل لاحقاً
     saveNotificationToLocalStorage(message) {
         try {
+            // التحقق من أن الإشعار غير محذوف
+            const deleted = this.getDeletedNotifications();
+            if (deleted.includes(message.id)) {
+                console.log('⚠️ تم تخطي الإشعار المحذوف:', message.id);
+                return;
+            }
+            
             const saved = localStorage.getItem('chat_notifications');
             let notifications = saved ? JSON.parse(saved) : [];
             
@@ -509,6 +528,17 @@ class GlobalNotificationManager {
             }
         } catch (error) {
             console.error('❌ خطأ في حفظ الإشعار في localStorage:', error);
+        }
+    }
+    
+    // دالة للحصول على قائمة الإشعارات المحذوفة
+    getDeletedNotifications() {
+        try {
+            const deleted = localStorage.getItem('deleted_notifications');
+            return deleted ? JSON.parse(deleted) : [];
+        } catch (e) {
+            console.error('❌ خطأ في قراءة الإشعارات المحذوفة:', e);
+            return [];
         }
     }
 

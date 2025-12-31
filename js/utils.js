@@ -204,6 +204,7 @@ function getStatusText(status) {
         'received': 'تم الاستلام',
         'under_inspection': 'قيد الفحص',
         'awaiting_customer_approval': 'بانتظار موافقة العميل',
+        'customer_approved': 'تم الحصول علي الموافقه',
         'in_progress': 'قيد الإصلاح',
         'ready_for_delivery': 'جاهز للتسليم',
         'delivered': 'تم التسليم',
@@ -222,6 +223,7 @@ function getStatusColor(status) {
         'received': '#2196F3', // primary-color
         'under_inspection': '#FFA500', // warning-color
         'awaiting_customer_approval': '#FFA500', // warning-color
+        'customer_approved': '#4CAF50', // success-color
         'in_progress': '#2196F3', // primary-color
         'ready_for_delivery': '#4CAF50', // success-color
         'delivered': '#4CAF50', // success-color

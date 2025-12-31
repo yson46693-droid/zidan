@@ -168,8 +168,9 @@ if ($method === 'POST') {
         response(false, 'جميع الحقول مطلوبة (username, password, name)', null, 400);
     }
     
-    // التحقق من عدم تكرار اسم المستخدم
-    $existingUser = dbSelectOne("SELECT id FROM users WHERE username = ?", [$username]);
+    // ✅ التحقق من عدم تكرار اسم المستخدم
+    // استخدام BINARY للتأكد من المقارنة الحساسة لحالة الأحرف (case-sensitive)
+    $existingUser = dbSelectOne("SELECT id FROM users WHERE BINARY username = ?", [$username]);
     if ($existingUser) {
         response(false, 'اسم المستخدم موجود مسبقاً', null, 400);
     }

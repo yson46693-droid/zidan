@@ -66,17 +66,26 @@ if ($method === 'POST') {
     $fromBranch = dbSelectOne("SELECT name FROM branches WHERE id = ?", [$userBranchId]);
     $fromBranchName = $fromBranch ? $fromBranch['name'] : 'فرع غير معروف';
     
-    // إرسال رسالة في الشات
+    // إرسال رسالة مميزة في الشات على شكل أوردر
     try {
-        $chatMessage = "🔔 طلب قطع غيار جديد\n";
-        $chatMessage .= "من: {$fromBranchName}\n";
-        $chatMessage .= "إلى: {$toBranch['name']}\n";
-        $chatMessage .= "القطعة: {$itemName}\n";
-        $chatMessage .= "الكمية: {$quantity}\n";
-        $chatMessage .= "رقم الطلب: {$requestNumber}";
+        // بناء رسالة الأوردر بشكل مميز
+        $chatMessage = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $chatMessage .= "📦 *طلب منتج جديد*\n";
+        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+        $chatMessage .= "📍 *من:* {$fromBranchName}\n";
+        $chatMessage .= "📍 *إلى:* {$toBranch['name']}\n\n";
+        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $chatMessage .= "📋 *تفاصيل الطلب:*\n";
+        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+        $chatMessage .= "🛍️ *المنتج:* {$itemName}\n";
+        $chatMessage .= "🔢 *الكمية:* {$quantity}\n";
+        $chatMessage .= "🔖 *رقم الطلب:* {$requestNumber}\n";
         if (!empty($notes)) {
-            $chatMessage .= "\nملاحظات: {$notes}";
+            $chatMessage .= "📝 *ملاحظات:* {$notes}\n";
         }
+        $chatMessage .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $chatMessage .= "⏰ *التاريخ:* " . date('Y-m-d H:i:s') . "\n";
+        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
         
         // حفظ الرسالة في الشات مباشرة
         $messageId = generateId();

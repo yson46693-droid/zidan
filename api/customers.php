@@ -702,6 +702,8 @@ if ($method === 'PUT' && !(isset($data['action']) && $data['action'] === 'update
         $updateParams[] = trim($data['name']);
     }
     
+    // ✅ إصلاح: حفظ رقم الهاتف الجديد لتحديثه في جدول repairs لاحقاً
+    $newPhone = null;
     if (isset($data['phone'])) {
         $newPhone = trim($data['phone']);
         // التحقق من عدم تكرار رقم الهاتف (عدا العميل الحالي)
@@ -740,18 +742,45 @@ if ($method === 'PUT' && !(isset($data['action']) && $data['action'] === 'update
         response(false, 'لا توجد بيانات للتحديث', null, 400);
     }
     
-    $updateFields[] = "updated_at = NOW()";
-    $updateParams[] = $id;
+    // ✅ إصلاح: استخدام معاملة (transaction) لتحديث رقم الهاتف في جدول repairs أيضاً
+    // بدء المعاملة
+    dbBeginTransaction();
     
-    $query = "UPDATE customers SET " . implode(', ', $updateFields) . " WHERE id = ?";
-    
-    $result = dbExecute($query, $updateParams);
-    
-    if ($result === false) {
-        response(false, 'خطأ في تعديل العميل', null, 500);
+    try {
+        $updateFields[] = "updated_at = NOW()";
+        $updateParams[] = $id;
+        
+        $query = "UPDATE customers SET " . implode(', ', $updateFields) . " WHERE id = ?";
+        
+        $result = dbExecute($query, $updateParams);
+        
+        if ($result === false) {
+            throw new Exception('فشل تحديث بيانات العميل');
+        }
+        
+        // ✅ تحديث رقم الهاتف في جميع عمليات الصيانة المرتبطة بهذا العميل
+        if ($newPhone) {
+            $updateRepairsResult = dbExecute(
+                "UPDATE repairs SET customer_phone = ? WHERE customer_id = ?",
+                [$newPhone, $id]
+            );
+            if ($updateRepairsResult === false) {
+                error_log("⚠️ تحذير: فشل تحديث رقم الهاتف في عمليات الصيانة للعميل: $id");
+                // لا نوقف العملية، فقط نسجل التحذير
+            }
+        }
+        
+        // تأكيد المعاملة
+        dbCommit();
+        
+        response(true, 'تم تعديل العميل بنجاح');
+        
+    } catch (Exception $e) {
+        // إلغاء المعاملة في حالة الخطأ
+        dbRollback();
+        error_log("❌ خطأ في تحديث العميل: " . $e->getMessage());
+        response(false, 'خطأ في تعديل العميل: ' . $e->getMessage(), null, 500);
     }
-    
-    response(true, 'تم تعديل العميل بنجاح');
 }
 
 // تعديل التقييم التراكمي (للمالك فقط)

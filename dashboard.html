@@ -864,7 +864,9 @@
                 critical: [
                     { src: 'js/repairs.js', defer: true },
                     { src: 'js/customers.js', defer: true },
-                    { src: 'js/inventory.js', defer: true }
+                    { src: 'js/inventory.js', defer: true },
+                    { src: 'js/inventory-item-details.js', defer: true },
+                    { src: 'js/inventory-request.js', defer: true }
                 ],
                 onDemand: [
                     { src: 'js/barcode.js', id: 'barcode-script' },
@@ -2284,7 +2286,9 @@
             }
             
             displayUserInfo();
-            hideByPermission();
+            hideByPermission().catch(error => {
+                console.error('خطأ في hideByPermission:', error);
+            });
             
             // إعداد مراقب الصلاحيات للموظف
             if (typeof setupPermissionObserver === 'function') {
@@ -2293,12 +2297,16 @@
             
             // إعادة استدعاء hideByPermission بعد تحميل الصفحة بالكامل للتأكد من إخفاء العناصر
             setTimeout(() => {
-                hideByPermission();
+                hideByPermission().catch(error => {
+                    console.error('خطأ في hideByPermission:', error);
+                });
             }, 500);
             
             // إعادة استدعاء hideByPermission بعد تحميل جميع الأقسام
             setTimeout(() => {
-                hideByPermission();
+                hideByPermission().catch(error => {
+                    console.error('خطأ في hideByPermission:', error);
+                });
             }, 2000);
             loadDarkMode();
             setupModalCloseOnClickOutside();
@@ -4180,8 +4188,8 @@
                 const monthFilter = document.getElementById(`technicianMonthFilter${branchNumber}`);
                 const selectedMonth = monthFilter ? monthFilter.value : '';
                 
-                // بناء URL مع الفلترة
-                let url = `technicians.php?branch_id=${encodeURIComponent(branchId)}`;
+                // بناء URL مع الفلترة - ✅ إضافة include_admins=true لجلب المستخدمين admin أيضاً
+                let url = `technicians.php?branch_id=${encodeURIComponent(branchId)}&include_admins=true`;
                 if (selectedMonth) {
                     url += `&month=${encodeURIComponent(selectedMonth)}`;
                 }
@@ -4194,6 +4202,18 @@
                 }
                 
                 const technicians = result.data || [];
+                
+                // ✅ إضافة console.log للتحقق من البيانات
+                console.log(`🔍 [loadTechnicians] الفرع ${branchNumber}:`, technicians.length, 'فني');
+                technicians.forEach((tech, index) => {
+                    const techName = (tech.name || tech.username || '').trim();
+                    const techRole = tech.role || 'N/A';
+                    const techBranch = tech.branch_id || 'N/A';
+                    console.log(`  [${index + 1}] ${techName} (ID: ${tech.id}, Role: ${techRole}, Branch: ${techBranch})`);
+                    if (techRole === 'admin') {
+                        console.log(`    ⭐ [Admin Found] فني admin موجود في الفرع ${branchNumber}!`);
+                    }
+                });
                 
                 // عرض الفنيين
                 displayTechnicians(technicians, branchNumber);
@@ -4221,6 +4241,8 @@
             }
             
             try {
+                console.log(`🔍 [displayTechnicians] الفرع ${branchNumber}:`, technicians.length, 'فني');
+                
                 if (!technicians || !Array.isArray(technicians) || technicians.length === 0) {
                     grid.innerHTML = `
                         <div class="empty-technicians">
@@ -4244,39 +4266,73 @@
                     const completedRepairs = parseInt(technician.completed_repairs || 0);
                     const monthlyRepairs = parseInt(technician.monthly_repairs || 0);
                     
-                    // الحصول على الحرف الأول من الاسم للأفاتار
+                    // ✅ الحصول على صورة الملف الشخصي أو الحرف الأول
+                    const avatarUrl = technician.avatar || null;
                     const firstLetter = (technician.name || technician.username || 'ف').charAt(0);
+                    const avatarHTML = avatarUrl 
+                        ? `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(technician.name || '')}" class="technician-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                           <div class="technician-avatar-fallback" style="display: none;">${escapeHtml(firstLetter)}</div>`
+                        : `<div class="technician-avatar-fallback">${escapeHtml(firstLetter)}</div>`;
+                    
+                    // ✅ التحقق من role الفني - إذا كان "admin" (مالك) والفرع هو الأول
+                    const isAdmin = technician.role === 'admin';
+                    
+                    // ✅ التحقق من أن الفرع هو الأول (branchNumber === 1)
+                    const isFirstBranch = branchNumber === 1;
+                    const shouldShowPremiumCard = isAdmin && isFirstBranch;
+                    
+                    // ✅ إضافة console.log للتحقق
+                    if (isAdmin) {
+                        const technicianName = (technician.name || technician.username || '').trim();
+                        console.log(`🔍 [Dashboard] فني "مالك" (admin) موجود - اسم: "${technicianName}", الفرع: ${branchNumber}, isFirstBranch: ${isFirstBranch}, shouldShowPremiumCard: ${shouldShowPremiumCard}`);
+                    }
+                    
+                    // ✅ إذا كان الفني "admin" (مالك)، يعرض 5 نجوم دائماً بغض النظر عن التقييمات
+                    const displayRating = shouldShowPremiumCard ? 5 : Math.round(avgRating);
+                    const displayMonthlyRating = shouldShowPremiumCard ? 5 : Math.round(monthlyAvgRating);
                     
                     // بناء النجوم للتقييم التراكمي
                     let starsHTML = '';
                     for (let i = 1; i <= 5; i++) {
-                        const isFilled = i <= Math.round(avgRating);
+                        const isFilled = i <= displayRating;
                         starsHTML += `<span class="star ${isFilled ? '' : 'empty'}"><i class="bi bi-star${isFilled ? '-fill' : ''}"></i></span>`;
                     }
                     
                     // بناء النجوم للتقييم الشهري
                     let monthlyStarsHTML = '';
                     for (let i = 1; i <= 5; i++) {
-                        const isFilled = i <= Math.round(monthlyAvgRating);
+                        const isFilled = i <= displayMonthlyRating;
                         monthlyStarsHTML += `<span class="star ${isFilled ? '' : 'empty'}"><i class="bi bi-star${isFilled ? '-fill' : ''}"></i></span>`;
                     }
                     
+                    // ✅ إضافة class "premium-gold" للبطاقة إذا كان الفني "admin" (مالك) والفرع الأول
+                    const cardClass = shouldShowPremiumCard ? 'technician-card premium-gold' : 'technician-card';
+                    
                     return `
-                        <div class="technician-card">
+                        <div class="${cardClass}" onclick="showTechnicianRatingsModal('${technician.id}', '${escapeHtml(technician.name || '')}')" style="cursor: pointer;">
                             <div class="technician-card-header">
-                                <div class="technician-avatar">${escapeHtml(firstLetter)}</div>
+                                <div class="technician-avatar">${avatarHTML}</div>
                                 <div class="technician-info">
-                                    <div class="technician-name">${escapeHtml(technician.name || '')}</div>
+                                    <div class="technician-name">
+                                        <span class="technician-name-text">${escapeHtml(technician.name || '')}</span>
+                                        ${shouldShowPremiumCard ? `
+                                            <span class="technician-badge-premium" style="
+                                                display: inline-block;
+                                                padding: 3px 10px;
+                                                background: rgba(255, 255, 255, 0.95);
+                                                color: #8B4513;
+                                                border-radius: 15px;
+                                                font-size: 0.7em;
+                                                font-weight: 700;
+                                                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                                                border: 1px solid rgba(255, 215, 0, 0.6);
+                                                white-space: nowrap;
+                                                flex-shrink: 0;
+                                            ">⭐ فني الصيانة</span>
+                                        ` : ''}
+                                    </div>
                                     <div class="technician-username">@${escapeHtml(technician.username || '')}</div>
                                 </div>
-                                ${isOwner ? `
-                                    <button 
-                                        onclick="showEditTechnicianRatingModal('${technician.id}', '${escapeHtml(technician.name || '')}', ${avgRating})" 
-                                        class="btn-edit-rating" 
-                                        title="تعديل التقييم">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                ` : ''}
                             </div>
                             
                             <div class="technician-rating">
@@ -4284,10 +4340,12 @@
                                     <span class="rating-label">التقييم التراكمي:</span>
                                     <div class="rating-value">
                                         <div class="rating-stars">${starsHTML}</div>
-                                        <span class="rating-number">${avgRating > 0 ? avgRating.toFixed(1) : '0.0'}</span>
+                                        <span class="rating-number">${shouldShowPremiumCard ? '5.0' : (avgRating > 0 ? avgRating.toFixed(1) : '0.0')}</span>
                                     </div>
                                 </div>
-                                ${totalRatings > 0 ? `
+                                ${shouldShowPremiumCard ? `
+                                    <div class="rating-count" style="color: #8B4513; font-weight: 600;">⭐ فني الصيانة - الفرع الأول</div>
+                                ` : totalRatings > 0 ? `
                                     <div class="rating-count">من ${totalRatings} تقييم${totalRatings > 1 ? 'ات' : ''}</div>
                                 ` : `
                                     <div class="rating-count" style="color: var(--text-light);">لا توجد تقييمات بعد</div>
@@ -4299,10 +4357,12 @@
                                     <span class="rating-label" style="font-size: 0.9em;">التقييم الشهري:</span>
                                     <div class="rating-value">
                                         <div class="rating-stars" style="font-size: 0.9em;">${monthlyStarsHTML}</div>
-                                        <span class="rating-number" style="font-size: 0.95em;">${monthlyAvgRating > 0 ? monthlyAvgRating.toFixed(1) : '0.0'}</span>
+                                        <span class="rating-number" style="font-size: 0.95em;">${shouldShowPremiumCard ? '5.0' : (monthlyAvgRating > 0 ? monthlyAvgRating.toFixed(1) : '0.0')}</span>
                                     </div>
                                 </div>
-                                ${monthlyRatings > 0 ? `
+                                ${shouldShowPremiumCard ? `
+                                    <div class="rating-count" style="font-size: 0.85em; color: #8B4513; font-weight: 600;">⭐ فني الصيانة</div>
+                                ` : monthlyRatings > 0 ? `
                                     <div class="rating-count" style="font-size: 0.85em;">من ${monthlyRatings} تقييم${monthlyRatings > 1 ? 'ات' : ''}</div>
                                 ` : `
                                     <div class="rating-count" style="font-size: 0.85em; color: var(--text-light);">لا توجد تقييمات هذا الشهر</div>
@@ -4319,6 +4379,18 @@
                                     <div class="technician-stat-label">عمليات هذا الشهر</div>
                                 </div>
                             </div>
+                            
+                            ${isOwner ? `
+                                <div class="technician-card-footer">
+                                    <button 
+                                        onclick="event.stopPropagation(); showEditTechnicianRatingModal('${technician.id}', '${escapeHtml(technician.name || '')}', ${avgRating})" 
+                                        class="btn-edit-rating-footer" 
+                                        title="تعديل التقييم">
+                                        <i class="bi bi-pencil-square"></i>
+                                        <span>تعديل التقييم</span>
+                                    </button>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 }).join('');
@@ -4675,12 +4747,21 @@
         // دالة عرض/إخفاء الإشعارات (مثل الشات)
         let notifications = [];
         
-        // تحميل الإشعارات من localStorage
+        // تحميل الإشعارات من localStorage مع استبعاد المحذوفة
         function loadNotifications() {
             try {
                 const stored = localStorage.getItem('chat_notifications');
                 if (stored) {
-                    notifications = JSON.parse(stored);
+                    const allNotifications = JSON.parse(stored);
+                    const deleted = getDeletedNotifications();
+                    
+                    // تصفية الإشعارات المحذوفة
+                    notifications = allNotifications.filter(n => !deleted.includes(n.id));
+                    
+                    // إذا تمت تصفية إشعارات، حفظ القائمة المحدثة
+                    if (notifications.length !== allNotifications.length) {
+                        localStorage.setItem('chat_notifications', JSON.stringify(notifications));
+                    }
                 }
             } catch (e) {
                 console.error('خطأ في تحميل الإشعارات:', e);
@@ -4710,8 +4791,58 @@
             
             list.innerHTML = '';
             
+            // أزرار التحكم - إضافة دائماً (حتى لو لم تكن هناك إشعارات)
+            const controlButtons = document.createElement('div');
+            controlButtons.style.cssText = 'display: flex; gap: 10px; padding: 10px 15px; border-bottom: 1px solid var(--border-color); background: var(--light-bg); flex-wrap: wrap;';
+            
+            // زر "حذف الكل"
+            const deleteAllBtn = document.createElement('button');
+            deleteAllBtn.textContent = 'حذف الكل';
+            deleteAllBtn.style.cssText = 'flex: 1; min-width: 150px; padding: 10px 15px; background: var(--danger-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;';
+            // تعطيل الزر إذا لم تكن هناك إشعارات
             if (notifications.length === 0) {
-                list.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 40px 20px; font-size: 16px;">لا توجد إشعارات</div>';
+                deleteAllBtn.disabled = true;
+                deleteAllBtn.style.opacity = '0.5';
+                deleteAllBtn.style.cursor = 'not-allowed';
+            } else {
+                deleteAllBtn.disabled = false;
+                deleteAllBtn.style.opacity = '1';
+                deleteAllBtn.style.cursor = 'pointer';
+            }
+            deleteAllBtn.onmouseenter = function() {
+                if (!this.disabled) {
+                    this.style.background = '#D32F2F';
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 4px 12px rgba(244, 67, 54, 0.3)';
+                }
+            };
+            deleteAllBtn.onmouseleave = function() {
+                if (!this.disabled) {
+                    this.style.background = 'var(--danger-color)';
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = 'none';
+                }
+            };
+            deleteAllBtn.onclick = () => {
+                if (notifications.length === 0) {
+                    return; // لا تفعل شيئاً إذا لم تكن هناك إشعارات
+                }
+                if (confirm('هل أنت متأكد من حذف جميع الإشعارات؟')) {
+                    deleteAllNotifications();
+                }
+            };
+            controlButtons.appendChild(deleteAllBtn);
+            
+            // إضافة أزرار التحكم مباشرة إلى list
+            list.appendChild(controlButtons);
+            
+            // إذا لم تكن هناك إشعارات، عرض رسالة
+            if (notifications.length === 0) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.style.cssText = 'text-align: center; color: var(--text-light); padding: 40px 20px; font-size: 16px;';
+                emptyMessage.textContent = 'لا توجد إشعارات';
+                list.appendChild(emptyMessage);
+                updateNotificationBadge();
                 return;
             }
             
@@ -4772,7 +4903,36 @@
             updateNotificationBadge();
         }
         
+        // دالة للحصول على قائمة الإشعارات المحذوفة
+        function getDeletedNotifications() {
+            try {
+                const deleted = localStorage.getItem('deleted_notifications');
+                return deleted ? JSON.parse(deleted) : [];
+            } catch (e) {
+                console.error('خطأ في قراءة الإشعارات المحذوفة:', e);
+                return [];
+            }
+        }
+        
+        // دالة لإضافة إشعار إلى قائمة المحذوفة
+        function addToDeletedNotifications(notificationId) {
+            try {
+                const deleted = getDeletedNotifications();
+                if (!deleted.includes(notificationId)) {
+                    deleted.push(notificationId);
+                    // حفظ فقط آخر 1000 إشعار محذوف (لتفادي امتلاء localStorage)
+                    const trimmedDeleted = deleted.slice(-1000);
+                    localStorage.setItem('deleted_notifications', JSON.stringify(trimmedDeleted));
+                }
+            } catch (e) {
+                console.error('خطأ في حفظ الإشعار المحذوف:', e);
+            }
+        }
+        
         function deleteNotification(notificationId) {
+            // إضافة ID إلى قائمة المحذوفة قبل الحذف
+            addToDeletedNotifications(notificationId);
+            
             notifications = notifications.filter(n => n.id !== notificationId);
             
             try {
@@ -4782,6 +4942,35 @@
             }
             
             renderNotificationsList();
+        }
+        
+        // دالة لحذف جميع الإشعارات
+        function deleteAllNotifications() {
+            try {
+                // إضافة جميع IDs الحالية إلى قائمة المحذوفة
+                notifications.forEach(notification => {
+                    addToDeletedNotifications(notification.id);
+                });
+                
+                notifications = [];
+                localStorage.setItem('chat_notifications', JSON.stringify([]));
+                updateNotificationBadge();
+                renderNotificationsList();
+                
+                // عرض رسالة نجاح
+                if (typeof showMessage === 'function') {
+                    showMessage('تم حذف جميع الإشعارات', 'success');
+                } else {
+                    alert('تم حذف جميع الإشعارات');
+                }
+            } catch (e) {
+                console.error('خطأ في حذف جميع الإشعارات:', e);
+                if (typeof showMessage === 'function') {
+                    showMessage('حدث خطأ في حذف الإشعارات', 'error');
+                } else {
+                    alert('حدث خطأ في حذف الإشعارات');
+                }
+            }
         }
         
         function updateNotificationBadge() {
@@ -4970,24 +5159,51 @@
 
     <!-- Modal معلومات الإصدار -->
     <div id="versionModal" class="modal" style="display: none;" dir="rtl">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
+        <div class="modal-content version-modal-content" style="max-width: 650px;">
+            <div class="modal-header version-modal-header">
                 <h3>
-                    <i class="bi bi-info-circle"></i>
+                    <i class="bi bi-rocket-takeoff"></i>
                     معلومات الإصدار
                 </h3>
                 <button onclick="closeVersionModal()" class="btn-close" title="إغلاق">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-            <div class="modal-body" id="versionModalBody">
-                <div style="text-align: center; padding: 20px;">
-                    <i class="bi bi-arrow-repeat" style="font-size: 2em; color: var(--primary-color); animation: spin 1s linear infinite; margin-bottom: 15px;"></i>
-                    <p style="margin-top: 15px; color: var(--text-light);">جاري تحميل معلومات الإصدار...</p>
+            <div class="modal-body version-modal-body" id="versionModalBody">
+                <div style="text-align: center; padding: 40px 20px;">
+                    <i class="bi bi-arrow-repeat" style="font-size: 2.5em; color: var(--primary-color); margin-bottom: 20px; display: block;"></i>
+                    <p style="margin-top: 15px; color: var(--text-light); font-size: 1.05em;">جاري تحميل معلومات الإصدار...</p>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button onclick="closeVersionModal()" class="btn btn-primary">
+            <div class="modal-footer" style="padding: 20px 30px; border-top: 1px solid var(--border-color); background: var(--white);">
+                <button onclick="closeVersionModal()" class="btn btn-primary" style="padding: 12px 30px; font-size: 1em; border-radius: 8px; font-weight: 500;">
+                    <i class="bi bi-check-circle"></i>
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal تقييمات وآراء العملاء للفني -->
+    <div id="technicianRatingsModal" class="modal" style="display: none;" dir="rtl">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="technicianRatingsModalTitle">
+                    <i class="bi bi-star-fill"></i>
+                    تقييمات وآراء العملاء
+                </h3>
+                <button onclick="closeTechnicianRatingsModal()" class="btn-close" title="إغلاق">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="technicianRatingsModalBody" style="max-height: 70vh; overflow-y: auto;">
+                <div style="text-align: center; padding: 40px 20px;">
+                    <i class="bi bi-arrow-repeat" style="font-size: 2.5em; color: var(--primary-color); margin-bottom: 20px; display: block; animation: spin 1s linear infinite;"></i>
+                    <p style="margin-top: 15px; color: var(--text-light); font-size: 1.05em;">جاري تحميل التقييمات...</p>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 20px 30px; border-top: 1px solid var(--border-color); background: var(--white);">
+                <button onclick="closeTechnicianRatingsModal()" class="btn btn-primary" style="padding: 12px 30px; font-size: 1em; border-radius: 8px; font-weight: 500;">
                     <i class="bi bi-check-circle"></i>
                     إغلاق
                 </button>
@@ -4996,6 +5212,176 @@
     </div>
 
     <script>
+        // عرض modal تقييمات وآراء العملاء للفني
+        async function showTechnicianRatingsModal(technicianId, technicianName) {
+            try {
+                const modal = document.getElementById('technicianRatingsModal');
+                const title = document.getElementById('technicianRatingsModalTitle');
+                const body = document.getElementById('technicianRatingsModalBody');
+                
+                if (!modal || !title || !body) return;
+                
+                title.innerHTML = `<i class="bi bi-star-fill"></i> تقييمات وآراء العملاء - ${escapeHtml(technicianName)}`;
+                
+                // إظهار حالة التحميل
+                body.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px;">
+                        <i class="bi bi-arrow-repeat" style="font-size: 2.5em; color: var(--primary-color); margin-bottom: 20px; display: block; animation: spin 1s linear infinite;"></i>
+                        <p style="margin-top: 15px; color: var(--text-light); font-size: 1.05em;">جاري تحميل التقييمات...</p>
+                    </div>
+                `;
+                
+                modal.style.display = 'flex';
+                
+                // جلب التقييمات التفصيلية من API (مع detailed=true)
+                try {
+                    const result = await API.request(`repair-ratings.php?technician_id=${encodeURIComponent(technicianId)}&detailed=true`, 'GET');
+                    
+                    if (!result || !result.success) {
+                        throw new Error(result?.message || 'فشل جلب التقييمات');
+                    }
+                    
+                    const ratings = result.data || [];
+                    
+                    if (ratings.length === 0) {
+                        body.innerHTML = `
+                            <div style="text-align: center; padding: 60px 20px;">
+                                <i class="bi bi-inbox" style="font-size: 4em; color: var(--text-light); margin-bottom: 20px; display: block;"></i>
+                                <p style="color: var(--text-light); font-size: 1.1em; margin: 0;">لا توجد تقييمات بعد</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // عرض التقييمات في جدول محسّن
+                    let ratingsHTML = `
+                        <div class="ratings-table-container">
+                            <table class="ratings-table">
+                                <thead>
+                                    <tr>
+                                        <th>العميل</th>
+                                        <th>رقم العملية</th>
+                                        <th>تقييم الصيانة</th>
+                                        <th>تقييم الفني</th>
+                                        <th>رأي العميل</th>
+                                        <th>التاريخ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    ratings.forEach((rating, index) => {
+                        const repairRating = parseInt(rating.repair_rating || 0);
+                        const technicianRating = parseInt(rating.technician_rating || 0);
+                        const comment = rating.comment || '';
+                        const repairNumber = rating.repair_number || '';
+                        const customerName = rating.customer_name || 'عميل';
+                        const createdAt = rating.created_at || '';
+                        
+                        // بناء النجوم لتقييم الصيانة
+                        let repairStarsHTML = '';
+                        for (let i = 1; i <= 5; i++) {
+                            const isFilled = i <= repairRating;
+                            repairStarsHTML += `<span class="star ${isFilled ? '' : 'empty'}"><i class="bi bi-star${isFilled ? '-fill' : ''}"></i></span>`;
+                        }
+                        
+                        // بناء النجوم لتقييم الفني
+                        let techStarsHTML = '';
+                        for (let i = 1; i <= 5; i++) {
+                            const isFilled = i <= technicianRating;
+                            techStarsHTML += `<span class="star ${isFilled ? '' : 'empty'}"><i class="bi bi-star${isFilled ? '-fill' : ''}"></i></span>`;
+                        }
+                        
+                        ratingsHTML += `
+                            <tr>
+                                <td class="customer-name-cell">
+                                    <div class="customer-name">${escapeHtml(customerName)}</div>
+                                </td>
+                                <td class="repair-number-cell">
+                                    <span class="repair-number-badge">#${escapeHtml(repairNumber)}</span>
+                                </td>
+                                <td class="rating-cell">
+                                    <div class="rating-display">
+                                        <div class="rating-stars-inline">${repairStarsHTML}</div>
+                                        <span class="rating-number-badge">${repairRating}/5</span>
+                                    </div>
+                                </td>
+                                <td class="rating-cell">
+                                    <div class="rating-display">
+                                        <div class="rating-stars-inline">${techStarsHTML}</div>
+                                        <span class="rating-number-badge">${technicianRating}/5</span>
+                                    </div>
+                                </td>
+                                <td class="comment-cell">
+                                    ${comment ? `
+                                        <div class="comment-content" title="${escapeHtml(comment)}">
+                                            <i class="bi bi-chat-left-text"></i>
+                                            ${escapeHtml(comment.length > 50 ? comment.substring(0, 50) + '...' : comment)}
+                                        </div>
+                                    ` : '<span class="no-comment">-</span>'}
+                                </td>
+                                <td class="date-cell">
+                                    ${createdAt ? `<span class="date-text"><i class="bi bi-calendar"></i> ${formatArabicDate(createdAt)}</span>` : '-'}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    ratingsHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    
+                    ratingsHTML += '</div>';
+                    body.innerHTML = ratingsHTML;
+                    
+                } catch (error) {
+                    console.error('❌ خطأ في جلب التقييمات:', error);
+                    body.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px;">
+                            <i class="bi bi-exclamation-triangle" style="font-size: 4em; color: var(--danger-color); margin-bottom: 20px; display: block;"></i>
+                            <p style="color: var(--danger-color); font-size: 1.1em; margin: 0;">حدث خطأ أثناء جلب التقييمات</p>
+                            <p style="color: var(--text-light); font-size: 0.9em; margin-top: 10px;">${escapeHtml(error.message || 'خطأ غير معروف')}</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('❌ خطأ في فتح modal التقييمات:', error);
+                if (typeof showMessage === 'function') {
+                    showMessage('حدث خطأ في فتح نموذج التقييمات', 'error');
+                }
+            }
+        }
+        
+        function closeTechnicianRatingsModal() {
+            const modal = document.getElementById('technicianRatingsModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        // دالة مساعدة لتحويل التاريخ
+        function formatArabicDate(dateString) {
+            try {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return dateString;
+                const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+                const day = date.getDate();
+                const month = months[date.getMonth()];
+                const year = date.getFullYear();
+                return `${day} ${month} ${year}`;
+            } catch (error) {
+                return dateString;
+            }
+        }
+        
+        // تصدير الدوال
+        window.showTechnicianRatingsModal = showTechnicianRatingsModal;
+        window.closeTechnicianRatingsModal = closeTechnicianRatingsModal;
+
         // عرض modal معلومات الإصدار
         async function showVersionModal() {
             try {
@@ -5022,10 +5408,10 @@
                 } catch (error) {
                     console.error('❌ Error loading version data:', error);
                     modalBody.innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: var(--danger-color);">
-                            <i class="bi bi-exclamation-circle" style="font-size: 2em; margin-bottom: 15px;"></i>
-                            <p>حدث خطأ أثناء تحميل معلومات الإصدار</p>
-                            <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">${error.message}</p>
+                        <div class="version-empty-state" style="color: var(--danger-color);">
+                            <i class="bi bi-exclamation-circle"></i>
+                            <p style="font-size: 1.1em; font-weight: 500; margin-bottom: 10px;">حدث خطأ أثناء تحميل معلومات الإصدار</p>
+                            <p style="font-size: 0.9em; color: var(--text-light);">${error.message}</p>
                         </div>
                     `;
                 }
@@ -5045,112 +5431,119 @@
         // عرض معلومات الإصدار
         function renderVersionInfo(versionData, container) {
             try {
-                const version = versionData.version || 'غير معروف';
-                const build = versionData.build || 'N/A';
-                const lastUpdated = versionData.last_updated ? new Date(versionData.last_updated).toLocaleDateString('ar-EG', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }) : 'غير محدد';
-                
                 const changelog = versionData.changelog || {};
-                const currentVersionChangelog = changelog[version] || {};
                 
-                let html = `
-                    <div class="version-header-info">
-                        <h2>
-                            <i class="bi bi-rocket-takeoff"></i>
-                            الإصدار ${version}
-                        </h2>
-                        <p>
-                            <i class="bi bi-hash"></i>
-                            Build: ${build}
-                        </p>
-                        <p class="version-date">
-                            <i class="bi bi-calendar3"></i>
-                            آخر تحديث: ${lastUpdated}
-                        </p>
-                    </div>
-                `;
+                let html = '';
                 
-                // عرض الميزات الجديدة
-                if (currentVersionChangelog.features && currentVersionChangelog.features.length > 0) {
+                // الحصول على جميع إصدارات الـ changelog وترتيبها
+                const changelogEntries = Object.keys(changelog);
+                
+                if (changelogEntries.length === 0) {
                     html += `
-                        <div class="version-info-section">
-                            <h4>
-                                <i class="bi bi-star-fill" style="color: var(--success-color);"></i>
-                                الميزات الجديدة
-                            </h4>
-                            <ul class="version-list">
-                                ${currentVersionChangelog.features.map(feature => `
-                                    <li>
-                                        <i class="bi bi-check-circle-fill"></i>
-                                        <span>${feature}</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
+                        <div class="version-empty-state">
+                            <i class="bi bi-info-circle"></i>
+                            <p>لا توجد معلومات تفصيلية متاحة</p>
                         </div>
                     `;
-                }
-                
-                // عرض الإصلاحات
-                if (currentVersionChangelog.fixes && currentVersionChangelog.fixes.length > 0) {
-                    html += `
-                        <div class="version-info-section">
-                            <h4>
-                                <i class="bi bi-tools" style="color: var(--warning-color);"></i>
-                                الإصلاحات
-                            </h4>
-                            <ul class="version-list">
-                                ${currentVersionChangelog.fixes.map(fix => `
-                                    <li>
-                                        <i class="bi bi-wrench-adjustable"></i>
-                                        <span>${fix}</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                    `;
-                }
-                
-                // عرض التحسينات
-                if (currentVersionChangelog.improvements && currentVersionChangelog.improvements.length > 0) {
-                    html += `
-                        <div class="version-info-section">
-                            <h4>
-                                <i class="bi bi-graph-up-arrow" style="color: var(--primary-color);"></i>
-                                التحسينات
-                            </h4>
-                            <ul class="version-list">
-                                ${currentVersionChangelog.improvements.map(improvement => `
-                                    <li>
-                                        <i class="bi bi-arrow-up-circle"></i>
-                                        <span>${improvement}</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                    `;
-                }
-                
-                // إذا لم تكن هناك معلومات
-                if (!currentVersionChangelog.features && !currentVersionChangelog.fixes && !currentVersionChangelog.improvements) {
-                    html += `
-                        <div style="text-align: center; padding: 20px; color: var(--text-light);">
-                            <i class="bi bi-info-circle" style="font-size: 2em; margin-bottom: 15px; color: var(--text-light);"></i>
-                            <p>لا توجد معلومات تفصيلية متاحة لهذا الإصدار</p>
-                        </div>
-                    `;
+                } else {
+                    // عرض جميع إصدارات الـ changelog
+                    changelogEntries.forEach(changelogVersion => {
+                        const changelogEntry = changelog[changelogVersion];
+                        if (!changelogEntry) return;
+                        
+                        // عرض عنوان الإصدار
+                        const entryDate = changelogEntry.date ? new Date(changelogEntry.date).toLocaleDateString('ar-EG', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        }) : 'غير محدد';
+                        
+                        html += `
+                            <div class="version-changelog-entry" style="margin-top: 30px; padding-top: 30px; border-top: 2px solid var(--border-color);">
+                                <div class="version-entry-header" style="margin-bottom: 20px;">
+                                    <h3 style="margin: 0; font-size: 1.3em; color: var(--primary-color); display: flex; align-items: center; gap: 10px;">
+                                        <i class="bi bi-tag-fill"></i>
+                                        الإصدار ${changelogVersion}
+                                    </h3>
+                                    <div style="margin-top: 8px; font-size: 0.9em; color: var(--text-light); display: flex; align-items: center; gap: 5px;">
+                                        <i class="bi bi-calendar3"></i>
+                                        <span>${entryDate}</span>
+                                    </div>
+                                </div>
+                        `;
+                        
+                        // عرض الميزات الجديدة
+                        if (changelogEntry.features && changelogEntry.features.length > 0) {
+                            html += `
+                                <div class="version-info-section">
+                                    <h4>
+                                        <i class="bi bi-star-fill" style="color: var(--success-color);"></i>
+                                        الميزات الجديدة
+                                    </h4>
+                                    <ul class="version-list">
+                                        ${changelogEntry.features.map(feature => `
+                                            <li>
+                                                <i class="bi bi-check-circle-fill"></i>
+                                                <span>${feature}</span>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                        }
+                        
+                        // عرض الإصلاحات
+                        if (changelogEntry.fixes && changelogEntry.fixes.length > 0) {
+                            html += `
+                                <div class="version-info-section">
+                                    <h4>
+                                        <i class="bi bi-tools" style="color: var(--warning-color);"></i>
+                                        الإصلاحات
+                                    </h4>
+                                    <ul class="version-list">
+                                        ${changelogEntry.fixes.map(fix => `
+                                            <li>
+                                                <i class="bi bi-wrench-adjustable"></i>
+                                                <span>${fix}</span>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                        }
+                        
+                        // عرض التحسينات
+                        if (changelogEntry.improvements && changelogEntry.improvements.length > 0) {
+                            html += `
+                                <div class="version-info-section">
+                                    <h4>
+                                        <i class="bi bi-graph-up-arrow" style="color: var(--primary-color);"></i>
+                                        التحسينات
+                                    </h4>
+                                    <ul class="version-list">
+                                        ${changelogEntry.improvements.map(improvement => `
+                                            <li>
+                                                <i class="bi bi-arrow-up-circle"></i>
+                                                <span>${improvement}</span>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                        }
+                        
+                        html += `</div>`;
+                    });
                 }
                 
                 container.innerHTML = html;
             } catch (error) {
                 console.error('❌ Error rendering version info:', error);
                 container.innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: var(--danger-color);">
-                        <i class="bi bi-exclamation-circle" style="font-size: 2em; margin-bottom: 15px;"></i>
-                        <p>حدث خطأ أثناء عرض معلومات الإصدار</p>
-                        <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">${error.message}</p>
+                    <div class="version-empty-state" style="color: var(--danger-color);">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <p style="font-size: 1.1em; font-weight: 500; margin-bottom: 10px;">حدث خطأ أثناء عرض معلومات الإصدار</p>
+                        <p style="font-size: 0.9em; color: var(--text-light);">${error.message}</p>
                     </div>
                 `;
             }

@@ -485,10 +485,128 @@ function hasPermission(requiredRole) {
     return hasPermission;
 }
 
+// Cache للتحقق من فرع البيطاش
+let baytashBranchId = null;
+let baytashCheckTime = 0;
+const BAYTASH_CHECK_CACHE_DURATION = 300000; // 5 دقائق
+
+// التحقق من أن المستخدم مرتبط بفرع "البيطاش"
+async function isBaytashBranch() {
+    try {
+        const user = getCurrentUser();
+        if (!user || !user.branch_id) return false;
+        
+        const now = Date.now();
+        
+        // استخدام cache إذا كان صالحاً
+        if (baytashBranchId !== null && (now - baytashCheckTime < BAYTASH_CHECK_CACHE_DURATION)) {
+            return String(user.branch_id) === String(baytashBranchId);
+        }
+        
+        // جلب بيانات الفروع
+        const result = await API.request('branches.php', 'GET');
+        if (!result || !result.success || !result.data) return false;
+        
+        // البحث عن فرع "البيطاش" (بمراعاة المسافات والفراغات)
+        const baytashBranch = result.data.find(branch => {
+            const branchName = (branch.name || '').trim();
+            return branchName === 'البيطاش';
+        });
+        
+        if (baytashBranch) {
+            baytashBranchId = baytashBranch.id;
+            baytashCheckTime = now;
+        } else {
+            baytashBranchId = null;
+            baytashCheckTime = now;
+            return false;
+        }
+        
+        // التحقق من أن المستخدم مرتبط بهذا الفرع
+        return String(user.branch_id) === String(baytashBranchId);
+    } catch (error) {
+        console.error('خطأ في التحقق من فرع البيطاش:', error);
+        return false;
+    }
+}
+
 // إخفاء عناصر حسب الصلاحية
-function hideByPermission() {
+async function hideByPermission() {
     const user = getCurrentUser();
     if (!user) return;
+    
+    // ✅ التحقق من فرع "البيطاش" وإخفاء العناصر غير المطلوبة
+    const isBaytashUser = await isBaytashBranch();
+    
+    if (isBaytashUser) {
+        // للمستخدمين المرتبطين بفرع "البيطاش": إخفاء العناصر غير المطلوبة
+        const elementsToHide = [
+            'a[href="#dashboard"]',
+            'a[href="pos.html"]',
+            'a[href="#product-returns"]',
+            'a[href="#settings"]',
+            '.nav-link[onclick*="dashboard"]',
+            '.nav-link[onclick*="product-returns"]',
+            '.nav-link[onclick*="settings"]',
+            '.mobile-nav-item[onclick*="dashboard"]',
+            '.mobile-nav-item[onclick*="product-returns"]',
+            '.mobile-nav-item[onclick*="settings"]',
+            '.mobile-nav-item[href="pos.html"]',
+            '[data-permission="admin"]'
+        ];
+        
+        elementsToHide.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                el.style.display = 'none';
+                el.style.visibility = 'hidden';
+                el.style.position = 'absolute';
+                el.style.opacity = '0';
+                el.style.width = '0';
+                el.style.height = '0';
+                el.style.overflow = 'hidden';
+            });
+        });
+        
+        // إضافة CSS لإخفاء العناصر
+        let styleElement = document.getElementById('baytash-branch-style');
+        if (!styleElement) {
+            styleElement = document.createElement('style');
+            styleElement.id = 'baytash-branch-style';
+            document.head.appendChild(styleElement);
+        }
+        
+        styleElement.textContent = `
+            /* إخفاء العناصر غير المطلوبة لفرع البيطاش */
+            .sidebar-nav a[href="#dashboard"],
+            .sidebar-nav a[href="pos.html"],
+            .sidebar-nav a[href="#product-returns"],
+            .sidebar-nav a[href="#settings"],
+            .mobile-nav-container a[href="#dashboard"],
+            .mobile-nav-container a[href="pos.html"],
+            .mobile-nav-container a[href="#product-returns"],
+            .mobile-nav-container a[href="#settings"],
+            .mobile-nav-item[onclick*="'dashboard'"],
+            .mobile-nav-item[onclick*="'product-returns'"],
+            .mobile-nav-item[onclick*="'settings'"],
+            .nav-link[onclick*="'dashboard'"],
+            .nav-link[onclick*="'product-returns'"],
+            .nav-link[onclick*="'settings'"],
+            .sidebar-nav [data-permission="admin"],
+            .mobile-nav-container [data-permission="admin"] {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0 !important;
+                width: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        `;
+        
+        return; // لا نتابع مع باقي المنطق لأننا أضفنا القواعد المطلوبة
+    }
     
     // ✅ إخفاء عناصر تحتاج صلاحية admin بشكل قوي
     if (user.role !== 'admin') {
@@ -659,7 +777,7 @@ function hideByPermission() {
     }
 }
 
-// إعداد MutationObserver لمراقبة التغييرات في DOM وإخفاء العناصر المحظورة
+        // إعداد MutationObserver لمراقبة التغييرات في DOM وإخفاء العناصر المحظورة
 function setupPermissionObserver() {
     const user = getCurrentUser();
     if (!user || user.role !== 'employee') return;
@@ -670,7 +788,9 @@ function setupPermissionObserver() {
     
     if (sidebar || mobileNav) {
         const observer = new MutationObserver(() => {
-            hideByPermission();
+            hideByPermission().catch(error => {
+                console.error('خطأ في hideByPermission:', error);
+            });
         });
         
         if (sidebar) {

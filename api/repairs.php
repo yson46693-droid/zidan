@@ -80,47 +80,54 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'brands')
     }
 }
 
-// قراءة جميع عمليات الصيانة
-if ($method === 'GET') {
-    $session = checkAuth();
-    $userRole = $session['role'];
-    $userBranchId = $session['branch_id'] ?? null;
+// الحصول على صيانات العميل - يجب أن يكون قبل الشرط العام GET
+if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'customer') {
+    checkAuth();
     
-    // بناء الاستعلام مع فلترة حسب الفرع
-    $query = "SELECT r.*, b.name as branch_name 
-              FROM repairs r 
-              LEFT JOIN branches b ON r.branch_id = b.id 
-              WHERE 1=1";
-    $params = [];
+    $customerId = $_GET['customer_id'] ?? '';
     
-    // فلترة حسب الفرع
-    if ($userRole === 'admin') {
-        // المالك: يمكنه فلترة حسب branch_id من query parameter
-        $filterBranchId = $_GET['branch_id'] ?? null;
-        if ($filterBranchId && $filterBranchId !== '') {
-            $query .= " AND r.branch_id = ?";
-            $params[] = $filterBranchId;
-        }
-        // إذا لم يتم تمرير branch_id، عرض جميع العمليات
-    } else {
-        // المستخدم العادي: فلترة تلقائية حسب فرعه
-        if ($userBranchId) {
-            $query .= " AND r.branch_id = ?";
-            $params[] = $userBranchId;
-        }
+    if (empty($customerId)) {
+        response(false, 'معرف العميل مطلوب', null, 400);
     }
     
-    $query .= " ORDER BY r.created_at DESC";
+    // التحقق من وجود العميل أولاً
+    $customer = dbSelectOne("SELECT id, phone FROM customers WHERE id = ?", [$customerId]);
+    if (!$customer) {
+        response(false, 'العميل غير موجود', null, 404);
+    }
     
-    $repairs = dbSelect($query, $params);
+    // جلب صيانات العميل - البحث باستخدام customer_id فقط
+    // ✅ إصلاح: جلب رقم الهاتف من جدول customers
+    $repairs = dbSelect(
+        "SELECT r.*, b.name as branch_name, u.name as created_by_name,
+         COALESCE(c.phone, r.customer_phone) as customer_phone
+         FROM repairs r 
+         LEFT JOIN branches b ON r.branch_id = b.id 
+         LEFT JOIN users u ON r.created_by = u.id 
+         LEFT JOIN customers c ON r.customer_id = c.id
+         WHERE r.customer_id = ?
+         ORDER BY r.created_at DESC",
+        [$customerId]
+    );
     
     if ($repairs === false) {
-        response(false, 'خطأ في قراءة عمليات الصيانة', null, 500);
+        error_log("خطأ في جلب صيانات العميل $customerId: " . (isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف'));
+        response(false, 'خطأ في قراءة الصيانات', null, 500);
+    }
+    
+    // التأكد من أن $repairs هو array
+    if (!is_array($repairs)) {
+        $repairs = [];
     }
     
     // إضافة cost للتوافق مع الكود القديم ومعالجة أرقام الفواتير
     foreach ($repairs as &$repair) {
         $repair['cost'] = $repair['customer_price'];
+        
+        // إضافة repair_type افتراضي إذا لم يكن موجوداً
+        if (!isset($repair['repair_type']) || empty($repair['repair_type'])) {
+            $repair['repair_type'] = 'soft';
+        }
         
         // معالجة أرقام فواتير قطع الغيار
         if (isset($repair['spare_parts_invoices']) && !empty($repair['spare_parts_invoices'])) {
@@ -142,12 +149,316 @@ if ($method === 'GET') {
     response(true, '', $repairs);
 }
 
+// قراءة جميع عمليات الصيانة
+if ($method === 'GET') {
+    // ✅ السماح بالوصول بدون auth إذا كان هناك repair_number (لصفحة تتبع الصيانة)
+    $repairNumber = $_GET['repair_number'] ?? null;
+    $isPublicTracking = ($repairNumber && $repairNumber !== '');
+    
+    if ($isPublicTracking) {
+        // للوصول العام: لا حاجة لـ auth
+        $session = null;
+        $userRole = null;
+        $userBranchId = null;
+    } else {
+        // للداشبورد: يتطلب auth
+        $session = checkAuth();
+        $userRole = $session['role'];
+        $userBranchId = $session['branch_id'] ?? null;
+    }
+    
+    // Migration: تحديث عمود status ليشمل جميع القيم المستخدمة
+    try {
+        $conn = getDBConnection();
+        if ($conn) {
+            // التحقق من القيم الحالية في ENUM
+            $result = $conn->query("SHOW COLUMNS FROM repairs WHERE Field = 'status'");
+            if ($result && $result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                $type = $row['Type'];
+                
+                // التحقق من وجود جميع القيم المطلوبة
+                $requiredValues = ['received', 'under_inspection', 'awaiting_customer_approval', 'customer_approved', 'in_progress', 'ready_for_delivery', 'delivered', 'cancelled', 'lost'];
+                $hasAllValues = true;
+                
+                foreach ($requiredValues as $value) {
+                    if (strpos($type, "'$value'") === false) {
+                        $hasAllValues = false;
+                        break;
+                    }
+                }
+                
+                // إذا لم تكن جميع القيم موجودة، تحديث ENUM
+                if (!$hasAllValues) {
+                    $enumValues = implode(',', array_map(function($v) { return "'$v'"; }, $requiredValues));
+                    $conn->query("ALTER TABLE `repairs` MODIFY COLUMN `status` ENUM($enumValues) NOT NULL DEFAULT 'received'");
+                    error_log('✅ تم تحديث عمود status في جدول repairs ليشمل جميع القيم المطلوبة');
+                    
+                    // ✅ تحديث السجلات الموجودة التي تستخدم القيم القديمة
+                    // pending -> received
+                    $conn->query("UPDATE `repairs` SET `status` = 'received' WHERE `status` = 'pending'");
+                    // ready -> ready_for_delivery
+                    $conn->query("UPDATE `repairs` SET `status` = 'ready_for_delivery' WHERE `status` = 'ready'");
+                    error_log('✅ تم تحديث السجلات الموجودة لاستخدام القيم الجديدة');
+                }
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate') === false && strpos($e->getMessage(), 'already exists') === false) {
+            error_log('⚠️ خطأ في تحديث عمود status: ' . $e->getMessage());
+        }
+    }
+    
+    // Migration: إضافة repair_type إذا لم يكن موجوداً
+    try {
+        if (!dbColumnExists('repairs', 'repair_type')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                // إضافة عمود repair_type بعد problem
+                $conn->query("ALTER TABLE `repairs` ADD COLUMN `repair_type` ENUM('soft', 'hard', 'fast') DEFAULT 'soft' AFTER `problem`");
+                // تحديث السجلات الموجودة لتكون من نوع 'soft' كقيمة افتراضية
+                $conn->query("UPDATE `repairs` SET `repair_type` = 'soft' WHERE `repair_type` IS NULL");
+                error_log('تم إضافة عمود repair_type إلى جدول repairs بنجاح');
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            error_log('خطأ في إضافة عمود repair_type: ' . $e->getMessage());
+        }
+    }
+    
+    // بناء الاستعلام مع فلترة حسب الفرع
+    // ✅ إصلاح: جلب رقم الهاتف من جدول customers إذا كان customer_id موجوداً
+    $query = "SELECT r.*, 
+              b.name as branch_name, 
+              b.id as branch_id,
+              u.name as technician_name,
+              u.username as technician_username,
+              u.role as technician_role,
+              COALESCE(c.phone, r.customer_phone) as customer_phone
+              FROM repairs r 
+              LEFT JOIN branches b ON r.branch_id = b.id 
+              LEFT JOIN users u ON r.created_by = u.id 
+              LEFT JOIN customers c ON r.customer_id = c.id
+              WHERE 1=1";
+    $params = [];
+    
+    // ✅ فلترة حسب repair_number إذا كان موجوداً (لصفحة تتبع الصيانة - بدون auth)
+    if ($isPublicTracking) {
+        // استخدام BINARY للحساسية لحالة الأحرف أو UPPER/LOWER للمقارنة
+        $query .= " AND UPPER(TRIM(r.repair_number)) = UPPER(TRIM(?))";
+        $params[] = trim($repairNumber);
+    }
+    
+    // فلترة حسب الفرع (فقط إذا لم يكن هناك repair_number - للداشبورد)
+    if (!$isPublicTracking) {
+        if ($userRole === 'admin') {
+            // المالك: يمكنه فلترة حسب branch_id من query parameter
+            $filterBranchId = $_GET['branch_id'] ?? null;
+            if ($filterBranchId && $filterBranchId !== '') {
+                $query .= " AND r.branch_id = ?";
+                $params[] = $filterBranchId;
+            }
+            // إذا لم يتم تمرير branch_id، عرض جميع العمليات
+        } else {
+            // المستخدم العادي: فلترة تلقائية حسب فرعه
+            if ($userBranchId) {
+                $query .= " AND r.branch_id = ?";
+                $params[] = $userBranchId;
+            }
+        }
+    }
+    
+    $query .= " ORDER BY r.created_at DESC";
+    
+    // ✅ إذا كان البحث بـ repair_number، استخدم dbSelectOne لإرجاع object واحد
+    if ($isPublicTracking) {
+        // ✅ البحث المباشر عن repair_number بدون تعقيدات
+        $searchNumber = trim($repairNumber);
+        
+        // ✅ محاولة 1: البحث المباشر بدون JOIN أولاً (الأسرع)
+        $directQuery = "SELECT * FROM repairs WHERE repair_number = ? LIMIT 1";
+        $repair = dbSelectOne($directQuery, [$searchNumber]);
+        
+        // ✅ إذا لم يتم العثور عليه، محاولة البحث بدون TRIM
+        if (!$repair || $repair === false) {
+            $repair = dbSelectOne($directQuery, [$repairNumber]);
+        }
+        
+        // ✅ إذا تم العثور عليه، جلب البيانات الإضافية من JOIN
+        if ($repair && $repair !== false) {
+            // ✅ التحقق من وجود عمود avatar
+            $hasAvatar = dbColumnExists('users', 'avatar');
+            $avatarField = $hasAvatar ? ', u.avatar as technician_avatar' : '';
+            
+            $fullQuery = "SELECT r.*, 
+                         b.name as branch_name, 
+                         b.id as branch_id,
+                         u.name as technician_name,
+                         u.username as technician_username,
+                         u.role as technician_role{$avatarField},
+                         COALESCE(c.phone, r.customer_phone) as customer_phone
+                         FROM repairs r 
+                         LEFT JOIN branches b ON r.branch_id = b.id 
+                         LEFT JOIN users u ON r.created_by = u.id 
+                         LEFT JOIN customers c ON r.customer_id = c.id
+                         WHERE r.repair_number = ?
+                         LIMIT 1";
+            
+            $fullResult = dbSelectOne($fullQuery, [$searchNumber]);
+            if ($fullResult && $fullResult !== false) {
+                $repair = $fullResult;
+            }
+        }
+        
+        // ✅ التحقق من النتيجة النهائية
+        if ($repair === false) {
+            $error = isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف';
+            error_log("❌ خطأ في البحث عن الصيانة برقم: $searchNumber - الخطأ: $error");
+            response(false, 'حدث خطأ في البحث عن عملية الصيانة', null, 500);
+        }
+        
+        if (!$repair || empty($repair)) {
+            error_log("❌ لم يتم العثور على الصيانة برقم: '$searchNumber'");
+            response(false, 'لم يتم العثور على عملية الصيانة برقم: ' . $searchNumber, null, 404);
+        }
+        
+        // إضافة cost للتوافق مع الكود القديم ومعالجة أرقام الفواتير
+        $repair['cost'] = $repair['customer_price'] ?? 0;
+        
+        // إضافة repair_type افتراضي إذا لم يكن موجوداً
+        if (!isset($repair['repair_type']) || empty($repair['repair_type'])) {
+            $repair['repair_type'] = 'soft';
+        }
+        
+        // معالجة أرقام فواتير قطع الغيار
+        if (isset($repair['spare_parts_invoices']) && !empty($repair['spare_parts_invoices'])) {
+            try {
+                $invoices = json_decode($repair['spare_parts_invoices'], true);
+                if (is_array($invoices)) {
+                    $repair['spare_parts_invoices'] = $invoices;
+                } else {
+                    $repair['spare_parts_invoices'] = [];
+                }
+            } catch (Exception $e) {
+                $repair['spare_parts_invoices'] = [];
+            }
+        } else {
+            $repair['spare_parts_invoices'] = [];
+        }
+        
+        // ✅ التأكد من أن repair_number موجود في النتيجة
+        if (!isset($repair['repair_number'])) {
+            error_log("❌ خطأ: repair_number غير موجود في النتيجة");
+            response(false, 'خطأ في بيانات الصيانة', null, 500);
+        }
+        
+        error_log("✅ إرجاع بيانات الصيانة: " . $repair['repair_number']);
+        response(true, '', $repair);
+    } else {
+        // للداشبورد: إرجاع array
+        $repairs = dbSelect($query, $params);
+        
+        if ($repairs === false) {
+            response(false, 'خطأ في قراءة عمليات الصيانة', null, 500);
+        }
+        
+        // إضافة cost للتوافق مع الكود القديم ومعالجة أرقام الفواتير
+        foreach ($repairs as &$repair) {
+            $repair['cost'] = $repair['customer_price'];
+            
+            // إضافة repair_type افتراضي إذا لم يكن موجوداً
+            if (!isset($repair['repair_type']) || empty($repair['repair_type'])) {
+                $repair['repair_type'] = 'soft';
+            }
+            
+            // معالجة أرقام فواتير قطع الغيار
+            if (isset($repair['spare_parts_invoices']) && !empty($repair['spare_parts_invoices'])) {
+                try {
+                    $invoices = json_decode($repair['spare_parts_invoices'], true);
+                    if (is_array($invoices)) {
+                        $repair['spare_parts_invoices'] = $invoices;
+                    } else {
+                        $repair['spare_parts_invoices'] = [];
+                    }
+                } catch (Exception $e) {
+                    $repair['spare_parts_invoices'] = [];
+                }
+            } else {
+                $repair['spare_parts_invoices'] = [];
+            }
+        }
+        
+        response(true, '', $repairs);
+    }
+}
+
 // إضافة عملية صيانة جديدة
 if ($method === 'POST') {
-    checkAuth();
     if (!isset($data['_method'])) {
         $data = getRequestData();
     }
+    
+    // ✅ موافقة/رفض العميل على عملية الصيانة (يجب أن يكون قبل checkAuth وباقي الكود)
+    if (isset($data['action']) && ($data['action'] === 'approve' || $data['action'] === 'reject')) {
+        // لا يتطلب auth لأن العميل يصل من رابط عام
+        $repairNumber = $data['repair_number'] ?? '';
+        
+        if (empty($repairNumber)) {
+            response(false, 'رقم عملية الصيانة مطلوب', null, 400);
+        }
+        
+        // التحقق من وجود العملية وحالتها
+        $repair = dbSelectOne("SELECT id, status, notes FROM repairs WHERE repair_number = ?", [$repairNumber]);
+        if (!$repair) {
+            response(false, 'عملية الصيانة غير موجودة', null, 404);
+        }
+        
+        // التحقق من أن الحالة هي "بانتظار موافقة العميل"
+        if ($repair['status'] !== 'awaiting_customer_approval') {
+            response(false, 'لا يمكن الموافقة/الرفض على هذه العملية. يجب أن تكون في حالة "بانتظار موافقة العميل"', null, 400);
+        }
+        
+        try {
+            if ($data['action'] === 'approve') {
+                // الموافقة: تغيير الحالة إلى "تم الحصول علي الموافقه"
+                $result = dbExecute(
+                    "UPDATE repairs SET status = 'customer_approved', updated_at = NOW() WHERE id = ?",
+                    [$repair['id']]
+                );
+                
+                if ($result === false) {
+                    response(false, 'حدث خطأ أثناء تحديث حالة العملية', null, 500);
+                }
+                
+                response(true, 'تم الحصول على موافقتك بنجاح. سيتم البدء في إصلاح الجهاز قريباً.');
+            } else {
+                // الرفض: تغيير الحالة إلى "ملغي" وإضافة ملاحظة محمية
+                $protectedNote = "ملغي نتيجة طلب العميل";
+                
+                // إضافة الملاحظة المحمية في نهاية الملاحظات الموجودة (إذا كانت موجودة)
+                $existingNotes = trim($repair['notes'] ?? '');
+                $newNotes = $existingNotes ? $existingNotes . "\n\n" . $protectedNote : $protectedNote;
+                
+                $result = dbExecute(
+                    "UPDATE repairs SET status = 'cancelled', notes = ?, updated_at = NOW() WHERE id = ?",
+                    [$newNotes, $repair['id']]
+                );
+                
+                if ($result === false) {
+                    response(false, 'حدث خطأ أثناء تحديث حالة العملية', null, 500);
+                }
+                
+                response(true, 'تم إلغاء العملية بناءً على طلبك');
+            }
+        } catch (Exception $e) {
+            error_log('❌ خطأ في موافقة/رفض العميل: ' . $e->getMessage());
+            response(false, 'حدث خطأ أثناء معالجة طلبك: ' . $e->getMessage(), null, 500);
+        }
+    }
+    
+    // إضافة عملية صيانة جديدة (يتطلب auth)
+    checkAuth();
     
     // Migration: إضافة spare_parts_invoices لحفظ أرقام فواتير قطع الغيار
     try {
@@ -163,6 +474,24 @@ if ($method === 'POST') {
     } catch (Exception $e) {
         if (strpos($e->getMessage(), 'Duplicate column') === false) {
             error_log('خطأ في إضافة عمود spare_parts_invoices: ' . $e->getMessage());
+        }
+    }
+    
+    // Migration: إضافة repair_type إذا لم يكن موجوداً
+    try {
+        if (!dbColumnExists('repairs', 'repair_type')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                // إضافة عمود repair_type بعد problem
+                $conn->query("ALTER TABLE `repairs` ADD COLUMN `repair_type` ENUM('soft', 'hard', 'fast') DEFAULT 'soft' AFTER `problem`");
+                // تحديث السجلات الموجودة لتكون من نوع 'soft' كقيمة افتراضية
+                $conn->query("UPDATE `repairs` SET `repair_type` = 'soft' WHERE `repair_type` IS NULL");
+                error_log('تم إضافة عمود repair_type إلى جدول repairs بنجاح');
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            error_log('خطأ في إضافة عمود repair_type: ' . $e->getMessage());
         }
     }
     
@@ -194,7 +523,14 @@ if ($method === 'POST') {
     }
     
     $paid_amount = floatval($data['paid_amount'] ?? 0);
-    $remaining_amount = floatval($data['remaining_amount'] ?? 0);
+    // ✅ حساب remaining_amount تلقائياً: customer_price - paid_amount
+    // إذا تم إرسال remaining_amount، استخدمه، وإلا احسبه تلقائياً
+    if (isset($data['remaining_amount'])) {
+        $remaining_amount = floatval($data['remaining_amount']);
+    } else {
+        // حساب تلقائي: customer_price - paid_amount
+        $remaining_amount = $customer_price - $paid_amount;
+    }
     $delivery_date = $data['delivery_date'] ?? null;
     $device_image = $data['device_image'] ?? '';
     $status = $data['status'] ?? 'received';
@@ -204,13 +540,43 @@ if ($method === 'POST') {
         response(false, 'الحقول الأساسية مطلوبة', null, 400);
     }
     
-    // توليد رقم عملية
-    $todayCount = dbSelectOne(
-        "SELECT COUNT(*) as count FROM repairs WHERE DATE(created_at) = CURDATE()",
-        []
-    );
-    $count = $todayCount ? intval($todayCount['count']) : 0;
-    $repairNumber = 'R' . date('Ymd') . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+    // توليد أو استخدام رقم العملية المرسل
+    $repairNumber = trim($data['repair_number'] ?? '');
+    
+    // إذا لم يتم إرسال رقم عملية، توليد رقم عشوائي من 6 أحرف
+    if (empty($repairNumber)) {
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $repairNumber = '';
+        for ($i = 0; $i < 6; $i++) {
+            $repairNumber .= $chars[rand(0, strlen($chars) - 1)];
+        }
+    }
+    
+    // التحقق من أن الرقم فريد (إذا كان موجوداً في قاعدة البيانات، توليد رقم جديد)
+    $maxAttempts = 10;
+    $attempts = 0;
+    while ($attempts < $maxAttempts) {
+        $existing = dbSelectOne(
+            "SELECT id FROM repairs WHERE repair_number = ?",
+            [$repairNumber]
+        );
+        
+        if (!$existing) {
+            break; // الرقم فريد، يمكن استخدامه
+        }
+        
+        // توليد رقم جديد
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $repairNumber = '';
+        for ($i = 0; $i < 6; $i++) {
+            $repairNumber .= $chars[rand(0, strlen($chars) - 1)];
+        }
+        $attempts++;
+    }
+    
+    if ($attempts >= $maxAttempts) {
+        response(false, 'فشل في توليد رقم عملية فريد', null, 500);
+    }
     
     $repairId = generateId();
     $session = checkAuth();
@@ -304,6 +670,82 @@ if ($method === 'PUT') {
         $data = getRequestData();
     }
     
+    // Migration: تحديث عمود status ليشمل جميع القيم المستخدمة
+    try {
+        $conn = getDBConnection();
+        if ($conn) {
+            // التحقق من القيم الحالية في ENUM
+            $result = $conn->query("SHOW COLUMNS FROM repairs WHERE Field = 'status'");
+            if ($result && $result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                $type = $row['Type'];
+                
+                // التحقق من وجود جميع القيم المطلوبة
+                $requiredValues = ['received', 'under_inspection', 'awaiting_customer_approval', 'customer_approved', 'in_progress', 'ready_for_delivery', 'delivered', 'cancelled', 'lost'];
+                $hasAllValues = true;
+                
+                foreach ($requiredValues as $value) {
+                    if (strpos($type, "'$value'") === false) {
+                        $hasAllValues = false;
+                        break;
+                    }
+                }
+                
+                // إذا لم تكن جميع القيم موجودة، تحديث ENUM
+                if (!$hasAllValues) {
+                    $enumValues = implode(',', array_map(function($v) { return "'$v'"; }, $requiredValues));
+                    $conn->query("ALTER TABLE `repairs` MODIFY COLUMN `status` ENUM($enumValues) NOT NULL DEFAULT 'received'");
+                    error_log('✅ تم تحديث عمود status في جدول repairs ليشمل جميع القيم المطلوبة');
+                    
+                    // ✅ تحديث السجلات الموجودة التي تستخدم القيم القديمة
+                    // pending -> received
+                    $conn->query("UPDATE `repairs` SET `status` = 'received' WHERE `status` = 'pending'");
+                    // ready -> ready_for_delivery
+                    $conn->query("UPDATE `repairs` SET `status` = 'ready_for_delivery' WHERE `status` = 'ready'");
+                    error_log('✅ تم تحديث السجلات الموجودة لاستخدام القيم الجديدة');
+                }
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate') === false && strpos($e->getMessage(), 'already exists') === false) {
+            error_log('⚠️ خطأ في تحديث عمود status: ' . $e->getMessage());
+        }
+    }
+    
+    // Migration: إضافة repair_type إذا لم يكن موجوداً
+    try {
+        if (!dbColumnExists('repairs', 'repair_type')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                // إضافة عمود repair_type بعد problem
+                $conn->query("ALTER TABLE `repairs` ADD COLUMN `repair_type` ENUM('soft', 'hard', 'fast') DEFAULT 'soft' AFTER `problem`");
+                // تحديث السجلات الموجودة لتكون من نوع 'soft' كقيمة افتراضية
+                $conn->query("UPDATE `repairs` SET `repair_type` = 'soft' WHERE `repair_type` IS NULL");
+                error_log('تم إضافة عمود repair_type إلى جدول repairs بنجاح');
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            error_log('خطأ في إضافة عمود repair_type: ' . $e->getMessage());
+        }
+    }
+    
+    // Migration: إضافة inspection_report إذا لم يكن موجوداً
+    try {
+        if (!dbColumnExists('repairs', 'inspection_report')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                // إضافة عمود inspection_report بعد status
+                $conn->query("ALTER TABLE `repairs` ADD COLUMN `inspection_report` TEXT DEFAULT NULL AFTER `status`");
+                error_log('تم إضافة عمود inspection_report إلى جدول repairs بنجاح');
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            error_log('خطأ في إضافة عمود inspection_report: ' . $e->getMessage());
+        }
+    }
+    
     $id = $data['id'] ?? '';
     
     if (empty($id)) {
@@ -311,9 +753,33 @@ if ($method === 'PUT') {
     }
     
     // التحقق من وجود العملية
-    $repair = dbSelectOne("SELECT id FROM repairs WHERE id = ?", [$id]);
+    $repair = dbSelectOne("SELECT id, status, notes FROM repairs WHERE id = ?", [$id]);
     if (!$repair) {
         response(false, 'عملية الصيانة غير موجودة', null, 404);
+    }
+    
+    // ✅ منع التعديل على الطلبات الملغاة
+    if ($repair['status'] === 'cancelled') {
+        response(false, 'لا يمكن تعديل عملية صيانة ملغاة', null, 400);
+    }
+    
+    // ✅ حماية الملاحظة المحمية من التعديل
+    $protectedNote = "ملغي نتيجة طلب العميل";
+    $currentNotes = $repair['notes'] ?? '';
+    
+    // إذا كانت الملاحظة المحمية موجودة، يجب إبقاؤها عند التحديث
+    if (strpos($currentNotes, $protectedNote) !== false && isset($data['notes'])) {
+        // التحقق من أن الملاحظة الجديدة لا تحذف الملاحظة المحمية
+        if (strpos($data['notes'], $protectedNote) === false) {
+            // إعادة إضافة الملاحظة المحمية في نهاية الملاحظات
+            $newNotes = trim($data['notes']);
+            if ($newNotes) {
+                $newNotes = $newNotes . "\n\n" . $protectedNote;
+            } else {
+                $newNotes = $protectedNote;
+            }
+            $data['notes'] = $newNotes;
+        }
     }
     
     // بناء استعلام التحديث
@@ -324,7 +790,7 @@ if ($method === 'PUT') {
         'customer_id', 'customer_name', 'customer_phone', 'device_type', 'device_model',
         'serial_number', 'accessories', 'problem', 'repair_type', 'customer_price', 'repair_cost',
         'parts_store', 'spare_parts_invoices', 'paid_amount', 'remaining_amount', 'delivery_date',
-        'device_image', 'status', 'notes'
+        'device_image', 'status', 'inspection_report', 'notes', 'created_by'
     ];
     
     // التحقق من صحة نوع الصيانة إذا كان موجوداً
@@ -332,8 +798,65 @@ if ($method === 'PUT') {
         $data['repair_type'] = 'soft';
     }
     
+    // ✅ عند تحديث customer_price أو paid_amount، يجب تحديث remaining_amount تلقائياً
+    $shouldUpdateRemainingAmount = false;
+    $newCustomerPrice = null;
+    $newPaidAmount = null;
+    $currentRepair = null;
+    
+    // جلب البيانات الحالية من قاعدة البيانات
+    $currentRepair = dbSelectOne("SELECT customer_price, paid_amount, delivery_date, status FROM repairs WHERE id = ?", [$id]);
+    
+    if ($currentRepair) {
+        $currentCustomerPrice = floatval($currentRepair['customer_price'] ?? 0);
+        $currentPaidAmount = floatval($currentRepair['paid_amount'] ?? 0);
+        $currentDeliveryDate = $currentRepair['delivery_date'] ?? null;
+        $currentStatus = $currentRepair['status'] ?? '';
+        
+        // تحديد القيم الجديدة
+        if (array_key_exists('customer_price', $data)) {
+            $newCustomerPrice = floatval($data['customer_price']);
+        } else {
+            $newCustomerPrice = $currentCustomerPrice;
+        }
+        
+        if (array_key_exists('paid_amount', $data)) {
+            $newPaidAmount = floatval($data['paid_amount']);
+        } else {
+            $newPaidAmount = $currentPaidAmount;
+        }
+        
+        // حساب remaining_amount تلقائياً: customer_price - paid_amount
+        $calculatedRemainingAmount = $newCustomerPrice - $newPaidAmount;
+        
+        // تحديث remaining_amount في البيانات إذا تم تحديث customer_price أو paid_amount
+        if (array_key_exists('customer_price', $data) || array_key_exists('paid_amount', $data)) {
+            $data['remaining_amount'] = $calculatedRemainingAmount;
+            $shouldUpdateRemainingAmount = true;
+            error_log("✅ [Repairs API] تحديث remaining_amount تلقائياً: customer_price ({$newCustomerPrice}) - paid_amount ({$newPaidAmount}) = {$calculatedRemainingAmount}");
+        }
+        
+        // ✅ إصلاح: عند تغيير الحالة إلى "delivered"، تعيين delivery_date تلقائياً إذا كان NULL
+        if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
+            // إذا كان delivery_date فارغاً أو null، تعيينه إلى تاريخ اليوم
+            if (empty($data['delivery_date']) && empty($currentDeliveryDate)) {
+                $data['delivery_date'] = date('Y-m-d');
+                error_log("✅ [Repairs API] تعيين delivery_date تلقائياً إلى تاريخ اليوم: " . $data['delivery_date']);
+            } elseif (empty($data['delivery_date']) && !empty($currentDeliveryDate)) {
+                // إذا كان delivery_date موجوداً في قاعدة البيانات، نستخدمه
+                // لا حاجة لتحديثه
+            }
+        }
+    }
+    
     foreach ($fields as $field) {
-        if (isset($data[$field])) {
+        // ✅ إصلاح: التحقق من وجود الحقل في البيانات المرسلة (حتى لو كانت القيمة null أو '')
+        if (array_key_exists($field, $data)) {
+            // ✅ تسجيل الحالة للتحديث
+            if ($field === 'status') {
+                error_log("✅ [Repairs API] تحديث الحالة: " . $data[$field] . " للعملية: " . $id);
+            }
+            
             if (in_array($field, ['customer_price', 'repair_cost', 'paid_amount', 'remaining_amount'])) {
                 $updateFields[] = "$field = ?";
                 $updateParams[] = floatval($data[$field]);
@@ -350,7 +873,12 @@ if ($method === 'PUT') {
                 $updateParams[] = $spare_parts_invoices;
             } else {
                 $updateFields[] = "$field = ?";
-                $updateParams[] = $data[$field];
+                // ✅ إصلاح: معالجة القيم الفارغة بشكل صحيح - لكن status يجب أن يكون string دائماً
+                if ($field === 'status') {
+                    $updateParams[] = $data[$field]; // status يجب أن يكون string دائماً
+                } else {
+                    $updateParams[] = ($data[$field] === null || $data[$field] === '') ? null : $data[$field];
+                }
             }
         }
     }
@@ -364,10 +892,83 @@ if ($method === 'PUT') {
     
     $query = "UPDATE repairs SET " . implode(', ', $updateFields) . " WHERE id = ?";
     
+    // ✅ تسجيل الاستعلام للتحديث
+    error_log("✅ [Repairs API] استعلام التحديث: " . $query);
+    error_log("✅ [Repairs API] معاملات التحديث: " . json_encode($updateParams));
+    
     $result = dbExecute($query, $updateParams);
     
     if ($result === false) {
+        error_log("❌ [Repairs API] فشل تحديث العملية: " . $id);
         response(false, 'خطأ في تعديل عملية الصيانة', null, 500);
+    }
+    
+    // ✅ التحقق من تحديث الحالة بشكل صحيح
+    $updatedRepair = dbSelectOne("SELECT status, customer_price, repair_cost, branch_id FROM repairs WHERE id = ?", [$id]);
+    if ($updatedRepair) {
+        error_log("✅ [Repairs API] الحالة بعد التحديث: " . $updatedRepair['status']);
+        
+        // ✅ تسجيل ربح الصيانة في treasury_transactions عند تغيير الحالة إلى "delivered"
+        if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
+            $customerPrice = floatval($updatedRepair['customer_price'] ?? 0);
+            $repairCost = floatval($updatedRepair['repair_cost'] ?? 0);
+            $profit = $customerPrice - $repairCost;
+            $branchId = $updatedRepair['branch_id'] ?? null;
+            
+            // فقط إذا كان هناك ربح فعلي والفرع موجود
+            if ($profit > 0 && $branchId) {
+                // التأكد من وجود جدول treasury_transactions
+                if (dbTableExists('treasury_transactions')) {
+                    // التحقق من وجود 'repair_profit' في enum
+                    $conn = getDBConnection();
+                    if ($conn) {
+                        try {
+                            // محاولة إضافة 'repair_profit' إلى enum إذا لم يكن موجوداً
+                            $conn->query("ALTER TABLE treasury_transactions MODIFY transaction_type enum('expense','repair_cost','repair_profit','loss_operation','sales_revenue','sales_cost','withdrawal','deposit','damaged_return','debt_collection') NOT NULL");
+                        } catch (Exception $e) {
+                            // تجاهل الخطأ إذا كان العمود موجوداً بالفعل
+                        }
+                    }
+                    
+                    // التحقق من عدم وجود معاملة مسجلة مسبقاً لهذه العملية
+                    $existingTransaction = dbSelectOne(
+                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'repair_profit'",
+                        [$id]
+                    );
+                    
+                    if (!$existingTransaction) {
+                        $session = checkAuth();
+                        $transactionId = generateId();
+                        $repairNumber = dbSelectOne("SELECT repair_number FROM repairs WHERE id = ?", [$id]);
+                        $repairNumberText = $repairNumber ? $repairNumber['repair_number'] : $id;
+                        
+                        $transactionDescription = "ربح عملية صيانة - رقم العملية: {$repairNumberText}";
+                        
+                        $transactionResult = dbExecute(
+                            "INSERT INTO treasury_transactions (
+                                id, branch_id, transaction_type, amount, description, 
+                                reference_id, reference_type, created_at, created_by
+                            ) VALUES (?, ?, 'repair_profit', ?, ?, ?, 'repair', NOW(), ?)",
+                            [$transactionId, $branchId, $profit, $transactionDescription, $id, $session['user_id']]
+                        );
+                        
+                        if ($transactionResult !== false) {
+                            error_log("✅ [Repairs API] تم تسجيل ربح الصيانة في treasury_transactions: {$profit} ج.م للعملية {$repairNumberText}");
+                        } else {
+                            error_log("⚠️ [Repairs API] فشل تسجيل ربح الصيانة في treasury_transactions: {$profit} ج.م للعملية {$repairNumberText}");
+                        }
+                    } else {
+                        error_log("ℹ️ [Repairs API] تم تسجيل ربح الصيانة مسبقاً في treasury_transactions للعملية: {$id}");
+                    }
+                } else {
+                    error_log("⚠️ [Repairs API] جدول treasury_transactions غير موجود - لم يتم تسجيل ربح الصيانة");
+                }
+            } elseif ($profit <= 0) {
+                error_log("ℹ️ [Repairs API] لا يوجد ربح للعملية: الربح = {$profit} ج.م (السعر: {$customerPrice} - التكلفة: {$repairCost})");
+            } elseif (!$branchId) {
+                error_log("⚠️ [Repairs API] العملية لا تحتوي على branch_id - لم يتم تسجيل ربح الصيانة");
+            }
+        }
     }
     
     response(true, 'تم تعديل عملية الصيانة بنجاح');

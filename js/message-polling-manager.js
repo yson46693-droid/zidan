@@ -39,8 +39,15 @@
                 return;
             }
 
-            this.isActive = true;
             this.currentUser = this.getCurrentUser();
+            
+            // ✅ التحقق من وجود مستخدم مسجل دخول قبل البدء
+            if (!this.currentUser || !this.currentUser.id) {
+                console.log('[Message Polling] المستخدم غير مسجل دخول - لن يتم بدء polling');
+                return;
+            }
+            
+            this.isActive = true;
             this.loadLastMessageId();
 
             console.log('[Message Polling] بدء polling موحد للرسائل');
@@ -151,6 +158,13 @@
                 // جلب الرسائل
                 const result = await API.request(`get_messages.php?last_id=${this.lastMessageId}`, 'GET', null, { silent: true });
 
+                // ✅ تجاهل خطأ 401 (غير مصرح) - يعني أن المستخدم غير مسجل دخول
+                if (result && result.status === 401) {
+                    // المستخدم غير مسجل دخول - إيقاف polling
+                    this.stop();
+                    return;
+                }
+
                 if (result && result.success && result.data) {
                     const messages = result.data || [];
                     
@@ -184,6 +198,11 @@
                     this.notifySubscribers(this.cachedResult);
                 }
             } catch (error) {
+                // ✅ تجاهل خطأ 401 بشكل صامت
+                if (error && error.status === 401) {
+                    this.stop();
+                    return;
+                }
                 console.error('[Message Polling] خطأ في polling:', error);
             } finally {
                 this.pendingPoll = false;

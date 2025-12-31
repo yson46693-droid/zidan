@@ -100,18 +100,18 @@ if ($method === 'POST') {
         $totalExpenses = floatval($expensesResult['total'] ?? 0);
         
         // 2. جلب تكاليف عمليات الصيانة
+        // ✅ تحسين: استخدام COALESCE للحصول على أول قيمة غير NULL لتحديد التاريخ المناسب للفلترة
         $repairCostsQuery = "SELECT SUM(repair_cost) as total FROM repairs WHERE branch_id = ? AND status = 'delivered' 
-                             AND ((delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                                  OR (delivery_date IS NULL AND DATE(created_at) BETWEEN ? AND ?))";
-        $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate]);
+                             AND DATE(COALESCE(delivery_date, updated_at, created_at)) BETWEEN ? AND ?";
+        $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate]);
         $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
         
         // 3. جلب أرباح عمليات الصيانة
+        // ✅ تحسين: استخدام COALESCE للحصول على أول قيمة غير NULL لتحديد التاريخ المناسب للفلترة
         $repairProfitsQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
                                WHERE branch_id = ? AND status = 'delivered' 
-                               AND ((delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                                    OR (delivery_date IS NULL AND DATE(created_at) BETWEEN ? AND ?))";
-        $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate]);
+                               AND DATE(COALESCE(delivery_date, updated_at, created_at)) BETWEEN ? AND ?";
+        $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate]);
         $totalRepairProfits = floatval($repairProfitsResult['total'] ?? 0);
         
         // 4. جلب العمليات الخاسرة

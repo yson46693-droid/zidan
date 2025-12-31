@@ -883,6 +883,9 @@ async function updateProfile(event) {
         const result = await API.updateProfile(updateData);
 
         if (result && result.success) {
+            // ✅ التحقق من تغيير اسم المستخدم
+            const usernameChanged = result.data && currentUser && result.data.username !== currentUser.username;
+            
             showMessage('تم تحديث بيانات الملف الشخصي بنجاح', 'success');
             
             // تحديث بيانات المستخدم الحالي
@@ -896,10 +899,27 @@ async function updateProfile(event) {
                 }
             }
 
-            // إعادة تحميل القسم بعد ثانية واحدة لعرض البيانات المحدثة
-            setTimeout(() => {
-                loadProfileSection();
-            }, 1000);
+            // ✅ إذا تغير اسم المستخدم، عمل refresh كامل للصفحة لعرض الاسم الجديد
+            if (usernameChanged) {
+                setTimeout(() => {
+                    // مسح cache المصادقة لإجبار إعادة التحقق
+                    try {
+                        // مسح localStorage لإجبار إعادة جلب البيانات من الخادم
+                        localStorage.removeItem('currentUser');
+                        // مسح sessionStorage أيضاً
+                        sessionStorage.removeItem('just_logged_in_time');
+                    } catch (e) {
+                        console.warn('تحذير: فشل مسح cache المصادقة:', e);
+                    }
+                    // عمل refresh للصفحة
+                    window.location.reload();
+                }, 1500); // انتظار 1.5 ثانية لعرض رسالة النجاح
+            } else {
+                // إعادة تحميل القسم فقط إذا لم يتغير اسم المستخدم
+                setTimeout(() => {
+                    loadProfileSection();
+                }, 1000);
+            }
         } else {
             showMessage(result?.message || 'فشل تحديث بيانات الملف الشخصي', 'error');
             saveBtn.disabled = false;

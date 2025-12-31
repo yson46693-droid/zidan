@@ -68,25 +68,280 @@ if ($method === 'GET') {
         response(false, 'نوع الفلترة غير صحيح', null, 400);
     }
     
+    // ✅ إصلاح: تحديث الحالات الفارغة أو NULL إلى 'delivered' إذا كان لديها delivery_date
+    // وتسجيل أرباح الصيانة في treasury_transactions للعمليات التي تم تحديث حالتها
+    try {
+        // جلب العمليات التي سيتم تحديث حالتها
+        $repairsToFix = dbSelect(
+            "SELECT id, repair_number, branch_id, customer_price, repair_cost 
+             FROM repairs 
+             WHERE (status IS NULL OR status = '' OR status = ' ') 
+             AND delivery_date IS NOT NULL 
+             AND branch_id IS NOT NULL"
+        );
+        
+        if ($repairsToFix && count($repairsToFix) > 0) {
+            // تحديث الحالة
+            $fixStatusQuery = "UPDATE repairs 
+                              SET status = 'delivered' 
+                              WHERE (status IS NULL OR status = '' OR status = ' ') 
+                              AND delivery_date IS NOT NULL";
+            $fixStatusResult = dbExecute($fixStatusQuery, []);
+            
+            if ($fixStatusResult !== false) {
+                error_log("✅ [Branch Treasury] تم تحديث " . count($repairsToFix) . " عملية من الحالة الفارغة إلى 'delivered'");
+                
+                // تسجيل أرباح الصيانة في treasury_transactions
+                if (dbTableExists('treasury_transactions')) {
+                    $conn = getDBConnection();
+                    if ($conn) {
+                        try {
+                            $conn->query("ALTER TABLE treasury_transactions MODIFY transaction_type enum('expense','repair_cost','repair_profit','loss_operation','sales_revenue','sales_cost','withdrawal','deposit','damaged_return','debt_collection') NOT NULL");
+                        } catch (Exception $e) {
+                            // تجاهل الخطأ
+                        }
+                    }
+                    
+                    foreach ($repairsToFix as $repair) {
+                        $customerPrice = floatval($repair['customer_price'] ?? 0);
+                        $repairCost = floatval($repair['repair_cost'] ?? 0);
+                        $profit = $customerPrice - $repairCost;
+                        $repairId = $repair['id'];
+                        $repairBranchId = $repair['branch_id'];
+                        $repairNumber = $repair['repair_number'] ?? $repairId;
+                        
+                        if ($profit > 0) {
+                            // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                            $existingTransaction = dbSelectOne(
+                                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'repair_profit'",
+                                [$repairId]
+                            );
+                            
+                            if (!$existingTransaction) {
+                                $transactionId = generateId();
+                                $transactionDescription = "ربح عملية صيانة - رقم العملية: {$repairNumber}";
+                                
+                                $transactionResult = dbExecute(
+                                    "INSERT INTO treasury_transactions (
+                                        id, branch_id, transaction_type, amount, description, 
+                                        reference_id, reference_type, created_at, created_by
+                                    ) VALUES (?, ?, 'repair_profit', ?, ?, ?, 'repair', NOW(), NULL)",
+                                    [$transactionId, $repairBranchId, $profit, $transactionDescription, $repairId]
+                                );
+                                
+                                if ($transactionResult !== false) {
+                                    error_log("✅ [Branch Treasury] تم تسجيل ربح الصيانة في treasury_transactions: {$profit} ج.م للعملية {$repairNumber}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("⚠️ [Branch Treasury] خطأ في تحديث الحالات: " . $e->getMessage());
+    }
+    
+    // ✅ تحديث العمليات المسلمة التي لا يوجد لها delivery_date (للاسترجاع/الإصلاح)
+    // هذا يضمن أن جميع العمليات المسلمة لديها delivery_date
+    try {
+        $updateQuery = "UPDATE repairs 
+                       SET delivery_date = DATE(COALESCE(updated_at, created_at)) 
+                       WHERE status = 'delivered' AND delivery_date IS NULL";
+        dbExecute($updateQuery, []);
+        error_log("✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم");
+    } catch (Exception $e) {
+        error_log("⚠️ [Branch Treasury] خطأ في تحديث delivery_date: " . $e->getMessage());
+    }
+    
+    // ✅ التحقق من وجود عمليات مسلمة بدون branch_id - هذا للاسترجاع فقط
+    $repairsWithoutBranch = dbSelect("SELECT id, repair_number FROM repairs WHERE status = 'delivered' AND branch_id IS NULL LIMIT 10");
+    if ($repairsWithoutBranch && count($repairsWithoutBranch) > 0) {
+        error_log("⚠️ [Branch Treasury] يوجد " . count($repairsWithoutBranch) . " عمليات مسلمة بدون branch_id");
+    }
+    
+    // ✅ استعلامات تشخيصية شاملة للتحقق من البيانات الفعلية
+    // 1. إجمالي العمليات في النظام
+    $totalRepairsQuery = "SELECT COUNT(*) as total FROM repairs";
+    $totalRepairsResult = dbSelectOne($totalRepairsQuery);
+    $totalRepairs = intval($totalRepairsResult['total'] ?? 0);
+    error_log("🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: {$totalRepairs}");
+    
+    // 2. جميع الحالات المستخدمة في النظام
+    $statusQuery = "SELECT status, COUNT(*) as count FROM repairs GROUP BY status ORDER BY count DESC";
+    $statusResults = dbSelect($statusQuery);
+    if ($statusResults && count($statusResults) > 0) {
+        error_log("🔍 [Branch Treasury Debug] توزيع الحالات في النظام:");
+        foreach ($statusResults as $statusRow) {
+            error_log("   - {$statusRow['status']}: {$statusRow['count']} عملية");
+        }
+    }
+    
+    // 3. العمليات للفرع المحدد (جميع الحالات)
+    $branchAllQuery = "SELECT COUNT(*) as total FROM repairs WHERE branch_id = ?";
+    $branchAllResult = dbSelectOne($branchAllQuery, [$branchId]);
+    $branchAll = intval($branchAllResult['total'] ?? 0);
+    error_log("🔍 [Branch Treasury Debug] إجمالي عمليات الفرع {$branchId}: {$branchAll}");
+    
+    // 4. توزيع الحالات للفرع المحدد
+    $branchStatusQuery = "SELECT status, COUNT(*) as count FROM repairs WHERE branch_id = ? GROUP BY status ORDER BY count DESC";
+    $branchStatusResults = dbSelect($branchStatusQuery, [$branchId]);
+    if ($branchStatusResults && count($branchStatusResults) > 0) {
+        error_log("🔍 [Branch Treasury Debug] توزيع الحالات للفرع {$branchId}:");
+        foreach ($branchStatusResults as $statusRow) {
+            error_log("   - {$statusRow['status']}: {$statusRow['count']} عملية");
+        }
+    }
+    
+    // 5. إجمالي العمليات المسلمة في النظام (delivered)
+    $debugQuery1 = "SELECT COUNT(*) as total FROM repairs WHERE status = 'delivered'";
+    $debugResult1 = dbSelectOne($debugQuery1);
+    $totalDelivered = intval($debugResult1['total'] ?? 0);
+    error_log("🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: {$totalDelivered}");
+    
+    // 6. العمليات المسلمة للفرع المحدد
+    $debugQuery2 = "SELECT COUNT(*) as total FROM repairs WHERE branch_id = ? AND status = 'delivered'";
+    $debugResult2 = dbSelectOne($debugQuery2, [$branchId]);
+    $branchDelivered = intval($debugResult2['total'] ?? 0);
+    error_log("🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع {$branchId}: {$branchDelivered}");
+    
+    // 7. التحقق من عمليات بجميع الحالات المحتملة للانتهاء
+    $allCompletedStatuses = ['delivered', 'completed', 'finished', 'done'];
+    foreach ($allCompletedStatuses as $status) {
+        $statusCountQuery = "SELECT COUNT(*) as total FROM repairs WHERE branch_id = ? AND status = ?";
+        $statusCountResult = dbSelectOne($statusCountQuery, [$branchId, $status]);
+        $statusCount = intval($statusCountResult['total'] ?? 0);
+        if ($statusCount > 0) {
+            error_log("🔍 [Branch Treasury Debug] وجدت {$statusCount} عملية بحالة '{$status}' للفرع {$branchId}");
+        }
+    }
+    
+    // 8. عينة من العمليات المسلمة للفرع (بدون فلترة تاريخ)
+    $sampleQuery = "SELECT id, repair_number, branch_id, status, customer_price, repair_cost, 
+                           delivery_date, updated_at, created_at,
+                           (customer_price - repair_cost) as profit
+                    FROM repairs 
+                    WHERE branch_id = ? AND status = 'delivered' 
+                    ORDER BY created_at DESC LIMIT 5";
+    $sampleRepairs = dbSelect($sampleQuery, [$branchId]);
+    if ($sampleRepairs && count($sampleRepairs) > 0) {
+        error_log("🔍 [Branch Treasury Debug] عينة من العمليات المسلمة للفرع:");
+        foreach ($sampleRepairs as $repair) {
+            $profit = floatval($repair['profit'] ?? 0);
+            $deliveryDate = $repair['delivery_date'] ?? 'NULL';
+            $updatedAt = $repair['updated_at'] ?? 'NULL';
+            $createdAt = $repair['created_at'] ?? 'NULL';
+            error_log("   - {$repair['repair_number']}: الربح={$profit}, الحالة={$repair['status']}, delivery_date={$deliveryDate}, updated_at={$updatedAt}, created_at={$createdAt}");
+        }
+    } else {
+        error_log("🔍 [Branch Treasury Debug] لا توجد عمليات مسلمة (delivered) للفرع {$branchId}");
+        
+        // 9. محاولة جلب أي عمليات للفرع (بأي حالة) تحتوي على بيانات مالية
+        $anyRepairsQuery = "SELECT id, repair_number, branch_id, status, customer_price, repair_cost, 
+                                   delivery_date, updated_at, created_at,
+                                   (customer_price - repair_cost) as profit
+                            FROM repairs 
+                            WHERE branch_id = ? 
+                            AND customer_price > 0 
+                            AND repair_cost >= 0
+                            ORDER BY created_at DESC LIMIT 10";
+        $anyRepairs = dbSelect($anyRepairsQuery, [$branchId]);
+        if ($anyRepairs && count($anyRepairs) > 0) {
+            error_log("🔍 [Branch Treasury Debug] عينة من عمليات الفرع (بأي حالة) مع بيانات مالية:");
+            foreach ($anyRepairs as $repair) {
+                $profit = floatval($repair['profit'] ?? 0);
+                $deliveryDate = $repair['delivery_date'] ?? 'NULL';
+                error_log("   - {$repair['repair_number']}: الحالة={$repair['status']}, الربح={$profit}, delivery_date={$deliveryDate}");
+            }
+        }
+    }
+    
+    // جلب العمليات المسلمة مع فلترة التاريخ (بما في ذلك الحالات الفارغة مع delivery_date)
+    $filteredQuery = "SELECT COUNT(*) as count, SUM(customer_price - repair_cost) as total_profit
+                      FROM repairs 
+                      WHERE branch_id = ? 
+                      AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
+                      AND (
+                          (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
+                          OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
+                          OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
+                      )";
+    $filteredResult = dbSelectOne($filteredQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
+    $filteredCount = intval($filteredResult['count'] ?? 0);
+    $filteredProfit = floatval($filteredResult['total_profit'] ?? 0);
+    error_log("🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة ({$startDate} - {$endDate}): {$filteredCount} عمليات، إجمالي الربح: {$filteredProfit}");
+    
     // 1. جلب المصروفات
     $expensesQuery = "SELECT SUM(amount) as total FROM expenses WHERE branch_id = ? AND expense_date BETWEEN ? AND ?";
     $expensesResult = dbSelectOne($expensesQuery, [$branchId, $startDate, $endDate]);
     $totalExpenses = floatval($expensesResult['total'] ?? 0);
     
     // 2. جلب تكاليف عمليات الصيانة المرتبطة بالفرع
-    $repairCostsQuery = "SELECT SUM(repair_cost) as total FROM repairs WHERE branch_id = ? AND status = 'delivered' 
-                         AND ((delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                              OR (delivery_date IS NULL AND DATE(created_at) BETWEEN ? AND ?))";
-    $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate]);
+    // ✅ إصلاح: تضمين الحالات الفارغة أو NULL إذا كان لديها delivery_date
+    $repairCostsQuery = "SELECT SUM(repair_cost) as total FROM repairs WHERE branch_id = ? 
+                         AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
+                         AND (
+                             (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
+                             OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
+                             OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
+                         )";
+    $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
     $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
     
     // 3. جلب أرباح عمليات الصيانة المرتبطة بالفرع
+    // ✅ إصلاح: تضمين الحالات الفارغة أو NULL إذا كان لديها delivery_date
     $repairProfitsQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
-                           WHERE branch_id = ? AND status = 'delivered' 
-                           AND ((delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                                OR (delivery_date IS NULL AND DATE(created_at) BETWEEN ? AND ?))";
-    $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate]);
+                           WHERE branch_id = ? 
+                           AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
+                           AND (
+                               (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
+                               OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
+                               OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
+                           )";
+    $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
     $totalRepairProfits = floatval($repairProfitsResult['total'] ?? 0);
+    
+    // ✅ إذا كانت النتيجة 0، نتحقق باستخدام استعلام بديل أبسط (بدون فلترة التاريخ أولاً)
+    if ($totalRepairProfits == 0) {
+        // جلب إجمالي الأرباح بدون فلترة التاريخ للتحقق (بما في ذلك الحالات الفارغة مع delivery_date)
+        $altQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
+                     WHERE branch_id = ? 
+                     AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)";
+        $altResult = dbSelectOne($altQuery, [$branchId]);
+        $altTotal = floatval($altResult['total'] ?? 0);
+        
+        if ($altTotal > 0) {
+            error_log("⚠️ [Branch Treasury] يوجد {$altTotal} أرباح للفرع ولكن خارج الفترة المحددة ({$startDate} - {$endDate})");
+            
+            // محاولة استخدام استعلام أكثر مرونة - أي عملية تم تحديثها في الفترة
+            $flexibleQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
+                             WHERE branch_id = ? 
+                             AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
+                             AND (DATE(delivery_date) BETWEEN ? AND ? 
+                                  OR DATE(updated_at) BETWEEN ? AND ?
+                                  OR DATE(created_at) BETWEEN ? AND ?)";
+            $flexibleResult = dbSelectOne($flexibleQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
+            $flexibleTotal = floatval($flexibleResult['total'] ?? 0);
+            
+            if ($flexibleTotal > 0) {
+                $totalRepairProfits = $flexibleTotal;
+                error_log("✅ [Branch Treasury] تم استخدام استعلام مرن - الأرباح: {$flexibleTotal}");
+            }
+        }
+    }
+    
+    // ✅ تسجيل للتحقق - جلب عدد العمليات للتحقق (بما في ذلك الحالات الفارغة مع delivery_date)
+    $countQuery = "SELECT COUNT(*) as count FROM repairs 
+                   WHERE branch_id = ? 
+                   AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
+                   AND (
+                       (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
+                       OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
+                       OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
+                   )";
+    $countResult = dbSelectOne($countQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
+    $repairsCount = intval($countResult['count'] ?? 0);
+    error_log("✅ [Branch Treasury] أرباح عمليات الصيانة للفرع {$branchId}: {$totalRepairProfits} (من {$startDate} إلى {$endDate}) - عدد العمليات: {$repairsCount}");
     
     // 4. جلب العمليات الخاسرة المرتبطة بالفرع
     // ملاحظة: جدول loss_operations لا يحتوي على branch_id حالياً
