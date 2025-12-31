@@ -18,7 +18,7 @@ jobs:
       - name: Prepare Deployment Folder
         run: |
           mkdir deploy
-          rsync -av --progress ./zidan/ ./deploy/ \
+          rsync -av --progress ./z/ ./deploy/ \
             --exclude='.git*' \
             --exclude='.github/' \
             --exclude='node_modules/' \
