@@ -11,6 +11,19 @@ try {
     $method = getRequestMethod();
     $data = getRequestData();
     
+    // ✅ معالجة تحديث حالة النشاط عند مغادرة صفحة الشات
+    if ($method === 'POST' && isset($data['action']) && $data['action'] === 'leave_chat') {
+        // تحديث حالة النشاط لـ offline عند مغادرة صفحة الشات
+        updateUserActivityOnLeave($userId, isset($data['is_online']) ? (bool)$data['is_online'] : false);
+        response(true, 'تم تحديث حالة النشاط بنجاح', ['updated' => true]);
+        return;
+    }
+    
+    // ✅ تحديث حالة النشاط للمستخدم الحالي عند فتح صفحة الشات (GET request)
+    if ($method === 'GET') {
+        updateUserActivityOnEnter($userId);
+    }
+    
     // الحصول على user_ids من الطلب
     $userIds = [];
     
@@ -190,6 +203,56 @@ function formatTimeAgo($seconds) {
         // أكثر من 24 ساعة
         $days = floor($seconds / 86400);
         return "نشط منذ $days يوم";
+    }
+}
+
+/**
+ * ✅ تحديث حالة النشاط عند فتح صفحة الشات
+ */
+function updateUserActivityOnEnter($userId) {
+    try {
+        // التأكد من وجود الجدول أولاً
+        if (!ensureActiveUsersTable()) {
+            error_log('فشل في التأكد من وجود جدول active_users');
+            return false;
+        }
+        
+        // تحديث حالة النشاط لـ online عند فتح صفحة الشات
+        dbExecute("
+            INSERT INTO active_users (user_id, last_activity, is_online)
+            VALUES (?, NOW(), 1)
+            ON DUPLICATE KEY UPDATE last_activity = NOW(), is_online = 1
+        ", [$userId]);
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('خطأ في updateUserActivityOnEnter: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * ✅ تحديث حالة النشاط عند مغادرة صفحة الشات
+ */
+function updateUserActivityOnLeave($userId, $isOnline = false) {
+    try {
+        // التأكد من وجود الجدول أولاً
+        if (!ensureActiveUsersTable()) {
+            error_log('فشل في التأكد من وجود جدول active_users');
+            return false;
+        }
+        
+        // تحديث حالة النشاط
+        dbExecute("
+            UPDATE active_users 
+            SET is_online = ?, last_activity = NOW()
+            WHERE user_id = ?
+        ", [$isOnline ? 1 : 0, $userId]);
+        
+        return true;
+    } catch (Exception $e) {
+        error_log('خطأ في updateUserActivityOnLeave: ' . $e->getMessage());
+        return false;
     }
 }
 ?>

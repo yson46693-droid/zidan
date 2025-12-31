@@ -72,8 +72,8 @@
         <header class="pos-header">
             <div class="pos-header-content">
                 <h1><i class="bi bi-cash-coin"></i> نقاط البيع</h1>
-                <button class="btn-back" onclick="returnToDashboard()">
-                    <i class="bi bi-arrow-right"></i> العودة للوحة التحكم
+                <button class="btn-back" id="backBtn" style="text-decoration: none; border: none; cursor: pointer;">
+                    <i class="bi bi-arrow-right"></i> العودة  
                 </button>
             </div>
         </header>
@@ -85,8 +85,8 @@
                 <!-- Search Bar -->
                 <div class="pos-search-bar">
                     <input type="text" id="searchInput" placeholder="ابحث عن المنتجات..." autocomplete="off">
-                    <button class="btn-search" id="searchBtn">
-                        <i class="bi bi-search"></i> بحث
+                    <button class="btn-search btn-barcode-scanner" id="searchBtn" onclick="openPOSBarcodeScanner()" title="قراءة QR Code للمنتج">
+                        <i class="bi bi-qr-code-scan"></i> مسح QR Code
                     </button>
                 </div>
 
@@ -225,14 +225,19 @@
                         <span>الخصم:</span>
                         <span id="modalDiscount">0.00</span>
                     </div>
-                    <div class="summary-row">
-                        <span>الضريبة:</span>
-                        <span id="modalTax">0.00</span>
-                    </div>
                     <hr>
                     <div class="summary-row total-row">
                         <span>الإجمالي:</span>
                         <span id="modalTotal">0.00</span>
+                    </div>
+                </div>
+                
+                <!-- Payment Amount Section (for commercial customers only) -->
+                <div class="form-group" id="paymentAmountGroup" style="display: none;">
+                    <label>المبلغ المدفوع <span style="color: var(--danger-color);">*</span>:</label>
+                    <input type="number" id="paidAmountInput" placeholder="المبلغ المدفوع" min="0" step="0.01" oninput="updatePaymentAmount()">
+                    <div style="margin-top: 8px; font-size: 0.9em; color: var(--text-light);">
+                        <span>المتبقي: <strong id="remainingAmountDisplay">0.00</strong></span>
                     </div>
                 </div>
             </div>
@@ -266,16 +271,165 @@
     </div>
 
     <!-- Scripts -->
-    <!-- مكتبة QR Code الحقيقية -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- مكتبة QR Code الحقيقية - مع آلية احتياطية -->
+    <script>
+        // Load QRCode library with fallback mechanism
+        (function() {
+            // استخدام CDN مباشرة (الملف المحلي غير موجود)
+            const cdnUrls = [
+                'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js',
+                'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js'
+            ];
+
+            let loaded = false;
+            let currentIndex = 0;
+            const allUrls = [...cdnUrls];
+
+            function loadScript(url) {
+                return new Promise((resolve, reject) => {
+                    if (loaded || (typeof QRCode !== 'undefined')) {
+                        loaded = true;
+                        return resolve();
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = url;
+                    script.async = true;
+                    
+                    // Set timeout for script loading (5 seconds)
+                    const timeout = setTimeout(() => {
+                        script.onload = null;
+                        script.onerror = null;
+                        document.head.removeChild(script);
+                        reject(new Error('Script load timeout'));
+                    }, 5000);
+                    
+                    script.onload = () => {
+                        clearTimeout(timeout);
+                        // Wait a bit for the library to initialize
+                        setTimeout(() => {
+                            if (typeof QRCode !== 'undefined') {
+                                loaded = true;
+                                console.log('✅ QRCode library loaded from:', url);
+                                resolve();
+                            } else {
+                                reject(new Error('QRCode not defined'));
+                            }
+                        }, 100);
+                    };
+                    script.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Failed to load script'));
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+
+            async function tryLoadNext() {
+                if (loaded || currentIndex >= allUrls.length) {
+                    if (!loaded && typeof QRCode === 'undefined') {
+                        console.log('ℹ️ QRCode library will use API fallback method for QR code generation.');
+                    }
+                    return;
+                }
+
+                try {
+                    await loadScript(allUrls[currentIndex]);
+                } catch (error) {
+                    // Log warnings for CDN failures
+                    console.debug(`QRCode CDN attempt ${currentIndex} failed, trying next...`);
+                    currentIndex++;
+                    tryLoadNext();
+                }
+            }
+
+            tryLoadNext();
+        })();
+    </script>
+    <!-- مكتبة Quagga لقراءة الباركود -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <!-- مكتبة html5-qrcode لقراءة QR Code -->
+    <script>
+        // Load html5-qrcode library for QR Code scanning
+        window.loadHtml5Qrcode = function() {
+            return new Promise((resolve, reject) => {
+                if (window.html5QrcodeLoaded) return resolve();
+                
+                // Check if already loaded
+                if (typeof Html5Qrcode !== 'undefined') {
+                    window.html5QrcodeLoaded = true;
+                    return resolve();
+                }
+                
+                const script = document.createElement('script');
+                // استخدام jsDelivr CDN الموثوق بدلاً من unpkg
+                script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+                script.async = true;
+                script.onload = () => {
+                    window.html5QrcodeLoaded = true;
+                    resolve();
+                };
+                script.onerror = () => reject(new Error('Failed to load html5-qrcode'));
+                document.head.appendChild(script);
+            });
+        };
+    </script>
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
     <script src="js/api.js" defer></script>
     <script src="js/utils.js" defer></script>
     <script src="js/auth.js" defer></script>
+    <script src="js/indexeddb-cache.js" defer></script>
     <script src="js/barcode.js" defer></script>
     <script src="js/pos.js" defer></script>
     <script src="js/global-notifications.js" defer></script>
+    
+    <!-- زر الرجوع للصفحة السابقة -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.getElementById('backBtn');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    try {
+                        // التحقق من وجود referrer وليس نفس الصفحة
+                        const referrer = document.referrer;
+                        const currentUrl = window.location.href;
+                        
+                        if (referrer && referrer !== currentUrl) {
+                            const referrerUrl = new URL(referrer);
+                            const currentUrlObj = new URL(currentUrl);
+                            
+                            // إذا كان referrer من نفس الموقع، استخدم history.back()
+                            if (referrerUrl.origin === currentUrlObj.origin) {
+                                // التحقق من أن الصفحة السابقة ليست pos.html
+                                if (!referrer.includes('pos.html')) {
+                                    window.history.back();
+                                    return;
+                                }
+                            }
+                        }
+                        
+                        // إذا كان هناك تاريخ متاح، استخدم history.back()
+                        if (window.history.length > 1) {
+                            window.history.back();
+                            return;
+                        }
+                        
+                        // Fallback: الانتقال إلى dashboard.html أو index.html
+                        window.location.href = 'dashboard.html';
+                    } catch (error) {
+                        console.error('خطأ في الرجوع:', error);
+                        // Fallback: الانتقال إلى dashboard.html
+                        window.location.href = 'dashboard.html';
+                    }
+                });
+            }
+        });
+    </script>
     
     <!-- حماية الصفحة - فحص تسجيل الدخول فوراً -->
     <script>
@@ -311,8 +465,29 @@
     </script>
     
     <script>
+        // تحميل الوضع الليلي فوراً - قبل أي شيء آخر
+        (function loadDarkModeEarly() {
+            try {
+                const darkMode = localStorage.getItem('darkMode');
+                if (darkMode === 'enabled') {
+                    document.body.classList.add('dark-mode');
+                }
+            } catch (error) {
+                console.error('خطأ في تحميل الوضع الليلي:', error);
+            }
+        })();
+        
         // فحص المصادقة عند تحميل الصفحة
         document.addEventListener('DOMContentLoaded', async function() {
+            // ✅ تحميل الوضع الليلي مرة أخرى للتأكد
+            if (typeof loadDarkMode === 'function') {
+                loadDarkMode();
+            } else {
+                const darkMode = localStorage.getItem('darkMode');
+                if (darkMode === 'enabled') {
+                    document.body.classList.add('dark-mode');
+                }
+            }
             // انتظار تحميل API و auth.js
             let attempts = 0;
             const maxAttempts = 50; // 5 ثواني كحد أقصى
@@ -337,6 +512,11 @@
                     window.location.href = 'index.html';
                     return;
                 }
+                
+                // ✅ إصلاح CSS و Bootstrap Icons عند تحميل الصفحة
+                if (typeof ensureCSSAndIconsLoaded === 'function') {
+                    ensureCSSAndIconsLoaded();
+                }
             };
             
             checkAuth();
@@ -354,29 +534,49 @@
         const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    // تحديد المسار الأساسي تلقائياً
+                    // ✅ تحديد المسار الأساسي - Service Worker دائماً في الجذر
                     const getBasePath = () => {
                         try {
                             const pathname = window.location.pathname;
-                            const match = pathname.match(/^(\/[^\/]+)/);
-                            if (match && match[1] !== '/') {
-                                return match[1];
+                            // ✅ الحل: إذا كان المسار يحتوي على .html، نستخدم الجذر
+                            // لأن Service Worker دائماً في الجذر وليس في مجلد الصفحة
+                            if (pathname.includes('.html')) {
+                                return ''; // استخدام الجذر
                             }
-                            return '';
+                            // فقط إذا كان المسار مثل /zidan15/ نستخدمه
+                            const match = pathname.match(/^\/([^\/]+)\//);
+                            if (match && match[1] && !match[1].includes('.')) {
+                                return '/' + match[1];
+                            }
+                            return ''; // استخدام الجذر دائماً
                         } catch (e) {
-                            return '';
+                            return ''; // في حالة الخطأ، نستخدم الجذر
                         }
                     };
                     const basePath = getBasePath();
-                    const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
                     // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
                     const scope = basePath ? `${basePath}/` : '/';
                     
-                    const registration = await navigator.serviceWorker.register(swUrl, {
-                        scope: scope,
-                        updateViaCache: 'none'
-                    });
-                    console.log('✅ Service Worker registered in POS:', registration.scope);
+                    // ✅ محاولة استخدام sw.js.php أولاً، ثم sw.js كبديل
+                    let swUrl = basePath ? `${basePath}/sw.js.php` : '/sw.js.php';
+                    let registration;
+                    
+                    try {
+                        registration = await navigator.serviceWorker.register(swUrl, {
+                            scope: scope,
+                            updateViaCache: 'none'
+                        });
+                        console.log('✅ Service Worker registered in POS (sw.js.php):', registration.scope);
+                    } catch (phpError) {
+                        // ✅ Fallback: استخدام sw.js مباشرة
+                        console.warn('⚠️ sw.js.php failed, trying sw.js as fallback:', phpError.message);
+                        swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
+                        registration = await navigator.serviceWorker.register(swUrl, {
+                            scope: scope,
+                            updateViaCache: 'none'
+                        });
+                        console.log('✅ Service Worker registered in POS (sw.js fallback):', registration.scope);
+                    }
                 } catch (error) {
                     console.warn('Service Worker registration failed:', error.message || error);
                 }

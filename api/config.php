@@ -40,7 +40,9 @@ $allowedOrigins = [
     'http://localhost',
     'https://localhost',
     'http://127.0.0.1',
-    'https://127.0.0.1'
+    'https://127.0.0.1',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500'
 ];
 
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -142,8 +144,34 @@ if (!is_dir($logDir)) {
 // تعيين مسار ملف السجلات
 ini_set('error_log', $logDir . '/php_errors.log');
 
+// ✅ تعريف مسارات الملفات قبل تحميل أي ملفات أخرى تستخدمها
+// مسارات الملفات (للنسخ الاحتياطي والصور فقط)
+define('DATA_DIR', __DIR__ . '/../data/');
+define('BACKUP_DIR', __DIR__ . '/../backups/');
+
 // تحميل ملف قاعدة البيانات
 require_once __DIR__ . '/database.php';
+
+// تحميل ملف تنظيف الفواتير التلقائي
+require_once __DIR__ . '/invoice-cleanup.php';
+
+// ✅ تهيئة قاعدة البيانات تلقائياً عند أول زيارة (مرة واحدة فقط)
+if (file_exists(__DIR__ . '/init-database.php')) {
+    require_once __DIR__ . '/init-database.php';
+    // التحقق من حالة التهيئة وتهيئة قاعدة البيانات إذا لزم الأمر
+    try {
+        $initResult = autoInitializeDatabase();
+        if (!$initResult['initialized'] && $initResult['success']) {
+            error_log("✅ تم تهيئة قاعدة البيانات تلقائياً: " . json_encode($initResult['migrations_applied'] ?? [], JSON_UNESCAPED_UNICODE));
+        }
+    } catch (Exception $e) {
+        error_log("⚠️ تحذير: فشل التحقق من تهيئة قاعدة البيانات: " . $e->getMessage());
+        // لا نوقف التنفيذ، فقط نسجل التحذير
+    } catch (Error $e) {
+        error_log("⚠️ تحذير: خطأ قاتل في التحقق من تهيئة قاعدة البيانات: " . $e->getMessage());
+        // لا نوقف التنفيذ، فقط نسجل التحذير
+    }
+}
 
 // إعدادات الجلسة (قبل بدء الجلسة)
 if (session_status() === PHP_SESSION_NONE) {
@@ -209,13 +237,59 @@ if (!isset($_SESSION['db_setup_checked'])) {
     }
 }
 
-// مسارات الملفات (للنسخ الاحتياطي والصور فقط)
-define('DATA_DIR', __DIR__ . '/../data/');
-define('BACKUP_DIR', __DIR__ . '/../backups/');
+// ✅ تم نقل تعريف DATA_DIR و BACKUP_DIR إلى الأعلى (قبل تحميل invoice-cleanup.php)
 
 // دوال مساعدة
 function generateId() {
     return uniqid('', true);
+}
+
+/**
+ * توليد ID من 7 أرقام عشوائية للهواتف
+ * @return string - ID من 7 أرقام
+ */
+function generatePhoneId() {
+    // توليد رقم من 7 أرقام (1000000 إلى 9999999)
+    return str_pad(rand(1000000, 9999999), 7, '0', STR_PAD_LEFT);
+}
+
+// توليد معرف عشوائي فريد للعملاء (6 أحرف: أرقام وحروف)
+function generateCustomerId() {
+    try {
+        // مجموعة الأحرف المسموحة (أرقام 0-9 وحروف كبيرة A-Z)
+        $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $maxAttempts = 100; // عدد المحاولات للعثور على ID فريد
+        $attempts = 0;
+        
+        do {
+            // توليد ID عشوائي من 6 أحرف
+            $newId = '';
+            for ($i = 0; $i < 6; $i++) {
+                $newId .= $chars[rand(0, strlen($chars) - 1)];
+            }
+            
+            // التحقق من عدم وجود المعرف (حماية من التكرار)
+            $exists = dbSelectOne("SELECT id FROM customers WHERE id = ?", [$newId]);
+            $attempts++;
+            
+            // إذا لم يوجد المعرف، نعيده
+            if (!$exists) {
+                return $newId;
+            }
+            
+            // إذا وصلنا لعدد المحاولات الأقصى، نستخدم timestamp كحل بديل
+            if ($attempts >= $maxAttempts) {
+                error_log('تحذير: تم الوصول لعدد المحاولات الأقصى في توليد معرف العميل، استخدام timestamp');
+                return 'C' . time() . rand(100, 999);
+            }
+        } while ($exists);
+        
+        return $newId;
+    } catch (Exception $e) {
+        error_log('خطأ في توليد معرف العميل: ' . $e->getMessage());
+        // استخدام timestamp كحل بديل في حالة الخطأ
+        return 'C' . time() . rand(100, 999);
+    }
 }
 
 // دوال JSON (للنسخ الاحتياطي فقط)
@@ -450,6 +524,12 @@ if (!isset($_SESSION['system_initialized'])) {
         // لا نوقف التنفيذ، فقط نسجل الخطأ
     }
 }
+
+// جدولة تنظيف الفواتير القديمة (معطل - تم إيقاف النظام)
+// يتم تنفيذ cleanup بعد إرسال الاستجابة (async) لضمان عدم التأثير على المستخدم
+// if (function_exists('scheduleInvoiceCleanupIfNeeded')) {
+//     scheduleInvoiceCleanupIfNeeded();
+// }
 ?>
 
 

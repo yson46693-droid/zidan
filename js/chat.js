@@ -39,6 +39,18 @@ let mentionStartPosition = -1;
     });
 })();
 
+// تحميل الوضع الليلي فوراً - قبل أي شيء آخر
+(function loadDarkModeEarly() {
+    try {
+        const darkMode = localStorage.getItem('darkMode');
+        if (darkMode === 'enabled') {
+            document.body.classList.add('dark-mode');
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل الوضع الليلي:', error);
+    }
+})();
+
 // فحص تسجيل الدخول الفوري - قبل تحميل الصفحة
 (async function checkAuthBeforeLoad() {
     try {
@@ -75,6 +87,13 @@ let mentionStartPosition = -1;
         // حفظ المستخدم للمتابعة
         currentUser = user;
         
+        // التحقق من صلاحيات المستخدم إذا كان DOM جاهزاً
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkAndShowDeleteButton);
+        } else {
+            checkAndShowDeleteButton();
+        }
+        
     } catch (error) {
         console.error('❌ خطأ في فحص تسجيل الدخول:', error);
         // محاولة مرة أخرى قبل التوجيه
@@ -85,6 +104,12 @@ let mentionStartPosition = -1;
                 if (user) {
                     console.log('✅ نجحت المحاولة الثانية للتحقق من تسجيل الدخول');
                     currentUser = user;
+                    // التحقق من صلاحيات المستخدم إذا كان DOM جاهزاً
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', checkAndShowDeleteButton);
+                    } else {
+                        checkAndShowDeleteButton();
+                    }
                     return;
                 }
             }
@@ -99,6 +124,16 @@ let mentionStartPosition = -1;
 // تهيئة الصفحة
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // ✅ تحميل الوضع الليلي من localStorage
+        if (typeof loadDarkMode === 'function') {
+            loadDarkMode();
+        }
+        
+        // ✅ إصلاح CSS و Bootstrap Icons عند تحميل الصفحة
+        if (typeof ensureCSSAndIconsLoaded === 'function') {
+            ensureCSSAndIconsLoaded();
+        }
+        
         // الانتظار قليلاً للتأكد من تحميل جميع الملفات
         await new Promise(resolve => setTimeout(resolve, 300));
         
@@ -124,6 +159,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
                 currentUser = user;
+                // التحقق من صلاحيات المستخدم بعد تحديثه
+                checkAndShowDeleteButton();
             } catch (loginError) {
                 console.error('❌ خطأ في فحص تسجيل الدخول:', loginError);
                 // محاولة مرة أخرى
@@ -132,6 +169,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const user = await checkLogin();
                     if (user) {
                         currentUser = user;
+                        // التحقق من صلاحيات المستخدم بعد تحديثه
+                        checkAndShowDeleteButton();
                     } else {
                         window.location.href = 'index.html';
                         return;
@@ -144,6 +183,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
+        // التحقق من صلاحيات المستخدم قبل تهيئة الشات
+        checkAndShowDeleteButton();
+        
         // الآن يمكن تهيئة الشات
         await initializeChat();
     } catch (error) {
@@ -155,6 +197,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const user = await checkLogin();
                 if (user) {
                     currentUser = user;
+                    // التحقق من صلاحيات المستخدم بعد تحديثه
+                    checkAndShowDeleteButton();
                     await initializeChat();
                     return;
                 }
@@ -214,10 +258,17 @@ async function initializeChat() {
 }
 
 // تحميل الرسائل عند الدخول
-async function loadMessages() {
+async function loadMessages(forceRefresh = false) {
     try {
-        // استدعاء get_messages.php مع silent flag لمنع عرض loading overlay أثناء التحديثات
-        const result = await API.request('get_messages.php', 'GET', null, { silent: false });
+        // ✅ إذا كان forceRefresh، نستخدم skipCache و timestamp لإجبار إعادة التحميل
+        let result;
+        if (forceRefresh) {
+            const timestamp = Date.now();
+            result = await API.request(`get_messages.php?_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+        } else {
+            // استدعاء get_messages.php مع silent flag لمنع عرض loading overlay أثناء التحديثات
+            result = await API.request('get_messages.php', 'GET', null, { silent: false });
+        }
         
         if (result && result.success && result.data) {
             messages = result.data || [];
@@ -248,6 +299,50 @@ async function loadMessages() {
     } catch (error) {
         console.error('خطأ في تحميل الرسائل:', error);
         showMessage('حدث خطأ في تحميل الرسائل', 'error');
+    }
+}
+
+// تحديث الرسائل فقط (بدون تحديث الصفحة كاملة)
+async function refreshMessages() {
+    try {
+        const refreshBtn = document.getElementById('refreshMessagesBtn');
+        if (!refreshBtn) return;
+        
+        // منع النقرات المتعددة
+        if (refreshBtn.disabled) return;
+        refreshBtn.disabled = true;
+        refreshBtn.classList.add('refreshing');
+        
+        // استدعاء loadMessages لتحديث الرسائل فقط
+        await loadMessages();
+        
+        // تحديث حالة النشاط أيضاً
+        await updateUsersActivity();
+        
+        // إعادة التحقق من صلاحيات المستخدم وإظهار/إخفاء زر الحذف
+        checkAndShowDeleteButton();
+        
+        // إظهار رسالة نجاح خفيفة
+        const originalTitle = refreshBtn.title;
+        refreshBtn.title = 'تم التحديث';
+        
+        // إعادة تعيين الزر بعد ثانية
+        setTimeout(() => {
+            refreshBtn.disabled = false;
+            refreshBtn.classList.remove('refreshing');
+            refreshBtn.title = originalTitle;
+        }, 1000);
+        
+    } catch (error) {
+        console.error('خطأ في تحديث الرسائل:', error);
+        showMessage('حدث خطأ في تحديث الرسائل', 'error');
+        
+        // إعادة تعيين الزر حتى في حالة الخطأ
+        const refreshBtn = document.getElementById('refreshMessagesBtn');
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+            refreshBtn.classList.remove('refreshing');
+        }
     }
 }
 
@@ -293,6 +388,9 @@ function createMessageElement(message) {
         const avatarImg = document.createElement('img');
         avatarImg.src = message.avatar;
         avatarImg.alt = message.username || 'مستخدم';
+        // ✅ إضافة lazy loading للصور
+        avatarImg.loading = 'lazy';
+        avatarImg.decoding = 'async';
         avatarImg.onerror = () => {
             // في حالة فشل تحميل الصورة، عرض الأحرف الأولى
             avatar.innerHTML = '';
@@ -326,7 +424,7 @@ function createMessageElement(message) {
     const content = document.createElement('div');
     content.className = 'message-content';
     
-    // Header (للمستخدمين الآخرين فقط)
+    // Header (للمستخدمين الآخرين فقط) - بدون التوقيت العلوي
     if (!isUserMessage) {
         const header = document.createElement('div');
         header.className = 'message-header';
@@ -335,12 +433,8 @@ function createMessageElement(message) {
         sender.className = 'message-sender';
         sender.textContent = message.username || 'مستخدم';
         
-        const time = document.createElement('span');
-        time.className = 'message-time';
-        time.textContent = formatTime(message.created_at);
-        
+        // ✅ تم حذف التوقيت العلوي - التوقيت يظهر فقط داخل الـ bubble
         header.appendChild(sender);
-        header.appendChild(time);
         content.appendChild(header);
     }
     
@@ -379,6 +473,7 @@ function createMessageElement(message) {
             }
             img.alt = 'صورة';
             img.loading = 'lazy';
+            img.decoding = 'async';
             img.onerror = (e) => {
                 console.error('فشل تحميل الصورة:', filePath, message);
                 e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3Eفشل تحميل الصورة%3C/text%3E%3C/svg%3E';
@@ -529,6 +624,12 @@ function setupEventListeners() {
         deleteMessagesBtn.addEventListener('click', showDeleteMessagesModal);
     }
     
+    // زر تحديث الرسائل
+    const refreshMessagesBtn = document.getElementById('refreshMessagesBtn');
+    if (refreshMessagesBtn) {
+        refreshMessagesBtn.addEventListener('click', refreshMessages);
+    }
+    
     // زر الرجوع
     const backToDashboardBtn = document.getElementById('backToDashboardBtn');
     if (backToDashboardBtn) {
@@ -537,19 +638,38 @@ function setupEventListeners() {
             e.stopPropagation();
             
             try {
-                // محاولة الرجوع إلى الصفحة السابقة
-                if (document.referrer && document.referrer !== window.location.href) {
-                    window.history.back();
-                } else if (window.history.length > 1) {
-                    window.history.back();
-                } else {
-                    // إذا لم تكن هناك صفحة سابقة، الانتقال إلى لوحة التحكم
-                    window.location.href = 'dashboard.html';
+                // ✅ إيقاف جميع polling systems قبل المغادرة
+                cleanup();
+                
+                // ✅ استخدام window.location.replace بدلاً من history.back() لتجنب مشاكل التنقل
+                const referrer = document.referrer;
+                const currentUrl = window.location.href;
+                
+                // التحقق من أن referrer موجود وليس نفس الصفحة
+                if (referrer && referrer !== currentUrl) {
+                    const referrerUrl = new URL(referrer);
+                    const currentUrlObj = new URL(currentUrl);
+                    
+                    // إذا كان referrer من نفس الموقع، استخدم replace
+                    if (referrerUrl.origin === currentUrlObj.origin) {
+                        // التحقق من أن الصفحة السابقة ليست chat.html
+                        if (!referrer.includes('chat.html')) {
+                            window.location.replace(referrer);
+                            return;
+                        }
+                    }
                 }
+                
+                // ✅ وضع علامة للرجوع من الشات
+                sessionStorage.setItem('returning_from_chat', 'true');
+                
+                // Fallback: الانتقال إلى لوحة التحكم مباشرة
+                window.location.replace('dashboard.html');
             } catch (error) {
                 console.error('خطأ في الرجوع:', error);
                 // Fallback: الانتقال إلى لوحة التحكم
-                window.location.href = 'dashboard.html';
+                cleanup();
+                window.location.replace('dashboard.html');
             }
         });
     }
@@ -614,6 +734,12 @@ async function sendMessage() {
                 }
                 renderMessages();
                 
+                // ✅ إجبار إعادة تحميل الرسائل من الخادم لإظهار الرسالة الجديدة فوراً
+                // انتظار قليل لضمان حفظ الرسالة في قاعدة البيانات
+                setTimeout(async () => {
+                    await loadMessages(true); // forceRefresh = true
+                }, 300);
+                
                 // إرسال حدث لإشعار النظام بوجود رسالة جديدة
                 // هذا سيؤدي إلى فحص فوري للرسائل الجديدة للمستخدمين الآخرين
                 window.dispatchEvent(new CustomEvent('messageSent'));
@@ -647,6 +773,11 @@ async function sendMessage() {
 let eventSource = null;
 let checkInterval = null;
 
+// Event listeners references للتنظيف
+let messageSentListener = null;
+let visibilityChangeListener = null;
+let focusListener = null;
+
 function startLongPolling() {
     if (longPollingActive) return;
     
@@ -662,6 +793,9 @@ function startLongPolling() {
 function startPeriodicCheck() {
     if (!longPollingActive) return;
     
+    // ✅ إيقاف أي event listeners سابقة إذا كانت موجودة
+    stopPeriodicCheck();
+    
     // فحص فوري أولاً عند فتح الشات
     checkForNewMessages();
     
@@ -673,28 +807,47 @@ function startPeriodicCheck() {
     
     // الاستماع لحدث إرسال رسالة جديدة من نفس الصفحة
     // عند إرسال رسالة جديدة، نفحص فوراً للمستخدمين الآخرين
-    window.addEventListener('messageSent', () => {
+    messageSentListener = () => {
         if (longPollingActive) {
             // فحص فوري بعد إرسال رسالة (للمستخدمين الآخرين)
             // السيرفر أضاف إشعارات معلقة لكل مستخدم نشط
             setTimeout(() => checkForNewMessages(), 1000);
         }
-    });
+    };
+    window.addEventListener('messageSent', messageSentListener);
     
     // فحص عند عودة المستخدم للصفحة
-    document.addEventListener('visibilitychange', () => {
+    visibilityChangeListener = () => {
         if (!document.hidden && longPollingActive) {
             // فحص فوري عند عودة المستخدم للصفحة
             checkForNewMessages();
         }
-    });
+    };
+    document.addEventListener('visibilitychange', visibilityChangeListener);
     
     // فحص عند التركيز على النافذة
-    window.addEventListener('focus', () => {
+    focusListener = () => {
         if (longPollingActive) {
             checkForNewMessages();
         }
-    });
+    };
+    window.addEventListener('focus', focusListener);
+}
+
+// ✅ إيقاف event listeners
+function stopPeriodicCheck() {
+    if (messageSentListener) {
+        window.removeEventListener('messageSent', messageSentListener);
+        messageSentListener = null;
+    }
+    if (visibilityChangeListener) {
+        document.removeEventListener('visibilitychange', visibilityChangeListener);
+        visibilityChangeListener = null;
+    }
+    if (focusListener) {
+        window.removeEventListener('focus', focusListener);
+        focusListener = null;
+    }
 }
 
 /**
@@ -807,6 +960,9 @@ function processNewMessages(newMessagesArray) {
 
 function stopLongPolling() {
     longPollingActive = false;
+    
+    // ✅ إيقاف event listeners
+    stopPeriodicCheck();
     
     // إيقاف الفحص الدوري
     if (checkInterval) {
@@ -956,15 +1112,13 @@ function arrayBufferToBase64(buffer) {
     return window.btoa(binary);
 }
 
-// حالة النشاط
+// حالة النشاط - فقط عند فتح صفحة الشات
 async function startActivityUpdates() {
-    // تحديث فوري
+    // تحديث فوري عند فتح صفحة الشات
     await updateUsersActivity();
     
-    // تحديث كل 30 ثانية
-    activityUpdateInterval = setInterval(async () => {
-        await updateUsersActivity();
-    }, 30000);
+    // ✅ تم إلغاء الفحص الدوري - فقط عند فتح/إغلاق صفحة الشات
+    // لا حاجة لـ setInterval
 }
 
 async function updateUsersActivity() {
@@ -985,6 +1139,20 @@ async function updateUsersActivity() {
         }
     } catch (error) {
         console.error('خطأ في تحديث حالة النشاط:', error);
+    }
+}
+
+// ✅ تحديث حالة النشاط عند مغادرة صفحة الشات
+async function updateUserActivityOnLeave() {
+    try {
+        // تحديث حالة النشاط لـ offline عند مغادرة صفحة الشات
+        await API.request('get_user_activity.php', 'POST', {
+            action: 'leave_chat',
+            is_online: false
+        });
+        console.log('✅ تم تحديث حالة النشاط عند مغادرة صفحة الشات');
+    } catch (error) {
+        console.error('خطأ في تحديث حالة النشاط عند المغادرة:', error);
     }
 }
 
@@ -1375,12 +1543,48 @@ function handleVisibilityChange() {
 
 
 // تنظيف عند إغلاق الصفحة
-function cleanup() {
+async function cleanup() {
+    console.log('🧹 تنظيف صفحة الشات - إيقاف جميع polling systems');
+    
+    // إيقاف Long Polling
     stopLongPolling();
     
+    // ✅ تحديث حالة النشاط عند مغادرة صفحة الشات (مرة واحدة)
+    try {
+        // تحديث حالة النشاط لـ offline عند مغادرة صفحة الشات
+        await updateUserActivityOnLeave();
+    } catch (error) {
+        console.error('خطأ في تحديث حالة النشاط عند المغادرة:', error);
+    }
+    
+    // إيقاف تحديث حالة النشاط (إذا كان هناك interval)
     if (activityUpdateInterval) {
         clearInterval(activityUpdateInterval);
+        activityUpdateInterval = null;
     }
+    
+    // ✅ إيقاف MessagePollingManager إذا كان يعمل
+    if (window.MessagePollingManager && typeof window.MessagePollingManager.stop === 'function') {
+        try {
+            window.MessagePollingManager.stop();
+            console.log('✅ تم إيقاف MessagePollingManager');
+        } catch (e) {
+            console.error('خطأ في إيقاف MessagePollingManager:', e);
+        }
+    }
+    
+    // ✅ إيقاف GlobalNotificationManager إذا كان يعمل
+    if (window.GlobalNotificationManager && typeof window.GlobalNotificationManager.stop === 'function') {
+        try {
+            window.GlobalNotificationManager.stop();
+            console.log('✅ تم إيقاف GlobalNotificationManager');
+        } catch (e) {
+            console.error('خطأ في إيقاف GlobalNotificationManager:', e);
+        }
+    }
+    
+    // ✅ إلغاء جميع event listeners المضافة في startPeriodicCheck
+    // (تم إضافة event listeners لـ visibilitychange و focus - لكن لا يمكن إزالتها بدون مرجع)
     
     // تحديث حالة النشاط (offline) - سيتم تحديثها تلقائياً من السيرفر بعد timeout
 }
@@ -1491,14 +1695,42 @@ function checkAndShowDeleteButton() {
     const deleteBtn = document.getElementById('deleteMessagesBtn');
     if (!deleteBtn) return;
     
-    // التحقق من is_owner من localStorage أو currentUser
-    const isOwner = localStorage.getItem('is_owner') === 'true' || 
-                    (currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin'));
+    // التحقق من أن المستخدم هو مالك (role === 'admin')
+    let isOwner = false;
     
+    if (currentUser) {
+        // التحقق الأول: من role مباشرة (الأكثر دقة)
+        if (currentUser.role === 'admin') {
+            isOwner = true;
+        }
+        // التحقق الثاني: من is_owner إذا كان موجوداً
+        else if (currentUser.is_owner === true || currentUser.is_owner === 'true') {
+            isOwner = true;
+        }
+    }
+    
+    // التحقق من localStorage كبديل فقط إذا لم يكن currentUser متاحاً
+    if (!isOwner && !currentUser) {
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                if (user && (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true')) {
+                    isOwner = true;
+                }
+            }
+        } catch (e) {
+            console.error('خطأ في قراءة بيانات المستخدم من localStorage:', e);
+        }
+    }
+    
+    // إظهار أو إخفاء الزر بناءً على النتيجة
     if (isOwner) {
         deleteBtn.style.display = 'flex';
+        console.log('✅ زر حذف الرسائل معروض للمالك');
     } else {
         deleteBtn.style.display = 'none';
+        console.log('🔒 زر حذف الرسائل مخفي - المستخدم ليس مالكاً');
     }
 }
 
@@ -1839,6 +2071,12 @@ async function sendFileMessage(fileData, fileType, fileName) {
                 lastMessageId = result.data.id;
                 renderMessages();
                 
+                // ✅ إجبار إعادة تحميل الرسائل من الخادم لإظهار الرسالة الجديدة فوراً
+                // انتظار قليل لضمان حفظ الرسالة في قاعدة البيانات
+                setTimeout(async () => {
+                    await loadMessages(true); // forceRefresh = true
+                }, 300);
+                
                 // إرسال حدث لإشعار النظام بوجود رسالة جديدة
                 window.dispatchEvent(new CustomEvent('messageSent'));
                 
@@ -1900,12 +2138,38 @@ loadSavedNotifications();
 
 // مودال حذف الرسائل
 function showDeleteMessagesModal() {
-    // التحقق من المالك مرة أخرى
-    const isOwner = localStorage.getItem('is_owner') === 'true' || 
-                    (currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin'));
+    // التحقق من المالك مرة أخرى (للحماية الإضافية)
+    let isOwner = false;
+    
+    if (currentUser) {
+        // التحقق الأول: من role مباشرة (الأكثر دقة)
+        if (currentUser.role === 'admin') {
+            isOwner = true;
+        }
+        // التحقق الثاني: من is_owner إذا كان موجوداً
+        else if (currentUser.is_owner === true || currentUser.is_owner === 'true') {
+            isOwner = true;
+        }
+    }
+    
+    // التحقق من localStorage كبديل فقط إذا لم يكن currentUser متاحاً
+    if (!isOwner && !currentUser) {
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                if (user && (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true')) {
+                    isOwner = true;
+                }
+            }
+        } catch (e) {
+            console.error('خطأ في قراءة بيانات المستخدم من localStorage:', e);
+        }
+    }
     
     if (!isOwner) {
         showMessage('هذه الميزة متاحة للمالك فقط', 'error');
+        console.warn('⚠️ محاولة وصول غير مصرح بها لحذف الرسائل');
         return;
     }
     

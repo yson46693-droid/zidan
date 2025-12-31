@@ -4,15 +4,38 @@ let allCustomers = [];
 let retailCustomers = [];
 let commercialCustomers = [];
 let currentCustomerPage = 1;
-let currentCustomerType = 'retail';
+// حفظ نوع العميل من localStorage أو استخدام القيمة الافتراضية
+let currentCustomerType = localStorage.getItem('currentCustomerType') || 'retail';
 const customersPerPage = 10;
+let customerBranches = [];
+let firstBranchId = null;
+// ✅ حفظ الفرع المحدد للفلترة
+let selectedBranchId = null;
 
-function loadCustomersSection() {
+// ✅ تحسين الأداء: Flags لمنع التحميل المكرر
+let isLoadingCustomerBranches = false;
+let lastCustomerBranchesLoadTime = 0;
+const CUSTOMER_MIN_LOAD_INTERVAL = 2000; // 2 ثانية كحد أدنى بين الطلبات
+
+async function loadCustomersSection() {
+    // ✅ إظهار loading overlay قبل بدء التحميل
+    if (typeof showLoading === 'function') {
+        showLoading();
+    } else if (window.loadingOverlay && typeof window.loadingOverlay.show === 'function') {
+        window.loadingOverlay.show();
+    }
+    
     const section = document.getElementById('customers-section');
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    
     section.innerHTML = `
         <div class="section-header">
-            <div class="header-actions">
-                <button onclick="exportCustomersToCSV()" class="btn btn-success btn-sm">
+            <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+                <select id="customerBranchFilterHeader" onchange="applyBranchFilter()" class="filter-select" required style="${isOwner ? 'display: block;' : 'display: none;'} min-width: 180px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--white); color: var(--text-dark); font-size: 0.95em; cursor: pointer; position: relative; z-index: 10;">
+                    <option value="">اختر الفرع</option>
+                </select>
+                <button id="exportCustomersBtn" onclick="exportCustomersToCSV()" class="btn btn-success btn-sm" data-permission="admin">
                     <i class="bi bi-file-earmark-spreadsheet"></i> تصدير CSV
                 </button>
                 <button onclick="showAddCustomerModal()" class="btn btn-primary">
@@ -91,6 +114,13 @@ function loadCustomersSection() {
                         <textarea id="custAddress" rows="2"></textarea>
                     </div>
 
+                    <div class="form-group" id="customerBranchGroup" style="display: none;">
+                        <label for="customerBranchSelect">الفرع *</label>
+                        <select id="customerBranchSelect" required>
+                            <option value="">اختر الفرع</option>
+                        </select>
+                    </div>
+
                     <div class="modal-footer">
                         <button type="button" onclick="closeCustomerModal()" class="btn btn-secondary">إلغاء</button>
                         <button type="submit" class="btn btn-primary">حفظ</button>
@@ -100,7 +130,100 @@ function loadCustomersSection() {
         </div>
     `;
 
-    loadCustomers();
+    // تحميل الفروع أولاً (للمالك فقط)
+    console.log('🔍 [Customers] Current User:', currentUser);
+    console.log('🔍 [Customers] Is Owner:', isOwner);
+    
+    // ✅ تحسين: تحميل الفروع والعملاء بشكل متوازي قدر الإمكان
+    if (isOwner) {
+        // ✅ تحسين: استخدام Promise مباشرة بدلاً من requestAnimationFrame + setTimeout
+        (async () => {
+            try {
+                // ✅ تحسين: استخدام cache إذا كانت الفروع محملة بالفعل
+                // فقط نحمّل إذا لم تكن موجودة أو كانت قديمة
+                if (!customerBranches || customerBranches.length === 0) {
+                    await loadCustomerBranches(false); // ✅ استخدام cache بدلاً من force = true
+                } else {
+                    // ✅ استخدام الفروع المحملة مسبقاً
+                    updateCustomerBranchFilters();
+                }
+                
+                // ✅ تحسين: تحديد فرع افتراضي فوراً (بدون setTimeout)
+                const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+                if (branchFilterHeader) {
+                    if (selectedBranchId) {
+                        branchFilterHeader.value = selectedBranchId;
+                    } else if (firstBranchId) {
+                        branchFilterHeader.value = firstBranchId;
+                        selectedBranchId = firstBranchId;
+                        console.log('✅ [Customers] تم تحديد الفرع الأول كافتراضي:', firstBranchId);
+                    }
+                }
+                
+                // ✅ تحسين: التأكد من أن branchId محدد قبل تحميل العملاء
+                if (!selectedBranchId && firstBranchId) {
+                    selectedBranchId = firstBranchId;
+                    if (branchFilterHeader) {
+                        branchFilterHeader.value = firstBranchId;
+                    }
+                }
+                
+                // ✅ تحسين: تحميل العملاء مباشرة (بدون setTimeout)
+                if (selectedBranchId || firstBranchId) {
+                    await loadCustomers();
+                } else {
+                    console.error('❌ [Customers] لا يمكن تحميل العملاء - لا يوجد فرع محدد');
+                    showMessage('حدث خطأ في تحميل الفروع. يرجى تحديث الصفحة.', 'error');
+                }
+                
+                // ✅ تحسين: تطبيق نوع العميل مباشرة (بدون setTimeout)
+                switchCustomerType(currentCustomerType);
+                
+                // ✅ إخفاء loading overlay بعد اكتمال تحميل جميع البيانات
+                if (typeof hideLoading === 'function') {
+                    hideLoading();
+                } else if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+                    window.loadingOverlay.hide();
+                }
+            } catch (error) {
+                console.error('❌ [Customers] خطأ في تحميل الفروع:', error);
+                showMessage('حدث خطأ في تحميل الفروع. يرجى تحديث الصفحة.', 'error');
+                retailCustomers = [];
+                commercialCustomers = [];
+                allCustomers = [];
+                switchCustomerType(currentCustomerType);
+                
+                if (typeof hideLoading === 'function') {
+                    hideLoading();
+                } else if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+                    window.loadingOverlay.hide();
+                }
+            }
+        })();
+    } else {
+        // ✅ تحسين: مسح selectedBranchId للموظفين
+        selectedBranchId = null;
+        (async () => {
+            try {
+                await loadCustomers();
+                // ✅ تحسين: تطبيق نوع العميل مباشرة (بدون setTimeout)
+                switchCustomerType(currentCustomerType);
+                
+                if (typeof hideLoading === 'function') {
+                    hideLoading();
+                } else if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+                    window.loadingOverlay.hide();
+                }
+            } catch (error) {
+                console.error('❌ [Customers] خطأ في تحميل العملاء:', error);
+                if (typeof hideLoading === 'function') {
+                    hideLoading();
+                } else if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+                    window.loadingOverlay.hide();
+                }
+            }
+        })();
+    }
     
     // Setup search
     const searchInput = document.getElementById('customerSearch');
@@ -116,22 +239,454 @@ function loadCustomersSection() {
             displayCustomers(filtered);
         });
     }
+    
+    // ✅ إخفاء زر التصدير (يظهر فقط للمالك)
+    if (typeof hideByPermission === 'function') {
+        hideByPermission();
+    } else {
+        // التحقق المباشر من نوع المستخدم
+        try {
+            const userStr = localStorage.getItem('currentUser');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                const exportBtn = document.getElementById('exportCustomersBtn');
+                if (exportBtn && user.role !== 'admin') {
+                    exportBtn.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('خطأ في التحقق من صلاحيات المستخدم:', error);
+        }
+    }
+    
 }
 
 async function loadCustomers() {
-    const retailResult = await API.getCustomers('retail');
-    const commercialResult = await API.getCustomers('commercial');
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
     
-    retailCustomers = retailResult.success ? retailResult.data : [];
-    commercialCustomers = commercialResult.success ? commercialResult.data : [];
+    // ✅ تحسين: استخدام selectedBranchId المحفوظ أو قراءته من DOM
+    let branchId = selectedBranchId;
+    if (isOwner) {
+        const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+        if (branchFilterHeader) {
+            // إذا كان هناك قيمة في DOM، نستخدمها ونحدث selectedBranchId
+            if (branchFilterHeader.value) {
+                branchId = branchFilterHeader.value;
+                selectedBranchId = branchId;
+            } else if (selectedBranchId) {
+                // إذا لم تكن هناك قيمة في DOM لكن selectedBranchId موجود، نعيد تطبيقها
+                branchFilterHeader.value = selectedBranchId;
+                branchId = selectedBranchId;
+            } else if (firstBranchId) {
+                // ✅ إذا لم يكن هناك فرع محدد، نستخدم الفرع الأول كافتراضي
+                branchId = firstBranchId;
+                selectedBranchId = branchId;
+                branchFilterHeader.value = branchId;
+            } else {
+                // ✅ إذا لم يكن هناك فروع، لا نعرض عملاء
+                console.warn('⚠️ [Customers] لا توجد فروع متاحة - لا يمكن عرض العملاء');
+                retailCustomers = [];
+                commercialCustomers = [];
+                allCustomers = [];
+                switchCustomerType(currentCustomerType);
+                return;
+            }
+        } else if (firstBranchId) {
+            // ✅ إذا لم يكن العنصر موجوداً لكن firstBranchId موجود، نستخدمه
+            branchId = firstBranchId;
+            selectedBranchId = branchId;
+        } else {
+            console.warn('⚠️ [Customers] لا توجد فروع متاحة - لا يمكن عرض العملاء');
+            retailCustomers = [];
+            commercialCustomers = [];
+            allCustomers = [];
+            switchCustomerType(currentCustomerType);
+            return;
+        }
+    } else {
+        // إذا لم يكن مالك، نمسح selectedBranchId
+        selectedBranchId = null;
+        branchId = null;
+    }
+    
+    // ✅ تحسين: يجب أن يكون branchId محدداً دائماً للمالك
+    if (isOwner && !branchId) {
+        console.warn('⚠️ [Customers] يجب تحديد فرع لعرض العملاء');
+        retailCustomers = [];
+        commercialCustomers = [];
+        allCustomers = [];
+        switchCustomerType(currentCustomerType);
+        return;
+    }
+    
+    // ✅ تحسين: استخدام cache للطلبات (يعمل تلقائياً في API.request)
+    // بناء URL مع branch_id (مطلوب دائماً للمالك)
+    let retailUrl = 'customers.php?type=retail';
+    let commercialUrl = 'customers.php?type=commercial';
+    
+    // ✅ تحسين: إضافة branch_id دائماً للمالك (مطلوب)
+    if (isOwner && branchId) {
+        retailUrl += `&branch_id=${encodeURIComponent(branchId)}`;
+        commercialUrl += `&branch_id=${encodeURIComponent(branchId)}`;
+        console.log('🔍 [Customers] جلب العملاء للفرع:', branchId);
+    } else if (isOwner && !branchId) {
+        // ✅ إذا كان مالك ولم يكن branchId محدداً، لا نجلب العملاء
+        console.warn('⚠️ [Customers] branchId غير محدد للمالك - لا يمكن جلب العملاء');
+        retailCustomers = [];
+        commercialCustomers = [];
+        allCustomers = [];
+        switchCustomerType(currentCustomerType);
+        return;
+    }
+    
+    // تحميل العملاء بشكل متوازي (سيستخدم cache تلقائياً)
+    const [retailResult, commercialResult] = await Promise.all([
+        API.request(retailUrl, 'GET'),
+        API.request(commercialUrl, 'GET')
+    ]);
+    
+    // ✅ تحسين: فلترة العملاء حسب النوع و branch_id معاً
+    let retailData = retailResult.success ? (retailResult.data || []) : [];
+    let commercialData = commercialResult.success ? (commercialResult.data || []) : [];
+    
+    // فلترة حسب النوع أولاً
+    retailCustomers = retailData.filter(c => 
+        (c.customer_type || 'retail') === 'retail'
+    );
+    commercialCustomers = commercialData.filter(c => 
+        (c.customer_type || 'commercial') === 'commercial'
+    );
+    
+    // ✅ تحسين: فلترة إضافية محلية حسب branch_id (مطلوبة دائماً للمالك)
+    if (isOwner && branchId) {
+        const branchIdStr = String(branchId);
+        console.log('🔍 [Customers] فلترة العملاء حسب branch_id:', branchIdStr);
+        console.log('📊 [Customers] قبل الفلترة - retail:', retailCustomers.length, 'commercial:', commercialCustomers.length);
+        
+        retailCustomers = retailCustomers.filter(c => {
+            const customerBranchId = c.branch_id ? String(c.branch_id) : null;
+            const matches = customerBranchId === branchIdStr;
+            if (!matches && customerBranchId) {
+                console.log(`  ⏭️ [Retail] تخطي عميل ${c.id} (branch_id: ${customerBranchId} !== ${branchIdStr})`);
+            }
+            return matches;
+        });
+        
+        commercialCustomers = commercialCustomers.filter(c => {
+            const customerBranchId = c.branch_id ? String(c.branch_id) : null;
+            const matches = customerBranchId === branchIdStr;
+            if (!matches && customerBranchId) {
+                console.log(`  ⏭️ [Commercial] تخطي عميل ${c.id} (branch_id: ${customerBranchId} !== ${branchIdStr})`);
+            }
+            return matches;
+        });
+        
+        console.log('📊 [Customers] بعد الفلترة - retail:', retailCustomers.length, 'commercial:', commercialCustomers.length);
+        
+        // ✅ تحسين: التحقق من أن جميع العملاء المعروضين من الفرع الصحيح
+        const invalidRetail = retailCustomers.filter(c => String(c.branch_id) !== branchIdStr);
+        const invalidCommercial = commercialCustomers.filter(c => String(c.branch_id) !== branchIdStr);
+        
+        if (invalidRetail.length > 0 || invalidCommercial.length > 0) {
+            console.error('❌ [Customers] تحذير: يوجد عملاء من فروع أخرى!', {
+                invalidRetail: invalidRetail.length,
+                invalidCommercial: invalidCommercial.length
+            });
+            // إزالة العملاء غير الصحيحة
+            retailCustomers = retailCustomers.filter(c => String(c.branch_id) === branchIdStr);
+            commercialCustomers = commercialCustomers.filter(c => String(c.branch_id) === branchIdStr);
+        }
+    }
+    
     allCustomers = [...retailCustomers, ...commercialCustomers];
     
+    // ✅ تحسين: التحقق النهائي من أن جميع العملاء من الفرع الصحيح
+    if (isOwner && branchId) {
+        const branchIdStr = String(branchId);
+        const invalidCustomers = allCustomers.filter(c => {
+            const customerBranchId = c.branch_id ? String(c.branch_id) : null;
+            return customerBranchId !== branchIdStr;
+        });
+        
+        if (invalidCustomers.length > 0) {
+            console.error('❌ [Customers] تحذير: يوجد عملاء من فروع أخرى بعد التجميع!', {
+                invalidCount: invalidCustomers.length,
+                expectedBranch: branchIdStr,
+                invalidCustomers: invalidCustomers.map(c => ({ id: c.id, name: c.name, branch_id: c.branch_id }))
+            });
+            // إزالة العملاء غير الصحيحة
+            allCustomers = allCustomers.filter(c => {
+                const customerBranchId = c.branch_id ? String(c.branch_id) : null;
+                return customerBranchId === branchIdStr;
+            });
+            retailCustomers = retailCustomers.filter(c => String(c.branch_id) === branchIdStr);
+            commercialCustomers = commercialCustomers.filter(c => String(c.branch_id) === branchIdStr);
+        }
+        
+        console.log(`✅ [Customers] تم تحميل ${allCustomers.length} عميل من الفرع ${branchIdStr}`);
+    }
+    
+    // ✅ تحسين: إعادة تطبيق قيمة الفرع المحدد على DOM بعد التحميل
+    if (isOwner) {
+        const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+        if (branchFilterHeader) {
+            // ✅ التأكد من أن القيمة المحددة هي branchId الحالي
+            if (branchId) {
+                branchFilterHeader.value = String(branchId);
+                selectedBranchId = String(branchId);
+            } else if (selectedBranchId) {
+                branchFilterHeader.value = selectedBranchId;
+            }
+        }
+    }
+    
+    // استخدام switchCustomerType للتأكد من عرض النوع الصحيح فقط
     switchCustomerType(currentCustomerType);
+}
+
+// ✅ تحسين الأداء: تحميل الفروع بنفس طريقة expenses.js
+async function loadCustomerBranches(force = false) {
+    // ✅ تحسين الأداء: منع التحميل المكرر
+    const now = Date.now();
+    if (isLoadingCustomerBranches && !force) {
+        console.log('⏸️ [Customers] تحميل الفروع قيد التنفيذ بالفعل');
+        return;
+    }
+    if (!force && (now - lastCustomerBranchesLoadTime) < CUSTOMER_MIN_LOAD_INTERVAL) {
+        console.log('⏸️ [Customers] تم تحميل الفروع مؤخراً، تخطي الطلب');
+        return;
+    }
+    
+    // ✅ تحسين الأداء: استخدام cache إذا كان متاحاً
+    if (!force && customerBranches && customerBranches.length > 0) {
+        console.log('✅ [Customers] استخدام الفروع من الكاش');
+        updateCustomerBranchFilters();
+        return;
+    }
+    
+    isLoadingCustomerBranches = true;
+    lastCustomerBranchesLoadTime = now;
+    
+    try {
+        console.log('🔄 [Customers] بدء تحميل الفروع...');
+        // جلب جميع الفروع النشطة
+        const result = await API.request('branches.php', 'GET');
+        console.log('📥 [Customers] استجابة API:', result);
+        
+        if (result && result.success && result.data && Array.isArray(result.data)) {
+            customerBranches = result.data;
+            console.log(`📊 [Customers] تم جلب ${customerBranches.length} فرع من API`);
+            
+            // تحديد الفرع الأول (للاستخدام الافتراضي)
+            if (customerBranches.length > 0) {
+                // ترتيب حسب created_at أو id
+                const sortedBranches = [...customerBranches].sort((a, b) => {
+                    const dateA = new Date(a.created_at || 0);
+                    const dateB = new Date(b.created_at || 0);
+                    if (dateA.getTime() !== dateB.getTime()) {
+                        return dateA.getTime() - dateB.getTime();
+                    }
+                    return (a.id || '').localeCompare(b.id || '');
+                });
+                firstBranchId = sortedBranches[0].id;
+                console.log('✅ [Customers] الفرع الأول:', firstBranchId);
+            }
+            
+            const currentUser = getCurrentUser();
+            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+            
+            // ملء Branch Filter في section-header - ملء الفروع دائماً (سيتم التحقق من isOwner عند العرض)
+            // ✅ تحسين: تقليل retries من 10 إلى 5 وتحسين delay
+            let branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+            let retries = 0;
+            const maxRetries = 5; // ✅ تقليل من 10 إلى 5
+            const retryDelay = 50; // ✅ تقليل من 100ms إلى 50ms
+            
+            // إذا لم يكن العنصر موجوداً، ننتظر قليلاً ثم نحاول مرة أخرى
+            while (!branchFilterHeader && retries < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+                retries++;
+            }
+            
+            if (branchFilterHeader) {
+                console.log('🔍 [Customers] تم العثور على customerBranchFilterHeader في DOM');
+                
+                // ✅ مسح الخيارات الحالية
+                branchFilterHeader.innerHTML = '<option value="">اختر الفرع</option>';
+                
+                if (customerBranches && customerBranches.length > 0) {
+                    // ✅ تحسين: استخدام DocumentFragment لملء القائمة بشكل أسرع
+                    const fragment = document.createDocumentFragment();
+                    customerBranches.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch.id;
+                        option.textContent = branch.name;
+                        fragment.appendChild(option);
+                    });
+                    branchFilterHeader.appendChild(fragment);
+                    console.log(`✅ [Customers] تم تحميل ${customerBranches.length} فرع في customerBranchFilterHeader`);
+                    
+                    // ✅ تحديد الفرع الأول كقيمة افتراضية
+                    if (firstBranchId && !selectedBranchId) {
+                        branchFilterHeader.value = firstBranchId;
+                        selectedBranchId = firstBranchId;
+                        console.log('✅ [Customers] تم تحديد الفرع الأول كقيمة افتراضية:', firstBranchId);
+                    } else if (selectedBranchId) {
+                        branchFilterHeader.value = selectedBranchId;
+                        console.log('✅ [Customers] تم إعادة تطبيق الفرع المحدد:', selectedBranchId);
+                    }
+                }
+                
+                // إعادة تطبيق إعدادات العرض حسب نوع المستخدم
+                if (isOwner) {
+                    branchFilterHeader.style.display = 'block';
+                    branchFilterHeader.style.visibility = 'visible';
+                    branchFilterHeader.style.opacity = '1';
+                } else {
+                    branchFilterHeader.style.display = 'none';
+                }
+            } else {
+                console.error(`❌ [Customers] العنصر customerBranchFilterHeader غير موجود في DOM بعد ${maxRetries} محاولة`);
+                // ✅ تحسين: تقليل delay في المحاولة الأخيرة
+                setTimeout(async () => {
+                    const retryElement = document.getElementById('customerBranchFilterHeader');
+                    if (retryElement && customerBranches && customerBranches.length > 0) {
+                        console.log('🔄 [Customers] محاولة أخيرة لملء customerBranchFilterHeader');
+                        retryElement.innerHTML = '<option value="">اختر الفرع</option>';
+                        const fragment = document.createDocumentFragment();
+                        customerBranches.forEach(branch => {
+                            const option = document.createElement('option');
+                            option.value = branch.id;
+                            option.textContent = branch.name;
+                            fragment.appendChild(option);
+                        });
+                        retryElement.appendChild(fragment);
+                        if (isOwner) {
+                            retryElement.style.display = 'block';
+                        }
+                    }
+                }, 200); // ✅ تقليل من 500ms إلى 200ms
+            }
+            
+            // ملء Branch Select في نموذج إضافة العميل - ملء الفروع دائماً (سيتم التحقق من isOwner عند فتح النموذج)
+            const branchSelect = document.getElementById('customerBranchSelect');
+            if (branchSelect && customerBranches && customerBranches.length > 0) {
+                // حفظ القيمة الحالية إذا كانت موجودة
+                const currentValue = branchSelect.value;
+                branchSelect.innerHTML = '<option value="">اختر الفرع...</option>';
+                
+                // ✅ تحسين: استخدام DocumentFragment
+                const fragment = document.createDocumentFragment();
+                customerBranches.forEach(branch => {
+                    const option = document.createElement('option');
+                    option.value = branch.id;
+                    option.textContent = branch.name;
+                    fragment.appendChild(option);
+                });
+                branchSelect.appendChild(fragment);
+                console.log(`✅ [Customers] تم تحميل ${customerBranches.length} فرع في قائمة customerBranchSelect`);
+                
+                if (currentValue) {
+                    branchSelect.value = currentValue;
+                }
+            } else if (!branchSelect) {
+                // العنصر غير موجود - هذا طبيعي إذا كان النموذج غير مفتوح
+                console.log('ℹ️ [Customers] العنصر customerBranchSelect غير موجود في DOM (قد يكون النموذج غير مفتوح)');
+            }
+        } else {
+            console.warn('⚠️ [Customers] لم يتم العثور على فروع أو البيانات غير صحيحة:', result);
+            // إظهار رسالة خطأ للمستخدم
+            if (result && !result.success) {
+                console.error('❌ [Customers] خطأ من API:', result.message || 'خطأ غير معروف');
+            } else if (!result) {
+                console.error('❌ [Customers] لم يتم الحصول على استجابة من API');
+            } else if (!result.data) {
+                console.error('❌ [Customers] لا توجد بيانات في الاستجابة');
+            } else if (!Array.isArray(result.data)) {
+                console.error('❌ [Customers] البيانات ليست مصفوفة:', typeof result.data, result.data);
+            }
+        }
+    } catch (error) {
+        console.error('❌ [Customers] خطأ في تحميل الفروع:', error);
+        showMessage('حدث خطأ أثناء تحميل الفروع. يرجى المحاولة مرة أخرى.', 'error');
+    } finally {
+        isLoadingCustomerBranches = false;
+    }
+}
+
+// ✅ تحسين الأداء: دالة مساعدة لتحديث فلاتر الفروع من البيانات المحفوظة
+function updateCustomerBranchFilters() {
+    try {
+        console.log('🔄 [Customers] تحديث فلاتر الفروع من الكاش...');
+        const currentUser = getCurrentUser();
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        
+        console.log('📊 [Customers] عدد الفروع في الكاش:', customerBranches?.length || 0);
+        
+        const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+        if (branchFilterHeader) {
+            console.log('🔍 [Customers] تم العثور على customerBranchFilterHeader في updateCustomerBranchFilters');
+            if (customerBranches && customerBranches.length > 0) {
+                const currentValue = branchFilterHeader.value;
+                branchFilterHeader.innerHTML = '<option value="">اختر الفرع</option>';
+                customerBranches.forEach((branch, index) => {
+                    const option = document.createElement('option');
+                    option.value = branch.id;
+                    option.textContent = branch.name;
+                    branchFilterHeader.appendChild(option);
+                    console.log(`  ✅ [${index + 1}] تمت إضافة: ${branch.name} (ID: ${branch.id})`);
+                });
+                if (currentValue) branchFilterHeader.value = currentValue;
+                branchFilterHeader.style.display = isOwner ? 'block' : 'none';
+                console.log(`✅ [Customers] تم تحديث customerBranchFilterHeader بـ ${customerBranches.length} فرع`);
+            } else {
+                console.warn('⚠️ [Customers] لا توجد فروع في الكاش لتحديث الفلاتر');
+            }
+        } else {
+            console.warn('⚠️ [Customers] العنصر customerBranchFilterHeader غير موجود في DOM في updateCustomerBranchFilters');
+        }
+        
+        const branchSelect = document.getElementById('customerBranchSelect');
+        if (branchSelect && customerBranches && customerBranches.length > 0) {
+            const currentValue = branchSelect.value;
+            branchSelect.innerHTML = '<option value="">اختر الفرع...</option>';
+            customerBranches.forEach(branch => {
+                const option = document.createElement('option');
+                option.value = branch.id;
+                option.textContent = branch.name;
+                branchSelect.appendChild(option);
+            });
+            if (currentValue) branchSelect.value = currentValue;
+        }
+    } catch (error) {
+        console.error('❌ [Customers] خطأ في تحديث فلاتر الفروع:', error);
+    }
+}
+
+// تطبيق فلترة الفرع (يتم استدعاؤها تلقائياً عند تغيير القيمة)
+function applyBranchFilter() {
+    const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+    if (branchFilterHeader) {
+        // ✅ حفظ قيمة الفرع المحدد
+        selectedBranchId = branchFilterHeader.value || null;
+        console.log('🔄 [Customers] تغيير فلترة الفرع إلى:', selectedBranchId || 'غير محدد');
+    }
+    loadCustomers();
 }
 
 function switchCustomerType(type) {
     currentCustomerType = type;
+    // حفظ نوع العميل في localStorage
+    localStorage.setItem('currentCustomerType', type);
     currentCustomerPage = 1;
+    
+    // مسح البحث عند تغيير النوع
+    const searchInput = document.getElementById('customerSearch');
+    if (searchInput) {
+        searchInput.value = '';
+    }
     
     // Update tabs
     document.querySelectorAll('.customer-type-tab').forEach(tab => {
@@ -153,13 +708,24 @@ function switchCustomerType(type) {
         shopNameHeader.style.display = type === 'commercial' ? 'table-cell' : 'none';
     }
     
-    // Display customers
+    // Display customers - التأكد من استخدام العملاء الصحيحة فقط
     const customers = type === 'retail' ? retailCustomers : commercialCustomers;
-    displayCustomers(customers);
+    // فلترة إضافية للتأكد من النوع الصحيح
+    const filteredCustomers = customers.filter(c => {
+        // التأكد من أن customer_type يطابق النوع المطلوب
+        return (c.customer_type || 'retail') === type;
+    });
+    displayCustomers(filteredCustomers);
 }
 
 function displayCustomers(customers) {
-    const paginated = paginate(customers, currentCustomerPage, customersPerPage);
+    // فلترة إضافية للتأكد من عرض النوع الصحيح فقط
+    const filteredCustomers = customers.filter(c => {
+        const customerType = c.customer_type || 'retail';
+        return customerType === currentCustomerType;
+    });
+    
+    const paginated = paginate(filteredCustomers, currentCustomerPage, customersPerPage);
     const tbody = document.getElementById('customersTableBody');
     
     if (!tbody) {
@@ -174,6 +740,12 @@ function displayCustomers(customers) {
     }
 
     tbody.innerHTML = paginated.data.map(customer => {
+        // التأكد مرة أخرى من النوع الصحيح
+        const customerType = customer.customer_type || 'retail';
+        if (customerType !== currentCustomerType) {
+            return ''; // تخطي العملاء من النوع الخاطئ
+        }
+        
         const shopNameCell = currentCustomerType === 'commercial' 
             ? `<td>${customer.shop_name || '-'}</td>` 
             : '';
@@ -200,12 +772,10 @@ function displayCustomers(customers) {
                 <button data-action="view-profile" data-customer-id="${escapeHtml(customer.id)}" class="btn btn-sm btn-icon" title="عرض البروفايل" style="background: var(--primary-color); color: var(--white);">
                     <i class="bi bi-eye"></i>
                 </button>
-                <button onclick="editCustomer('${customer.id}')" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
-                <button onclick="deleteCustomer('${customer.id}')" class="btn btn-sm btn-icon" title="حذف" data-permission="manager"><i class="bi bi-trash3"></i></button>
             </td>
         </tr>
     `;
-    }).join('');
+    }).filter(row => row !== '').join(''); // إزالة الصفوف الفارغة
 
     createPaginationButtons(
         document.getElementById('customersPagination'),
@@ -213,7 +783,9 @@ function displayCustomers(customers) {
         currentCustomerPage,
         (page) => {
             currentCustomerPage = page;
-            displayCustomers(allCustomers);
+            // استخدام العملاء المفلترة حسب النوع الحالي
+            const customersToDisplay = currentCustomerType === 'retail' ? retailCustomers : commercialCustomers;
+            displayCustomers(customersToDisplay);
         }
     );
 
@@ -238,12 +810,39 @@ function toggleShopNameField() {
     }
 }
 
-function showAddCustomerModal() {
+async function showAddCustomerModal() {
     document.getElementById('customerModalTitle').textContent = 'إضافة عميل جديد';
     document.getElementById('customerForm').reset();
     document.getElementById('customerId').value = '';
     document.getElementById('custType').value = 'retail';
     toggleShopNameField();
+    
+    // تحميل الفروع إذا لم تكن محملة
+    if (customerBranches.length === 0) {
+        await loadCustomerBranches();
+    }
+    
+    // إظهار/إخفاء حقل الفرع حسب نوع المستخدم
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    const branchGroup = document.getElementById('customerBranchGroup');
+    const branchSelect = document.getElementById('customerBranchSelect');
+    
+    if (branchGroup && branchSelect) {
+        if (isOwner) {
+            branchGroup.style.display = 'block';
+            branchSelect.required = true;
+            // تحديد الفرع الأول كقيمة افتراضية
+            if (firstBranchId) {
+                branchSelect.value = firstBranchId;
+            }
+        } else {
+            branchGroup.style.display = 'none';
+            branchSelect.required = false;
+            branchSelect.value = '';
+        }
+    }
+    
     document.getElementById('customerModal').style.display = 'flex';
 }
 
@@ -279,6 +878,16 @@ async function saveCustomer(event) {
         shop_name: customerType === 'commercial' ? shopName : null
     };
 
+    // إضافة branch_id للمالك فقط
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    if (isOwner) {
+        const branchSelect = document.getElementById('customerBranchSelect');
+        if (branchSelect && branchSelect.value) {
+            customerData.branch_id = branchSelect.value;
+        }
+    }
+
     const customerId = document.getElementById('customerId').value;
     let result;
 
@@ -292,6 +901,13 @@ async function saveCustomer(event) {
     if (result.success) {
         showMessage(result.message);
         closeCustomerModal();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        // إعادة تعيين flag التحميل لإجبار إعادة التحميل
+        if (typeof isLoadingCustomers !== 'undefined') {
+            isLoadingCustomers = false;
+        }
+        
         await loadCustomers();
     } else {
         showMessage(result.message, 'error');
@@ -362,6 +978,33 @@ async function viewCustomerProfile(customerId) {
         // إضافة التقييم للعميل
         customer.average_rating = customerRating.average_rating || 0;
         customer.total_ratings = customerRating.total_ratings || 0;
+        
+        // Load product returns to check which sales have returns
+        let returns = [];
+        try {
+            const returnsResult = await API.getProductReturns();
+            if (returnsResult && returnsResult.success && Array.isArray(returnsResult.data)) {
+                returns = returnsResult.data;
+                console.log('✅ تم جلب ' + returns.length + ' عملية استرجاع');
+            }
+        } catch (error) {
+            console.warn('⚠️ خطأ في جلب المرتجعات:', error);
+            // لا نوقف العملية، فقط نسجل التحذير
+        }
+        
+        // إنشاء خريطة للفواتير المرتجعة (sale_number => true)
+        const returnsMap = {};
+        returns.forEach(ret => {
+            if (ret.sale_number) {
+                returnsMap[ret.sale_number] = true;
+            }
+        });
+        
+        // إضافة معلومات المرتجعات لكل فاتورة
+        sales = sales.map(sale => {
+            sale.hasReturns = returnsMap[sale.sale_number] || false;
+            return sale;
+        });
         
         console.log('🔍 عدد الفواتير المستلمة من API:', sales.length);
         console.log('🔍 بيانات الفواتير:', sales);
@@ -435,15 +1078,49 @@ async function viewCustomerProfile(customerId) {
                 return sum;
             }
         }, 0);
+        
+        // حساب إجمالي الديون للعملاء التجاريين فقط
+        // استخدام total_debt من قاعدة البيانات إذا كان متاحاً، وإلا احسبه من الفواتير
+        const isCommercial = customer.customer_type === 'commercial';
+        let totalDebts = 0;
+        
+        if (isCommercial) {
+            // محاولة استخدام total_debt من قاعدة البيانات أولاً
+            if (customer.total_debt !== undefined && customer.total_debt !== null) {
+                totalDebts = parseFloat(customer.total_debt) || 0;
+            } else {
+                // إذا لم يكن متاحاً، احسبه من الفواتير
+                totalDebts = sales.reduce((sum, sale) => {
+                    try {
+                        const remaining = parseFloat(sale.remaining_amount || 0);
+                        return sum + (isNaN(remaining) ? 0 : remaining);
+                    } catch (error) {
+                        console.warn('خطأ في حساب المتبقي من الفاتورة:', error);
+                        return sum;
+                    }
+                }, 0);
+            }
+        }
     
+        // إغلاق البروفايل السابق إذا كان موجوداً
+        const existingProfileModal = document.querySelector('.customer-profile-modal');
+        if (existingProfileModal) {
+            existingProfileModal.remove();
+        }
+        
         // Create profile modal using CSS classes
         const modal = document.createElement('div');
         modal.className = 'modal customer-profile-modal';
+        modal.id = `customer-profile-${customerId}`;
         
         // Build HTML using DocumentFragment for better performance
         const fragment = document.createDocumentFragment();
         const content = document.createElement('div');
         content.className = 'modal-content customer-profile-content';
+        
+        // التحقق من صلاحية المستخدم (لإظهار زر الحذف)
+        const currentUser = getCurrentUser();
+        const isAdmin = currentUser && currentUser.role === 'admin';
         
         // Build header
         const header = document.createElement('div');
@@ -457,9 +1134,14 @@ async function viewCustomerProfile(customerId) {
                 <button onclick="editCustomer('${customer.id}'); this.closest('.modal').remove();" class="btn-profile-action">
                     <i class="bi bi-pencil-square"></i> تعديل
                 </button>
-                <button onclick="window.print()" class="btn-profile-action">
+                <button onclick="showPrintAccountStatementModal('${customer.id}', '${customer.name}')" class="btn-profile-action">
                     <i class="bi bi-printer"></i> طباعة
                 </button>
+                ${isAdmin ? `
+                <button onclick="deleteCustomerFromProfile('${customer.id}')" class="btn-profile-action" style="background: var(--danger-color); color: var(--white);">
+                    <i class="bi bi-trash"></i> حذف
+                </button>
+                ` : ''}
                 <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
             </div>
         `;
@@ -571,6 +1253,7 @@ async function viewCustomerProfile(customerId) {
         // Statistics Cards
         const statsGrid = document.createElement('div');
         statsGrid.className = 'customer-stats-grid';
+        // بناء statsGrid مع إضافة مربع "إجمالي الديون" للعملاء التجاريين
         statsGrid.innerHTML = `
             <div class="customer-stat-card stat-invoices">
                 <div class="stat-decorative-circle circle-1"></div>
@@ -589,6 +1272,24 @@ async function viewCustomerProfile(customerId) {
                     <span style="font-size: 0.85em; opacity: 0.9;">(ج.م)</span>
                 </div>
             </div>
+            ${isCommercial ? `
+            <div class="customer-stat-card stat-debts">
+                <div class="stat-decorative-circle circle-1"></div>
+                <div class="stat-decorative-circle circle-2"></div>
+                <div class="customer-stat-value">${totalDebts.toFixed(2)}</div>
+                <div class="customer-stat-label">
+                    <i class="bi bi-exclamation-triangle"></i> إجمالي الديون
+                    <span style="font-size: 0.85em; opacity: 0.9;">(ج.م)</span>
+                </div>
+                ${totalDebts > 0 ? `
+                <div style="margin-top: 10px;">
+                    <button onclick="showCollectDebtModal('${customer.id}', ${totalDebts})" class="btn btn-sm" style="background: var(--success-color); color: var(--white); width: 100%;">
+                        <i class="bi bi-cash-coin"></i> تحصيل دين
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+            ` : ''}
         `;
         
         // Sales History Section
@@ -633,12 +1334,14 @@ async function viewCustomerProfile(customerId) {
             
             // Build table header
             const thead = document.createElement('thead');
+            // إضافة عمود "المتبقي" للعملاء التجاريين فقط
+            const isCommercial = customer.customer_type === 'commercial';
             thead.innerHTML = `
                 <tr>
                     <th>رقم الفاتورة</th>
                     <th>التاريخ</th>
-                    <th style="text-align: center;">عدد العناصر</th>
                     <th style="text-align: right;">الإجمالي</th>
+                    ${isCommercial ? '<th style="text-align: right;">المتبقي</th>' : ''}
                     <th style="text-align: center;">الإجراءات</th>
                 </tr>
             `;
@@ -669,6 +1372,7 @@ async function viewCustomerProfile(customerId) {
             window.currentCustomerSales = sales;
             window._originalCustomerSales = sales; // حفظ نسخة أصلية للفلترة
             window.currentCustomerId = customerId;
+            window.currentCustomer = customer; // حفظ بيانات العميل للاستخدام في displaySalesWithPagination
             window.currentSalesPage = 1;
             window.salesPerPage = 5;
             
@@ -791,7 +1495,7 @@ async function viewCustomerProfile(customerId) {
                 // عرض رسالة في الجدول
                 const tbody = document.getElementById('customerSalesTableBody');
                 if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مسجلة لهذا العميل</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مسجلة لهذا العميل</td></tr>';
                 }
                 // مسح pagination
                 const paginationContainer = document.getElementById('customerSalesPagination');
@@ -837,6 +1541,7 @@ async function viewCustomerProfile(customerId) {
 // التأكد من أن الدالة متاحة في النطاق العام
 if (typeof window !== 'undefined') {
     window.viewCustomerProfile = viewCustomerProfile;
+    window.applyBranchFilter = applyBranchFilter;
 }
 
 // Helper function to escape HTML
@@ -936,6 +1641,83 @@ async function viewSaleInvoice(saleId) {
 
 // دالة لطباعة الفاتورة مباشرة في نفس الصفحة
 function printInvoiceDirectly(saleData) {
+    // استخدام النظام الجديد - فتح الفاتورة من API
+    if (saleData && saleData.id) {
+        const saleId = saleData.id;
+        const invoiceUrl = `api/invoice-view.php?sale_id=${encodeURIComponent(saleId)}`;
+        
+        // فتح الفاتورة في نافذة جديدة مع اسم محدد لسهولة الإغلاق
+        // استخدام نفس الاسم للنافذة لضمان إغلاق النافذة القديمة إذا كانت مفتوحة
+        const windowName = 'invoice_print_window';
+        const printWindow = window.open(invoiceUrl, windowName, 'width=800,height=600,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
+        
+        if (!printWindow) {
+            showMessage('يرجى السماح بالنوافذ المنبثقة لطباعة الفاتورة', 'error');
+            return;
+        }
+        
+        // حفظ مرجع النافذة للاستخدام لاحقاً
+        window.currentInvoiceWindow = printWindow;
+        
+        // التأكد من أن النافذة مفتوحة بشكل صحيح
+        try {
+            printWindow.focus();
+        } catch (e) {
+            console.debug('لا يمكن التركيز على النافذة:', e);
+        }
+        
+        // انتظار تحميل الصفحة ثم طباعتها
+        const checkLoad = setInterval(() => {
+            try {
+                if (printWindow.closed) {
+                    clearInterval(checkLoad);
+                    window.currentInvoiceWindow = null;
+                    return;
+                }
+                
+                // التحقق من تحميل الصفحة
+                if (printWindow.document && printWindow.document.readyState === 'complete') {
+                    clearInterval(checkLoad);
+                    setTimeout(() => {
+                        try {
+                            if (!printWindow.closed) {
+                                printWindow.print();
+                            }
+                        } catch (e) {
+                            console.debug('خطأ في الطباعة:', e);
+                        }
+                    }, 500);
+                }
+            } catch (e) {
+                // إذا كان هناك خطأ في الوصول للنافذة (CORS أو إغلاقها)
+                clearInterval(checkLoad);
+                console.debug('لا يمكن الوصول للنافذة:', e);
+            }
+        }, 100);
+        
+        // timeout أقصى (10 ثواني) للتأكد من عدم الانتظار إلى ما لا نهاية
+        setTimeout(() => {
+            clearInterval(checkLoad);
+        }, 10000);
+        
+        // معالجة إغلاق النافذة
+        const checkWindowClosed = setInterval(() => {
+            try {
+                if (printWindow.closed) {
+                    clearInterval(checkWindowClosed);
+                    window.currentInvoiceWindow = null;
+                }
+            } catch (e) {
+                // إذا كان هناك خطأ، النافذة مغلقة على الأرجح
+                clearInterval(checkWindowClosed);
+                window.currentInvoiceWindow = null;
+            }
+        }, 500);
+        
+        return;
+    }
+    
+    // Fallback للطريقة القديمة (إذا لم تكن البيانات متوفرة)
     const shopSettings = window.shopSettings || {};
     const shopName = shopSettings.shop_name || 'المتجر';
     const shopPhone = shopSettings.shop_phone || '';
@@ -1413,7 +2195,14 @@ async function deleteCustomer(id) {
     const result = await API.deleteCustomer(id);
     if (result.success) {
         showMessage(result.message);
-        loadCustomers();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        // إعادة تعيين flag التحميل لإجبار إعادة التحميل
+        if (typeof isLoadingCustomers !== 'undefined') {
+            isLoadingCustomers = false;
+        }
+        
+        await loadCustomers();
     } else {
         showMessage(result.message, 'error');
     }
@@ -1421,6 +2210,22 @@ async function deleteCustomer(id) {
 
 // دالة تصدير بيانات العملاء إلى CSV
 function exportCustomersToCSV() {
+    // ✅ التحقق من الصلاحيات - فقط للمالك
+    try {
+        const userStr = localStorage.getItem('currentUser');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            if (user.role !== 'admin') {
+                showMessage('ليس لديك صلاحية لتصدير بيانات العملاء', 'error');
+                return;
+            }
+        }
+    } catch (error) {
+        console.error('خطأ في التحقق من الصلاحيات:', error);
+        showMessage('خطأ في التحقق من الصلاحيات', 'error');
+        return;
+    }
+    
     if (!allCustomers || allCustomers.length === 0) {
         showMessage('لا توجد بيانات عملاء للتصدير', 'warning');
         return;
@@ -1442,20 +2247,14 @@ function exportCustomersToCSV() {
 
 // إعداد بيانات العملاء للتصدير
 function prepareCustomersCSVData() {
-    // رؤوس الأعمدة
-    const headers = ['اسم العميل', 'رقم الهاتف', 'العنوان', 'تاريخ الإضافة', 'عدد العمليات'];
+    // رؤوس الأعمدة - فقط الاسم ورقم الهاتف (قابل للاستيراد على الهاتف)
+    const headers = ['الاسم', 'رقم الهاتف'];
     
-    // البيانات
+    // البيانات - فقط الاسم ورقم الهاتف
     const rows = allCustomers.map(customer => {
-        // حساب عدد العمليات لكل عميل
-        const operationsCount = getCustomerOperationsCount(customer.id);
-        
         return [
             customer.name || '',
-            customer.phone || '',
-            customer.address || '',
-            formatDate(customer.created_at) || '',
-            operationsCount.toString()
+            customer.phone || ''
         ];
     });
     
@@ -1549,6 +2348,746 @@ async function saveCustomerNotes(customerId) {
     }
 }
 
+// حذف العميل من البروفايل
+async function deleteCustomerFromProfile(id) {
+    try {
+        const currentUser = getCurrentUser();
+        if (!currentUser || currentUser.role !== 'admin') {
+            showMessage('ليس لديك صلاحية لحذف العملاء', 'error');
+            return;
+        }
+
+        if (!confirmAction('هل أنت متأكد من حذف هذا العميل؟ سيتم حذف جميع بياناته بما في ذلك الفواتير المرتبطة به.')) return;
+
+        const result = await API.deleteCustomer(id);
+        if (result && result.success) {
+            showMessage('تم حذف العميل بنجاح', 'success');
+            // إغلاق modal البروفايل
+            const profileModal = document.querySelector('.customer-profile-modal');
+            if (profileModal) {
+                profileModal.remove();
+            }
+            
+            // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+            // إعادة تعيين flag التحميل لإجبار إعادة التحميل
+            if (typeof isLoadingCustomers !== 'undefined') {
+                isLoadingCustomers = false;
+            }
+            
+            // إعادة تحميل قائمة العملاء
+            await loadCustomers();
+        } else {
+            showMessage(result?.message || 'فشل حذف العميل', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في حذف العميل:', error);
+        showMessage('حدث خطأ أثناء حذف العميل', 'error');
+    }
+}
+
+// عرض modal طباعة كشف حساب
+function showPrintAccountStatementModal(customerId, customerName) {
+    // التحقق من أن customerId موجود وصحيح
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || String(customerId).trim() === '') {
+        console.error('showPrintAccountStatementModal: customerId is missing or invalid:', customerId);
+        showMessage('معرف العميل غير صحيح', 'error');
+        return;
+    }
+    
+    // إغلاق بروفايل العميل قبل فتح نموذج الطباعة
+    const profileModal = document.querySelector('.customer-profile-modal');
+    if (profileModal) {
+        profileModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '20000';
+    
+    // حفظ customerId و customerName في data attributes للـ modal
+    modal.setAttribute('data-customer-id', String(customerId));
+    modal.setAttribute('data-customer-name', String(customerName));
+    
+    // تعيين التاريخ الافتراضي (آخر 30 يوم)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    const defaultStartDate = startDate.toISOString().split('T')[0];
+    const defaultEndDate = endDate.toISOString().split('T')[0];
+    
+    modal.innerHTML = `
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="bi bi-printer"></i> طباعة كشف حساب</h3>
+                <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
+            </div>
+            <form id="printStatementForm" onsubmit="savePrintAccountStatement(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>اسم العميل:</label>
+                        <div style="font-size: 1.2em; font-weight: 700; color: var(--primary-color); padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center; margin-bottom: 20px;">
+                            ${escapeHtml(customerName)}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="statementStartDate">من تاريخ <span style="color: var(--danger-color);">*</span>:</label>
+                        <input type="date" 
+                               id="statementStartDate" 
+                               class="form-control" 
+                               value="${defaultStartDate}"
+                               max="${defaultEndDate}"
+                               required
+                               onchange="validateStatementDates()"
+                               style="width: 100%; padding: 12px; font-size: 1em; border: 2px solid var(--border-color); border-radius: 8px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="statementEndDate">إلى تاريخ <span style="color: var(--danger-color);">*</span>:</label>
+                        <input type="date" 
+                               id="statementEndDate" 
+                               class="form-control" 
+                               value="${defaultEndDate}"
+                               max="${defaultEndDate}"
+                               required
+                               onchange="validateStatementDates()"
+                               style="width: 100%; padding: 12px; font-size: 1em; border: 2px solid var(--border-color); border-radius: 8px;">
+                    </div>
+                    <div style="background: var(--light-bg); padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 0.9em; color: var(--text-light); border: 1px solid var(--border-color);">
+                        <i class="bi bi-info-circle"></i> سيتم طباعة جميع مشتريات العميل خلال الفترة المحددة
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="this.closest('.modal').remove()" class="btn btn-secondary">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" style="background: var(--primary-color);">
+                        <i class="bi bi-printer"></i> طباعة
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // التركيز على حقل تاريخ البداية
+    setTimeout(() => {
+        const startDateInput = modal.querySelector('#statementStartDate');
+        if (startDateInput) {
+            startDateInput.focus();
+        }
+    }, 100);
+    
+    // إغلاق عند الضغط خارج الـ modal
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+// التحقق من صحة التواريخ في نموذج كشف الحساب
+function validateStatementDates() {
+    const startDateInput = document.getElementById('statementStartDate');
+    const endDateInput = document.getElementById('statementEndDate');
+    
+    if (!startDateInput || !endDateInput) return;
+    
+    const startDate = new Date(startDateInput.value);
+    const endDate = new Date(endDateInput.value);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    // التأكد من أن تاريخ البداية لا يتجاوز تاريخ النهاية
+    if (startDateInput.value && endDateInput.value && startDate > endDate) {
+        endDateInput.value = startDateInput.value;
+    }
+    
+    // التأكد من أن تاريخ النهاية لا يسبق تاريخ البداية
+    if (startDateInput.value && endDateInput.value && endDate < startDate) {
+        startDateInput.value = endDateInput.value;
+    }
+    
+    // التأكد من أن التواريخ لا تتجاوز اليوم
+    if (startDate > today) {
+        startDateInput.value = today.toISOString().split('T')[0];
+    }
+    if (endDate > today) {
+        endDateInput.value = today.toISOString().split('T')[0];
+    }
+}
+
+// حفظ وطباعة كشف الحساب
+async function savePrintAccountStatement(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const modal = form.closest('.modal');
+    if (!modal) {
+        console.error('savePrintAccountStatement: modal not found');
+        showMessage('لم يتم العثور على النموذج', 'error');
+        return;
+    }
+    
+    const customerId = modal.getAttribute('data-customer-id');
+    const customerName = modal.getAttribute('data-customer-name');
+    
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || customerId.trim() === '') {
+        console.error('savePrintAccountStatement: customerId is invalid:', customerId);
+        showMessage('معرف العميل غير صحيح', 'error');
+        return;
+    }
+    
+    const startDateInput = form.querySelector('#statementStartDate');
+    const endDateInput = form.querySelector('#statementEndDate');
+    
+    if (!startDateInput || !endDateInput) {
+        showMessage('حقول التاريخ غير موجودة', 'error');
+        return;
+    }
+    
+    const startDate = startDateInput.value;
+    const endDate = endDateInput.value;
+    
+    if (!startDate || !endDate) {
+        showMessage('يرجى تحديد تاريخ البداية والنهاية', 'error');
+        return;
+    }
+    
+    if (startDate > endDate) {
+        showMessage('تاريخ البداية يجب أن يكون قبل تاريخ النهاية', 'error');
+        return;
+    }
+    
+    try {
+        // إظهار حالة التحميل
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري التحضير...';
+        
+        // جلب بيانات العميل الكاملة للحصول على customer_type
+        // محاولة البحث في قائمة العملاء المحملة أولاً
+        let customerData = null;
+        
+        // البحث في allCustomers
+        if (typeof allCustomers !== 'undefined' && Array.isArray(allCustomers)) {
+            customerData = allCustomers.find(c => c.id === customerId);
+        }
+        
+        // إذا لم يتم العثور، جرب window.currentCustomer
+        if (!customerData && window.currentCustomer && window.currentCustomer.id === customerId) {
+            customerData = window.currentCustomer;
+        }
+        
+        // إذا لم يتم العثور، جرب جلب جميع العملاء والبحث
+        if (!customerData) {
+            try {
+                const customerResult = await API.request('customers.php', 'GET');
+                if (customerResult && customerResult.success && customerResult.data) {
+                    const customers = Array.isArray(customerResult.data) ? customerResult.data : [];
+                    customerData = customers.find(c => c.id === customerId);
+                }
+            } catch (error) {
+                console.error('Error fetching customer data:', error);
+            }
+        }
+        
+        const customerType = customerData?.customer_type || 'retail';
+        const customerPhone = customerData?.phone || '';
+        const customerAddress = customerData?.address || '';
+        const customerShopName = customerData?.shop_name || '';
+        
+        // Debug: التأكد من نوع العميل (يمكن إزالة هذا في الإنتاج)
+        if (window.DEBUG_MODE) {
+            console.log('Customer Data:', customerData);
+            console.log('Customer Type:', customerType, 'isRetail:', customerType === 'retail');
+        }
+        
+        // جلب مبيعات العميل خلال الفترة المحددة
+        const salesResult = await API.getCustomerSales(customerId);
+        
+        if (!salesResult || !salesResult.success) {
+            showMessage('فشل جلب بيانات المبيعات', 'error');
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+            return;
+        }
+        
+        // فلترة المبيعات حسب الفترة الزمنية
+        const sales = (salesResult.data || []).filter(sale => {
+            const saleDate = new Date(sale.created_at);
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // نهاية اليوم
+            
+            return saleDate >= start && saleDate <= end;
+        });
+        
+        if (sales.length === 0) {
+            showMessage('لا توجد مشتريات للعميل خلال الفترة المحددة', 'warning');
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+            return;
+        }
+        
+        // حساب الإجماليات
+        const totalAmount = sales.reduce((sum, sale) => sum + parseFloat(sale.final_amount || sale.total_amount || 0), 0);
+        const totalPaid = sales.reduce((sum, sale) => sum + parseFloat(sale.paid_amount || sale.final_amount || 0), 0);
+        const totalRemaining = sales.reduce((sum, sale) => sum + parseFloat(sale.remaining_amount || 0), 0);
+        
+        // حساب إجمالي التحصيلات من الديون (للعملاء التجاريين فقط)
+        // التحصيلات = إجمالي المتبقي من جميع الفواتير - إجمالي الدين الحالي
+        let totalCollections = 0;
+        let currentTotalDebt = 0;
+        
+        if (customerType === 'commercial' && customerData) {
+            // جلب إجمالي المتبقي من جميع فواتير العميل (ليس فقط في الفترة)
+            try {
+                const allSalesResult = await API.getCustomerSales(customerId);
+                if (allSalesResult && allSalesResult.success && allSalesResult.data) {
+                    const allSalesRemaining = allSalesResult.data.reduce((sum, sale) => {
+                        return sum + parseFloat(sale.remaining_amount || 0);
+                    }, 0);
+                    
+                    // إجمالي الدين الحالي من قاعدة البيانات
+                    currentTotalDebt = parseFloat(customerData.total_debt || 0);
+                    
+                    // إجمالي التحصيلات = إجمالي المتبقي من جميع الفواتير - إجمالي الدين الحالي
+                    totalCollections = Math.max(0, allSalesRemaining - currentTotalDebt);
+                }
+            } catch (error) {
+                console.error('خطأ في حساب التحصيلات:', error);
+            }
+        }
+        
+        // إغلاق الـ modal
+        modal.remove();
+        
+        // طباعة كشف الحساب
+        printAccountStatementWindow(customerId, customerName, customerType, customerPhone, customerAddress, customerShopName, sales, startDate, endDate, totalAmount, totalPaid, totalRemaining, totalCollections, currentTotalDebt);
+        
+    } catch (error) {
+        console.error('خطأ في طباعة كشف الحساب:', error);
+        showMessage('حدث خطأ أثناء طباعة كشف الحساب', 'error');
+        
+        // إعادة تفعيل الزر
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="bi bi-printer"></i> طباعة';
+        }
+    }
+}
+
+
+// طباعة كشف الحساب في نافذة جديدة
+function printAccountStatementWindow(customerId, customerName, customerType, customerPhone, customerAddress, customerShopName, sales, startDate, endDate, totalAmount, totalPaid, totalRemaining, totalCollections = 0, currentTotalDebt = 0) {
+    try {
+        const printWindow = window.open('about:blank', '_blank', 'width=1000,height=800');
+        
+        if (!printWindow) {
+            showMessage('يرجى السماح بفتح النوافذ المنبثقة للطباعة', 'error');
+            return;
+        }
+        
+        // جلب إعدادات المتجر
+        const shopSettings = window.shopSettings || {};
+        const shopName = shopSettings.shop_name || 'المتجر';
+        const shopPhone = shopSettings.shop_phone || '';
+        const shopAddress = shopSettings.shop_address || '';
+        const currency = shopSettings.currency || 'ج.م';
+        
+        // تنسيق التواريخ مسبقاً
+        const formattedStartDate = formatDate(startDate);
+        const formattedEndDate = formatDate(endDate);
+        
+        // Escape جميع القيم النصية قبل بناء HTML
+        const safeShopAddress = shopAddress ? escapeHtml(shopAddress) : '';
+        const safeShopPhone = shopPhone ? escapeHtml(shopPhone) : '';
+        const safeCustomerName = escapeHtml(customerName);
+        const safeCustomerId = escapeHtml(String(customerId));
+        const safeCustomerPhone = customerPhone ? escapeHtml(customerPhone) : '';
+        const safeCustomerAddress = customerAddress ? escapeHtml(customerAddress) : '';
+        const safeCustomerShopName = customerShopName ? escapeHtml(customerShopName) : '';
+        
+        // تحديد إذا كان عميل محل (retail) - يجب إخفاء أعمدة المدفوع والمتبقي
+        const isRetailCustomer = customerType === 'retail';
+        
+        // حساب إجمالي المتبقي بعد التحصيلات (للعملاء التجاريين فقط)
+        const totalRemainingAfterCollections = isRetailCustomer ? totalRemaining : Math.max(0, currentTotalDebt);
+        
+        // Debug: التأكد من نوع العميل في دالة الطباعة (يمكن إزالة هذا في الإنتاج)
+        if (window.DEBUG_MODE) {
+            console.log('Print Statement - Customer Type:', customerType, 'isRetail:', isRetailCustomer);
+            console.log('Collections:', totalCollections, 'Current Debt:', currentTotalDebt, 'Remaining After:', totalRemainingAfterCollections);
+        }
+        
+        // تنسيق بيانات المبيعات مسبقاً
+        const formattedSales = sales.map((sale, index) => {
+            const saleNumber = sale.sale_number || sale.id || 'غير محدد';
+            const saleDate = formatDate(sale.created_at);
+            const finalAmount = parseFloat(sale.final_amount || sale.total_amount || 0);
+            const paidAmount = parseFloat(sale.paid_amount || sale.final_amount || 0);
+            const remainingAmount = parseFloat(sale.remaining_amount || 0);
+            
+            return {
+                index: index + 1,
+                saleNumber: escapeHtml(String(saleNumber)),
+                saleDate: saleDate,
+                finalAmount: finalAmount.toFixed(2),
+                paidAmount: paidAmount.toFixed(2),
+                remainingAmount: remainingAmount.toFixed(2),
+                remainingColor: remainingAmount > 0 ? '#ff9800' : '#4CAF50'
+            };
+        });
+        
+        // بناء HTML لكشف الحساب
+        const statementHtml = `
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>كشف حساب - ${safeCustomerName}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
+                
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 0;
+                    background: #fff;
+                    color: #333;
+                    line-height: 1.6;
+                    margin: 0;
+                    width: 80mm;
+                    max-width: 80mm;
+                }
+                
+                .statement-container {
+                    width: 80mm !important;
+                    max-width: 80mm !important;
+                    margin: 0 auto;
+                    background: white;
+                    padding: 8px 4px;
+                    border: none;
+                    box-sizing: border-box;
+                    overflow: visible;
+                    height: auto;
+                    min-height: auto;
+                }
+                
+                .statement-header {
+                    text-align: center;
+                    margin-bottom: 10px;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid #333;
+                }
+                
+                .statement-header h1 {
+                    display: none;
+                }
+                
+                .statement-header h2 {
+                    font-size: 1.2em;
+                    color: #333;
+                    margin-bottom: 8px;
+                    font-weight: 700;
+                }
+                
+                .statement-info {
+                    display: block;
+                    margin-bottom: 10px;
+                    padding: 8px;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                }
+                
+                .statement-info-section {
+                    margin-bottom: 8px;
+                    padding-bottom: 6px;
+                    border-bottom: 1px solid #e0e0e0;
+                }
+                
+                .statement-info-section:last-child {
+                    margin-bottom: 0;
+                    border-bottom: none;
+                    padding-bottom: 0;
+                }
+                
+                .statement-info-section h3 {
+                    color: #333;
+                    margin-bottom: 6px;
+                    font-size: 0.85em;
+                    font-weight: 700;
+                    text-align: right;
+                }
+                
+                .statement-info-section p {
+                    margin: 4px 0;
+                    color: #333;
+                    font-size: 0.7em;
+                    line-height: 1.5;
+                    text-align: right;
+                    word-wrap: break-word;
+                }
+                
+                .statement-info-section p strong {
+                    display: inline-block;
+                    min-width: 60px;
+                    color: #555;
+                }
+                
+                .statement-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 10px;
+                    font-size: 0.65em;
+                    table-layout: fixed;
+                }
+                
+                .statement-table thead {
+                    background: #f5f5f5;
+                    color: #333;
+                }
+                
+                .statement-table th {
+                    padding: 2px 1px;
+                    text-align: right;
+                    font-weight: 700;
+                    font-size: 0.65em;
+                    border: 1px solid #ddd;
+                    word-wrap: break-word;
+                }
+                
+                .statement-table td {
+                    padding: 2px 1px;
+                    border: 1px solid #ddd;
+                    text-align: right;
+                    font-size: 0.65em;
+                    word-wrap: break-word;
+                    line-height: 1.2;
+                }
+                
+                .statement-table tbody tr:hover {
+                    background: #f8f9fa;
+                }
+                
+                .statement-table th.hide-column,
+                .statement-table td.hide-column {
+                    display: none;
+                }
+                
+                .statement-summary {
+                    margin-top: 10px;
+                    padding: 8px;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                }
+                
+                .statement-summary-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 5px;
+                    font-size: 0.75em;
+                }
+                
+                .statement-summary-row.hide-row {
+                    display: none;
+                }
+                
+                .statement-total {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 3px solid var(--primary-color, #2196F3);
+                    font-size: 1.4em;
+                    font-weight: 800;
+                    color: var(--primary-color, #2196F3);
+                }
+                
+                .statement-footer {
+                    text-align: center;
+                    margin-top: 10px;
+                    padding-top: 10px;
+                    border-top: 1px solid #ddd;
+                    color: #666;
+                    font-size: 0.7em;
+                }
+                
+                @media print {
+                    @page {
+                        margin: 0 !important;
+                        size: 80mm auto !important;
+                    }
+                    
+                    html, body {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        background: white !important;
+                        width: 80mm !important;
+                        max-width: 80mm !important;
+                        overflow: visible !important;
+                        height: auto !important;
+                        min-height: auto !important;
+                    }
+                    
+                    .statement-container {
+                        width: 80mm !important;
+                        max-width: 80mm !important;
+                        border: none !important;
+                        padding: 8px 4px !important;
+                        box-shadow: none !important;
+                        margin: 0 auto !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                        overflow: visible !important;
+                        height: auto !important;
+                        min-height: auto !important;
+                        position: static !important;
+                        box-sizing: border-box !important;
+                    }
+                    
+                    .statement-container > * {
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
+                    
+                    .statement-container * {
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="statement-container">
+                <div class="statement-header">
+                    <h2>كشف حساب</h2>
+                </div>
+                
+                <div class="statement-info">
+                    <div class="statement-info-section">
+                        <h3>بيانات العميل</h3>
+                        <p><strong>الاسم:</strong> ${safeCustomerName}</p>
+                        ${safeCustomerPhone ? `<p><strong>الهاتف:</strong> ${safeCustomerPhone}</p>` : ''}
+                        ${safeCustomerAddress ? `<p><strong>العنوان:</strong> ${safeCustomerAddress}</p>` : ''}
+                        ${safeCustomerShopName ? `<p><strong>اسم المحل:</strong> ${safeCustomerShopName}</p>` : ''}
+                        ${safeCustomerId ? `<p><strong>معرف العميل:</strong> ${safeCustomerId}</p>` : ''}
+                    </div>
+                    <div class="statement-info-section">
+                        <h3>الفترة الزمنية</h3>
+                        <p><strong>من:</strong> ${formattedStartDate}</p>
+                        <p><strong>إلى:</strong> ${formattedEndDate}</p>
+                    </div>
+                </div>
+                
+                <table class="statement-table">
+                    <thead>
+                        <tr>
+                            <th style="width: ${isRetailCustomer ? '10%' : '8%'}; text-align: center;">#</th>
+                            <th style="width: ${isRetailCustomer ? '35%' : '25%'}; text-align: right;">رقم الفاتورة</th>
+                            <th style="width: ${isRetailCustomer ? '25%' : '17%'}; text-align: center;">التاريخ</th>
+                            <th style="width: ${isRetailCustomer ? '30%' : '20%'}; text-align: right;">الإجمالي</th>
+                            ${!isRetailCustomer ? `
+                            <th style="width: 15%; text-align: right;">المدفوع</th>
+                            <th style="width: 15%; text-align: right;">المتبقي</th>
+                            ` : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${formattedSales.map(sale => `
+                            <tr>
+                                <td>${sale.index}</td>
+                                <td>${sale.saleNumber}</td>
+                                <td>${sale.saleDate}</td>
+                                <td>${sale.finalAmount} ${currency}</td>
+                                ${!isRetailCustomer ? `
+                                <td>${sale.paidAmount} ${currency}</td>
+                                <td style="color: ${sale.remainingColor};">
+                                    ${sale.remainingAmount} ${currency}
+                                </td>
+                                ` : ''}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div class="statement-summary">
+                    <div class="statement-summary-row">
+                        <span>عدد الفواتير:</span>
+                        <strong>${sales.length}</strong>
+                    </div>
+                    <div class="statement-summary-row">
+                        <span>إجمالي المشتريات:</span>
+                        <strong>${totalAmount.toFixed(2)} ${currency}</strong>
+                    </div>
+                    ${!isRetailCustomer ? `
+                    <div class="statement-summary-row">
+                        <span>إجمالي المدفوع:</span>
+                        <strong>${totalPaid.toFixed(2)} ${currency}</strong>
+                    </div>
+                    <div class="statement-summary-row" style="color: #ff9800;">
+                        <span>إجمالي المتبقي:</span>
+                        <strong>${totalRemaining.toFixed(2)} ${currency}</strong>
+                    </div>
+                    <div class="statement-summary-row" style="color: #4CAF50;">
+                        <span>إجمالي التحصيلات من الديون:</span>
+                        <strong>${totalCollections.toFixed(2)} ${currency}</strong>
+                    </div>
+                    <div class="statement-summary-row" style="color: #2196F3; font-weight: 700; border-top: 1px solid #ddd; padding-top: 5px; margin-top: 5px;">
+                        <span>إجمالي المتبقي بعد التحصيلات:</span>
+                        <strong>${totalRemainingAfterCollections.toFixed(2)} ${currency}</strong>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="statement-footer">
+                    <p>تم إنشاء هذا الكشف في: ${new Date().toLocaleString('ar-EG')}</p>
+                    <p>شكراً لتعاملكم معنا</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+        
+        // كتابة HTML في نافذة الطباعة
+        printWindow.document.write(statementHtml);
+        printWindow.document.close();
+        
+        // انتظار تحميل الصفحة ثم الطباعة
+        // استخدام setTimeout بدلاً من onload لأن document.write() لا يطلق onload بشكل موثوق
+        setTimeout(() => {
+            try {
+                // التأكد من أن النافذة لا تزال مفتوحة
+                if (printWindow && !printWindow.closed) {
+                    printWindow.focus();
+                    printWindow.print();
+                }
+            } catch (error) {
+                console.error('خطأ في الطباعة:', error);
+                showMessage('حدث خطأ أثناء الطباعة. يرجى المحاولة مرة أخرى.', 'error');
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error('خطأ في طباعة كشف الحساب:', error);
+        showMessage('حدث خطأ أثناء طباعة كشف الحساب', 'error');
+    }
+}
+
 // عرض modal تعديل التقييم
 function showEditRatingModal(customerId, currentRating) {
     // التحقق من أن customerId موجود وصحيح
@@ -1568,32 +3107,60 @@ function showEditRatingModal(customerId, currentRating) {
     modal.setAttribute('data-customer-id', String(customerId));
     
     modal.innerHTML = `
-        <div class="modal-content modal-sm">
-            <div class="modal-header">
-                <h3><i class="bi bi-star"></i> تعديل التقييم التراكمي</h3>
-                <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 20px; color: var(--text-light);">اختر التقييم الجديد للعميل (من 1 إلى 5 نجوم):</p>
-                <div id="ratingStarsContainer" style="display: flex; justify-content: center; gap: 10px; font-size: 40px; margin: 20px 0;">
-                    ${[1, 2, 3, 4, 5].map(star => `
-                        <i class="bi bi-star${star <= Math.round(currentRating) ? '-fill' : ''}" 
-                           data-rating="${star}" 
-                           onclick="selectRatingStar(this, ${star})"
-                           style="cursor: pointer; color: ${star <= Math.round(currentRating) ? 'var(--warning-color)' : 'var(--border-color)'}; transition: all 0.2s;"
-                           onmouseover="highlightRatingStars(this, ${star})"
-                           onmouseout="resetRatingStars(this, ${Math.round(currentRating)})"></i>
-                    `).join('')}
+        <div class="modal-overlay" onclick="this.closest('.modal').remove()"></div>
+        <div class="modal-content rating-edit-modal" style="max-width: 520px; animation: slideDown 0.3s ease-out;">
+            <div class="rating-modal-header">
+                <div class="rating-icon-wrapper">
+                    <i class="bi bi-star-fill"></i>
                 </div>
-                <input type="hidden" id="selectedRating" value="${Math.round(currentRating)}">
-                <p style="text-align: center; color: var(--text-light); font-size: 14px;">
-                    التقييم المحدد: <strong id="ratingText">${Math.round(currentRating)} / 5</strong>
-                </p>
+                <h3>تعديل التقييم التراكمي</h3>
+                <button onclick="this.closest('.modal').remove()" class="modal-close" title="إغلاق">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
-            <div class="modal-footer">
-                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">إلغاء</button>
-                <button onclick="saveCustomerRatingUpdateFromModal(this)" class="btn btn-primary">
-                    <i class="bi bi-save"></i> حفظ
+            <div class="rating-modal-body">
+                <div class="rating-info-section">
+                    <p class="rating-description">
+                        <i class="bi bi-info-circle"></i>
+                        اختر التقييم الجديد للعميل (من 1 إلى 5 نجوم)
+                    </p>
+                    <div class="current-rating-display">
+                        <span class="current-label">التقييم الحالي:</span>
+                        <span class="current-value">${currentRating > 0 ? currentRating.toFixed(1) : 'غير محدد'}</span>
+                    </div>
+                </div>
+                <div class="rating-stars-section">
+                    <div id="ratingStarsContainer" class="rating-stars-container">
+                        ${[1, 2, 3, 4, 5].map(star => `
+                            <div class="star-wrapper" data-rating="${star}">
+                                <i class="bi bi-star${star <= Math.round(currentRating) ? '-fill' : ''}" 
+                                   data-rating="${star}" 
+                                   onclick="selectRatingStar(this, ${star})"
+                                   onmouseover="highlightRatingStars(this, ${star})"
+                                   onmouseout="resetRatingStars(this, ${Math.round(currentRating)})"></i>
+                                <span class="star-number">${star}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <input type="hidden" id="selectedRating" value="${Math.round(currentRating)}">
+                    <div class="selected-rating-display">
+                        <div class="rating-badge">
+                            <i class="bi bi-star-fill"></i>
+                            <span id="ratingText">${Math.round(currentRating)}</span>
+                            <span class="rating-max">/ 5</span>
+                        </div>
+                        <p class="rating-label">التقييم المحدد</p>
+                    </div>
+                </div>
+            </div>
+            <div class="rating-modal-footer">
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary btn-cancel-rating">
+                    <i class="bi bi-x-circle"></i>
+                    <span>إلغاء</span>
+                </button>
+                <button onclick="saveCustomerRatingUpdateFromModal(this)" class="btn btn-primary btn-save-rating">
+                    <i class="bi bi-check-circle"></i>
+                    <span>حفظ التقييم</span>
                 </button>
             </div>
         </div>
@@ -1609,15 +3176,219 @@ function showEditRatingModal(customerId, currentRating) {
     });
 }
 
+// دالة لعرض modal تحصيل الدين
+function showCollectDebtModal(customerId, totalDebts) {
+    // التحقق من أن customerId موجود وصحيح
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || String(customerId).trim() === '') {
+        console.error('showCollectDebtModal: customerId is missing or invalid:', customerId);
+        showMessage('معرف العميل غير صحيح', 'error');
+        return;
+    }
+    
+    if (!totalDebts || totalDebts <= 0) {
+        showMessage('لا يوجد دين متبقي للتحصيل', 'warning');
+        return;
+    }
+    
+    // إغلاق بروفايل العميل قبل فتح نموذج التحصيل
+    const profileModal = document.querySelector('.customer-profile-modal');
+    if (profileModal) {
+        profileModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '20000';
+    
+    // حفظ customerId و totalDebts في data attributes للـ modal
+    modal.setAttribute('data-customer-id', String(customerId));
+    modal.setAttribute('data-total-debts', String(totalDebts));
+    
+    modal.innerHTML = `
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="bi bi-cash-coin"></i> تحصيل دين</h3>
+                <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
+            </div>
+            <form id="collectDebtForm" onsubmit="saveCollectDebt(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>إجمالي الدين الحالي:</label>
+                        <div style="font-size: 1.5em; font-weight: 700; color: var(--warning-color); padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center; margin-bottom: 20px;">
+                            ${parseFloat(totalDebts).toFixed(2)} ج.م
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="debtAmount">المبلغ المراد تحصيله (ج.م) *</label>
+                        <input type="number" 
+                               id="debtAmount" 
+                               step="0.01" 
+                               min="0.01" 
+                               max="${totalDebts}" 
+                               value="${totalDebts}"
+                               required
+                               oninput="validateDebtAmount(this, ${totalDebts})"
+                               style="width: 100%; padding: 12px; font-size: 1.1em; border: 2px solid var(--border-color); border-radius: 8px;">
+                        <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                            الحد الأقصى: ${parseFloat(totalDebts).toFixed(2)} ج.م
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="debtNotes">ملاحظات (اختياري)</label>
+                        <textarea id="debtNotes" 
+                                  rows="3" 
+                                  placeholder="ملاحظات حول عملية التحصيل..."
+                                  style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="this.closest('.modal').remove()" class="btn btn-secondary">إلغاء</button>
+                    <button type="submit" class="btn btn-success" style="background: var(--success-color);">
+                        <i class="bi bi-cash-coin"></i> تحصيل
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // التركيز على حقل المبلغ
+    setTimeout(() => {
+        const amountInput = modal.querySelector('#debtAmount');
+        if (amountInput) {
+            amountInput.focus();
+            amountInput.select();
+        }
+    }, 100);
+    
+    // إغلاق عند الضغط خارج الـ modal
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+// دالة للتحقق من صحة المبلغ
+function validateDebtAmount(input, maxAmount) {
+    const value = parseFloat(input.value) || 0;
+    if (value > maxAmount) {
+        input.value = maxAmount;
+        showMessage(`المبلغ لا يمكن أن يتجاوز إجمالي الدين (${maxAmount.toFixed(2)} ج.م)`, 'warning');
+    }
+    if (value < 0) {
+        input.value = 0;
+    }
+}
+
+// دالة لحفظ تحصيل الدين
+async function saveCollectDebt(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const modal = form.closest('.modal');
+    if (!modal) {
+        console.error('saveCollectDebt: modal not found');
+        showMessage('لم يتم العثور على النموذج', 'error');
+        return;
+    }
+    
+    const customerId = modal.getAttribute('data-customer-id');
+    const totalDebts = parseFloat(modal.getAttribute('data-total-debts') || 0);
+    
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || customerId.trim() === '') {
+        console.error('saveCollectDebt: customerId is invalid:', customerId);
+        showMessage('معرف العميل غير صحيح', 'error');
+        return;
+    }
+    
+    const amountInput = form.querySelector('#debtAmount');
+    const notesInput = form.querySelector('#debtNotes');
+    
+    if (!amountInput) {
+        showMessage('حقل المبلغ غير موجود', 'error');
+        return;
+    }
+    
+    const amount = parseFloat(amountInput.value) || 0;
+    const notes = notesInput ? notesInput.value.trim() : '';
+    
+    if (amount <= 0) {
+        showMessage('المبلغ يجب أن يكون أكبر من الصفر', 'error');
+        return;
+    }
+    
+    if (amount > totalDebts) {
+        showMessage(`المبلغ المراد تحصيله (${amount.toFixed(2)}) أكبر من إجمالي الدين (${totalDebts.toFixed(2)})`, 'error');
+        return;
+    }
+    
+    try {
+        // إظهار حالة التحميل
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري التحصيل...';
+        
+        // استدعاء API لتحصيل الدين
+        const result = await API.collectCustomerDebt(customerId, amount, notes);
+        
+        if (result && result.success) {
+            showMessage(result.message || 'تم تحصيل الدين بنجاح', 'success');
+            
+            // تحديث total_debt في بيانات العميل المحلية إذا كانت موجودة
+            const customer = allCustomers.find(c => c.id === customerId);
+            if (customer && result.data && result.data.total_debt !== undefined) {
+                customer.total_debt = parseFloat(result.data.total_debt) || 0;
+            }
+            
+            // إغلاق الـ modal
+            modal.remove();
+            
+            // إعادة تحميل قائمة العملاء فقط (بدون فتح البروفايل)
+            if (typeof loadCustomers === 'function') {
+                loadCustomers();
+            }
+        } else {
+            const errorMsg = result?.message || 'فشل في تحصيل الدين';
+            showMessage(errorMsg, 'error');
+            
+            // إعادة تفعيل الزر
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    } catch (error) {
+        console.error('خطأ في تحصيل الدين:', error);
+        showMessage('حدث خطأ في تحصيل الدين: ' + (error.message || 'خطأ غير معروف'), 'error');
+        
+        // إعادة تفعيل الزر
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="bi bi-cash-coin"></i> تحصيل';
+        }
+    }
+}
+
 // تحديد نجمة التقييم
 function selectRatingStar(element, rating) {
-    const container = element.parentElement;
-    const stars = container.querySelectorAll('[data-rating]');
+    // البحث عن container النجوم (ratingStarsContainer)
+    const container = document.getElementById('ratingStarsContainer');
+    if (!container) {
+        console.error('ratingStarsContainer not found');
+        return;
+    }
+    
+    const stars = container.querySelectorAll('i[data-rating]');
     const selectedRatingInput = document.getElementById('selectedRating');
     const ratingText = document.getElementById('ratingText');
     
-    stars.forEach((star, index) => {
-        const starRating = parseInt(star.dataset.rating);
+    stars.forEach((star) => {
+        const starRating = parseInt(star.getAttribute('data-rating'));
         if (starRating <= rating) {
             star.className = 'bi bi-star-fill';
             star.style.color = 'var(--warning-color)';
@@ -1631,37 +3402,49 @@ function selectRatingStar(element, rating) {
         selectedRatingInput.value = rating;
     }
     if (ratingText) {
-        ratingText.textContent = `${rating} / 5`;
+        ratingText.textContent = rating;
     }
 }
 
 // تمييز النجوم عند المرور بالماوس
 function highlightRatingStars(element, rating) {
-    const container = element.parentElement;
-    const stars = container.querySelectorAll('[data-rating]');
+    const container = document.getElementById('ratingStarsContainer');
+    if (!container) {
+        return;
+    }
+    
+    const stars = container.querySelectorAll('i[data-rating]');
     
     stars.forEach((star) => {
-        const starRating = parseInt(star.dataset.rating);
+        const starRating = parseInt(star.getAttribute('data-rating'));
         if (starRating <= rating) {
             star.style.color = 'var(--warning-color)';
-            star.style.transform = 'scale(1.1)';
+            star.style.transform = 'scale(1.2)';
+        } else {
+            star.style.color = 'var(--border-color)';
+            star.style.transform = 'scale(1)';
         }
     });
 }
 
 // إعادة تعيين النجوم
 function resetRatingStars(element, currentRating) {
-    const container = element.parentElement;
-    const stars = container.querySelectorAll('[data-rating]');
+    const container = document.getElementById('ratingStarsContainer');
+    if (!container) {
+        return;
+    }
+    
+    const stars = container.querySelectorAll('i[data-rating]');
+    const selectedRatingInput = document.getElementById('selectedRating');
+    const selectedRating = selectedRatingInput ? parseInt(selectedRatingInput.value) : currentRating;
     
     stars.forEach((star) => {
-        const starRating = parseInt(star.dataset.rating);
-        const selectedRatingInput = document.getElementById('selectedRating');
-        const selectedRating = selectedRatingInput ? parseInt(selectedRatingInput.value) : currentRating;
-        
+        const starRating = parseInt(star.getAttribute('data-rating'));
         if (starRating <= selectedRating) {
+            star.className = 'bi bi-star-fill';
             star.style.color = 'var(--warning-color)';
         } else {
+            star.className = 'bi bi-star';
             star.style.color = 'var(--border-color)';
         }
         star.style.transform = 'scale(1)';
@@ -1713,16 +3496,178 @@ async function saveCustomerRatingUpdate(customerId) {
         const result = await API.updateCustomerRating(customerId, rating);
         
         if (result && result.success) {
+            // جلب التقييم المحدث من API مباشرة بعد التحديث
+            const ratingResult = await API.getCustomerRating(customerId);
+            const averageRating = ratingResult?.success ? (ratingResult.data?.average_rating || rating) : rating;
+            const totalRatings = ratingResult?.success ? (ratingResult.data?.total_ratings || 1) : 1;
+            
             showMessage('تم تحديث التقييم بنجاح', 'success');
-            // إغلاق modal
-            const modal = document.querySelector('.modal[data-customer-id]');
-            if (modal) {
-                modal.remove();
+            
+            // إغلاق modal التقييم فقط (وليس بروفايل العميل)
+            const ratingModal = document.querySelector('.modal[data-customer-id]');
+            if (ratingModal) {
+                ratingModal.remove();
             }
-            // إعادة تحميل البروفايل
-            setTimeout(() => {
-                viewCustomerProfile(customerId);
-            }, 500);
+            
+            // تحديث التقييم في البروفايل مباشرة بدون إعادة فتحه
+            const profileModal = document.getElementById(`customer-profile-${customerId}`);
+            if (profileModal) {
+                
+                // البحث عن عنصر التقييم في البروفايل وتحديثه
+                const ratingItems = profileModal.querySelectorAll('.customer-info-item');
+                let ratingItem = null;
+                for (const item of ratingItems) {
+                    if (item.querySelector('.bi-star-fill')) {
+                        ratingItem = item;
+                        break;
+                    }
+                }
+                if (ratingItem) {
+                    const ratingValueDiv = ratingItem.querySelector('.customer-info-item-value');
+                    if (ratingValueDiv) {
+                        ratingValueDiv.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="color: var(--warning-color); font-size: 18px;">${renderRatingStars(averageRating)}</span>
+                                <span style="color: var(--text-light);">(${averageRating.toFixed(1)})</span>
+                                <span style="color: var(--text-light); font-size: 0.9em;">(${totalRatings} تقييم)</span>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // تحديث زر تعديل التقييم بالقيمة الجديدة
+                const editRatingButton = profileModal.querySelector('button[onclick*="showEditRatingModal"]');
+                if (editRatingButton) {
+                    const onclickAttr = editRatingButton.getAttribute('onclick');
+                    if (onclickAttr) {
+                        // تحديث القيمة في onclick
+                        const newOnclick = onclickAttr.replace(/showEditRatingModal\('([^']+)',\s*([\d.]+)\)/, 
+                            `showEditRatingModal('${customerId}', ${averageRating})`);
+                        editRatingButton.setAttribute('onclick', newOnclick);
+                    }
+                }
+                
+                // تحديث بيانات العميل في جميع المصفوفات
+                const customer = allCustomers.find(c => c.id === customerId);
+                if (customer) {
+                    customer.average_rating = averageRating;
+                    customer.total_ratings = totalRatings;
+                }
+                
+                // تحديث في retailCustomers و commercialCustomers
+                const retailCustomer = retailCustomers.find(c => c.id === customerId);
+                if (retailCustomer) {
+                    retailCustomer.average_rating = averageRating;
+                    retailCustomer.total_ratings = totalRatings;
+                }
+                
+                const commercialCustomer = commercialCustomers.find(c => c.id === customerId);
+                if (commercialCustomer) {
+                    commercialCustomer.average_rating = averageRating;
+                    commercialCustomer.total_ratings = totalRatings;
+                }
+                
+                // تحديث التقييم في جدول العملاء الرئيسي مباشرة
+                const tbody = document.getElementById('customersTableBody');
+                if (tbody) {
+                    // البحث عن صف العميل في الجدول
+                    const customerRows = tbody.querySelectorAll('tr');
+                    customerRows.forEach(row => {
+                        const viewButton = row.querySelector(`[data-customer-id="${customerId}"]`);
+                        if (viewButton) {
+                            // البحث عن خلية التقييم - قد تكون في عمود مختلف حسب نوع العميل
+                            const cells = row.querySelectorAll('td');
+                            let ratingCell = null;
+                            
+                            // البحث عن الخلية التي تحتوي على النجوم أو "لا يوجد تقييم"
+                            cells.forEach(cell => {
+                                const cellContent = cell.innerHTML;
+                                if (cellContent.includes('bi-star') || cellContent.includes('لا يوجد تقييم')) {
+                                    ratingCell = cell;
+                                }
+                            });
+                            
+                            if (ratingCell) {
+                                if (totalRatings > 0) {
+                                    ratingCell.innerHTML = `
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="color: var(--warning-color); font-size: 16px;">${renderRatingStars(averageRating)}</div>
+                                            <span style="color: var(--text-light); font-size: 13px;">(${averageRating.toFixed(1)})</span>
+                                        </div>
+                                    `;
+                                } else {
+                                    ratingCell.innerHTML = '<span style="color: var(--text-light);">لا يوجد تقييم</span>';
+                                }
+                            }
+                        }
+                    });
+                }
+            } else {
+                // إذا لم يكن البروفايل مفتوحاً، تحديث جدول العملاء مباشرة
+                // جلب التقييم المحدث من API
+                const ratingResult = await API.getCustomerRating(customerId);
+                const averageRating = ratingResult?.success ? (ratingResult.data?.average_rating || rating) : rating;
+                const totalRatings = ratingResult?.success ? (ratingResult.data?.total_ratings || 1) : 1;
+                
+                // تحديث بيانات العميل في جميع المصفوفات
+                const customer = allCustomers.find(c => c.id === customerId);
+                if (customer) {
+                    customer.average_rating = averageRating;
+                    customer.total_ratings = totalRatings;
+                }
+                
+                // تحديث في retailCustomers و commercialCustomers
+                const retailCustomer = retailCustomers.find(c => c.id === customerId);
+                if (retailCustomer) {
+                    retailCustomer.average_rating = averageRating;
+                    retailCustomer.total_ratings = totalRatings;
+                }
+                
+                const commercialCustomer = commercialCustomers.find(c => c.id === customerId);
+                if (commercialCustomer) {
+                    commercialCustomer.average_rating = averageRating;
+                    commercialCustomer.total_ratings = totalRatings;
+                }
+                
+                // تحديث التقييم في جدول العملاء الرئيسي مباشرة
+                const tbody = document.getElementById('customersTableBody');
+                if (tbody) {
+                    // البحث عن صف العميل في الجدول
+                    const customerRows = tbody.querySelectorAll('tr');
+                    customerRows.forEach(row => {
+                        const viewButton = row.querySelector(`[data-customer-id="${customerId}"]`);
+                        if (viewButton) {
+                            // البحث عن خلية التقييم
+                            const cells = row.querySelectorAll('td');
+                            let ratingCell = null;
+                            
+                            // البحث عن الخلية التي تحتوي على النجوم أو "لا يوجد تقييم"
+                            cells.forEach(cell => {
+                                const cellContent = cell.innerHTML;
+                                if (cellContent.includes('bi-star') || cellContent.includes('لا يوجد تقييم')) {
+                                    ratingCell = cell;
+                                }
+                            });
+                            
+                            if (ratingCell) {
+                                if (totalRatings > 0) {
+                                    ratingCell.innerHTML = `
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="color: var(--warning-color); font-size: 16px;">${renderRatingStars(averageRating)}</div>
+                                            <span style="color: var(--text-light); font-size: 13px;">(${averageRating.toFixed(1)})</span>
+                                        </div>
+                                    `;
+                                } else {
+                                    ratingCell.innerHTML = '<span style="color: var(--text-light);">لا يوجد تقييم</span>';
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    // إذا لم يكن الجدول موجوداً، إعادة تحميل كامل
+                    await loadCustomers();
+                }
+            }
         } else {
             showMessage(result?.message || 'فشل تحديث التقييم', 'error');
         }
@@ -1759,7 +3704,11 @@ function displaySalesWithPagination(allSales) {
             console.warn('⚠️ استخدام window.currentCustomerSales كبديل');
             allSales = window.currentCustomerSales;
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ في عرض البيانات: البيانات غير صحيحة</td></tr>';
+            // حساب عدد الأعمدة بناءً على نوع العميل
+            const currentCustomer = allCustomers.find(c => c.id === window.currentCustomerId);
+            const isCommercial = currentCustomer && currentCustomer.customer_type === 'commercial';
+            const colCount = isCommercial ? 5 : 4;
+            tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; color: var(--danger-color);">خطأ في عرض البيانات: البيانات غير صحيحة</td></tr>`;
             return;
         }
     }
@@ -1767,7 +3716,11 @@ function displaySalesWithPagination(allSales) {
     // التأكد من أن allSales ليس null أو undefined
     if (!allSales) {
         console.error('❌ allSales is null or undefined');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ: لا توجد بيانات للعرض</td></tr>';
+        // حساب عدد الأعمدة بناءً على نوع العميل
+        const currentCustomer = window.currentCustomer || allCustomers.find(c => c.id === window.currentCustomerId);
+        const isCommercial = currentCustomer && currentCustomer.customer_type === 'commercial';
+        const colCount = isCommercial ? 5 : 4;
+        tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; color: var(--danger-color);">خطأ: لا توجد بيانات للعرض</td></tr>`;
         return;
     }
     
@@ -1777,7 +3730,7 @@ function displaySalesWithPagination(allSales) {
     // التأكد من أن paginate function موجودة
     if (typeof paginate !== 'function') {
         console.error('❌ paginate function is not defined!');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ: دالة paginate غير موجودة</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">خطأ: دالة paginate غير موجودة</td></tr>';
         return;
     }
     
@@ -1801,11 +3754,16 @@ function displaySalesWithPagination(allSales) {
         console.warn('⚠️ currentPage:', currentPage);
         console.warn('⚠️ perPage:', perPage);
         
+        // حساب عدد الأعمدة بناءً على نوع العميل
+        const currentCustomer = window.currentCustomer || allCustomers.find(c => c.id === window.currentCustomerId);
+        const isCommercial = currentCustomer && currentCustomer.customer_type === 'commercial';
+        const colCount = isCommercial ? 5 : 4;
+        
         // إذا كان هناك فواتير لكن لا توجد في هذه الصفحة
         if (allSales.length > 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير في الصفحة ${currentPage} من ${paginated.totalPages}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير في الصفحة ${currentPage} من ${paginated.totalPages}</td></tr>`;
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مسجلة لهذا العميل</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مسجلة لهذا العميل</td></tr>`;
         }
         
         const paginationContainer = document.getElementById('customerSalesPagination');
@@ -1832,7 +3790,6 @@ function displaySalesWithPagination(allSales) {
             
             const saleNumber = sale.sale_number || sale.id || 'غير محدد';
             const items = sale.items && Array.isArray(sale.items) ? sale.items : [];
-            const itemsCount = items.length;
             
             let totalAmount = parseFloat(sale.total_amount || 0);
             let finalAmount = parseFloat(sale.final_amount || 0);
@@ -1857,10 +3814,22 @@ function displaySalesWithPagination(allSales) {
             totalAmount = isNaN(totalAmount) ? 0 : totalAmount;
             finalAmount = isNaN(finalAmount) ? 0 : finalAmount;
             
+            // حساب المتبقي من الفاتورة
+            const remainingAmount = parseFloat(sale.remaining_amount || 0);
+            const hasRemaining = !isNaN(remainingAmount) && remainingAmount > 0;
+            
+            // التحقق من نوع العميل (من window.currentCustomer أو البحث في allCustomers)
+            const currentCustomer = window.currentCustomer || allCustomers.find(c => c.id === window.currentCustomerId);
+            const isCommercial = currentCustomer && currentCustomer.customer_type === 'commercial';
+            
+            // التحقق من وجود مرتجعات لهذه الفاتورة
+            const hasReturns = sale.hasReturns || false;
+            
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>
-                    <div class="invoice-number-cell">
+                    <div class="invoice-number-cell" style="position: relative;">
+                        ${hasReturns ? '<span class="return-badge" title="تم إرجاع منتج من هذه الفاتورة"><i class="bi bi-arrow-counterclockwise"></i></span>' : ''}
                         <strong class="invoice-number-text">${escapeHtml(saleNumber)}</strong>
                     </div>
                 </td>
@@ -1870,16 +3839,18 @@ function displaySalesWithPagination(allSales) {
                         <span>${formatDate(sale.created_at)}</span>
                     </div>
                 </td>
-                <td style="text-align: center;">
-                    <span class="invoice-items-badge">
-                        <i class="bi bi-box-seam"></i> ${itemsCount}
-                    </span>
-                </td>
                 <td style="text-align: right;">
                     <strong class="invoice-final-amount">
                         ${finalAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
                     </strong>
                 </td>
+                ${isCommercial ? `
+                <td style="text-align: right;">
+                    <strong class="invoice-remaining-amount">
+                        ${remainingAmount.toFixed(2)} <span class="invoice-amount-currency">ج.م</span>
+                    </strong>
+                </td>
+                ` : ''}
                 <td style="text-align: center;">
                     <div class="invoice-actions">
                         <button onclick="printSaleInvoice('${escapeHtml(sale.id)}')" class="btn-invoice-action btn-invoice-pdf">
@@ -2050,4 +4021,11 @@ function setupCustomerActionButtons() {
     tbody._customerActionHandler = handler;
     tbody.addEventListener('click', handler);
 }
+
+// Expose functions to global scope for onclick handlers
+window.validateStatementDates = validateStatementDates;
+window.savePrintAccountStatement = savePrintAccountStatement;
+window.showPrintAccountStatementModal = showPrintAccountStatementModal;
+window.deleteCustomerFromProfile = deleteCustomerFromProfile;
+window.applyBranchFilter = applyBranchFilter;
 

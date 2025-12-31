@@ -1,5 +1,6 @@
 /* الوضع الليلي */
 
+html.dark-mode,
 body.dark-mode {
     --light-bg: #16213e;
     --white: #0f3460;
@@ -7,6 +8,9 @@ body.dark-mode {
     --text-light: #ffffff;
     --border-color: #2d4059;
     --shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+body.dark-mode {
     background: #0a1929;
     color: #ffffff;
 }
@@ -31,9 +35,102 @@ body.dark-mode .data-table tbody tr:hover {
     background: #16213e;
 }
 
-body.dark-mode .login-box {
-    background: var(--white);
+/* صفحة تسجيل الدخول */
+body.dark-mode .login-page {
+    background: linear-gradient(135deg, #0a1929 0%, #16213e 100%) !important;
+}
+
+body.dark-mode .login-container {
     color: var(--text-dark);
+}
+
+body.dark-mode .login-box {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .login-header {
+    color: var(--text-dark);
+}
+
+body.dark-mode .login-header h1 {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .login-header p {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .login-footer {
+    color: var(--text-light);
+    border-top-color: var(--border-color) !important;
+}
+
+body.dark-mode .login-footer small {
+    color: var(--text-light) !important;
+}
+
+/* حقول النموذج في صفحة تسجيل الدخول */
+body.dark-mode .login-box .form-group label {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .login-box .form-group input {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .login-box .form-group input:focus {
+    background: var(--white) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .login-box .form-group input::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* زر تذكرني */
+body.dark-mode .login-box .form-group label[for="rememberMe"] {
+    color: var(--text-dark) !important;
+}
+
+/* زر تسجيل الدخول بالبصمة */
+body.dark-mode #biometricLoginBtn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode #biometricLoginBtn:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+}
+
+/* Splash Screen في الوضع الليلي */
+body.dark-mode .splash-screen {
+    background: linear-gradient(135deg, #0a1929 0%, #16213e 100%) !important;
+}
+
+body.dark-mode .splash-logo {
+    background: var(--white) !important;
+}
+
+body.dark-mode .splash-title {
+    color: var(--white) !important;
+}
+
+body.dark-mode .splash-subtitle {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* زر التثبيت */
+body.dark-mode #installButton {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode #installButton:hover {
+    background: var(--secondary-color) !important;
 }
 
 body.dark-mode .modal-content {
@@ -130,6 +227,144 @@ body.dark-mode .top-bar h1 {
     color: #ffffff;
 }
 
+/* الأزرار في شريط العنوان */
+body.dark-mode .header-actions .btn-icon {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .header-actions .btn-icon:hover {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.dark-mode .header-actions .btn-icon.active {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.dark-mode .header-actions .btn-icon.btn-logout,
+body.dark-mode .header-actions .btn-icon[onclick*="logout"] {
+    background: #16213e !important;
+    border-color: var(--danger-color) !important;
+}
+
+body.dark-mode .header-actions .btn-icon.btn-logout:hover,
+body.dark-mode .header-actions .btn-icon[onclick*="logout"]:hover {
+    background: var(--danger-color) !important;
+    color: var(--white) !important;
+    border-color: var(--danger-color) !important;
+}
+
+body.dark-mode .header-actions .btn-icon.btn-logout i,
+body.dark-mode .header-actions .btn-icon[onclick*="logout"] i {
+    color: var(--danger-color) !important;
+}
+
+body.dark-mode .header-actions .btn-icon.btn-logout:hover i,
+body.dark-mode .header-actions .btn-icon[onclick*="logout"]:hover i {
+    color: var(--white) !important;
+}
+
+/* زر القائمة */
+body.dark-mode .btn-menu {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .btn-menu:hover {
+    color: var(--secondary-color) !important;
+}
+
+/* مؤشر المزامنة */
+body.dark-mode .header-actions .sync-indicator {
+    color: var(--text-dark) !important;
+}
+
+/* زر التحديث للهاتف */
+body.dark-mode .header-actions #mobileRefreshBtn {
+    background: #16213e !important;
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .header-actions #mobileRefreshBtn:hover {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .header-actions #mobileRefreshBtn i {
+    color: inherit !important;
+}
+
+/* على الموبايل - أزرار الـ top bar */
+@media (max-width: 768px) {
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="toggleDarkMode"],
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="showNotifications"],
+    body.dark-mode .top-bar .header-actions #notificationsBtn,
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="profile"] {
+        background: var(--white) !important;
+        border-color: var(--primary-color) !important;
+        color: var(--primary-color) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="toggleDarkMode"]:hover,
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="showNotifications"]:hover,
+    body.dark-mode .top-bar .header-actions #notificationsBtn:hover,
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="profile"]:hover {
+        background: var(--primary-color) !important;
+        color: var(--white) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions .btn-icon.btn-logout,
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="logout"] {
+        background: var(--white) !important;
+        border-color: var(--danger-color) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions .btn-icon.btn-logout:hover,
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="logout"]:hover {
+        background: var(--danger-color) !important;
+        color: var(--white) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions .btn-icon.btn-logout i,
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="logout"] i {
+        color: var(--danger-color) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions .btn-icon.btn-logout:hover i,
+    body.dark-mode .top-bar .header-actions .btn-icon[onclick*="logout"]:hover i {
+        color: var(--white) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions #mobileRefreshBtn {
+        background: var(--white) !important;
+        border-color: var(--primary-color) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions #mobileRefreshBtn:hover {
+        background: var(--primary-color) !important;
+        color: var(--white) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions #mobileRefreshBtn i {
+        color: var(--primary-color) !important;
+    }
+
+    body.dark-mode .top-bar .header-actions #mobileRefreshBtn:hover i {
+        color: var(--white) !important;
+    }
+
+    body.dark-mode .top-bar h1 {
+        background: var(--white) !important;
+        border-color: var(--primary-color) !important;
+        color: var(--text-dark) !important;
+    }
+}
+
 /* النصوص في النماذج */
 body.dark-mode .form-group label,
 body.dark-mode .modal-content,
@@ -161,5 +396,1836 @@ body.dark-mode .mobile-nav-item {
 body.dark-mode input::placeholder,
 body.dark-mode textarea::placeholder {
     color: rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================
+   قواعد الوضع الليلي للجداول والعناوين
+   ============================================ */
+
+/* رأس الجدول الرئيسي */
+body.dark-mode .data-table thead {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+body.dark-mode .data-table thead th {
+    color: var(--white);
+    background: var(--primary-color);
+}
+
+/* صفوف المخزون المنخفض */
+body.dark-mode .data-table tbody tr.low-stock {
+    background: rgba(255, 193, 7, 0.15);
+    color: var(--text-dark);
+}
+
+body.dark-mode .data-table tbody tr.low-stock td {
+    color: var(--text-dark);
+}
+
+/* جدول مبيعات العملاء */
+body.dark-mode .customer-sales-table {
+    background: var(--white);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .customer-sales-table thead {
+    background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #3949ab 100%);
+    color: var(--white);
+}
+
+body.dark-mode .customer-sales-table thead th {
+    color: var(--white);
+    background: transparent;
+}
+
+body.dark-mode .customer-sales-table tbody tr {
+    background: var(--white);
+    border-bottom-color: var(--border-color);
+}
+
+body.dark-mode .customer-sales-table tbody tr:hover {
+    background: rgba(33, 150, 243, 0.1);
+    border-left-color: var(--primary-color);
+}
+
+body.dark-mode .customer-sales-table tbody td {
+    color: var(--text-dark);
+    background: var(--white);
+}
+
+/* جدول عناصر الفاتورة */
+body.dark-mode .invoice-items-table {
+    background: var(--white);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .invoice-items-table thead {
+    background: var(--white);
+}
+
+body.dark-mode .invoice-items-table th {
+    background: #16213e;
+    color: var(--text-dark);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .invoice-items-table td {
+    background: var(--white);
+    color: var(--text-dark);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .invoice-items-table tbody tr {
+    background: var(--white);
+}
+
+body.dark-mode .invoice-items-table tbody tr:nth-child(even) {
+    background: #16213e;
+}
+
+body.dark-mode .invoice-items-table tbody tr:nth-child(even) td {
+    background: #16213e;
+    color: var(--text-dark);
+}
+
+/* جدول المعاملات المالية */
+body.dark-mode #treasuryTransactionsTable thead {
+    background: rgba(24, 175, 57, 1) !important;
+    color: var(--white);
+}
+
+body.dark-mode #treasuryTransactionsTable thead th {
+    color: var(--white);
+    background: rgba(24, 175, 57, 1) !important;
+}
+
+body.dark-mode #treasuryTransactionsTable tbody td {
+    color: var(--text-dark);
+}
+
+/* عناوين الجداول */
+body.dark-mode .table-title {
+    color: var(--primary-color);
+}
+
+body.dark-mode .table-title i {
+    color: var(--primary-color);
+}
+
+/* ملخص الفاتورة */
+body.dark-mode .invoice-summary {
+    background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+    border-color: var(--border-color);
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-summary .summary-row {
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-summary .summary-row span:first-child {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+body.dark-mode .invoice-summary .summary-row span:last-child {
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-summary .summary-row.total {
+    color: var(--primary-color);
+    border-top-color: var(--primary-color);
+    background: linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(33, 150, 243, 0.08) 100%);
+}
+
+body.dark-mode .invoice-summary .summary-row.total span:last-child {
+    color: var(--primary-color);
+}
+
+body.dark-mode .invoice-summary hr {
+    border-top-color: var(--border-color);
+}
+
+/* أيقونة رقم الفاتورة */
+body.dark-mode .invoice-number-icon {
+    background: linear-gradient(135deg, var(--primary-color), #1976D2);
+    color: var(--white);
+}
+
+body.dark-mode .invoice-number-text {
+    color: var(--primary-color);
+}
+
+/* أي جداول أخرى */
+body.dark-mode table thead {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+body.dark-mode table thead th {
+    color: var(--white);
+    background: var(--primary-color);
+}
+
+body.dark-mode table tbody td {
+    color: var(--text-dark);
+}
+
+body.dark-mode table tbody tr {
+    border-bottom-color: var(--border-color);
+}
+
+body.dark-mode table tbody tr:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
+/* الجداول المحسنة (الأنماط الإضافية) */
+body.dark-mode .data-table th {
+    background-color: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .data-table tr:hover {
+    background-color: rgba(33, 150, 243, 0.1) !important;
+}
+
+body.dark-mode .data-table th,
+body.dark-mode .data-table td {
+    border-bottom-color: var(--border-color);
+}
+
+/* شريط التصفية */
+body.dark-mode .filters-bar {
+    background: var(--white);
+    color: var(--text-dark);
+}
+
+/* wrappers الجداول */
+body.dark-mode .expenses-table-wrapper,
+body.dark-mode .salaries-table-wrapper {
+    background: var(--white);
+    color: var(--text-dark);
+}
+
+body.dark-mode .expenses-table-wrapper .table-title,
+body.dark-mode .salaries-table-wrapper .table-title {
+    color: var(--primary-color);
+}
+
+/* ============================================
+   قواعد الوضع الليلي لعناصر الملف الشخصي
+   ============================================ */
+
+/* قسم الملف الشخصي */
+body.dark-mode .profile-section {
+    background: var(--white) !important;
+    color: var(--text-dark);
+    box-shadow: var(--shadow);
+}
+
+body.dark-mode .profile-section h3,
+body.dark-mode .profile-section h4 {
+    color: var(--text-dark) !important;
+}
+
+/* بطاقة معلومات الملف الشخصي */
+body.dark-mode .profile-info-card {
+    color: var(--text-dark);
+}
+
+/* عنصر معلومات الملف الشخصي */
+body.dark-mode .profile-info-item {
+    background: #16213e !important;
+    border-right-color: var(--primary-color);
+    color: var(--text-dark);
+}
+
+body.dark-mode .profile-info-item label {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .profile-info-item span {
+    color: var(--text-dark) !important;
+}
+
+/* عنصر المعلومات العام */
+body.dark-mode .info-item {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .info-label {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .info-value {
+    color: var(--text-dark) !important;
+}
+
+/* عنصر الراتب */
+body.dark-mode .salary-item {
+    background: var(--white) !important;
+    border-right-color: var(--border-color);
+    color: var(--text-dark);
+}
+
+body.dark-mode .salary-item.total {
+    background: #16213e !important;
+    border-right-color: var(--primary-color);
+}
+
+body.dark-mode .salary-label {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .salary-value {
+    color: var(--text-dark);
+}
+
+body.dark-mode .salary-value.primary {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .salary-value.danger {
+    color: var(--danger-color) !important;
+}
+
+body.dark-mode .salary-value.success {
+    color: var(--success-color) !important;
+}
+
+/* محتوى الملف الشخصي */
+body.dark-mode .user-profile-content {
+    color: var(--text-dark);
+}
+
+/* عنصر معلومات العميل */
+body.dark-mode .customer-info-item {
+    background: var(--white) !important;
+    border-color: var(--border-color);
+    color: var(--text-dark);
+}
+
+body.dark-mode .customer-info-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+}
+
+body.dark-mode .customer-info-item i {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .customer-info-item-label {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .customer-info-item-value {
+    color: var(--text-dark) !important;
+}
+
+/* بطاقة إحصائية للعميل */
+body.dark-mode .customer-stat-card {
+    color: var(--white) !important;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-mode .customer-stat-card.stat-invoices {
+    background: linear-gradient(135deg, #2e7d32 0%, #388e3c 50%, #43a047 100%) !important;
+}
+
+body.dark-mode .customer-stat-card.stat-total {
+    background: linear-gradient(135deg, #e65100 0%, #f57c00 50%, #ff9800 100%) !important;
+}
+
+body.dark-mode .customer-stat-card.stat-debts {
+    background: linear-gradient(135deg, rgba(255, 0, 0, 1) 0%, rgba(168, 50, 0, 1) 100%) !important;
+}
+
+body.dark-mode .customer-stat-card .stat-decorative-circle {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* بطاقة تقييم الفني */
+body.dark-mode .technician-rating-card {
+    background: var(--white) !important;
+    border-color: var(--primary-color);
+    color: var(--text-dark);
+}
+
+body.dark-mode .rating-main-display {
+    border-bottom-color: var(--border-color);
+}
+
+body.dark-mode .rating-value-large .rating-number {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .rating-value-large .rating-max {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .rating-detail-item {
+    background: #16213e !important;
+    border-color: var(--border-color);
+    border-right-color: var(--primary-color);
+    color: var(--text-dark);
+}
+
+body.dark-mode .rating-note {
+    background: var(--white);
+    border-color: var(--border-color);
+    color: var(--text-dark);
+}
+
+body.dark-mode .note-content {
+    color: var(--text-dark);
+}
+
+body.dark-mode .no-rating-message {
+    color: var(--text-light);
+}
+
+body.dark-mode .loading-rating {
+    color: var(--text-light);
+}
+
+body.dark-mode .loading-rating i {
+    color: var(--primary-color) !important;
+}
+
+/* نموذج تعديل الملف الشخصي */
+body.dark-mode .profile-edit-form label {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .profile-edit-form label i {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .profile-edit-form input[type="text"],
+body.dark-mode .profile-edit-form input[type="password"] {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color);
+}
+
+body.dark-mode .profile-edit-form input[type="text"]:focus,
+body.dark-mode .profile-edit-form input[type="password"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+}
+
+body.dark-mode .profile-edit-form .form-hint {
+    color: var(--text-light);
+}
+
+body.dark-mode .profile-edit-form .form-hint i {
+    color: var(--primary-color);
+}
+
+/* محتوى ملف العميل */
+body.dark-mode .customer-profile-content {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .customer-profile-header {
+    background: var(--white);
+    color: var(--text-dark);
+}
+
+body.dark-mode .customer-profile-header h3 {
+    color: var(--text-dark) !important;
+}
+
+/* قائمة الخصومات */
+body.dark-mode .deductions-list {
+    color: var(--text-dark);
+}
+
+/* حاوية الملف الشخصي */
+body.dark-mode .profile-container {
+    color: var(--text-dark);
+}
+
+/* قسم الصورة الشخصية */
+body.dark-mode .profile-avatar-section {
+    color: var(--text-dark);
+}
+
+body.dark-mode .profile-avatar-hint {
+    color: var(--text-light);
+}
+
+body.dark-mode .profile-avatar-hint i {
+    color: var(--primary-color);
+}
+
+/* تفاصيل التقييم */
+body.dark-mode .rating-details {
+    color: var(--text-dark);
+}
+
+body.dark-mode .rating-detail-item label {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .rating-detail-item label i {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .rating-detail-item .rating-value {
+    color: var(--warning-color) !important;
+}
+
+body.dark-mode .rating-detail-item .rating-count {
+    color: var(--text-light) !important;
+}
+
+/* قسم التسجيل البيومتري */
+body.dark-mode .biometric-register-section {
+    color: var(--text-dark);
+}
+
+/* ============================================
+   قواعد الوضع الليلي للشات
+   ============================================ */
+
+/* حاوية الشات الرئيسية */
+body.dark-mode .chat-container {
+    background: linear-gradient(135deg, #0a1929 0%, #16213e 20%) !important;
+}
+
+/* شريط رأس الشات */
+body.dark-mode .chat-header {
+    background: var(--white) !important;
+    color: var(--text-dark);
+    box-shadow: var(--shadow);
+}
+
+body.dark-mode .chat-title {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .menu-btn,
+body.dark-mode .chat-icon-btn,
+body.dark-mode .dashboard-btn {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .menu-btn:hover,
+body.dark-mode .chat-icon-btn:hover,
+body.dark-mode .dashboard-btn:hover {
+    background: #16213e !important;
+    color: var(--primary-color) !important;
+}
+
+/* منطقة الرسائل */
+body.dark-mode .chat-messages {
+    background: transparent;
+    color: var(--text-dark);
+}
+
+/* شريط التمرير */
+body.dark-mode .chat-messages::-webkit-scrollbar-thumb {
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color) !important;
+}
+
+/* الرسائل */
+body.dark-mode .message {
+    color: var(--text-dark);
+}
+
+body.dark-mode .message:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* فقاعة الرسالة - رسائل الآخرين */
+body.dark-mode .message:not(.user-message) .message-bubble {
+    background: var(--white) !important;
+    color: var(--text-dark) !important;
+}
+
+/* فقاعة الرسالة - رسائل المستخدم */
+body.dark-mode .user-message .message-bubble {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .message-text {
+    color: inherit;
+}
+
+/* رأس الرسالة */
+body.dark-mode .message-header {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .message-sender {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .message-time {
+    color: var(--text-light) !important;
+}
+
+/* الصورة الرمزية */
+body.dark-mode .message-avatar {
+    background: var(--primary-color) !important;
+    border-color: var(--white) !important;
+}
+
+/* ردود الفعل */
+body.dark-mode .reaction-item {
+    background: #16213e !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .reaction-item:hover {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.dark-mode .reaction-count {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .reaction-item:hover .reaction-count {
+    color: var(--white) !important;
+}
+
+/* شريط الإدخال */
+body.dark-mode .chat-input-container {
+    background: var(--white) !important;
+    border-top-color: var(--border-color) !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.dark-mode .chat-input {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .chat-input:focus {
+    background: var(--white) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .chat-input::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+body.dark-mode .input-icon-btn {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .input-icon-btn:hover {
+    background: #16213e !important;
+    color: var(--primary-color) !important;
+}
+
+/* القائمة الجانبية */
+body.dark-mode .participants-sidebar,
+body.dark-mode .users-sidebar {
+    background: var(--white) !important;
+    box-shadow: -2px 0 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-mode .sidebar-header {
+    background: var(--white) !important;
+    border-bottom-color: var(--border-color) !important;
+}
+
+body.dark-mode .sidebar-title {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .close-btn {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .close-btn:hover {
+    background: #16213e !important;
+}
+
+body.dark-mode .participants-title {
+    color: var(--text-dark) !important;
+}
+
+/* عناصر المشاركين */
+body.dark-mode .participant-item,
+body.dark-mode .user-item {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .participant-item:hover,
+body.dark-mode .user-item:hover {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .participant-name,
+body.dark-mode .user-name {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .participant-item:hover .participant-name,
+body.dark-mode .user-item:hover .user-name {
+    color: var(--white) !important;
+}
+
+body.dark-mode .participant-avatar,
+body.dark-mode .user-avatar {
+    background: var(--primary-color) !important;
+    border-color: var(--white) !important;
+}
+
+/* المستخدم الحالي */
+body.dark-mode .current-user-section {
+    background: #16213e !important;
+    border-top-color: var(--border-color) !important;
+}
+
+body.dark-mode .current-user-name {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .logout-btn {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .logout-btn:hover {
+    background: #16213e !important;
+    color: var(--primary-color) !important;
+}
+
+/* Overlay */
+body.dark-mode .sidebar-overlay {
+    background: rgba(0, 0, 0, 0.7) !important;
+}
+
+body.dark-mode .loading-overlay {
+    background: rgba(10, 25, 41, 0.95) !important;
+}
+
+body.dark-mode .loading-spinner {
+    border-color: #16213e !important;
+    border-top-color: var(--primary-color) !important;
+}
+
+/* منتقي الإيموجي */
+body.dark-mode .emoji-picker {
+    background: var(--white) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .emoji-item:hover {
+    background: #16213e !important;
+}
+
+/* معاينة الرد */
+body.dark-mode .reply-preview,
+body.dark-mode .edit-preview {
+    background: #16213e !important;
+    border-right-color: var(--primary-color) !important;
+}
+
+body.dark-mode .reply-preview-user {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .reply-preview-text {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .reply-preview-close,
+body.dark-mode .edit-preview-close {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .reply-preview-close:hover,
+body.dark-mode .edit-preview-close:hover {
+    background: var(--border-color) !important;
+    color: var(--text-dark) !important;
+}
+
+/* معاينة الرد في الرسالة */
+body.dark-mode .message-reply-preview {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-right-color: var(--primary-color) !important;
+}
+
+body.dark-mode .user-message .message-reply-preview {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+body.dark-mode .message-reply-preview:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-mode .user-message .message-reply-preview:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+body.dark-mode .reply-user {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .reply-text {
+    color: var(--text-light) !important;
+}
+
+/* أزرار الرسائل */
+body.dark-mode .message-reply-btn {
+    background: var(--white) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .message-reply-btn:hover {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .message-menu-btn {
+    background: var(--white) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .message-menu-btn:hover {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .message-menu-popup {
+    background: var(--white) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .menu-item {
+    color: var(--text-dark) !important;
+    border-bottom-color: var(--border-color) !important;
+}
+
+body.dark-mode .menu-item:hover {
+    background: #16213e !important;
+}
+
+body.dark-mode .menu-item.delete {
+    color: var(--danger-color) !important;
+}
+
+body.dark-mode .menu-item.delete:hover {
+    background: var(--danger-color) !important;
+    color: var(--white) !important;
+}
+
+/* مؤشر الوقت */
+body.dark-mode .message-time-container {
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-mode .message:not(.user-message) .message-time-container {
+    border-top-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* مؤشر الإرسال */
+body.dark-mode .sending-indicator {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+/* رسائل الملفات */
+body.dark-mode .file-link {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .user-message .file-link {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+body.dark-mode .file-link:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* قائمة المرفقات */
+body.dark-mode .attach-menu {
+    background: var(--white) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .attach-menu-item {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .attach-menu-item:hover {
+    background: #16213e !important;
+    color: var(--primary-color) !important;
+}
+
+/* قائمة الـ mention */
+body.dark-mode .mention-menu {
+    background: var(--white) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .mention-menu-item {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .mention-menu-item:hover,
+body.dark-mode .mention-menu-item.active {
+    background: #16213e !important;
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .mention-name {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .mention-menu-item:hover .mention-name,
+body.dark-mode .mention-menu-item.active .mention-name {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .mention-username {
+    color: var(--text-light) !important;
+}
+
+/* تمييز الـ mentions */
+body.dark-mode .mention-highlight {
+    background: var(--secondary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .mention-highlight:hover {
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .user-message .mention-highlight {
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .user-message .mention-highlight:hover {
+    background: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* معلومات الموقع */
+body.dark-mode .location-info {
+    background: rgba(0, 0, 0, 0.1) !important;
+}
+
+body.dark-mode .user-message .location-info {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+body.dark-mode .location-text {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .location-coords {
+    color: var(--text-light) !important;
+}
+
+/* قائمة الإشعارات */
+body.dark-mode .notifications-list {
+    background: var(--white) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .notifications-header {
+    border-bottom-color: var(--border-color) !important;
+}
+
+body.dark-mode .notifications-header h3 {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .notifications-close {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .notifications-close:hover {
+    background: var(--border-color) !important;
+}
+
+body.dark-mode .notification-item {
+    border-bottom-color: var(--border-color) !important;
+}
+
+body.dark-mode .notification-item:hover {
+    background: #16213e !important;
+}
+
+body.dark-mode .notification-item.unread {
+    background: rgba(33, 150, 243, 0.1) !important;
+    border-right-color: var(--primary-color) !important;
+}
+
+body.dark-mode .notification-item.unread:hover {
+    background: rgba(33, 150, 243, 0.15) !important;
+}
+
+body.dark-mode .notification-username {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .notification-message {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .notification-time {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .notification-delete {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .notification-delete:hover {
+    background: var(--danger-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .empty-notifications {
+    color: var(--text-light) !important;
+}
+
+/* مودال حذف الرسائل */
+body.dark-mode .delete-messages-modal .modal-content {
+    background: var(--white) !important;
+}
+
+body.dark-mode .modal-header {
+    border-bottom-color: var(--border-color) !important;
+}
+
+body.dark-mode .modal-header h3 {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .modal-close {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .modal-close:hover {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .warning-text {
+    background: rgba(244, 67, 54, 0.15) !important;
+    border-right-color: var(--danger-color) !important;
+    color: var(--danger-color) !important;
+}
+
+body.dark-mode .modal-body .form-group label {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .modal-body .form-input {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .modal-body .form-input:focus {
+    border-color: var(--primary-color) !important;
+    background: var(--white) !important;
+}
+
+body.dark-mode .modal-footer {
+    border-top-color: var(--border-color) !important;
+}
+
+/* الحالات الفارغة */
+body.dark-mode .empty-messages,
+body.dark-mode .empty-participants,
+body.dark-mode .empty-users {
+    color: var(--text-light) !important;
+}
+
+/* الكاميرا */
+body.dark-mode .camera-header {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .camera-close-btn,
+body.dark-mode .camera-flip-btn {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .camera-close-btn:hover,
+body.dark-mode .camera-flip-btn:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+body.dark-mode .camera-controls {
+    background: rgba(0, 0, 0, 0.8) !important;
+}
+
+body.dark-mode .camera-capture-btn {
+    background: var(--white) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body.dark-mode .camera-capture-btn:active {
+    background: #16213e !important;
+}
+
+body.dark-mode .camera-capture-btn svg {
+    fill: var(--primary-color) !important;
+}
+
+/* ============================================
+   قواعد الوضع الليلي لنقاط البيع (POS)
+   ============================================ */
+
+/* حاوية POS الرئيسية */
+body.dark-mode .pos-container {
+    background: #0a1929 !important;
+    color: var(--text-dark);
+}
+
+/* رأس POS */
+body.dark-mode .pos-header {
+    background: var(--white) !important;
+    box-shadow: var(--shadow);
+}
+
+body.dark-mode .pos-header h1 {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-header-content {
+    color: var(--text-dark);
+}
+
+/* المحتوى الرئيسي */
+body.dark-mode .pos-main {
+    background: transparent;
+    color: var(--text-dark);
+}
+
+/* قسم المنتجات */
+body.dark-mode .pos-products-section {
+    background: var(--white) !important;
+    color: var(--text-dark);
+    box-shadow: var(--shadow);
+}
+
+/* شريط البحث */
+body.dark-mode .pos-search-bar input {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .pos-search-bar input:focus {
+    background: var(--white) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .pos-search-bar input::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* التبويبات */
+body.dark-mode .pos-tab {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .pos-tab:hover {
+    background: rgba(33, 150, 243, 0.2) !important;
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-tab.active {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+/* شبكة المنتجات */
+body.dark-mode .pos-products-grid {
+    color: var(--text-dark);
+}
+
+body.dark-mode .pos-products-grid::-webkit-scrollbar-thumb {
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-products-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color) !important;
+}
+
+/* بطاقة المنتج */
+body.dark-mode .pos-product-card {
+    background: var(--white) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .pos-product-card:hover {
+    box-shadow: 0 4px 16px rgba(33, 150, 243, 0.2) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-product-name {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .pos-product-info {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .pos-product-price {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-product-quantity {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .pos-product-quantity.in-stock {
+    color: var(--success-color) !important;
+}
+
+body.dark-mode .pos-product-quantity.low-stock {
+    color: var(--warning-color) !important;
+}
+
+body.dark-mode .pos-product-quantity.out-of-stock {
+    color: var(--danger-color) !important;
+}
+
+body.dark-mode .pos-product-image-placeholder {
+    background: #16213e !important;
+    color: var(--text-light) !important;
+}
+
+/* قسم السلة */
+body.dark-mode .pos-cart-section {
+    background: var(--white) !important;
+    box-shadow: var(--shadow);
+}
+
+body.dark-mode .pos-cart-header {
+    border-bottom-color: var(--border-color) !important;
+}
+
+body.dark-mode .pos-cart-header h3 {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .pos-cart-items {
+    color: var(--text-dark);
+}
+
+body.dark-mode .pos-cart-items::-webkit-scrollbar-thumb {
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-cart-items::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color) !important;
+}
+
+body.dark-mode .pos-cart-empty {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .pos-cart-empty i {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .pos-cart-empty p {
+    color: var(--text-light) !important;
+}
+
+/* عنصر السلة */
+body.dark-mode .pos-cart-item {
+    background: #16213e !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .pos-cart-item-name {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .pos-cart-item-price {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-cart-item-image-placeholder {
+    background: var(--white) !important;
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .btn-quantity {
+    background: var(--white) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .btn-quantity:hover {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.dark-mode .quantity-display {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .btn-remove-item {
+    color: var(--danger-color) !important;
+}
+
+body.dark-mode .btn-remove-item:hover {
+    background: var(--danger-color) !important;
+    color: var(--white) !important;
+}
+
+/* ملخص السلة */
+body.dark-mode .pos-cart-summary {
+    background: #16213e !important;
+    border-top-color: var(--border-color) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .summary-row {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .summary-row span {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .summary-row.total-row {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .summary-row.total-row span {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-cart-summary hr {
+    border-top-color: var(--border-color) !important;
+}
+
+body.dark-mode .pos-cart-summary input {
+    background: var(--white) !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .pos-cart-summary input:focus {
+    border-color: var(--primary-color) !important;
+}
+
+/* أزرار الدفع */
+body.dark-mode .btn-pay {
+    background: var(--success-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-pay:hover {
+    background: #45a049 !important;
+}
+
+body.dark-mode .btn-pay:disabled {
+    background: var(--border-color) !important;
+    color: var(--text-light) !important;
+}
+
+/* النافذة المنبثقة */
+body.dark-mode .pos-modal {
+    background: rgba(0, 0, 0, 0.7) !important;
+}
+
+body.dark-mode .pos-modal-content,
+body.dark-mode .pos-invoice-content {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .pos-modal-header {
+    border-bottom-color: var(--border-color) !important;
+}
+
+body.dark-mode .pos-modal-header h3 {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .btn-close-modal {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .btn-close-modal:hover {
+    color: var(--danger-color) !important;
+}
+
+body.dark-mode .pos-modal-body,
+body.dark-mode .pos-invoice-body {
+    color: var(--text-dark);
+}
+
+body.dark-mode .pos-modal-body::-webkit-scrollbar-thumb,
+body.dark-mode .pos-invoice-body::-webkit-scrollbar-thumb {
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .pos-modal-body::-webkit-scrollbar-thumb:hover,
+body.dark-mode .pos-invoice-body::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color) !important;
+}
+
+/* النماذج */
+body.dark-mode .form-group label {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .form-group input:focus,
+body.dark-mode .form-group select:focus,
+body.dark-mode .form-group textarea:focus {
+    background: var(--white) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .form-group input::placeholder,
+body.dark-mode .form-group textarea::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* ملخص الدفع */
+body.dark-mode .payment-summary {
+    background: #16213e !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .pos-modal-footer {
+    border-top-color: var(--border-color) !important;
+    background: var(--white) !important;
+}
+
+body.dark-mode .pos-modal-footer .btn {
+    color: var(--white) !important;
+}
+
+/* حالة التحميل */
+body.dark-mode .pos-loading {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .pos-loading i {
+    color: var(--primary-color) !important;
+}
+
+/* شارة المنتج */
+body.dark-mode .pos-product-badge {
+    color: var(--white) !important;
+}
+
+body.dark-mode .pos-product-badge.out-of-stock {
+    background: var(--danger-color) !important;
+    color: var(--white) !important;
+}
+
+/* أزرار إضافية */
+body.dark-mode .btn-back {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-back:hover {
+    background: var(--secondary-color) !important;
+}
+
+body.dark-mode .btn-search {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-search:hover {
+    background: var(--secondary-color) !important;
+}
+
+body.dark-mode .btn-clear-cart {
+    background: var(--danger-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-clear-cart:hover {
+    background: #d32f2f !important;
+}
+
+body.dark-mode .btn-customer-type {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .btn-customer-type:hover {
+    background: rgba(33, 150, 243, 0.2) !important;
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .btn-customer-type.active {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-primary {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-primary:hover {
+    background: var(--secondary-color) !important;
+}
+
+body.dark-mode .btn-secondary {
+    background: var(--text-light) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-secondary:hover {
+    background: #555 !important;
+}
+
+body.dark-mode .btn-print {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .btn-print:hover {
+    background: var(--secondary-color) !important;
+}
+
+/* الفاتورة داخل POS */
+body.dark-mode .invoice-wrapper {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-logo-section {
+    background: var(--white) !important;
+}
+
+body.dark-mode .invoice-header {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-shop-name {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-shop-info {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-shop-info div {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-details {
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-details-left > div,
+body.dark-mode .invoice-details-right > div {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-details-left > div strong,
+body.dark-mode .invoice-details-right > div strong {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-extra-info {
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-extra-info > div {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-extra-info strong {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .invoice-phone-data {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-phone-data h3 {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-terms {
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-terms h4 {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-terms ol,
+body.dark-mode .invoice-terms li {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-footer {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .invoice-footer div {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .invoice-actions {
+    background: var(--white) !important;
+    border-top-color: var(--border-color) !important;
+}
+
+/* عناصر إضافية */
+body.dark-mode .pos-product-card.out-of-stock {
+    opacity: 0.5 !important;
+}
+
+body.dark-mode .pos-product-add-btn {
+    background: var(--success-color) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .pos-product-add-btn:hover {
+    background: #45a049 !important;
+}
+
+/* ============================================
+   قواعد الوضع الليلي لصفحة استرجاع المنتجات
+   ============================================ */
+
+/* قسم البحث */
+body.dark-mode .product-returns-container .search-section {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode .product-returns-container .search-section input {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .product-returns-container .search-section input:focus {
+    background: var(--white) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .product-returns-container .search-section input::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+body.dark-mode .product-returns-container .search-section p {
+    color: var(--text-dark) !important;
+}
+
+/* زر QR Scanner */
+body.dark-mode .qr-scanner-btn {
+    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%) !important;
+    color: var(--white) !important;
+    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4) !important;
+}
+
+body.dark-mode .qr-scanner-btn:hover {
+    box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5) !important;
+}
+
+/* تأثير اللمعان (shimmer) في زر QR Scanner */
+body.dark-mode .qr-scanner-btn > div:last-child {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent) !important;
+}
+
+body.dark-mode .qr-scanner-btn:hover > div:last-child {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent) !important;
+}
+
+/* بطاقة تفاصيل الفاتورة */
+body.dark-mode #invoiceDetailsCard {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode #invoiceDetailsCard h3,
+body.dark-mode #invoiceDetailsCard p,
+body.dark-mode #invoiceDetailsCard strong {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode #invoiceThumbnail {
+    border-color: var(--border-color) !important;
+}
+
+/* الجداول */
+body.dark-mode .product-returns-container .data-table thead tr {
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .product-returns-container .data-table thead th {
+    color: var(--white) !important;
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .product-returns-container .data-table tbody td {
+    color: var(--text-dark) !important;
+}
+
+/* العناوين في الجداول */
+body.dark-mode .product-returns-container h3,
+body.dark-mode .product-returns-container h4 {
+    color: var(--text-dark) !important;
+}
+
+/* Pagination */
+body.dark-mode .pagination-btn {
+    background: var(--white) !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .pagination-btn:hover:not(:disabled) {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.dark-mode .pagination-btn.active {
+    background: var(--primary-color) !important;
+    color: var(--white) !important;
+    border-color: var(--primary-color) !important;
+}
+
+body.dark-mode .pagination-info {
+    color: var(--text-light) !important;
+}
+
+/* Scrollbar */
+body.dark-mode .product-returns-container [style*="overflow-x: auto"]::-webkit-scrollbar-thumb {
+    background: var(--primary-color) !important;
+}
+
+body.dark-mode .product-returns-container [style*="overflow-x: auto"]::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color) !important;
+}
+
+/* Modal QR Scanner */
+body.dark-mode .modal-content {
+    background: var(--white) !important;
+}
+
+body.dark-mode .modal-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .modal-body {
+    background: var(--white) !important;
+    color: var(--text-dark);
+}
+
+body.dark-mode #qr-reader {
+    background: #16213e !important;
+}
+
+body.dark-mode #scanner-loading p {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode #scanner-loading i {
+    color: var(--primary-color) !important;
+}
+
+body.dark-mode .modal-footer {
+    background: #16213e !important;
+    border-top-color: var(--border-color) !important;
+}
+
+body.dark-mode .modal-footer .btn {
+    color: var(--white) !important;
+}
+
+/* زر الإصدار */
+body.dark-mode .version-btn {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .version-btn:hover {
+    background: #16213e !important;
+    color: var(--primary-color) !important;
+}
+
+/* Version Modal Styles */
+body.dark-mode .version-header-info {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+    color: var(--white) !important;
+}
+
+body.dark-mode .version-header-info h2 {
+    color: var(--white) !important;
+}
+
+body.dark-mode .version-header-info p {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+body.dark-mode .version-header-info .version-date {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+body.dark-mode .version-info-section h4 {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .version-list li {
+    background: #16213e !important;
+    color: var(--text-dark) !important;
+    border-right-color: var(--primary-color) !important;
+}
+
+body.dark-mode .version-list li:hover {
+    background: rgba(33, 150, 243, 0.2) !important;
+}
+
+body.dark-mode .version-list li i {
+    color: var(--primary-color) !important;
 }
 

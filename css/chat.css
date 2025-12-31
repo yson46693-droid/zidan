@@ -899,6 +899,19 @@ body {
         height: 24px;
     }
     
+    /* تحسين زر التحديث على الشاشات المتوسطة */
+    .refresh-messages-btn {
+        width: 36px;
+        height: 36px;
+        padding: 6px;
+        margin-left: 8px;
+    }
+    
+    .refresh-messages-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    
     .chat-input-container {
         padding: 12px 15px;
     }
@@ -934,6 +947,19 @@ body {
     .chat-input {
         padding: 10px 14px;
         font-size: 14px;
+    }
+    
+    /* تحسين زر التحديث على الشاشات الصغيرة */
+    .refresh-messages-btn {
+        width: 36px;
+        height: 36px;
+        padding: 6px;
+        margin-left: 6px;
+    }
+    
+    .refresh-messages-btn svg {
+        width: 18px;
+        height: 18px;
     }
     
     /* تحسين زر الرجوع على الشاشات الصغيرة جداً */
@@ -2334,6 +2360,57 @@ body {
 .delete-messages-btn svg {
     width: 18px;
     height: 18px;
+}
+
+/* زر تحديث الرسائل */
+.refresh-messages-btn {
+    background: var(--primary-color);
+    border: none;
+    color: var(--white);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+    width: 40px;
+    height: 40px;
+}
+
+.refresh-messages-btn:hover {
+    background: var(--secondary-color);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.refresh-messages-btn:active {
+    transform: scale(0.95);
+}
+
+.refresh-messages-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.refresh-messages-btn svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s ease;
+}
+
+.refresh-messages-btn.refreshing svg {
+    animation: rotateRefresh 1s linear infinite;
+}
+
+@keyframes rotateRefresh {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* مودال حذف الرسائل */

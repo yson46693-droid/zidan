@@ -695,16 +695,52 @@ class SimpleWebAuthn {
                     sessionStorage.setItem('just_logged_in_time', Date.now().toString());
                 }
                 
-                // إعادة توجيه إلى لوحة التحكم
-                const dashboardUrl = 'dashboard.html';
+                // ✅ تحديد الصفحة المستهدفة للتوجيه
+                // التحقق من وجود معامل redirect في URL
+                const urlParams = new URLSearchParams(window.location.search);
+                let redirectUrl = urlParams.get('redirect');
                 
-                console.log('Redirecting to dashboard:', dashboardUrl);
-                // استخدام replace لمنع loop
-                window.location.replace(dashboardUrl);
+                // إذا لم يكن هناك redirect محدد، استخدم dashboard.html كافتراضي
+                if (!redirectUrl || redirectUrl === '') {
+                    redirectUrl = 'dashboard.html';
+                } else {
+                    // ✅ التأكد من أن URL آمن (منع XSS)
+                    // إزالة أي محاولات للوصول إلى صفحات خارجية
+                    if (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://') || redirectUrl.startsWith('//')) {
+                        console.warn('⚠️ محاولة توجيه غير آمنة تم رفضها:', redirectUrl);
+                        redirectUrl = 'dashboard.html';
+                    }
+                    // التأكد من أن الصفحة موجودة في نفس المجلد
+                    if (!redirectUrl.endsWith('.html')) {
+                        redirectUrl = 'dashboard.html';
+                    }
+                }
+                
+                console.log('✅ تسجيل الدخول WebAuthn ناجح - التوجيه إلى', redirectUrl);
+                
+                // ✅ وضع علامة للصفحة المستهدفة لاستدعاء ensureCSSAndIconsLoaded
+                sessionStorage.setItem('after_login_fix_css', 'true');
+                
+                // ✅ التوجيه مباشرة بعد حفظ البيانات
+                // استخدام window.location.href لضمان التوجيه في جميع المتصفحات
+                try {
+                    window.location.href = redirectUrl;
+                } catch (error) {
+                    console.error('❌ خطأ في التوجيه:', error);
+                    // محاولة بديلة باستخدام replace
+                    try {
+                        window.location.replace(redirectUrl);
+                    } catch (replaceError) {
+                        console.error('❌ خطأ في التوجيه البديل:', replaceError);
+                        // آخر محاولة - استخدام assign
+                        window.location.assign(redirectUrl);
+                    }
+                }
+                
                 return {
                     success: true,
                     message: 'تم تسجيل الدخول بنجاح',
-                    redirect: dashboardUrl
+                    redirect: redirectUrl
                 };
             } else {
                 throw new Error(verifyData.error || 'فشل التحقق من البصمة');

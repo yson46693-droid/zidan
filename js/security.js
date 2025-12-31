@@ -282,9 +282,24 @@ class SecurityManager {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
             navigator.mediaDevices.getUserMedia = function(constraints) {
-                // السماح فقط للكاميرا في سياق الباركود ريدر
+                // السماح فقط للكاميرا في سياق الباركود/QR ريدر
+                // التحقق من وجود عناصر الماسح الضوئي المختلفة
+                const scannerElements = [
+                    '#scanner-area',
+                    '#pos-qr-reader',
+                    '#qr-reader',
+                    '#barcodeScannerModal',
+                    '#posBarcodeScannerModal',
+                    '#qrCodeScannerModal'
+                ];
+                
+                const hasScannerElement = scannerElements.some(selector => {
+                    return document.querySelector(selector) !== null;
+                });
+                
                 if (window.location.hash.includes('barcode') || 
-                    document.querySelector('#scanner-area')) {
+                    window.location.hash.includes('qr') ||
+                    hasScannerElement) {
                     return originalGetUserMedia.apply(this, arguments);
                 } else {
                     securityManager.logSuspiciousActivity('محاولة الوصول للكاميرا خارج السياق المسموح', 'HIGH');

@@ -22,14 +22,38 @@ if (typeof self !== 'undefined' && !self.caches) {
 const getBasePath = () => {
     try {
         // استخدام self.location لتحديد مسار Service Worker
-        const swPath = self.location.pathname; // مثال: /z/sw.js
-        // استخراج المسار الأساسي (إزالة sw.js من النهاية)
-        const basePath = swPath.substring(0, swPath.lastIndexOf('/sw.js'));
+        const swPath = self.location.pathname; // مثال: /sw.js أو /z/sw.js
         console.log('[SW] Service Worker path:', swPath);
-        console.log('[SW] Base path:', basePath || '(root)');
-        return basePath || '';
+        
+        // ✅ الحل: إذا كان المسار يبدأ مباشرة بـ /sw.js، نستخدم الجذر
+        if (swPath === '/sw.js' || swPath.endsWith('/sw.js')) {
+            // استخراج المسار الأساسي (إزالة sw.js من النهاية)
+            const swIndex = swPath.lastIndexOf('/sw.js');
+            const basePath = swPath.substring(0, swIndex);
+            
+            // إذا كان basePath فارغاً أو '/'، نعيد '' (جذر)
+            if (!basePath || basePath === '/') {
+                console.log('[SW] Using root path');
+                return '';
+            }
+            
+            // ✅ التحقق من أن المسار صحيح (يجب أن يكون مثل /zidan15)
+            // إذا كان المسار يحتوي على .html، فهذا خطأ - نستخدم الجذر
+            if (basePath.includes('.html')) {
+                console.warn('[SW] Invalid base path detected (contains .html), using root instead:', basePath);
+                return '';
+            }
+            
+            console.log('[SW] Base path:', basePath);
+            return basePath.startsWith('/') ? basePath : '/' + basePath;
+        }
+        
+        // ✅ إذا لم نجد sw.js في المسار، نستخدم الجذر
+        console.log('[SW] sw.js not found in expected format, using root');
+        return '';
     } catch (e) {
         console.error('[SW] Error determining base path:', e);
+        // ✅ في حالة الخطأ، نستخدم الجذر دائماً
         return '';
     }
 };
@@ -37,32 +61,91 @@ const getBasePath = () => {
 const BASE_PATH = getBasePath();
 console.log('[SW] Using BASE_PATH:', BASE_PATH || '(root)');
 
-// قائمة الملفات الأساسية فقط - الملفات المهمة التي يجب أن تكون موجودة
-// تم تقليل الملفات لتسريع التحميل الأولي
-// ملاحظة: الأيقونات لا يتم حفظها في cache لأنها قد تتغير - سيتم جلبها من الشبكة دائماً
+// دالة مساعدة لبناء المسارات بشكل صحيح
+const buildPath = (path) => {
+    // ✅ الحل: إذا كان BASE_PATH يحتوي على .html، نستخدم الجذر بدلاً منه
+    // هذا يمنع إنشاء مسارات خاطئة مثل /dashboard.html/index.html
+    const effectiveBasePath = (BASE_PATH && BASE_PATH.includes('.html')) ? '' : BASE_PATH;
+    
+    // إذا كان BASE_PATH فارغاً، نستخدم المسار مباشرة مع / في البداية
+    if (!effectiveBasePath) {
+        return path.startsWith('/') ? path : '/' + path;
+    }
+    
+    // إذا كان BASE_PATH موجوداً، نضيف المسار إليه
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return effectiveBasePath + cleanPath;
+};
+
+// قائمة الملفات الأساسية - جميع ملفات JS و CSS الحرجة
+// ✅ تحسين: إضافة جميع ملفات JS و CSS الحرجة لتقليل عدد الطلبات
 const essentialFiles = [
-    BASE_PATH + '/',
-    BASE_PATH + '/index.html',
-    BASE_PATH + '/dashboard.html',
-    BASE_PATH + '/manifest.json',
-    BASE_PATH + '/css/style.css',
-    BASE_PATH + '/js/version.js',
-    BASE_PATH + '/js/api.js',
-    BASE_PATH + '/js/utils.js'
-    // تم إزالة الأيقونات من essentialFiles - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
+    buildPath('/'),
+    buildPath('/index.html'),
+    buildPath('/dashboard.html'),
+    buildPath('/manifest.json'),
+    // CSS Files - جميع ملفات CSS الحرجة
+    buildPath('/css/style.css'),
+    buildPath('/css/loading-overlay.css'),
+    buildPath('/css/dark-mode.css'),
+    buildPath('/css/security.css'),
+    // JS Files - جميع ملفات JS الحرجة
+    buildPath('/js/version.js'),
+    buildPath('/js/api.js'),
+    buildPath('/js/utils.js'),
+    buildPath('/js/loading-overlay.js'),
+    buildPath('/js/auth.js'),
+    buildPath('/js/indexeddb-cache.js'),
+    buildPath('/js/global-notifications.js'),
+    buildPath('/js/api-batch.js'),
+    buildPath('/js/message-polling-manager.js'),
+    buildPath('/js/console-manager.js')
+    // ملاحظة: الأيقونات لا يتم حفظها في cache لأنها قد تتغير - سيتم جلبها من الشبكة دائماً
 ];
 
-// قائمة الملفات الاختيارية - يمكن أن تفشل بدون مشكلة
-// تم تقليل الملفات - سيتم تحميلها عند الحاجة (lazy loading)
-// تم إزالة الملفات التي تسبب أخطاء 404 - سيتم تحميلها عند الحاجة من الصفحة
-// ملاحظة: تم إزالة الأيقونات من optionalFiles - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
+// قائمة الملفات الاختيارية - ملفات إضافية يمكن تحميلها في الخلفية
+// ✅ تحسين: إضافة ملفات JS و CSS إضافية للـ caching
 const optionalFiles = [
-    BASE_PATH + '/install.html',
-    BASE_PATH + '/css/dark-mode.css',
-    BASE_PATH + '/css/security.css',
-    // تم إزالة جميع الأيقونات - سيتم جلبها من الشبكة دائماً لضمان الحصول على أحدث نسخة
-    BASE_PATH + '/vertopal.com_photo_5922357566287580087_y.png'
-    // باقي ملفات JS سيتم تحميلها عند الحاجة (lazy loading)
+    buildPath('/install.html'),
+    buildPath('/pos.html'),
+    buildPath('/chat.html'),
+    buildPath('/repair-tracking.html'),
+    // CSS Files إضافية
+    buildPath('/css/chat.css'),
+    buildPath('/css/pos.css'),
+    buildPath('/css/repair-tracking.css'),
+    buildPath('/css/print.css'),
+    buildPath('/css/splash-screen.css'),
+    // JS Files إضافية - سيتم تحميلها عند الحاجة (lazy loading)
+    buildPath('/js/repairs.js'),
+    buildPath('/js/customers.js'),
+    buildPath('/js/inventory.js'),
+    buildPath('/js/expenses.js'),
+    buildPath('/js/reports.js'),
+    buildPath('/js/settings.js'),
+    buildPath('/js/profile.js'),
+    buildPath('/js/product-returns.js'),
+    buildPath('/js/chat.js'),
+    buildPath('/js/pos.js'),
+    buildPath('/js/repair-tracking.js'),
+    buildPath('/js/chat-unread-badge.js'),
+    buildPath('/js/sync.js'),
+    buildPath('/js/encryption.js'),
+    buildPath('/js/encryption-settings.js'),
+    buildPath('/js/data-protection.js'),
+    buildPath('/js/security.js'),
+    buildPath('/js/barcode.js'),
+    buildPath('/js/small-label.js'),
+    buildPath('/js/backup-management.js'),
+    buildPath('/js/error-logs.js'),
+    buildPath('/js/performance-monitor.js'),
+    buildPath('/js/pwa-install.js'),
+    buildPath('/js/pwa-validator.js'),
+    buildPath('/js/pwa-diagnostics.js'),
+    // Images
+    buildPath('/vertopal.com_photo_5922357566287580087_y.png'),
+    buildPath('/icon-512x512.png')
+    // ملاحظة: الأيقونات لا يتم حفظها في cache لأنها قد تتغير - سيتم جلبها من الشبكة دائماً
 ];
 
 // متغير لتتبع العمليات المعلقة
@@ -70,7 +153,8 @@ let pendingOperations = new Set();
 
 // دالة لإضافة ملفات بشكل آمن مع معالجة الأخطاء و timeout
 async function cacheFilesSafely(cache, files, isEssential = false) {
-    const CACHE_TIMEOUT = 3000; // تقليل timeout إلى 3 ثواني لتسريع التحميل
+    // ✅ تحسين: زيادة timeout للملفات الكبيرة (JS/CSS)
+    const CACHE_TIMEOUT = 5000; // 5 ثواني للملفات الكبيرة
     
     // دالة مساعدة لإضافة timeout للطلبات
     const fetchWithTimeout = (url, timeout = CACHE_TIMEOUT) => {
@@ -224,6 +308,27 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const { request } = event;
     
+    // ✅ تجاهل ملفات CDN الخارجية (مثل Bootstrap Icons) لتجنب مشاكل CORS
+    // نترك المتصفح يتعامل معها بشكل طبيعي
+    try {
+        const requestUrl = new URL(request.url);
+        const isExternalCDN = requestUrl.origin !== self.location.origin;
+        
+        // ✅ تجاهل ملفات CSS و JS من CDN خارجي (مثل cdn.jsdelivr.net)
+        if (isExternalCDN && (
+            requestUrl.hostname.includes('cdn.jsdelivr.net') ||
+            requestUrl.hostname.includes('cdnjs.cloudflare.com') ||
+            requestUrl.hostname.includes('unpkg.com') ||
+            requestUrl.hostname.includes('fonts.googleapis.com') ||
+            requestUrl.hostname.includes('fonts.gstatic.com')
+        )) {
+            // نترك المتصفح يتعامل مع الطلب بشكل طبيعي بدون intercept
+            return;
+        }
+    } catch (e) {
+        // إذا فشل parsing URL، نتابع بشكل طبيعي
+    }
+    
     // دعم المتصفحات القديمة التي لا تدعم URL constructor
     let url;
     try {
@@ -233,19 +338,36 @@ self.addEventListener('fetch', event => {
         url = { pathname: request.url };
     }
     
-    // معالجة طلبات API وملفات PHP - السماح بمرور جميع الاستجابات من الخادم
+    // ✅ تحسين: معالجة طلبات API مع caching ذكي
     if (url.pathname.includes('/api/') || url.pathname.endsWith('.php')) {
-        // عدم اعتراض طلبات API وملفات PHP - السماح بمرورها مباشرة للخادم
-        // هذا يضمن أن الأخطاء من الخادم (401, 404, 500) تصل للكود بشكل صحيح
+        // استراتيجية Network First مع Cache Fallback للـ API requests
         event.respondWith(
-            fetch(request)
+            fetch(request, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            })
                 .then(response => {
-                    // إرجاع الاستجابة كما هي (حتى لو كانت خطأ من الخادم)
-                    // هذا يسمح للكود بمعالجة الأخطاء بشكل صحيح
+                    // إذا كانت الاستجابة ناجحة (200-299) و GET request، نحفظها في cache
+                    if (request.method === 'GET' && response.ok && response.status >= 200 && response.status < 300) {
+                        // نسخ الاستجابة قبل حفظها
+                        const responseToCache = response.clone();
+                        
+                        // حفظ في cache بشكل آمن (في الخلفية)
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(request, responseToCache).catch(err => {
+                                console.warn('[SW] فشل حفظ API response في cache:', request.url, err);
+                            });
+                        });
+                    }
+                    
                     return response;
                 })
                 .catch(error => {
-                    // فقط في حالة NetworkError (فشل الطلب تماماً)، نعرض رسالة عدم الاتصال
+                    // في حالة فشل الشبكة، نجرب من cache
                     const isNetworkError = error.name === 'TypeError' || 
                                          error.name === 'NetworkError' ||
                                          (error.message && (
@@ -255,21 +377,29 @@ self.addEventListener('fetch', event => {
                                              error.message.includes('Load failed')
                                          ));
                     
-                    // فقط إذا كان خطأ شبكة فعلي، نعرض رسالة عدم الاتصال
                     if (isNetworkError) {
-                        return new Response(
-                            JSON.stringify({ 
-                                success: false, 
-                                message: 'لا يوجد اتصال بالإنترنت. يرجى المحاولة لاحقاً.',
-                                offline: true
-                            }),
-                            { 
-                                headers: { 
-                                    'Content-Type': 'application/json',
-                                    'Cache-Control': 'no-cache'
-                                } 
+                        // محاولة جلب من cache
+                        return caches.match(request).then(cachedResponse => {
+                            if (cachedResponse) {
+                                console.log('[SW] استخدام API response من cache:', request.url);
+                                return cachedResponse;
                             }
-                        );
+                            
+                            // إذا لم يكن في cache، نعيد رسالة عدم الاتصال
+                            return new Response(
+                                JSON.stringify({ 
+                                    success: false, 
+                                    message: 'لا يوجد اتصال بالإنترنت. يرجى المحاولة لاحقاً.',
+                                    offline: true
+                                }),
+                                { 
+                                    headers: { 
+                                        'Content-Type': 'application/json',
+                                        'Cache-Control': 'no-cache'
+                                    } 
+                                }
+                            );
+                        });
                     }
                     
                     // في حالة وجود خطأ آخر، نعيد الخطأ الأصلي للكود لمعالجته
@@ -285,42 +415,111 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // استراتيجية Network First دائماً للملفات الديناميكية (CSS/JS/HTML)
-    // هذا يضمن أن الملفات المحدثة تُجلب من الشبكة أولاً دائماً
-    // لا نستخدم cache للملفات الديناميكية لضمان الحصول على آخر إصدار
+    // ✅ تحسين: استراتيجية Network First للملفات الديناميكية مع cache fallback
+    // هذا يضمن أن الملفات المحدثة تُجلب من الشبكة أولاً، لكن مع دعم offline
     const isDynamicFile = request.url.includes('?v=') || 
                          request.url.includes('?version=') ||
                          request.url.endsWith('.css') ||
                          request.url.endsWith('.js') ||
                          request.url.endsWith('.html') ||
-                         request.url.includes('/icons/') ||
-                         request.url.includes('/api/') ||
-                         request.url.endsWith('.php');
+                         request.url.includes('/icons/');
+    
+    // ✅ تحسين: معالجة الصور بشكل منفصل مع caching أفضل
+    const isImage = request.url.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i) ||
+                    request.url.includes('/images/') ||
+                    request.url.includes('/icons/');
+    
+    // ✅ تحسين: معالجة الصور مع Cache First strategy
+    if (isImage) {
+        event.respondWith(
+            caches.match(request)
+                .then(cachedResponse => {
+                    // إذا كان موجود في cache، نعيده مباشرة (أسرع)
+                    if (cachedResponse) {
+                        return cachedResponse;
+                    }
+                    
+                    // إذا لم يكن في cache، نجلب من الشبكة
+                    return fetch(request).then(response => {
+                        // إذا كانت الاستجابة ناجحة، نحفظها في cache
+                        if (response.ok && response.status === 200) {
+                            const responseToCache = response.clone();
+                            caches.open(CACHE_NAME).then(cache => {
+                                cache.put(request, responseToCache).catch(err => {
+                                    console.warn('[SW] فشل حفظ صورة في cache:', request.url, err);
+                                });
+                            });
+                        }
+                        return response;
+                    }).catch(error => {
+                        console.warn('[SW] فشل جلب صورة:', request.url, error);
+                        // إرجاع placeholder image في حالة الفشل
+                        return new Response('', { status: 404 });
+                    });
+                })
+        );
+        return;
+    }
     
     if (isDynamicFile) {
-        // Network First دائماً - لا نستخدم cache للملفات الديناميكية
-        // هذا يضمن الحصول على آخر إصدار من الخادم
+        // ✅ التحقق من أن الطلب هو لملف محلي وليس CDN خارجي
+        const requestUrl = new URL(request.url);
+        const isExternalCDN = requestUrl.origin !== self.location.origin;
+        const isLocalFile = !isExternalCDN || 
+                           requestUrl.hostname === 'localhost' || 
+                           requestUrl.hostname === '127.0.0.1' ||
+                           requestUrl.hostname.includes(self.location.hostname);
+        
+        // ✅ Network First مع Cache Fallback للملفات الديناميكية
+        // لا نضيف headers مخصصة للملفات الخارجية (CDN) لتجنب مشاكل CORS
+        const fetchOptions = isLocalFile ? {
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        } : {
+            // ✅ للملفات الخارجية (CDN)، نستخدم fetch عادي بدون headers مخصصة
+            cache: 'default',
+            mode: 'cors',
+            credentials: 'omit'
+        };
+        
         event.respondWith(
-            fetch(request, {
-                cache: 'no-store', // عدم استخدام cache المتصفح
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            })
+            fetch(request, fetchOptions)
                 .then(response => {
-                    // نرجع الاستجابة مباشرة بدون حفظها في cache
-                    // لضمان الحصول على آخر إصدار دائماً
+                    // إذا كانت الاستجابة ناجحة، نحفظها في cache للاستخدام offline
+                    if (response.ok && response.status === 200) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(request, responseToCache).catch(err => {
+                                console.warn('[SW] فشل حفظ ملف في cache:', request.url, err);
+                            });
+                        });
+                    }
                     return response;
                 })
                 .catch(error => {
-                    // فقط في حالة فشل الشبكة تماماً، نجرب من cache كـ fallback
-                    console.warn('[SW] فشل جلب من الشبكة، استخدام cache:', request.url, error);
+                    // في حالة فشل الشبكة، نجرب من cache كـ fallback
+                    // ✅ للملفات الخارجية، لا نطبع warning لتقليل الضوضاء
+                    if (isLocalFile) {
+                        console.warn('[SW] فشل جلب من الشبكة، استخدام cache:', request.url, error);
+                    }
                     return caches.match(request).then(cachedResponse => {
                         if (cachedResponse) {
-                            console.log('[SW] استخدام نسخة من cache:', request.url);
+                            if (isLocalFile) {
+                                console.log('[SW] استخدام نسخة من cache:', request.url);
+                            }
                             return cachedResponse;
+                        }
+                        // ✅ للملفات الخارجية، نعيد response فارغ بدلاً من throw error
+                        if (!isLocalFile) {
+                            // للملفات الخارجية، نترك المتصفح يتعامل معها بشكل طبيعي
+                            return fetch(request, { mode: 'no-cors' }).catch(() => {
+                                // إذا فشل أيضاً، نعيد response فارغ
+                                return new Response('', { status: 0 });
+                            });
                         }
                         // إذا لم يكن في cache أيضاً، نعيد الخطأ الأصلي
                         throw error;

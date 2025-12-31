@@ -24,6 +24,14 @@ class GlobalNotificationManager {
     // تهيئة النظام
     async init() {
         try {
+            // ✅ منع التهيئة في صفحة تسجيل الدخول
+            const pathname = window.location.pathname;
+            const isLoginPage = pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/');
+            if (isLoginPage) {
+                console.log('📋 صفحة تسجيل الدخول - لن يتم تهيئة نظام الإشعارات');
+                return;
+            }
+            
             // الانتظار قليلاً لضمان تحميل API
             let retries = 0;
             while ((typeof API === 'undefined' || !API.request) && retries < 10) {
@@ -70,24 +78,43 @@ class GlobalNotificationManager {
             // إعداد مراقبة حالة الصفحة
             this.setupVisibilityListener();
 
-            // 🔧 تحسين الأداء: تأجيل بدء النظام حتى بعد 3 ثواني لتقليل الطلبات الفورية
+            // ✅ تحسين الأداء: استخدام MessagePollingManager الموحد
             if (!this.isChatPage) {
-                // تأخير بدء النظام حتى بعد 3 ثواني أو عند التفاعل
-                let notificationsStarted = false;
-                const startNotificationsDelayed = () => {
-                    if (!notificationsStarted) {
-                        notificationsStarted = true;
-                        this.start();
+                // الانتظار حتى يتم تحميل MessagePollingManager
+                const waitForPollingManager = () => {
+                    if (window.MessagePollingManager) {
+                        // الاشتراك في MessagePollingManager
+                        window.MessagePollingManager.subscribe((result) => {
+                            if (result && result.messages) {
+                                this.processMessages(result.messages);
+                            }
+                        });
+                        console.log('✅ تم الاشتراك في MessagePollingManager الموحد');
+                    } else {
+                        // إعادة المحاولة بعد 500ms
+                        setTimeout(waitForPollingManager, 500);
                     }
                 };
                 
-                // بدء عند التفاعل الأول أو بعد 3 ثواني
-                ['click', 'touchstart', 'mousemove'].forEach(event => {
-                    document.addEventListener(event, startNotificationsDelayed, { once: true, passive: true });
-                });
-                setTimeout(startNotificationsDelayed, 3000); // تأخير 3 ثواني
+                // بدء النظام بعد 2 ثانية (بعد تحميل MessagePollingManager)
+                setTimeout(() => {
+                    waitForPollingManager();
+                    // Fallback: بدء النظام القديم إذا لم يكن MessagePollingManager متاحاً
+                    if (!window.MessagePollingManager) {
+                        let notificationsStarted = false;
+                        const startNotificationsDelayed = () => {
+                            if (!notificationsStarted) {
+                                notificationsStarted = true;
+                                this.start();
+                            }
+                        };
+                        ['click', 'touchstart', 'mousemove'].forEach(event => {
+                            document.addEventListener(event, startNotificationsDelayed, { once: true, passive: true });
+                        });
+                        setTimeout(startNotificationsDelayed, 3000);
+                    }
+                }, 2000);
             } else {
-                // في صفحة الشات، لا نحتاج للتحقق لأن Long Polling يقوم بذلك
                 console.log('📋 نظام الإشعارات يعمل في صفحة الشات - Long Polling يقوم بالتحقق');
             }
 
@@ -231,7 +258,7 @@ class GlobalNotificationManager {
         console.log('⏸️ تم إيقاف نظام الإشعارات المركزي');
     }
 
-    // التحقق من وجود رسائل جديدة
+    // ✅ تحسين الأداء: استخدام MessagePollingManager الموحد
     async checkForNewMessages() {
         // منع الاستدعاء في صفحة الشات (Long Polling يقوم بذلك)
         if (this.isChatPage) {
@@ -242,14 +269,21 @@ class GlobalNotificationManager {
             return;
         }
 
-        // التحقق من cache
-        const now = Date.now();
-        if (this.cachedResult && this.cacheExpiry > now) {
-            // استخدام النتيجة المخزنة
+        // استخدام MessagePollingManager إذا كان متاحاً
+        if (window.MessagePollingManager && window.MessagePollingManager.isActive) {
+            const cachedResult = window.MessagePollingManager.getCachedResult();
+            if (cachedResult && cachedResult.messages) {
+                this.processMessages(cachedResult.messages);
+            }
             return;
         }
 
-        // منع الطلبات المتكررة
+        // Fallback للطريقة القديمة (إذا لم يكن MessagePollingManager متاحاً)
+        const now = Date.now();
+        if (this.cachedResult && this.cacheExpiry > now) {
+            return;
+        }
+
         if (this.pendingCheck) {
             return;
         }
@@ -258,50 +292,43 @@ class GlobalNotificationManager {
         this.lastCheckTime = now;
 
         try {
-            // استخدام get_messages.php لجلب الرسائل الجديدة
-            // مع silent flag لمنع عرض loading overlay
             const result = await API.request(`get_messages.php?last_id=${this.lastMessageId}`, 'GET', null, { silent: true });
-            
             this.pendingCheck = false;
             
             if (result && result.success && result.data && result.data.length > 0) {
-                let maxMessageId = this.lastMessageId;
-                let hasNewMessages = false;
-                
-                // معالجة الرسائل الجديدة
-                result.data.forEach(message => {
-                    // عرض إشعار فقط للرسائل التي ليست من المستخدم الحالي
-                    if (message.user_id !== this.currentUser.id) {
-                        // التحقق من أن الرسالة جديدة (بعد lastMessageId)
-                        if (this.lastMessageId === '0' || (message.id && message.id > this.lastMessageId)) {
-                            this.showNotification(message);
-                            hasNewMessages = true;
-                        }
-                    }
-                    
-                    // تحديث maxMessageId
-                    if (message.id && (this.lastMessageId === '0' || message.id > maxMessageId)) {
-                        maxMessageId = message.id;
-                    }
-                });
-                
-                // تحديث lastMessageId مرة واحدة فقط لأكبر id
-                if (maxMessageId !== this.lastMessageId && maxMessageId !== '0') {
-                    this.saveLastMessageId(maxMessageId);
-                }
-                
-                // حفظ في cache
-                this.cachedResult = { hasNewMessages };
-                this.cacheExpiry = now + this.CACHE_DURATION;
-            } else {
-                // حفظ في cache
-                this.cachedResult = { hasNewMessages: false };
-                this.cacheExpiry = now + this.CACHE_DURATION;
+                this.processMessages(result.data);
             }
         } catch (error) {
             this.pendingCheck = false;
             console.error('خطأ في التحقق من الرسائل الجديدة:', error);
         }
+    }
+
+    // ✅ تحسين الأداء: دالة منفصلة لمعالجة الرسائل
+    processMessages(messages) {
+        const now = Date.now();
+        let maxMessageId = this.lastMessageId;
+        let hasNewMessages = false;
+        
+        messages.forEach(message => {
+            if (message.user_id !== this.currentUser.id) {
+                if (this.lastMessageId === '0' || (message.id && message.id > this.lastMessageId)) {
+                    this.showNotification(message);
+                    hasNewMessages = true;
+                }
+            }
+            
+            if (message.id && (this.lastMessageId === '0' || message.id > maxMessageId)) {
+                maxMessageId = message.id;
+            }
+        });
+        
+        if (maxMessageId !== this.lastMessageId && maxMessageId !== '0') {
+            this.saveLastMessageId(maxMessageId);
+        }
+        
+        this.cachedResult = { hasNewMessages };
+        this.cacheExpiry = now + this.CACHE_DURATION;
     }
 
     // عرض إشعار للمستخدم

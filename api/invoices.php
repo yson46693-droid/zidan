@@ -77,12 +77,14 @@ function getShopSettings() {
         $shopAddress = dbSelectOne("SELECT value FROM settings WHERE `key` = 'shop_address'");
         $shopLogo = dbSelectOne("SELECT value FROM settings WHERE `key` = 'shop_logo'");
         $currency = dbSelectOne("SELECT value FROM settings WHERE `key` = 'currency'");
+        $whatsappNumber = dbSelectOne("SELECT value FROM settings WHERE `key` = 'whatsapp_number'");
         
         $settings['shop_name'] = $shopName['value'] ?? 'ALAA ZIDAN';
         $settings['shop_phone'] = $shopPhone['value'] ?? '';
         $settings['shop_address'] = $shopAddress['value'] ?? '';
         $settings['shop_logo'] = $shopLogo['value'] ?? '';
         $settings['currency'] = $currency['value'] ?? 'ج.م';
+        $settings['whatsapp_number'] = $whatsappNumber['value'] ?? '01276855966';
     } catch (Exception $e) {
         error_log('خطأ في جلب إعدادات المتجر: ' . $e->getMessage());
     }
@@ -103,39 +105,50 @@ function generateSimpleQRCode($data, $size = 250) {
     // محاولة استخدام qr-server.com API (أكثر موثوقية)
     $qrServerUrl = "https://api.qrserver.com/v1/create-qr-code/?size={$size}x{$size}&data={$encodedData}";
     
-    // محاولة تحميل الصورة وتحويلها إلى base64 للاستخدام المحلي
-    try {
-        $imageData = @file_get_contents($qrServerUrl, false, stream_context_create([
-            'http' => [
-                'timeout' => 5,
-                'user_agent' => 'Mozilla/5.0'
-            ]
-        ]));
-        
-        if ($imageData !== false && strlen($imageData) > 0) {
-            $base64 = base64_encode($imageData);
-            return 'data:image/png;base64,' . $base64;
+    // محاولة تحميل الصورة باستخدام cURL أولاً (أفضل للـ HTTPS)
+    if (function_exists('curl_init')) {
+        try {
+            $ch = curl_init($qrServerUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+            $imageData = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($imageData !== false && strlen($imageData) > 0 && $httpCode == 200) {
+                $base64 = base64_encode($imageData);
+                return 'data:image/png;base64,' . $base64;
+            }
+        } catch (Exception $e) {
+            error_log('خطأ في تحميل QR Code باستخدام cURL: ' . $e->getMessage());
         }
-    } catch (Exception $e) {
-        error_log('خطأ في تحميل QR Code من qr-server.com API: ' . $e->getMessage());
     }
     
-    // محاولة استخدام Google Charts API كبديل
-    try {
-        $googleUrl = "https://chart.googleapis.com/chart?chs={$size}x{$size}&cht=qr&chl={$encodedData}&choe=UTF-8";
-        $imageData = @file_get_contents($googleUrl, false, stream_context_create([
-            'http' => [
-                'timeout' => 5,
-                'user_agent' => 'Mozilla/5.0'
-            ]
-        ]));
-        
-        if ($imageData !== false && strlen($imageData) > 0) {
-            $base64 = base64_encode($imageData);
-            return 'data:image/png;base64,' . $base64;
+    // محاولة استخدام file_get_contents فقط إذا كان HTTPS wrapper مفعّل
+    if (in_array('https', stream_get_wrappers())) {
+        try {
+            $imageData = @file_get_contents($qrServerUrl, false, stream_context_create([
+                'http' => [
+                    'timeout' => 5,
+                    'user_agent' => 'Mozilla/5.0'
+                ],
+                'https' => [
+                    'timeout' => 5,
+                    'user_agent' => 'Mozilla/5.0'
+                ]
+            ]));
+            
+            if ($imageData !== false && strlen($imageData) > 0) {
+                $base64 = base64_encode($imageData);
+                return 'data:image/png;base64,' . $base64;
+            }
+        } catch (Exception $e) {
+            error_log('خطأ في تحميل QR Code من qr-server.com API: ' . $e->getMessage());
         }
-    } catch (Exception $e) {
-        error_log('خطأ في تحميل QR Code من Google Charts API: ' . $e->getMessage());
     }
     
     // إذا فشل التحميل، نستخدم URL مباشرة (سيعمل في المتصفح)
@@ -156,7 +169,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     $currency = $shopSettings['currency'] ?? 'ج.م';
     $branchName = 'الهانوفيل';
     $salesPersonName = $saleData['created_by_name'] ?? 'غير محدد';
-    $whatsappNumber = '01276855966';
+    $whatsappNumber = $shopSettings['whatsapp_number'] ?? '01276855966';
     
     // تنسيق التاريخ
     $dateTime = formatDateTime12Hour($saleData['created_at'] ?? date('Y-m-d H:i:s'));
@@ -164,22 +177,40 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     // التحقق من وجود منتج هاتف
     $hasPhoneProduct = false;
     $phoneData = null;
+    // التحقق من وجود منتج قطعة غيار
+    $hasSparePartProduct = false;
+    // التحقق من وجود منتج إكسسوار
+    $hasAccessoryProduct = false;
     $items = $saleData['items'] ?? [];
     foreach ($items as $item) {
         if (($item['item_type'] ?? '') === 'phone') {
             $hasPhoneProduct = true;
             // محاولة جلب بيانات الهاتف من notes
             if (!empty($item['notes'])) {
-                $phoneDataJson = json_decode($item['notes'], true);
-                if ($phoneDataJson && is_array($phoneDataJson)) {
-                    $phoneData = $phoneDataJson;
+                $notesData = json_decode($item['notes'], true);
+                if ($notesData && is_array($notesData)) {
+                    if (isset($notesData['phone_data'])) {
+                        $phoneData = $notesData['phone_data'];
+                    } elseif (isset($notesData['brand']) || isset($notesData['model'])) {
+                        // محاولة استخدام البيانات مباشرة إذا كانت بيانات الهاتف مباشرة في notes (للتوافق مع البيانات القديمة)
+                        $phoneData = $notesData;
+                    }
                 }
             }
-            // أو من phone_data إذا كان موجوداً
+            // أو من phone_data إذا كان موجوداً مباشرة في الـ item
             if (!$phoneData && !empty($item['phone_data'])) {
-                $phoneData = $item['phone_data'];
+                $phoneData = is_array($item['phone_data']) ? $item['phone_data'] : json_decode($item['phone_data'], true);
             }
-            break;
+            // إذا وجدنا بيانات الهاتف، نتوقف عن البحث (نأخذ أول هاتف فقط)
+            if ($phoneData) {
+                break;
+            }
+        }
+        if (($item['item_type'] ?? '') === 'spare_part') {
+            $hasSparePartProduct = true;
+        }
+        if (($item['item_type'] ?? '') === 'accessory') {
+            $hasAccessoryProduct = true;
         }
     }
     
@@ -221,7 +252,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                         <strong>حالة الضريبة:</strong> ' . (($phoneData['tax_status'] ?? '') === 'due' ? 'مستحقة' : 'معفاة') . '
                     </div>
                     <div class="phone-data-item">
-                        <strong>السيريال نمبر (IMEI):</strong> ' . htmlspecialchars($phoneData['serial_number'] ?? '-') . '
+                        <strong>السيريال نمبر (SN):</strong> ' . htmlspecialchars($phoneData['serial_number'] ?? '-') . '
                     </div>
                     <div class="phone-data-item">
                         <strong>سجل الصيانة:</strong> ' . htmlspecialchars($phoneData['maintenance_history'] ?? '-') . '
@@ -242,16 +273,16 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     foreach ($items as $index => $item) {
         $itemName = htmlspecialchars($item['item_name'] ?? $item['name'] ?? 'غير محدد');
         $quantity = intval($item['quantity'] ?? 0);
-        $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 2);
-        $totalPrice = number_format(floatval($item['total_price'] ?? 0), 2);
+        $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 0);
+        $totalPrice = number_format(floatval($item['total_price'] ?? 0), 0);
         
         $itemsHtml .= '
                         <tr>
                             <td>' . ($index + 1) . '</td>
                             <td>' . $itemName . '</td>
                             <td>' . $quantity . '</td>
-                            <td>' . $unitPrice . ' ' . $currency . '</td>
-                            <td>' . $totalPrice . ' ' . $currency . '</td>
+                            <td>' . $unitPrice . '</td>
+                            <td>' . $totalPrice . '</td>
                         </tr>';
     }
     
@@ -260,6 +291,8 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     $discount = floatval($saleData['discount'] ?? 0);
     $tax = floatval($saleData['tax'] ?? 0);
     $finalAmount = floatval($saleData['final_amount'] ?? 0);
+    $paidAmount = floatval($saleData['paid_amount'] ?? 0);
+    $remainingAmount = floatval($saleData['remaining_amount'] ?? 0);
     
     // إنشاء QR Code مع بيانات إضافية عشوائية لجعله أكثر واقعية
     $saleNumber = $saleData['sale_number'] ?? $saleData['id'] ?? '';
@@ -339,21 +372,63 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     $qrCodeImage = generateSimpleQRCode($simpleQRData, 250);
     
     // البنود والشروط
-    $invoiceTerms = '
+    if ($hasSparePartProduct && !$hasAccessoryProduct) {
+        // For spare parts only, show only one warning
+        $invoiceTerms = '
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجي تجربة قطعة الغيار بشكل جيد اثناء التواجد في الفرع حيث ان الضمان مقتصر علي التجربه فقط</li>
+            </ol>
+        </div>';
+    } else if ($hasSparePartProduct && $hasAccessoryProduct) {
+        // For spare parts AND accessories, show all warnings including spare part warning as fourth
+        $invoiceTerms = '
         <div class="invoice-terms">
             <h4>تنبيهات هامة:</h4>
             <ol>
                 <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
-                <li>لا يتم الإرجاع أو الاستبدال إلا بإبراز الفاتورة الأصلية.</li>';
-    if ($hasPhoneProduct) {
-        $invoiceTerms .= '
-                <li>يجب مطابقة رقم الـ IMEI المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
-                <li>لا يتم استبدال أو رد الأجهزة الجديدة بعد الاستخدام أو فتح ستيكر الضمان الموجود على العلبة.</li>';
-    }
-    $invoiceTerms .= '
+                <li>لا يتم الإرجاع أو الاستبدال إلا بالفاتورة الأصلية.</li>
+                <li>يرجي تجربة المنتج جيدا حيث ان ضمان الاكسسوارات مقتصر علي التجربه فقط</li>
+                <li>يرجي تجربة قطعة الغيار بشكل جيد اثناء التواجد في الفرع حيث ان الضمان مقتصر علي التجربه فقط</li>
+            </ol>
+        </div>';
+    } else if ($hasAccessoryProduct && $hasPhoneProduct) {
+        // For accessories AND phone, show all warnings for both
+        $invoiceTerms = '
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
+                <li>لا يتم الإرجاع أو الاستبدال إلا بالفاتورة الأصلية.</li>
+                <li>يرجي تجربة المنتج جيدا حيث ان ضمان الاكسسوارات مقتصر علي التجربه فقط</li>
+                <li>يجب مطابقة رقم الـ Serial Number المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
+                <li>لا يتم استبدال أو رد الأجهزة الجديدة بعد الاستخدام أو فتح ستيكر الضمان الموجود على العلبة.</li>
                 <li>الضمان يشمل عيوب الصناعة فقط ولا يشمل سوء الاستخدام أو الكسر أو السوائل.</li>
             </ol>
         </div>';
+    } else {
+        // For other products, show standard warnings
+        $warrantyWarning = $hasAccessoryProduct 
+            ? '<li>يرجي تجربة المنتج جيدا حيث ان ضمان الاكسسوارات مقتصر علي التجربه فقط</li>'
+            : '<li>الضمان يشمل عيوب الصناعة فقط ولا يشمل سوء الاستخدام أو الكسر أو السوائل.</li>';
+        
+        $invoiceTerms = '
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
+                <li>لا يتم الإرجاع أو الاستبدال إلا بالفاتورة الأصلية.</li>';
+        if ($hasPhoneProduct) {
+            $invoiceTerms .= '
+                <li>يجب مطابقة رقم الـ Serial Number المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
+                <li>لا يتم استبدال أو رد الأجهزة الجديدة بعد الاستخدام أو فتح ستيكر الضمان الموجود على العلبة.</li>';
+        }
+        $invoiceTerms .= '
+                ' . $warrantyWarning . '
+            </ol>
+        </div>';
+    }
     
     // HTML كامل للفاتورة - مطابق تماماً للقالب في JavaScript
     $html = '<!DOCTYPE html>
@@ -398,7 +473,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             padding: 20px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border-radius: 16px;
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1.7;
         }
         .invoice-logo-section {
@@ -464,91 +539,58 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         .invoice-details {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 25px;
-            padding: 20px;
+            gap: 8px 15px;
+            margin-bottom: 15px;
+            padding: 12px 15px;
             background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            border-radius: 12px;
+            border-radius: 8px;
             border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
         }
-        .invoice-details-left,
-        .invoice-details-right {
+        .invoice-detail-item {
+            color: var(--text-dark);
+            font-size: 0.95em;
+            padding: 4px 0;
+            line-height: 1.5;
+            font-weight: 500;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            align-items: center;
+            gap: 5px;
         }
-        .invoice-details-left > div,
-        .invoice-details-right > div {
-            color: var(--text-dark);
-            font-size: 1.05em;
-            padding: 10px 0;
-            border-bottom: 1px dotted #ddd;
-            line-height: 1.8;
-            font-weight: 500;
-        }
-        .invoice-details-left > div:last-child,
-        .invoice-details-right > div:last-child {
-            border-bottom: none;
-        }
-        .invoice-details-left strong,
-        .invoice-details-right strong {
+        .invoice-detail-item strong {
             color: var(--primary-color);
             font-weight: 600;
-            margin-left: 8px;
-        }
-        .invoice-extra-info {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-            padding: 18px 20px;
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 1.05em;
-            color: var(--text-dark);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-            line-height: 1.8;
-            font-weight: 500;
-        }
-        .invoice-extra-info > div {
-            padding: 5px 0;
-        }
-        .invoice-extra-info strong {
-            color: var(--primary-color);
-            font-weight: 600;
-            margin-left: 8px;
+            min-width: fit-content;
         }
         .invoice-phone-data {
-            margin: 25px 0;
-            padding: 20px;
+            margin: 15px 0;
+            padding: 12px 15px;
             background: #f8f9fa;
             border-radius: 8px;
             border: 1px solid #e0e0e0;
         }
         .invoice-phone-data h3 {
-            margin: 0 0 15px 0;
+            margin: 0 0 10px 0;
             color: var(--primary-color);
-            font-size: 1.4em;
+            font-size: 1.1em;
             text-align: right;
             border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 12px;
+            padding-bottom: 8px;
             font-weight: 700;
         }
         .phone-data-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 15px;
+            gap: 8px 12px;
+            margin-top: 10px;
         }
         .phone-data-item {
-            padding: 12px 15px;
+            padding: 8px 10px;
             background: white;
             border-radius: 5px;
             border: 1px solid #e0e0e0;
-            font-size: 1.05em;
-            line-height: 1.8;
+            font-size: 0.9em;
+            line-height: 1.5;
             font-weight: 500;
         }
         .phone-data-item.full-width {
@@ -556,8 +598,8 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         }
         .phone-data-item strong {
             color: var(--primary-color);
-            margin-left: 8px;
-            font-weight: 700;
+            margin-left: 6px;
+            font-weight: 600;
         }
         .invoice-items-table {
             width: 100%;
@@ -569,12 +611,22 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         }
         .invoice-items-table th,
         .invoice-items-table td {
-            padding: 12px 8px;
+            padding: 16px 10px;
             text-align: right;
             border: 1px solid #ddd;
+            word-wrap: normal;
+            overflow-wrap: normal;
+            word-break: keep-all;
+            white-space: nowrap;
+            line-height: 1.6;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        .invoice-items-table th:nth-child(2),
+        .invoice-items-table td:nth-child(2) {
+            white-space: normal;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            white-space: normal;
         }
         .invoice-items-table th:nth-child(1),
         .invoice-items-table td:nth-child(1) {
@@ -600,14 +652,26 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         }
         .invoice-items-table th {
             background: #f5f5f5;
-            font-weight: 700;
+            font-weight: 600;
             color: var(--text-dark);
-            font-size: 1em;
+            font-size: 0.9em;
             border-bottom: 2px solid #ddd;
+            white-space: nowrap;
+            word-wrap: normal;
+            overflow-wrap: normal;
+            word-break: keep-all;
+            line-height: 1.5;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .invoice-items-table th:nth-child(2) {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         .invoice-items-table td {
             color: var(--text-dark);
-            font-size: 1em;
+            font-size: 1.2em;
             background: var(--white);
             font-weight: 500;
         }
@@ -615,22 +679,22 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             background: #f9f9f9;
         }
         .invoice-summary {
-            margin-top: 25px;
-            padding: 25px;
+            margin-top: 15px;
+            padding: 12px 15px;
             background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            border-radius: 12px;
+            border-radius: 8px;
             border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
         }
         .invoice-summary .summary-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 1.1em;
+            margin-bottom: 8px;
+            font-size: 0.95em;
             color: var(--text-dark);
-            padding: 10px 0;
+            padding: 4px 0;
             align-items: center;
-            line-height: 1.8;
+            line-height: 1.5;
             font-weight: 500;
         }
         .invoice-summary .summary-row span:first-child {
@@ -642,28 +706,28 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             color: var(--text-dark);
         }
         .invoice-summary .summary-row.total {
-            font-size: 1.9em;
+            font-size: 1.4em;
             font-weight: 800;
             color: var(--primary-color);
-            padding: 20px 0;
-            border-top: 3px solid var(--primary-color);
-            margin-top: 20px;
+            padding: 10px 0;
+            border-top: 2px solid var(--primary-color);
+            margin-top: 10px;
             margin-bottom: 0;
             background: linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(33, 150, 243, 0.02) 100%);
-            border-radius: 8px;
-            padding-left: 15px;
-            padding-right: 15px;
-            margin-left: -15px;
-            margin-right: -15px;
+            border-radius: 6px;
+            padding-left: 10px;
+            padding-right: 10px;
+            margin-left: -10px;
+            margin-right: -10px;
         }
         .invoice-summary .summary-row.total span:last-child {
-            font-size: 1.1em;
+            font-size: 1em;
             color: var(--primary-color);
         }
         .invoice-summary hr {
-            margin: 18px 0;
+            margin: 10px 0;
             border: none;
-            border-top: 2px solid #e0e0e0;
+            border-top: 1px solid #e0e0e0;
         }
         .invoice-qrcode {
             text-align: center;
@@ -793,27 +857,43 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-shop-info {
                 font-size: 0.85em !important;
             }
-            .invoice-details,
-            .invoice-extra-info {
-                padding: 8px !important;
-                margin-bottom: 8px !important;
-                font-size: 0.85em !important;
+            .invoice-details {
+                padding: 6px 8px !important;
+                margin-bottom: 6px !important;
+                gap: 4px 8px !important;
+                font-size: 0.75em !important;
                 page-break-inside: avoid !important;
+            }
+            .invoice-detail-item {
+                padding: 2px 0 !important;
+                font-size: 0.75em !important;
+                line-height: 1.3 !important;
             }
             .invoice-phone-data {
-                padding: 8px !important;
-                margin: 8px 0 !important;
-                font-size: 0.85em !important;
+                padding: 6px 8px !important;
+                margin: 6px 0 !important;
+                font-size: 0.75em !important;
                 page-break-inside: avoid !important;
             }
+            .invoice-phone-data h3 {
+                font-size: 0.9em !important;
+                margin-bottom: 6px !important;
+                padding-bottom: 4px !important;
+            }
             .phone-data-grid {
-                grid-template-columns: 1fr !important;
-                gap: 5px !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 4px 6px !important;
+                margin-top: 6px !important;
+            }
+            .phone-data-item {
+                padding: 4px 6px !important;
+                font-size: 0.75em !important;
+                line-height: 1.3 !important;
             }
             .invoice-items-table {
                 width: 100% !important;
                 max-width: 100% !important;
-                font-size: 0.65em !important;
+                font-size: 1em !important;
                 page-break-inside: avoid !important;
                 display: table !important;
                 border-collapse: collapse !important;
@@ -823,13 +903,25 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             }
             .invoice-items-table th,
             .invoice-items-table td {
-                padding: 2px 1px !important;
-                font-size: 0.65em !important;
+                padding: 6px 3px !important;
+                font-size: 1.1em !important;
                 box-sizing: border-box !important;
+                word-wrap: normal !important;
+                overflow-wrap: normal !important;
+                word-break: keep-all !important;
+                white-space: nowrap !important;
+                line-height: 1.4 !important;
+                vertical-align: middle !important;
+            }
+            .invoice-items-table th:nth-child(2),
+            .invoice-items-table td:nth-child(2) {
+                white-space: normal !important;
                 word-wrap: break-word !important;
                 overflow-wrap: break-word !important;
-                white-space: normal !important;
-                line-height: 1.2 !important;
+            }
+            .invoice-items-table th {
+                font-size: 0.9em !important;
+                font-weight: 600 !important;
             }
             /* تحديد عرض الأعمدة بدقة لـ 80mm */
             .invoice-items-table th:nth-child(1),
@@ -874,19 +966,29 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 page-break-inside: avoid !important;
             }
             .invoice-summary {
-                padding: 8px !important;
-                margin: 8px 0 !important;
-                font-size: 0.85em !important;
+                padding: 6px 8px !important;
+                margin: 6px 0 !important;
+                font-size: 0.75em !important;
                 page-break-inside: avoid !important;
                 page-break-before: avoid !important;
             }
             .invoice-summary .summary-row {
-                font-size: 0.9em !important;
-                margin-bottom: 5px !important;
+                font-size: 0.75em !important;
+                margin-bottom: 3px !important;
+                padding: 2px 0 !important;
+                line-height: 1.3 !important;
             }
             .invoice-summary .summary-row.total {
-                font-size: 1.1em !important;
-                padding: 8px 0 !important;
+                font-size: 0.95em !important;
+                padding: 6px 0 !important;
+                margin-top: 6px !important;
+                margin-left: -6px !important;
+                margin-right: -6px !important;
+                padding-left: 6px !important;
+                padding-right: 6px !important;
+            }
+            .invoice-summary hr {
+                margin: 6px 0 !important;
             }
             .invoice-qrcode {
                 margin: 8px 0 !important;
@@ -954,20 +1056,12 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         
         <!-- Invoice Details -->
         <div class="invoice-details">
-            <div class="invoice-details-left">
-                <div><strong>العميل:</strong> ' . htmlspecialchars($saleData['customer_name'] ?? '') . '</div>
-                <div><strong>الهاتف:</strong> ' . htmlspecialchars($saleData['customer_phone'] ?? '') . '</div>
-            </div>
-            <div class="invoice-details-right">
-                <div><strong>رقم الفاتورة:</strong> ' . htmlspecialchars($saleData['sale_number'] ?? '') . '</div>
-                <div><strong>التاريخ:</strong> ' . htmlspecialchars($dateTime) . '</div>
-            </div>
-        </div>
-        
-        <!-- Branch and Sales Person -->
-        <div class="invoice-extra-info">
-            <div><strong>الفرع:</strong> ' . htmlspecialchars($branchName) . '</div>
-            <div><strong>المسؤول عن البيع:</strong> ' . htmlspecialchars($salesPersonName) . '</div>
+            <div class="invoice-detail-item"><strong>العميل:</strong> ' . htmlspecialchars($saleData['customer_name'] ?? '') . '</div>
+            <div class="invoice-detail-item"><strong>الهاتف:</strong> ' . htmlspecialchars($saleData['customer_phone'] ?? '') . '</div>
+            <div class="invoice-detail-item"><strong>رقم الفاتورة:</strong> ' . htmlspecialchars($saleData['sale_number'] ?? '') . '</div>
+            <div class="invoice-detail-item"><strong>التاريخ:</strong> ' . htmlspecialchars($dateTime) . '</div>
+            <div class="invoice-detail-item"><strong>الفرع:</strong> ' . htmlspecialchars($branchName) . '</div>
+            <div class="invoice-detail-item"><strong>المسؤول عن البيع:</strong> ' . htmlspecialchars($salesPersonName) . '</div>
         </div>
         
         <!-- Phone Data Section -->
@@ -978,9 +1072,9 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>المنتج</th>
-                    <th>الكمية</th>
-                    <th>سعر الوحدة</th>
+                    <th>الصنف</th>
+                    <th>ك</th>
+                    <th>السعر </th>
                     <th>الإجمالي</th>
                 </tr>
             </thead>
@@ -996,6 +1090,15 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 <span>' . number_format($totalAmount, 2) . ' ' . $currency . '</span>
             </div>';
     
+    // إضافة المدفوع فقط في حالة الدفع الجزئي
+    if ($paidAmount > 0 && $paidAmount < $finalAmount) {
+        $html .= '
+            <div class="summary-row">
+                <span>المدفوع:</span>
+                <span>' . number_format($paidAmount, 2) . ' ' . $currency . '</span>
+            </div>';
+    }
+    
     if ($discount > -1) {
         $html .= '
             <div class="summary-row">
@@ -1009,7 +1112,18 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             <div class="summary-row total">
                 <span>الإجمالي:</span>
                 <span>' . number_format($finalAmount, 2) . ' ' . $currency . '</span>
-            </div>
+            </div>';
+    
+    // إضافة المتبقي فقط في حالة وجود دين
+    if ($remainingAmount > 0) {
+        $html .= '
+            <div class="summary-row">
+                <span>المتبقي:</span>
+                <span>' . number_format($remainingAmount, 2) . ' ' . $currency . '</span>
+            </div>';
+    }
+    
+    $html .= '
         </div>
         
         <!-- Invoice Terms - البنود -->
@@ -1017,7 +1131,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         
         <!-- Footer -->
         <div class="invoice-footer">
-            <div>شكراً لزيارتك</div>
+            <div>شكرا لتعاملكم معنا</div>
         </div>
         
         <!-- QR Code - في نهاية الفاتورة -->
@@ -1031,7 +1145,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-family: inherit;">
             <i class="bi bi-printer"></i> طباعة
         </button>
-        <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-family: inherit;">
+        <button onclick="closeInvoiceWindow()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-family: inherit;">
             <i class="bi bi-arrow-right"></i> رجوع
         </button>
     </div>
@@ -1041,6 +1155,90 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .no-print { display: none !important; }
         }
     </style>
+    <script>
+        (function() {
+            // دالة لإغلاق النافذة بشكل نهائي
+            function closeInvoiceWindow() {
+                // الطريقة الأولى: محاولة إغلاق النافذة مباشرة (تعمل إذا كانت مفتوحة بواسطة window.open())
+                try {
+                    // التحقق من أن النافذة مفتوحة بواسطة JavaScript
+                    if (window.opener !== null) {
+                        // النافذة مفتوحة بواسطة window.open() - يمكن إغلاقها مباشرة
+                        window.close();
+                        // إذا لم تُغلق بعد ثانية واحدة، جرب الطرق البديلة
+                        setTimeout(function() {
+                            if (!document.hidden) {
+                                tryAlternativeClose();
+                            }
+                        }, 1000);
+                        return;
+                    }
+                } catch (e) {
+                    console.debug("محاولة الإغلاق المباشر فشلت:", e);
+                }
+                
+                // الطريقة الثانية: محاولة إغلاق النافذة مباشرة (حتى بدون opener)
+                try {
+                    window.close();
+                    // انتظر قليلاً للتحقق من نجاح الإغلاق
+                    setTimeout(function() {
+                        if (!document.hidden) {
+                            tryAlternativeClose();
+                        }
+                    }, 500);
+                } catch (e) {
+                    console.debug("محاولة الإغلاق فشلت:", e);
+                    tryAlternativeClose();
+                }
+            }
+            
+            // دالة بديلة للإغلاق
+            function tryAlternativeClose() {
+                try {
+                    // محاولة الرجوع في التاريخ
+                    if (window.history.length > 1) {
+                        window.history.back();
+                        return;
+                    }
+                } catch (e) {
+                    console.debug("الرجوع في التاريخ فشل:", e);
+                }
+                
+                // إذا فشل كل شيء، أعد التوجيه إلى نقطة البيع
+                try {
+                    // محاولة تحديد المسار الصحيح بناءً على موقع الملف الحالي
+                    const currentPath = window.location.pathname;
+                    let redirectPath = "../pos.html";
+                    
+                    // إذا كان الملف في api/، استخدم ../pos.html
+                    if (currentPath.includes("/api/")) {
+                        redirectPath = "../pos.html";
+                    } else {
+                        // إذا كان في مكان آخر، استخدم pos.html مباشرة
+                        redirectPath = "pos.html";
+                    }
+                    
+                    window.location.href = redirectPath;
+                } catch (e) {
+                    console.error("فشل إعادة التوجيه:", e);
+                    // آخر محاولة: إعادة التوجيه إلى الصفحة الرئيسية
+                    try {
+                        window.location.href = "../index.html";
+                    } catch (finalError) {
+                        console.error("فشل جميع محاولات الإغلاق:", finalError);
+                    }
+                }
+            }
+            
+            // جعل الدالة متاحة عالمياً
+            window.closeInvoiceWindow = closeInvoiceWindow;
+            
+            // إضافة معالج للأخطاء غير المتوقعة
+            window.addEventListener("error", function(e) {
+                console.debug("خطأ في النافذة:", e);
+            });
+        })();
+    </script>
 </body>
 </html>';
     
@@ -1065,7 +1263,7 @@ function formatDateTime12Hour($dateString) {
         $hour = (int)$date->format('H');
         $minute = $date->format('i');
         
-        $ampm = $hour >= 12 ? 'مساءً' : 'صباحاً';
+        $ampm = $hour >= 12 ? 'م' : 'ص ';
         $hour12 = $hour % 12;
         $hour12 = $hour12 ? $hour12 : 12;
         $hour12 = str_pad($hour12, 2, '0', STR_PAD_LEFT);

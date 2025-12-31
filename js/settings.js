@@ -2,10 +2,12 @@
 
 let currentSettings = null;
 
+// ✅ تصدير فوري للدالة الرئيسية لضمان توفرها - تعريف الدالة أولاً
 function loadSettingsSection() {
+    console.log('🔧 [Settings] loadSettingsSection تم استدعاؤها');
     const section = document.getElementById('settings-section');
     if (!section) {
-        console.error('settings-section not found');
+        console.error('❌ [Settings] settings-section not found');
         return;
     }
     
@@ -21,59 +23,89 @@ function loadSettingsSection() {
 
         <div class="settings-container">
             <div class="settings-section">
-                <h3><i class="bi bi-shop"></i> إعدادات المحل</h3>
-                <form id="shopSettingsForm" onsubmit="saveShopSettings(event)">
+                <h3><i class="bi bi-shop"></i> إعدادات الفروع</h3>
+                
+                <!-- Tabs للفروع -->
+                <div class="branch-tabs">
+                    <button type="button" class="branch-tab active" onclick="switchBranchTab(1)">
+                        <i class="bi bi-building"></i> الفرع الأول
+                    </button>
+                    <button type="button" class="branch-tab" onclick="switchBranchTab(2)">
+                        <i class="bi bi-building"></i> الفرع الثاني
+                    </button>
+                </div>
+
+                <!-- نموذج الفرع الأول -->
+                <form id="shopSettingsForm" class="branch-form active" data-branch="1" onsubmit="saveShopSettings(event, 1)">
+                    <div class="branch-header">
+                        <h4><i class="bi bi-building"></i> بيانات الفرع الأول</h4>
+                    </div>
                     <div class="form-group">
-                        <label for="shopName">اسم المحل</label>
-                        <input type="text" id="shopName">
+                        <label for="shopName1">اسم المحل</label>
+                        <input type="text" id="shopName1" placeholder="أدخل اسم المحل">
                     </div>
 
                     <div class="form-group">
-                        <label for="shopPhone">رقم الهاتف</label>
-                        <input type="tel" id="shopPhone">
+                        <label for="shopPhone1">رقم الهاتف</label>
+                        <input type="tel" id="shopPhone1" placeholder="أدخل رقم الهاتف">
                     </div>
 
                     <div class="form-group">
-                        <label for="shopAddress">العنوان</label>
-                        <textarea id="shopAddress" rows="2"></textarea>
+                        <label for="shopAddress1">العنوان</label>
+                        <textarea id="shopAddress1" rows="2" placeholder="أدخل العنوان الكامل"></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label for="currency">العملة</label>
-                        <input type="text" id="currency">
+                        <label for="currency1">العملة</label>
+                        <input type="text" id="currency1" placeholder="مثال: ريال" value="ريال">
                     </div>
 
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save-fill"></i> حفظ الإعدادات</button>
-                </form>
+                    <div class="form-group">
+                        <label for="whatsappNumber1"><i class="bi bi-whatsapp" style="color: #25D366;"></i> رقم واتساب</label>
+                        <input type="tel" id="whatsappNumber1" placeholder="أدخل رقم واتساب (مثال: 01234567890)">
             </div>
 
-
-        <div class="settings-section">
-            <h3><i class="bi bi-images"></i> إدارة الصور</h3>
-            <p>إدارة نظام تخزين الصور والحذف التلقائي</p>
-            <button onclick="loadImageManagementSection()" class="btn btn-primary">
-                <i class="bi bi-gear"></i> إدارة نظام الصور
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save-fill"></i> حفظ بيانات الفرع الأول
             </button>
+                </form>
+
+                <!-- نموذج الفرع الثاني -->
+                <form id="shopSettingsForm2" class="branch-form" data-branch="2" onsubmit="saveShopSettings(event, 2)">
+                    <div class="branch-header">
+                        <h4><i class="bi bi-building"></i> بيانات الفرع الثاني</h4>
+                    </div>
+                    <div class="form-group">
+                        <label for="shopName2">اسم المحل</label>
+                        <input type="text" id="shopName2" placeholder="أدخل اسم المحل">
         </div>
 
-        <div class="settings-section">
-            <h3><i class="bi bi-cloud-upload"></i> النسخ الاحتياطية</h3>
-            <p>عرض حالة النسخ الاحتياطية التلقائية</p>
-            <div class="backup-info-display">
-                <div class="info-item">
-                    <span class="info-label">الحالة:</span>
-                    <span class="info-value" id="backupStatusDisplay">جاري التحميل...</span>
+                    <div class="form-group">
+                        <label for="shopPhone2">رقم الهاتف</label>
+                        <input type="tel" id="shopPhone2" placeholder="أدخل رقم الهاتف">
                 </div>
-                <div class="info-item">
-                    <span class="info-label">آخر نسخة احتياطية:</span>
-                    <span class="info-value" id="lastBackupDisplay">غير متوفر</span>
+
+                    <div class="form-group">
+                        <label for="shopAddress2">العنوان</label>
+                        <textarea id="shopAddress2" rows="2" placeholder="أدخل العنوان الكامل"></textarea>
                 </div>
-                <div class="info-item">
-                    <span class="info-label">النسخة التالية:</span>
-                    <span class="info-value" id="nextBackupDisplay">غير محدد</span>
+
+                    <div class="form-group">
+                        <label for="currency2">العملة</label>
+                        <input type="text" id="currency2" placeholder="مثال: ريال" value="ريال">
                 </div>
+
+                    <div class="form-group">
+                        <label for="whatsappNumber2"><i class="bi bi-whatsapp" style="color: #25D366;"></i> رقم واتساب</label>
+                        <input type="tel" id="whatsappNumber2" placeholder="أدخل رقم واتساب (مثال: 01234567890)">
             </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save-fill"></i> حفظ بيانات الفرع الثاني
+                    </button>
+                </form>
         </div>
+
 
         <div class="settings-section">
             <h3><i class="bi bi-people"></i> إدارة المستخدمين</h3>
@@ -93,17 +125,22 @@ function loadSettingsSection() {
                     </thead>
                     <tbody id="usersTableBody">
                         <tr>
-                            <td colspan="4" style="text-align: center; padding: 20px;">
+                            <td colspan="5" style="text-align: center; padding: 20px;">
                                 <i class="bi bi-hourglass-split"></i> جاري تحميل المستخدمين...
                             </td>
                         </tr>
                     </tbody>
                 </table>
+                <div id="usersPagination" class="pagination"></div>
             </div>
         </div>
 
         <div class="settings-section">
-                <h3><i class="bi bi-arrow-repeat"></i> إعدادات المزامنة</h3>
+            <h3><i class="bi bi-arrow-repeat"></i> المزامنة والنسخ الاحتياطي</h3>
+            
+            <!-- إعدادات المزامنة -->
+            <div class="sync-backup-section">
+                <h4><i class="bi bi-arrow-repeat"></i> إعدادات المزامنة</h4>
                 <div class="form-group">
                     <label for="syncFrequency">تردد المزامنة التلقائية</label>
                     <select id="syncFrequency" onchange="updateSyncFrequency()">
@@ -114,22 +151,115 @@ function loadSettingsSection() {
                         <option value="0">يدوي فقط (بدون مزامنة تلقائية)</option>
                     </select>
                 </div>
-                <button onclick="if(typeof syncManager !== 'undefined' && syncManager){syncManager.manualSync();}else{showMessage('نظام المزامنة غير متوفر حالياً', 'error');}" class="btn btn-primary"><i class="bi bi-arrow-clockwise"></i> مزامنة الآن</button>
-                <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                <button onclick="if(typeof syncManager !== 'undefined' && syncManager){syncManager.manualSync();}else{showMessage('نظام المزامنة غير متوفر حالياً', 'error');}" class="btn btn-primary">
+                    <i class="bi bi-arrow-clockwise"></i> مزامنة الآن
+                </button>
+                <p style="margin-top: 10px; font-size: 0.9em; color: var(--text-light);">
                     آخر مزامنة: <span id="lastSyncTime">لم تتم بعد</span>
                 </p>
             </div>
 
-            <div class="settings-section">
-                <h3><i class="bi bi-cloud-download"></i> النسخ الاحتياطي</h3>
+            <!-- حالة النسخ الاحتياطية التلقائية -->
+            <div class="sync-backup-section">
+                <h4><i class="bi bi-cloud-upload"></i> حالة النسخ الاحتياطية التلقائية</h4>
+                <div class="backup-info-display">
+                    <div class="info-item">
+                        <span class="info-label">الحالة:</span>
+                        <span class="info-value" id="backupStatusDisplay">جاري التحميل...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">آخر نسخة احتياطية:</span>
+                        <span class="info-value" id="lastBackupDisplay">غير متوفر</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">النسخة التالية:</span>
+                        <span class="info-value" id="nextBackupDisplay">غير محدد</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار النسخ الاحتياطي -->
+            <div class="sync-backup-section">
+                <h4><i class="bi bi-cloud-download"></i> النسخ الاحتياطي اليدوي</h4>
                 <div class="backup-buttons">
-                    <button onclick="createBackup()" class="btn btn-success"><i class="bi bi-download"></i> تصدير نسخة احتياطية</button>
-                    <button onclick="restoreBackup()" class="btn btn-warning"><i class="bi bi-upload"></i> استعادة نسخة احتياطية</button>
+                    <button onclick="createBackup()" class="btn btn-success">
+                        <i class="bi bi-download"></i> تصدير نسخة احتياطية
+                    </button>
+                    <button onclick="restoreBackup()" class="btn btn-warning">
+                        <i class="bi bi-upload"></i> استعادة نسخة احتياطية
+                    </button>
+                </div>
+            </div>
+
+            <!-- إدارة التخزين (للمالك فقط) -->
+            <div class="sync-backup-section" id="storageManagementSection" style="display: none;">
+                <h4><i class="bi bi-hdd-stack"></i> إدارة التخزين</h4>
+                <p style="color: var(--warning-color); font-size: 0.9em; margin-bottom: 15px;">
+                    <i class="bi bi-exclamation-triangle"></i> هذه الأداة متاحة فقط للمالك. احذر عند حذف الملفات!
+                </p>
+                
+                <div class="storage-tabs">
+                    <button type="button" class="storage-tab active" onclick="switchStorageTab('invoices')">
+                        <i class="bi bi-file-earmark-pdf"></i> الفواتير
+                    </button>
+                    <button type="button" class="storage-tab" onclick="switchStorageTab('images')">
+                        <i class="bi bi-images"></i> الصور
+                    </button>
+                    <button type="button" class="storage-tab" onclick="switchStorageTab('database')">
+                        <i class="bi bi-database"></i> قاعدة البيانات
+                    </button>
+                </div>
+
+                <!-- قسم الفواتير -->
+                <div class="storage-content active" data-storage="invoices">
+                    <div class="storage-header">
+                        <h5><i class="bi bi-file-earmark-pdf"></i> ملفات الفواتير</h5>
+                        <button onclick="loadStorageFiles('invoices')" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> تحديث
+                        </button>
+                    </div>
+                    <div id="invoicesStorageList" class="storage-list">
+                        <div style="text-align: center; padding: 20px; color: var(--text-light);">
+                            <i class="bi bi-hourglass-split"></i> جاري التحميل...
+                        </div>
+                    </div>
+                    <div id="invoicesPagination" class="pagination"></div>
+                </div>
+
+                <!-- قسم الصور -->
+                <div class="storage-content" data-storage="images">
+                    <div class="storage-header">
+                        <h5><i class="bi bi-images"></i> ملفات الصور</h5>
+                        <button onclick="loadStorageFiles('images')" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> تحديث
+                        </button>
+                    </div>
+                    <div id="imagesStorageList" class="storage-list">
+                        <div style="text-align: center; padding: 20px; color: var(--text-light);">
+                            <i class="bi bi-hourglass-split"></i> جاري التحميل...
+                        </div>
+                    </div>
+                    <div id="imagesPagination" class="pagination"></div>
+                </div>
+
+                <!-- قسم قاعدة البيانات -->
+                <div class="storage-content" data-storage="database">
+                    <div class="storage-header">
+                        <h5><i class="bi bi-database"></i> معلومات قاعدة البيانات</h5>
+                        <button onclick="loadDatabaseInfo()" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> تحديث
+                        </button>
+                    </div>
+                    <div id="databaseInfo" class="storage-list">
+                        <div style="text-align: center; padding: 20px; color: var(--text-light);">
+                            <i class="bi bi-hourglass-split"></i> جاري التحميل...
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- نموذج إضافة/تعديل مستخدم -->
+        <!-- نموذج إضافة مستخدم -->
         <div id="userModal" class="modal">
             <div class="modal-content modal-sm">
                 <div class="modal-header">
@@ -137,8 +267,6 @@ function loadSettingsSection() {
                     <button onclick="closeUserModal()" class="btn-close">&times;</button>
                 </div>
                 <form id="userForm" onsubmit="saveUser(event)">
-                    <input type="hidden" id="userId">
-                    
                     <div class="form-group">
                         <label for="userName">الاسم *</label>
                         <input type="text" id="userName" name="userName" required>
@@ -150,8 +278,8 @@ function loadSettingsSection() {
                     </div>
 
                     <div class="form-group">
-                        <label for="userPassword">كلمة المرور <span id="passwordHint">(اتركه فارغاً للاحتفاظ بالقديمة)</span></label>
-                        <input type="password" id="userPassword" name="userPassword">
+                        <label for="userPassword">كلمة المرور *</label>
+                        <input type="password" id="userPassword" name="userPassword" required>
                     </div>
 
                     <div class="form-group">
@@ -180,86 +308,36 @@ function loadSettingsSection() {
         </div>
     `;
 
-            // التحقق من أن النموذج تم إنشاؤه بنجاح
-            setTimeout(() => {
-                const userModal = document.getElementById('userModal');
-                if (!userModal) {
-                    console.error('userModal was not created successfully');
-                    console.error('section.innerHTML length:', section.innerHTML.length);
-                    // محاولة إعادة إنشاء userModal إذا لم يكن موجوداً
-                    const modalHTML = `
-                        <div id="userModal" class="modal">
-                            <div class="modal-content modal-sm">
-                                <div class="modal-header">
-                                    <h3 id="userModalTitle">إضافة مستخدم</h3>
-                                    <button onclick="closeUserModal()" class="btn-close">&times;</button>
-                                </div>
-                                <form id="userForm" onsubmit="saveUser(event)">
-                                    <input type="hidden" id="userId">
-                                    <div class="form-group">
-                                        <label for="userName">الاسم *</label>
-                                        <input type="text" id="userName" name="userName" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="userUsername">اسم المستخدم *</label>
-                                        <input type="text" id="userUsername" name="userUsername" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="userPassword">كلمة المرور <span id="passwordHint">(اتركه فارغاً للاحتفاظ بالقديمة)</span></label>
-                                        <input type="password" id="userPassword" name="userPassword">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="userRole">الدور *</label>
-                                        <select id="userRole" name="userRole" required>
-                                            <option value="employee">موظف</option>
-                                            <option value="manager">مدير</option>
-                                            <option value="admin">مالك</option>
-                                        </select>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" onclick="closeUserModal()" class="btn btn-secondary">إلغاء</button>
-                                        <button type="submit" class="btn btn-primary">حفظ</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    `;
-                    section.insertAdjacentHTML('beforeend', modalHTML);
-                    console.log('تم إعادة إنشاء userModal');
-                } else {
-                    console.log('userModal created successfully');
-                }
-            }, 100);
-
             // تحميل البيانات بشكل آمن مع معالجة الأخطاء
             // تأخير بسيط لضمان أن DOM جاهز
             setTimeout(() => {
+                // ✅ التحقق من وجود العناصر المطلوبة قبل تحميل البيانات
+                const usersTableBody = document.getElementById('usersTableBody');
+                if (!usersTableBody) {
+                    console.warn('usersTableBody not found, retrying after delay...');
+                    // إعادة المحاولة بعد تأخير إضافي
+                    setTimeout(() => {
+                        loadUsers().catch(err => {
+                            console.error('خطأ في تحميل المستخدمين بعد إعادة المحاولة:', err);
+                            const errorMsg = err?.message || err?.toString() || 'خطأ غير معروف';
+                            if (typeof showMessage === 'function') {
+                                showMessage('خطأ في تحميل قائمة المستخدمين: ' + errorMsg, 'error');
+                            }
+                        });
+                    }, 300);
+                }
+                
+                // تهيئة إدارة التخزين
+                initStorageManagement();
+                
                 Promise.allSettled([
                     loadSettings().catch(err => {
-                        // طباعة الخطأ الحقيقي
-                        console.error('خطأ في تحميل الإعدادات:', err);
-                        console.error('نوع الخطأ:', err?.name || 'Unknown');
-                        console.error('رسالة الخطأ:', err?.message || 'No message');
-                        console.error('تفاصيل الخطأ الكاملة:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-                        
-                        const errorMsg = err?.message || err?.toString() || 'خطأ غير معروف';
-                        if (typeof showMessage === 'function') {
-                            showMessage('خطأ في تحميل الإعدادات: ' + errorMsg, 'error');
-                        }
-                        // عرض رسالة خطأ في الواجهة إذا فشل التحميل
-                        const shopNameField = document.getElementById('shopName');
-                        if (shopNameField && shopNameField.parentElement) {
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'error-message';
-                            errorDiv.style.color = 'var(--danger-color)';
-                            errorDiv.style.marginTop = '10px';
-                            errorDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> فشل تحميل الإعدادات. يرجى المحاولة مرة أخرى.';
-                            shopNameField.parentElement.appendChild(errorDiv);
-                        }
+                        // ✅ loadSettings الآن لا ترمي خطأ، لكن نتعامل مع أي أخطاء غير متوقعة
+                        console.error('خطأ غير متوقع في تحميل الإعدادات:', err);
                         // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
                         return null;
                     }),
-                    loadUsers().catch(err => {
+                    usersTableBody ? loadUsers().catch(err => {
                         // طباعة الخطأ الحقيقي
                         console.error('خطأ في تحميل المستخدمين:', err);
                         console.error('نوع الخطأ:', err?.name || 'Unknown');
@@ -290,7 +368,7 @@ function loadSettingsSection() {
                         }
                         // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
                         return null;
-                    }),
+                    }) : Promise.resolve(null),
                     Promise.resolve().then(() => {
                         try {
                             return loadSyncFrequency();
@@ -412,9 +490,16 @@ function formatDate(dateString) {
     }
 }
 
-async function loadSettings() {
+async function loadSettings(forceRefresh = false) {
     try {
-        const result = await API.getSettings();
+        // ✅ إذا كان forceRefresh، نستخدم API.request مباشرة مع skipCache و timestamp
+        let result;
+        if (forceRefresh) {
+            const timestamp = Date.now();
+            result = await API.request(`settings.php?_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+        } else {
+            result = await API.getSettings();
+        }
         
         // التحقق من response.success بدلاً من الاعتماد على status code فقط
         if (!result || result.success === false) {
@@ -436,7 +521,13 @@ async function loadSettings() {
                 shop_name: '',
                 shop_phone: '',
                 shop_address: '',
-                currency: 'ريال'
+                currency: 'ريال',
+                whatsapp_number: '',
+                shop_name_2: '',
+                shop_phone_2: '',
+                shop_address_2: '',
+                currency_2: 'ريال',
+                whatsapp_number_2: ''
             };
         } else {
             currentSettings = result.data;
@@ -449,7 +540,13 @@ async function loadSettings() {
                 shop_name: '',
                 shop_phone: '',
                 shop_address: '',
-                currency: 'ريال'
+                currency: 'ريال',
+                whatsapp_number: '',
+                shop_name_2: '',
+                shop_phone_2: '',
+                shop_address_2: '',
+                currency_2: 'ريال',
+                whatsapp_number_2: ''
             };
         }
         
@@ -460,7 +557,38 @@ async function loadSettings() {
         console.error('نوع الخطأ:', error?.name || 'Unknown');
         console.error('رسالة الخطأ:', error?.message || 'No message');
         console.error('تفاصيل الخطأ الكاملة:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-        throw error;
+        
+        // ✅ استخدام إعدادات افتراضية بدلاً من رمي الخطأ
+        // هذا يضمن أن الواجهة تعمل حتى لو فشل تحميل الإعدادات
+        console.warn('⚠️ استخدام إعدادات افتراضية بسبب خطأ في التحميل');
+        currentSettings = {
+            shop_name: '',
+            shop_phone: '',
+            shop_address: '',
+            currency: 'ريال',
+            whatsapp_number: '',
+            shop_name_2: '',
+            shop_phone_2: '',
+            shop_address_2: '',
+            currency_2: 'ريال',
+            whatsapp_number_2: ''
+        };
+        
+        // عرض الإعدادات الافتراضية
+        try {
+            displaySettings(currentSettings);
+        } catch (displayError) {
+            console.error('خطأ في عرض الإعدادات الافتراضية:', displayError);
+        }
+        
+        // إظهار رسالة تحذير للمستخدم
+        if (typeof showMessage === 'function') {
+            const errorMsg = error?.message || 'خطأ غير معروف';
+            showMessage('تم تحميل الإعدادات بإعدادات افتراضية. ' + errorMsg, 'warning');
+        }
+        
+        // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
+        // throw error;
     }
 }
 
@@ -471,7 +599,13 @@ function displaySettings(settings) {
             shop_name: '',
             shop_phone: '',
             shop_address: '',
-            currency: 'ريال'
+            currency: 'ريال',
+            whatsapp_number: '',
+            shop_name_2: '',
+            shop_phone_2: '',
+            shop_address_2: '',
+            currency_2: 'ريال',
+            whatsapp_number_2: ''
         };
     }
     
@@ -490,15 +624,31 @@ function displaySettings(settings) {
         settings = settingsObj;
     }
     
-    const shopName = document.getElementById('shopName');
-    const shopPhone = document.getElementById('shopPhone');
-    const shopAddress = document.getElementById('shopAddress');
-    const currency = document.getElementById('currency');
+    // الفرع الأول
+    const shopName1 = document.getElementById('shopName1');
+    const shopPhone1 = document.getElementById('shopPhone1');
+    const shopAddress1 = document.getElementById('shopAddress1');
+    const currency1 = document.getElementById('currency1');
+    const whatsappNumber1 = document.getElementById('whatsappNumber1');
     
-    if (shopName) shopName.value = settings.shop_name || '';
-    if (shopPhone) shopPhone.value = settings.shop_phone || '';
-    if (shopAddress) shopAddress.value = settings.shop_address || '';
-    if (currency) currency.value = settings.currency || 'ريال';
+    if (shopName1) shopName1.value = settings.shop_name || settings.shop_name_1 || '';
+    if (shopPhone1) shopPhone1.value = settings.shop_phone || settings.shop_phone_1 || '';
+    if (shopAddress1) shopAddress1.value = settings.shop_address || settings.shop_address_1 || '';
+    if (currency1) currency1.value = settings.currency || settings.currency_1 || 'ريال';
+    if (whatsappNumber1) whatsappNumber1.value = settings.whatsapp_number || settings.whatsapp_number_1 || '';
+    
+    // الفرع الثاني
+    const shopName2 = document.getElementById('shopName2');
+    const shopPhone2 = document.getElementById('shopPhone2');
+    const shopAddress2 = document.getElementById('shopAddress2');
+    const currency2 = document.getElementById('currency2');
+    const whatsappNumber2 = document.getElementById('whatsappNumber2');
+    
+    if (shopName2) shopName2.value = settings.shop_name_2 || '';
+    if (shopPhone2) shopPhone2.value = settings.shop_phone_2 || '';
+    if (shopAddress2) shopAddress2.value = settings.shop_address_2 || '';
+    if (currency2) currency2.value = settings.currency_2 || 'ريال';
+    if (whatsappNumber2) whatsappNumber2.value = settings.whatsapp_number_2 || '';
     
     // إعدادات صفحة التحميل
     const loadingPageEnabled = document.getElementById('loadingPageEnabled');
@@ -508,44 +658,116 @@ function displaySettings(settings) {
     }
 }
 
-async function saveShopSettings(event) {
+// دالة التبديل بين الفروع
+function switchBranchTab(branchNumber) {
+    try {
+        // إخفاء جميع النماذج
+        const allForms = document.querySelectorAll('.branch-form');
+        allForms.forEach(form => {
+            form.classList.remove('active');
+        });
+        
+        // إزالة active من جميع التبويبات
+        const allTabs = document.querySelectorAll('.branch-tab');
+        allTabs.forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // إظهار النموذج المحدد
+        const targetForm = document.querySelector(`.branch-form[data-branch="${branchNumber}"]`);
+        if (targetForm) {
+            targetForm.classList.add('active');
+        }
+        
+        // تفعيل التبويب المحدد
+        const targetTab = document.querySelector(`.branch-tab:nth-child(${branchNumber})`);
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
+    } catch (error) {
+        console.error('خطأ في switchBranchTab:', error);
+    }
+}
+
+async function saveShopSettings(event, branchNumber = 1) {
     event.preventDefault();
 
-    const settingsData = {
-        shop_name: document.getElementById('shopName').value,
-        shop_phone: document.getElementById('shopPhone').value,
-        shop_address: document.getElementById('shopAddress').value,
-        currency: document.getElementById('currency').value
-    };
+    try {
+        let settingsData = {};
+        
+        if (branchNumber === 1) {
+            // حفظ بيانات الفرع الأول
+            settingsData = {
+                shop_name: document.getElementById('shopName1')?.value || '',
+                shop_phone: document.getElementById('shopPhone1')?.value || '',
+                shop_address: document.getElementById('shopAddress1')?.value || '',
+                currency: document.getElementById('currency1')?.value || 'ريال',
+                whatsapp_number: document.getElementById('whatsappNumber1')?.value || ''
+            };
+        } else if (branchNumber === 2) {
+            // حفظ بيانات الفرع الثاني
+            settingsData = {
+                shop_name_2: document.getElementById('shopName2')?.value || '',
+                shop_phone_2: document.getElementById('shopPhone2')?.value || '',
+                shop_address_2: document.getElementById('shopAddress2')?.value || '',
+                currency_2: document.getElementById('currency2')?.value || 'ريال',
+                whatsapp_number_2: document.getElementById('whatsappNumber2')?.value || ''
+            };
+        }
 
     const result = await API.updateSettings(settingsData);
     if (result.success) {
-        showMessage('تم حفظ الإعدادات بنجاح');
+            showMessage(`تم حفظ بيانات الفرع ${branchNumber === 1 ? 'الأول' : 'الثاني'} بنجاح`);
         currentSettings = result.data;
+        
+        // ✅ إجبار إعادة تحميل الإعدادات من الخادم لإظهار التعديلات فوراً
+        await loadSettings(true); // forceRefresh = true
     } else {
-        showMessage(result.message, 'error');
+            showMessage(result.message || 'حدث خطأ أثناء حفظ الإعدادات', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في saveShopSettings:', error);
+        showMessage('حدث خطأ أثناء حفظ الإعدادات: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
 }
 
 
-async function loadUsers() {
+async function loadUsers(forceRefresh = false) {
     try {
         // التحقق من وجود العنصر قبل محاولة التحميل
-        const tbody = document.getElementById('usersTableBody');
+        let tbody = document.getElementById('usersTableBody');
         if (!tbody) {
             console.warn('usersTableBody not found, waiting for DOM...');
-            // إعادة المحاولة بعد تأخير قصير
-            setTimeout(() => {
-                loadUsers().catch(err => {
-                    console.error('خطأ في إعادة محاولة تحميل المستخدمين:', err);
-                    // طباعة الخطأ الحقيقي
-                    console.error('تفاصيل الخطأ:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-                });
-            }, 200);
+            // إعادة المحاولة عدة مرات مع تأخير متزايد
+            let retries = 0;
+            const maxRetries = 5;
+            const checkElement = () => {
+                tbody = document.getElementById('usersTableBody');
+                if (tbody) {
+                    // العنصر موجود الآن، استمر في التحميل
+                    loadUsers(forceRefresh).catch(err => {
+                        console.error('خطأ في تحميل المستخدمين بعد العثور على العنصر:', err);
+                    });
+                } else if (retries < maxRetries) {
+                    retries++;
+                    setTimeout(checkElement, 200 * retries); // تأخير متزايد
+                } else {
+                    console.error('usersTableBody not found after multiple retries');
+                    showMessage('خطأ: لم يتم العثور على جدول المستخدمين. يرجى إعادة تحميل الصفحة.', 'error');
+                }
+            };
+            checkElement();
             return;
         }
         
-        const result = await API.getUsers();
+        // ✅ إذا كان forceRefresh، نستخدم API.request مباشرة مع skipCache و timestamp
+        let result;
+        if (forceRefresh) {
+            const timestamp = Date.now();
+            result = await API.request(`users.php?_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+        } else {
+            result = await API.getUsers();
+        }
         
         // التحقق من response.success بدلاً من الاعتماد على status code فقط
         if (!result || result.success === false) {
@@ -567,6 +789,8 @@ async function loadUsers() {
             throw new Error('البيانات غير متوفرة من الخادم');
         }
         
+        // إعادة تعيين الصفحة الحالية
+        usersCurrentPage = 1;
         displayUsers(result.data);
     } catch (error) {
         // طباعة الخطأ الحقيقي بدلاً من Object
@@ -596,8 +820,15 @@ async function loadUsers() {
     }
 }
 
+// متغيرات pagination
+let usersCurrentPage = 1;
+let invoicesCurrentPage = 1;
+let imagesCurrentPage = 1;
+const itemsPerPage = 5;
+
 function displayUsers(users) {
     const tbody = document.getElementById('usersTableBody');
+    const paginationContainer = document.getElementById('usersPagination');
     
     // التحقق من وجود العنصر قبل التعديل
     if (!tbody) {
@@ -608,18 +839,21 @@ function displayUsers(users) {
     // التحقق من صحة البيانات قبل الاستخدام
     if (!users) {
         console.error('displayUsers: users is null or undefined');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">خطأ: البيانات غير متوفرة</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ: البيانات غير متوفرة</td></tr>';
+        if (paginationContainer) paginationContainer.innerHTML = '';
         return;
     }
     
     if (!Array.isArray(users)) {
         console.error('displayUsers: users is not an array:', typeof users, users);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger-color);">خطأ في تنسيق البيانات</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">خطأ في تنسيق البيانات</td></tr>';
+        if (paginationContainer) paginationContainer.innerHTML = '';
         return;
     }
     
     if (users.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا يوجد مستخدمين</td></tr>';
+        if (paginationContainer) paginationContainer.innerHTML = '';
         return;
     }
 
@@ -638,8 +872,12 @@ function displayUsers(users) {
     
     if (validUsers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-color);">لا توجد بيانات صحيحة للعرض</td></tr>';
+        if (paginationContainer) paginationContainer.innerHTML = '';
         return;
     }
+
+    // تطبيق pagination
+    const paginated = paginate(validUsers, usersCurrentPage, itemsPerPage);
 
     // دالة مساعدة للحصول على نص الدور
     const getRoleTextFunc = typeof getRoleText === 'function' ? getRoleText : (role) => {
@@ -652,36 +890,113 @@ function displayUsers(users) {
         return roles[role] || role || 'غير محدد';
     };
     
-    tbody.innerHTML = validUsers.map(user => {
-        // التحقق من وجود جميع الحقول المطلوبة
-        const userId = escapeHtml(String(user.id || ''));
-        const username = escapeHtml(String(user.username || ''));
-        const name = escapeHtml(String(user.name || ''));
-        const role = escapeHtml(String(user.role || 'employee'));
+    // ✅ استخدام DocumentFragment لتحسين الأداء
+    const fragment = document.createDocumentFragment();
+    
+    paginated.data.forEach(user => {
+        // ✅ استخدام القيم الأصلية (قبل escapeHtml) لـ data-* attributes
+        const userIdRaw = String(user.id || '');
+        const usernameRaw = String(user.username || '');
+        const nameRaw = String(user.name || '');
+        const roleRaw = String(user.role || 'employee');
+        const branchIdRaw = user.branch_id ? String(user.branch_id) : '';
+        
+        // ✅ استخدام escapeHtml فقط للعرض في HTML (ليس في data-* attributes)
+        const userId = escapeHtml(userIdRaw);
+        const username = escapeHtml(usernameRaw);
+        const name = escapeHtml(nameRaw);
+        const role = escapeHtml(roleRaw);
         const branchName = escapeHtml(String(user.branch_name || ''));
-        // عدم استخدام escapeHtml على branchId لأنه قد يكون null ويجب تمريره كما هو
-        const branchId = user.branch_id ? String(user.branch_id) : '';
         
-        // استخدام JSON.stringify لتأمين القيم في onclick handlers
-        const userIdParam = JSON.stringify(String(user.id || ''));
-        const usernameParam = JSON.stringify(String(user.username || ''));
-        const nameParam = JSON.stringify(String(user.name || ''));
-        const roleParam = JSON.stringify(String(user.role || 'employee'));
-        const branchIdParam = user.branch_id ? JSON.stringify(String(user.branch_id)) : JSON.stringify('');
-        
-        return `
-        <tr>
+        // ✅ استخدام data-* attributes بدلاً من onclick مباشرة (أكثر أماناً وأداءً)
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
             <td>${username}</td>
             <td>${name}</td>
-            <td>${getRoleTextFunc(role)}</td>
-            <td>${branchName || (role === 'admin' ? 'كل الفروع' : 'غير محدد')}</td>
+            <td>${getRoleTextFunc(roleRaw)}</td>
+            <td>${branchName || (roleRaw === 'admin' ? 'كل الفروع' : 'غير محدد')}</td>
             <td>
-                <button onclick="editUser(${userIdParam}, ${usernameParam}, ${nameParam}, ${roleParam}, ${branchIdParam})" class="btn btn-sm btn-icon" title="تعديل"><i class="bi bi-pencil-square"></i></button>
-                <button onclick="deleteUser(${userIdParam})" class="btn btn-sm btn-icon" title="حذف"><i class="bi bi-trash3"></i></button>
+                <button 
+                    class="btn btn-sm btn-icon delete-user-btn" 
+                    title="حذف"
+                    data-user-id="${userIdRaw}"
+                >
+                    <i class="bi bi-trash3"></i>
+                </button>
             </td>
-        </tr>
-    `;
-    }).join('');
+        `;
+        fragment.appendChild(tr);
+    });
+    
+    // ✅ مسح المحتوى القديم وإضافة الجديد دفعة واحدة
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
+    
+    // ✅ إضافة event listeners باستخدام event delegation
+    setupUsersTableEventListeners();
+    
+    // إضافة pagination buttons
+    if (paginationContainer && typeof createPaginationButtons === 'function') {
+        createPaginationButtons(paginationContainer, paginated.totalPages, paginated.currentPage, (page) => {
+            usersCurrentPage = page;
+            displayUsers(users); // إعادة عرض مع الصفحة الجديدة
+        });
+    }
+}
+
+// ✅ إعداد event listeners لجدول المستخدمين باستخدام event delegation
+function setupUsersTableEventListeners() {
+    try {
+        const tbody = document.getElementById('usersTableBody');
+        if (!tbody) {
+            console.warn('usersTableBody not found, skipping event listeners setup');
+            return;
+        }
+        
+        // ✅ استخدام event delegation - إزالة listeners القديمة أولاً لتجنب التكرار
+        const existingHandler = tbody._usersTableHandler;
+        if (existingHandler) {
+            tbody.removeEventListener('click', existingHandler);
+        }
+        
+        // ✅ إنشاء handler جديد
+        const clickHandler = async (event) => {
+            try {
+                const target = event.target.closest('button');
+                if (!target) return;
+                
+                // زر الحذف
+                if (target.classList.contains('delete-user-btn')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const userId = target.getAttribute('data-user-id');
+                    if (!userId) {
+                        console.error('User ID not found in delete button');
+                        showMessage('خطأ: معرف المستخدم غير موجود', 'error');
+                        return;
+                    }
+                    
+                    // استدعاء دالة الحذف
+                    await deleteUser(userId);
+                    return;
+                }
+            } catch (error) {
+                console.error('خطأ في معالجة حدث النقر على زر المستخدم:', error);
+                showMessage('حدث خطأ أثناء تنفيذ العملية', 'error');
+            }
+        };
+        
+        // ✅ حفظ المرجع للـ handler لإمكانية إزالته لاحقاً
+        tbody._usersTableHandler = clickHandler;
+        
+        // ✅ إضافة event listener
+        tbody.addEventListener('click', clickHandler);
+        
+        console.log('✅ تم إعداد event listeners لجدول المستخدمين');
+    } catch (error) {
+        console.error('خطأ في إعداد event listeners لجدول المستخدمين:', error);
+    }
 }
 
 // دالة مساعدة لتجنب XSS
@@ -694,9 +1009,7 @@ function escapeHtml(text) {
 
 async function showAddUserModal() {
     try {
-        console.log('showAddUserModal called'); // للتشخيص
-        
-        // Error handling: التحقق من الصلاحية
+        // التحقق من الصلاحية
         if (!hasPermission('admin')) {
             showMessage('ليس لديك صلاحية لإضافة مستخدمين. يجب أن تكون مالك (admin) للوصول إلى هذه الميزة.', 'error');
             return;
@@ -709,76 +1022,43 @@ async function showAddUserModal() {
             return;
         }
 
-        // تحميل الفروع أولاً
-        await loadBranches();
-        
-        // التحقق من وجود جميع العناصر المطلوبة
-        const requiredElements = ['userModalTitle', 'userForm', 'userId', 'userName', 'userUsername', 'userPassword', 'userRole', 'userBranch'];
-        const missingElements = requiredElements.filter(id => !document.getElementById(id));
-        
-        if (missingElements.length > 0) {
-            console.error('Missing required elements:', missingElements);
+        // الحصول على عناصر النموذج
+        const form = document.getElementById('userForm');
+        const titleElement = document.getElementById('userModalTitle');
+        const nameField = document.getElementById('userName');
+        const usernameField = document.getElementById('userUsername');
+        const passwordField = document.getElementById('userPassword');
+        const roleField = document.getElementById('userRole');
+
+        if (!form || !titleElement || !nameField || !usernameField || !passwordField || !roleField) {
             showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
             return;
         }
-        
-        // إعداد النموذج بطريقة آمنة
-        const titleElement = document.getElementById('userModalTitle');
-        const formElement = document.getElementById('userForm');
-        const userIdElement = document.getElementById('userId');
-        const nameField = document.getElementById('userName');
-        const usernameField = document.getElementById('userUsername');
-        const passwordHint = document.getElementById('passwordHint');
-        const passwordField = document.getElementById('userPassword');
-        const roleField = document.getElementById('userRole');
-        const branchField = document.getElementById('userBranch');
 
-        if (titleElement) titleElement.textContent = 'إضافة مستخدم';
-        if (formElement) formElement.reset();
+        // تنظيف النموذج باستخدام form.reset()
+        form.reset();
         
-        // إعادة تعيين جميع الحقول بشكل صريح
-        if (userIdElement) userIdElement.value = '';
-        if (nameField) {
-            nameField.value = '';
-            nameField.style.borderColor = '';
-        }
-        if (usernameField) {
-            usernameField.value = '';
-            usernameField.disabled = false;
-            usernameField.style.borderColor = '';
-        }
-        if (passwordField) {
-            passwordField.value = '';
-            passwordField.required = true;
-            passwordField.placeholder = '';
-            passwordField.style.borderColor = '';
-        }
-        if (roleField) {
-            roleField.value = 'employee'; // قيمة افتراضية
-            roleField.style.borderColor = '';
-        }
-        if (branchField) {
-            branchField.value = '';
-            branchField.style.borderColor = '';
-        }
-        
+        // تعيين القيم الافتراضية بعد reset
+        titleElement.textContent = 'إضافة مستخدم';
+        roleField.value = 'employee';
+        passwordField.required = true;
+
+        // تفعيل اسم المستخدم
+        usernameField.disabled = false;
+
+        // إظهار النموذج
+        userModal.style.display = 'flex';
+
+        // تحميل الفروع
+        await loadUserBranches(true);
+
         // إظهار/إخفاء حقل الفرع حسب الدور
         toggleBranchField();
         
-        if (passwordHint) passwordHint.style.display = 'none';
-        
-        userModal.style.display = 'flex';
-        
         // التركيز على أول حقل
-        if (nameField) {
-            setTimeout(() => {
-                try {
-                    nameField.focus();
-                } catch (e) {
-                    console.warn('Could not focus on nameField:', e);
-                }
-            }, 100);
-        }
+        setTimeout(() => {
+            nameField.focus();
+        }, 100);
     } catch (error) {
         console.error('خطأ في showAddUserModal:', error);
         showMessage('حدث خطأ أثناء فتح نموذج إضافة المستخدم: ' + (error.message || 'خطأ غير معروف'), 'error');
@@ -790,8 +1070,24 @@ function closeUserModal() {
         const userModal = document.getElementById('userModal');
         if (userModal) {
             userModal.style.display = 'none';
-        } else {
-            console.warn('userModal not found in closeUserModal');
+            
+            // تنظيف النموذج
+            const form = document.getElementById('userForm');
+            if (form) {
+                form.reset();
+            }
+            
+            // إزالة علامات الخطأ
+            const inputs = userModal.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                input.style.borderColor = '';
+                if (input.id === 'userUsername') {
+                    input.disabled = false;
+                }
+                if (input.id === 'userPassword') {
+                    input.required = false;
+                }
+            });
         }
     } catch (error) {
         console.error('خطأ في closeUserModal:', error);
@@ -824,16 +1120,14 @@ async function saveUser(event) {
         const usernameElement = userForm.querySelector('#userUsername');
         const passwordElement = userForm.querySelector('#userPassword');
         const roleElement = userForm.querySelector('#userRole');
-        const userIdElement = userForm.querySelector('#userId');
 
-        if (!nameElement || !usernameElement || !roleElement || !userIdElement) {
+        if (!nameElement || !usernameElement || !passwordElement || !roleElement) {
             showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
             console.error('Missing form elements:', {
                 nameElement: !!nameElement,
                 usernameElement: !!usernameElement,
                 passwordElement: !!passwordElement,
-                roleElement: !!roleElement,
-                userIdElement: !!userIdElement
+                roleElement: !!roleElement
             });
             return;
         }
@@ -849,21 +1143,26 @@ async function saveUser(event) {
         const name = nameElement && nameElement.value !== undefined ? String(nameElement.value).trim() : '';
         const username = usernameElement && usernameElement.value !== undefined ? String(usernameElement.value).trim() : '';
         const password = passwordElement && passwordElement.value !== undefined ? String(passwordElement.value) : '';
-        const role = roleElement && roleElement.value !== undefined ? String(roleElement.value) : 'employee';
-        const userId = userIdElement && userIdElement.value !== undefined ? String(userIdElement.value).trim() : '';
+        // ✅ قراءة الدور بشكل صحيح - التحقق من أن القيمة موجودة وليست فارغة
+        const role = roleElement && roleElement.value !== undefined && roleElement.value !== '' 
+            ? String(roleElement.value).trim() 
+            : (roleElement && roleElement.selectedIndex >= 0 && roleElement.options[roleElement.selectedIndex] 
+                ? String(roleElement.options[roleElement.selectedIndex].value).trim() 
+                : 'employee');
 
         // تسجيل القيم للتشخيص
         console.log('User form values:', { 
             name, 
             username, 
             password: password ? '***' : '(empty)', 
-            role, 
-            userId,
+            role,
             nameElementType: nameElement?.tagName,
             nameElementValue: nameElement?.value,
             nameElementExists: !!nameElement,
             usernameElementValue: usernameElement?.value,
-            roleElementValue: roleElement?.value
+            roleElementValue: roleElement?.value,
+            roleElementSelectedIndex: roleElement?.selectedIndex,
+            roleElementOptions: roleElement ? Array.from(roleElement.options).map(opt => ({ value: opt.value, text: opt.text, selected: opt.selected })) : null
         });
 
         // التحقق من الحقول المطلوبة مع رسائل خطأ محددة وواضحة
@@ -928,9 +1227,9 @@ async function saveUser(event) {
         if (usernameElement) usernameElement.style.borderColor = '';
         if (roleElement) roleElement.style.borderColor = '';
 
-        // إذا كان مستخدم جديد، كلمة المرور مطلوبة
-        if (!userId && (!password || password.trim().length === 0)) {
-            showMessage('كلمة المرور مطلوبة للمستخدم الجديد (يجب أن تكون على الأقل 6 أحرف)', 'error');
+        // كلمة المرور مطلوبة
+        if (!password || password.trim().length === 0) {
+            showMessage('كلمة المرور مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
             if (passwordElement) {
                 passwordElement.focus();
                 passwordElement.style.borderColor = 'var(--danger-color)';
@@ -938,8 +1237,8 @@ async function saveUser(event) {
             return;
         }
 
-        // التحقق من طول كلمة المرور للمستخدم الجديد
-        if (!userId && password && password.trim().length < 6) {
+        // التحقق من طول كلمة المرور
+        if (password && password.trim().length < 6) {
             showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
             if (passwordElement) {
                 passwordElement.focus();
@@ -948,6 +1247,21 @@ async function saveUser(event) {
             return;
         }
 
+        // ✅ التحقق من أن role ليس فارغاً قبل الإرسال
+        const finalRole = role && role.trim() !== '' ? role.trim() : 'employee';
+        
+        // ✅ التحقق من أن الدور صحيح
+        const validRoles = ['admin', 'manager', 'employee', 'technician'];
+        if (!validRoles.includes(finalRole)) {
+            console.error('❌ دور غير صحيح:', finalRole, 'القيم المتاحة:', validRoles);
+            showMessage('الدور المحدد غير صحيح. يرجى اختيار دور صحيح من القائمة.', 'error');
+            if (roleElement) {
+                roleElement.focus();
+                roleElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
+        
         // التحقق من أن جميع القيم موجودة قبل الإرسال
         console.log('📤 البيانات قبل الإرسال:', {
             name: name,
@@ -957,8 +1271,8 @@ async function saveUser(event) {
             password: password ? '***' : '(empty)',
             passwordLength: password ? password.length : 0,
             role: role,
-            roleLength: role.length,
-            userId: userId
+            finalRole: finalRole,
+            roleLength: role.length
         });
 
         const branchId = userForm.querySelector('#userBranch')?.value || null;
@@ -967,12 +1281,12 @@ async function saveUser(event) {
             name: name.trim(),
             username: username.trim(),
             password: password ? password.trim() : '',
-            role: role.trim() || 'employee',
+            role: finalRole,
             branch_id: branchId || null
         };
         
         // التحقق من الفرع (مطلوب لجميع الأدوار عدا المالك)
-        if (role !== 'admin' && !branchId) {
+        if (finalRole !== 'admin' && !branchId) {
             showMessage('يرجى اختيار الفرع المناسب (الفرع مطلوب لجميع الأدوار عدا المالك)', 'error');
             const branchField = userForm.querySelector('#userBranch');
             if (branchField) {
@@ -982,43 +1296,33 @@ async function saveUser(event) {
             return;
         }
 
-        let result;
-
-        if (userId) {
-            userData.id = userId;
-            if (!userData.password || userData.password.length === 0) {
-                delete userData.password;
+        // التأكد من أن كلمة المرور موجودة وصحيحة
+        if (!userData.password || userData.password.trim().length === 0) {
+            showMessage('كلمة المرور مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
+            if (passwordElement) {
+                passwordElement.focus();
+                passwordElement.style.borderColor = 'var(--danger-color)';
             }
-            delete userData.username; // لا يمكن تعديل اسم المستخدم
-            
-            console.log('📤 تحديث مستخدم:', userData);
-            result = await API.updateUser(userData);
-        } else {
-            // التأكد من أن كلمة المرور موجودة وصحيحة للمستخدم الجديد
-            if (!userData.password || userData.password.trim().length === 0) {
-                showMessage('كلمة المرور مطلوبة للمستخدم الجديد (يجب أن تكون على الأقل 6 أحرف)', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
+            return;
+        }
+        if (userData.password.trim().length < 6) {
+            showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
+            if (passwordElement) {
+                passwordElement.focus();
+                passwordElement.style.borderColor = 'var(--danger-color)';
             }
-            if (userData.password.trim().length < 6) {
-                showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-            console.log('📤 إضافة مستخدم جديد:', { ...userData, password: '***' });
-            result = await API.addUser(userData);
+            return;
         }
 
+        console.log('📤 إضافة مستخدم جديد:', { ...userData, password: '***' });
+        const result = await API.addUser(userData);
+
         if (result && result.success) {
-            showMessage(result.message || (userId ? 'تم تعديل المستخدم بنجاح' : 'تم إضافة المستخدم بنجاح'));
+            showMessage(result.message || 'تم إضافة المستخدم بنجاح');
             closeUserModal();
-            await loadUsers();
+            
+            // ✅ إجبار إعادة تحميل المستخدمين من الخادم لإظهار التعديلات فوراً
+            await loadUsers(true); // forceRefresh = true
         } else {
             // رسائل خطأ أكثر تفصيلاً بناءً على نوع الخطأ
             let errorMessage = result?.message || 'حدث خطأ أثناء حفظ المستخدم';
@@ -1026,7 +1330,7 @@ async function saveUser(event) {
             // معالجة رسائل الخطأ من الخادم
             if (errorMessage.includes('موجود مسبقاً') || errorMessage.includes('username')) {
                 errorMessage = 'اسم المستخدم موجود مسبقاً، يرجى اختيار اسم مستخدم آخر';
-                if (usernameElement && !userId) {
+                if (usernameElement) {
                     usernameElement.focus();
                     usernameElement.style.borderColor = 'var(--danger-color)';
                 }
@@ -1047,113 +1351,6 @@ async function saveUser(event) {
     }
 }
 
-async function editUser(id, username, name, role, branchId) {
-    try {
-        // Error handling: التحقق من وجود id
-        if (!id) {
-            showMessage('معرف المستخدم غير صحيح', 'error');
-            return;
-        }
-
-        // Error handling: التحقق من الصلاحية
-        if (!hasPermission('admin')) {
-            showMessage('ليس لديك صلاحية لتعديل المستخدمين', 'error');
-            return;
-        }
-
-        // التحقق من وجود النموذج أولاً
-        const userModal = document.getElementById('userModal');
-        if (!userModal) {
-            showMessage('خطأ: نموذج المستخدم غير موجود. يرجى الانتقال إلى قسم الإعدادات أولاً.', 'error');
-            console.error('userModal not found in editUser');
-            return;
-        }
-
-        // التحقق من وجود جميع العناصر المطلوبة
-        const requiredElements = ['userModalTitle', 'userId', 'userName', 'userUsername', 'userPassword', 'passwordHint', 'userRole', 'userBranch'];
-        const missingElements = requiredElements.filter(elementId => !document.getElementById(elementId));
-        
-        if (missingElements.length > 0) {
-            console.error('Missing required elements in editUser:', missingElements);
-            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-            return;
-        }
-
-        // إعادة تعيين النموذج أولاً لتجنب عرض البيانات السابقة
-        const userForm = document.getElementById('userForm');
-        if (userForm) {
-            userForm.reset();
-        }
-
-        // ملء النموذج بطريقة آمنة
-        const titleElement = document.getElementById('userModalTitle');
-        const userIdElement = document.getElementById('userId');
-        const nameElement = document.getElementById('userName');
-        const usernameElement = document.getElementById('userUsername');
-        const passwordElement = document.getElementById('userPassword');
-        const passwordHintElement = document.getElementById('passwordHint');
-        const roleElement = document.getElementById('userRole');
-        const branchElement = document.getElementById('userBranch');
-
-        // إعادة تعيين جميع الحقول بشكل صريح أولاً
-        if (userIdElement) userIdElement.value = '';
-        if (nameElement) {
-            nameElement.value = '';
-            nameElement.style.borderColor = '';
-        }
-        if (usernameElement) {
-            usernameElement.value = '';
-            usernameElement.disabled = false;
-            usernameElement.style.borderColor = '';
-        }
-        if (passwordElement) {
-            passwordElement.value = '';
-            passwordElement.required = false;
-            passwordElement.style.borderColor = '';
-        }
-        if (roleElement) {
-            roleElement.value = 'employee';
-            roleElement.style.borderColor = '';
-        }
-        if (branchElement) {
-            branchElement.value = '';
-            branchElement.style.borderColor = '';
-        }
-
-        // تحميل الفروع بعد إعادة التعيين
-        await loadBranches();
-
-        // الآن ملء البيانات الجديدة بعد تحميل الفروع
-        if (titleElement) titleElement.textContent = 'تعديل المستخدم';
-        if (userIdElement) userIdElement.value = String(id || '').trim();
-        if (nameElement) nameElement.value = String(name || '').trim();
-        if (usernameElement) {
-            usernameElement.value = String(username || '').trim();
-            usernameElement.disabled = true;
-        }
-        if (passwordElement) {
-            passwordElement.value = '';
-            passwordElement.required = false;
-        }
-        if (passwordHintElement) passwordHintElement.style.display = 'inline';
-        if (roleElement) roleElement.value = String(role || 'employee').trim();
-        
-        // تعيين الفرع بعد تحميل الفروع مباشرة
-        if (branchElement) {
-            // تحويل branchId إلى string والتأكد من أنه ليس فارغاً أو 'null' أو 'undefined'
-            const branchIdValue = branchId && branchId !== 'null' && branchId !== 'undefined' && branchId.trim() !== '' ? String(branchId).trim() : '';
-            branchElement.value = branchIdValue;
-        }
-        
-        // إظهار/إخفاء حقل الفرع حسب الدور
-        toggleBranchField();
-        
-        userModal.style.display = 'flex';
-    } catch (error) {
-        console.error('خطأ في editUser:', error);
-        showMessage('حدث خطأ أثناء فتح نموذج التعديل: ' + (error.message || 'خطأ غير معروف'), 'error');
-    }
-}
 
 async function deleteUser(id) {
     try {
@@ -1174,7 +1371,9 @@ async function deleteUser(id) {
         const result = await API.deleteUser(id);
         if (result && result.success) {
             showMessage(result.message || 'تم حذف المستخدم بنجاح');
-            await loadUsers();
+            
+            // ✅ إجبار إعادة تحميل المستخدمين من الخادم لإظهار الحذف فوراً
+            await loadUsers(true); // forceRefresh = true
         } else {
             showMessage(result?.message || 'فشل حذف المستخدم', 'error');
         }
@@ -1260,92 +1459,813 @@ setInterval(() => {
     }
 }, 1000);
 
-// دالة تحميل قسم إدارة الصور
-async function loadImageManagementSection() {
-    const section = document.getElementById('settings-section');
-    if (!section) return;
-
-    // إخفاء قسم الإعدادات الحالي
+// إدارة التخزين - للمالك فقط
+function initStorageManagement() {
+    try {
+        // التحقق من الصلاحية
+        if (!hasPermission('admin')) {
+            const section = document.getElementById('storageManagementSection');
+            if (section) {
     section.style.display = 'none';
+            }
+            return;
+        }
+        
+        // إظهار القسم للمالك
+        const section = document.getElementById('storageManagementSection');
+        if (section) {
+            section.style.display = 'block';
+        }
+        
+        // تحميل بيانات التخزين
+        loadStorageFiles('invoices');
+    } catch (error) {
+        console.error('خطأ في initStorageManagement:', error);
+    }
+}
 
-    // إنشاء قسم إدارة الصور
-    const imageSection = document.createElement('div');
-    imageSection.id = 'image-management-section';
-    imageSection.className = 'settings-container';
+// التبديل بين تبويبات التخزين
+function switchStorageTab(type) {
+    try {
+        // إخفاء جميع المحتويات
+        const allContents = document.querySelectorAll('.storage-content');
+        allContents.forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // إزالة active من جميع التبويبات
+        const allTabs = document.querySelectorAll('.storage-tab');
+        allTabs.forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // إظهار المحتوى المحدد
+        const targetContent = document.querySelector(`.storage-content[data-storage="${type}"]`);
+        if (targetContent) {
+            targetContent.classList.add('active');
+        }
+        
+        // تفعيل التبويب المحدد
+        const targetTab = event.target.closest('.storage-tab');
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
+        
+        // تحميل البيانات حسب النوع
+        if (type === 'database') {
+            loadDatabaseInfo();
+        } else {
+            loadStorageFiles(type);
+        }
+    } catch (error) {
+        console.error('خطأ في switchStorageTab:', error);
+    }
+}
+
+// تحميل ملفات التخزين
+async function loadStorageFiles(type) {
+    try {
+        const listElement = document.getElementById(`${type}StorageList`);
+        if (!listElement) return;
+        
+        // إعادة تعيين الصفحة الحالية
+        if (type === 'invoices') {
+            invoicesCurrentPage = 1;
+        } else if (type === 'images') {
+            imagesCurrentPage = 1;
+        }
+        
+        listElement.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-light);"><i class="bi bi-hourglass-split"></i> جاري التحميل...</div>';
+        
+        const result = await API.request(`storage-management.php?type=${type}`, 'GET');
+        
+        if (!result || !result.success) {
+            listElement.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> ${result?.message || 'خطأ في تحميل الملفات'}</div>`;
+            return;
+        }
+        
+        displayStorageFiles(type, result.data || []);
+    } catch (error) {
+        console.error('خطأ في loadStorageFiles:', error);
+        const listElement = document.getElementById(`${type}StorageList`);
+        if (listElement) {
+            listElement.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> خطأ في تحميل الملفات</div>`;
+        }
+    }
+}
+
+// حفظ جميع الملفات لكل نوع
+let allStorageFiles = {
+    invoices: [],
+    images: []
+};
+
+// عرض ملفات التخزين
+function displayStorageFiles(type, files) {
+    const listElement = document.getElementById(`${type}StorageList`);
+    const paginationContainer = document.getElementById(`${type}Pagination`);
+    if (!listElement) return;
     
-    // إضافة زر العودة
-    imageSection.innerHTML = `
-        <div class="section-header">
-            <button onclick="loadSettingsSection()" class="btn btn-secondary">
-                <i class="bi bi-arrow-right"></i> العودة للإعدادات
+    // حفظ جميع الملفات
+    allStorageFiles[type] = files || [];
+    
+    if (!files || files.length === 0) {
+        listElement.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد ملفات</div>';
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    // تطبيق pagination
+    const currentPage = type === 'invoices' ? invoicesCurrentPage : imagesCurrentPage;
+    const paginated = paginate(files, currentPage, itemsPerPage);
+    
+    // حساب الحجم الإجمالي
+    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+    
+    let html = `
+        <div class="storage-summary">
+            <div class="summary-item">
+                <span class="summary-label">عدد الملفات:</span>
+                <span class="summary-value">${files.length}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">الحجم الإجمالي:</span>
+                <span class="summary-value">${totalSizeMB} MB</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">الصفحة:</span>
+                <span class="summary-value">${paginated.currentPage} من ${paginated.totalPages}</span>
+            </div>
+        </div>
+        <div class="storage-bulk-controls" style="margin-bottom: 15px; padding: 10px; background: var(--light-bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button onclick="selectAllFiles('${type}')" class="btn btn-sm btn-secondary">
+                    <i class="bi bi-check-square"></i> تحديد الكل
+            </button>
+                <button onclick="deselectAllFiles('${type}')" class="btn btn-sm btn-secondary">
+                    <i class="bi bi-square"></i> إلغاء التحديد
+                </button>
+                <span id="selectedCount_${type}" style="color: var(--text-light); font-size: 0.9em;">0 ملف محدد</span>
+        </div>
+            <button onclick="deleteSelectedFiles('${type}')" class="btn btn-sm btn-danger" id="deleteSelectedBtn_${type}" disabled>
+                <i class="bi bi-trash"></i> حذف المحدد
             </button>
         </div>
+        <div class="storage-files">
     `;
-
-    // إضافة القسم إلى الصفحة
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-        mainContent.appendChild(imageSection);
+    
+    paginated.data.forEach((file, index) => {
+        const sizeMB = ((file.size || 0) / (1024 * 1024)).toFixed(2);
+        const date = file.date ? new Date(file.date).toLocaleDateString('ar-EG') : 'غير محدد';
+        const isDatabase = file.source === 'database' || file.filename?.startsWith('db_');
+        const iconClass = type === 'invoices' ? 'file-earmark-pdf' : 'image';
+        const sourceBadge = isDatabase ? '<span class="source-badge" style="background: var(--primary-color); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; margin-right: 8px;">قاعدة البيانات</span>' : '';
+        const fileId = `file_${type}_${(currentPage - 1) * itemsPerPage + index}`;
+        
+        html += `
+            <div class="storage-file-item ${isDatabase ? 'database-item' : ''}" style="padding: 12px;">
+                <div class="file-checkbox" style="margin-left: 8px;">
+                    <input type="checkbox" id="${fileId}" class="file-checkbox-input" data-file='${JSON.stringify(file).replace(/'/g, "&#39;")}' onchange="updateSelectedCount('${type}')">
+                </div>
+                <div class="file-info" style="flex: 1; min-width: 0;">
+                    <div class="file-name" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <i class="bi bi-${iconClass}" style="color: var(--primary-color);"></i>
+                        ${sourceBadge}
+                        ${file.type ? `<span class="type-badge" style="background: var(--secondary-color); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em;">${getImageTypeLabel(file.type)}</span>` : ''}
+                        <span style="flex: 1; min-width: 150px;">${escapeHtml(file.name || file.filename || 'غير معروف')}</span>
+                        ${file.record_number ? `<span style="color: var(--text-light); font-size: 0.85em;">(${escapeHtml(file.record_number)})</span>` : ''}
+                    </div>
+                    <div class="file-details" style="display: flex; gap: 12px; margin-top: 5px; font-size: 0.85em;">
+                        <span class="file-size" style="color: var(--text-light);">${sizeMB} MB</span>
+                        <span class="file-date" style="color: var(--text-light);">${date}</span>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    <button onclick="deleteStorageFile('${type}', ${JSON.stringify(file).replace(/"/g, '&quot;')})" class="btn btn-sm btn-danger">
+                        <i class="bi bi-trash"></i> حذف
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    // إضافة زر حذف الكل
+    if (files.length > 0) {
+        html += `
+            <div class="storage-bulk-actions">
+                <button onclick="deleteAllStorageFiles('${type}')" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> حذف جميع الملفات
+                </button>
+            </div>
+        `;
     }
+    
+    listElement.innerHTML = html;
+    
+    // إضافة pagination buttons
+    if (paginationContainer && typeof createPaginationButtons === 'function') {
+        createPaginationButtons(paginationContainer, paginated.totalPages, paginated.currentPage, (page) => {
+            if (type === 'invoices') {
+                invoicesCurrentPage = page;
+            } else if (type === 'images') {
+                imagesCurrentPage = page;
+            }
+            displayStorageFiles(type, allStorageFiles[type]); // إعادة عرض مع الصفحة الجديدة
+        });
+    }
+}
 
-    // تحميل إدارة الصور
-    if (typeof imageManagement !== 'undefined') {
-        await imageManagement.loadSettings();
-    } else {
-        showMessage('خطأ في تحميل نظام إدارة الصور', 'error');
+// حذف ملف واحد
+async function deleteStorageFile(type, file) {
+    try {
+        if (!hasPermission('admin')) {
+            showMessage('ليس لديك صلاحية لهذا الإجراء', 'error');
+            return;
+        }
+        
+        // طلب إدخال كلمة "delete" باستخدام modal مخصص
+        const confirmWord = await showDeleteConfirmationModal(`⚠️ تحذير: سيتم حذف الملف نهائياً!\n\nيرجى كتابة كلمة "delete" للتأكيد:`);
+        
+        if (confirmWord !== 'delete') {
+            if (confirmWord !== null) {
+                showMessage('لم يتم إدخال كلمة التأكيد بشكل صحيح', 'error');
+            }
+            return;
+        }
+        
+        // تأكيد إضافي
+        const isDatabase = file.source === 'database' || file.filename?.startsWith('db_');
+        const sourceText = isDatabase ? ' (من قاعدة البيانات)' : '';
+        const confirmMessage = `⚠️ تحذير نهائي!\n\nهل أنت متأكد تماماً من حذف ${isDatabase ? 'الصورة' : 'الملف'}:\n${file.name || file.filename}${sourceText}\n\nهذا الإجراء لا يمكن التراجع عنه!`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        const result = await API.request('storage-management.php', 'DELETE', {
+            type: type,
+            file: file.filename || file.name || file
+        });
+        
+        if (result && result.success) {
+            showMessage('تم حذف الملف بنجاح', 'success');
+            // إعادة تعيين الصفحة الحالية
+            if (type === 'invoices') {
+                invoicesCurrentPage = 1;
+            } else if (type === 'images') {
+                imagesCurrentPage = 1;
+            }
+            loadStorageFiles(type);
+        } else {
+            showMessage(result?.message || 'فشل حذف الملف', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في deleteStorageFile:', error);
+        showMessage('حدث خطأ أثناء حذف الملف', 'error');
+    }
+}
+
+// حذف جميع الملفات
+async function deleteAllStorageFiles(type) {
+    try {
+        if (!hasPermission('admin')) {
+            showMessage('ليس لديك صلاحية لهذا الإجراء', 'error');
+            return;
+        }
+        
+        // طلب إدخال كلمة "delete" باستخدام modal مخصص
+        const confirmWord = await showDeleteConfirmationModal(`⚠️ تحذير خطير: سيتم حذف جميع الملفات نهائياً!\n\nيرجى كتابة كلمة "delete" للتأكيد:`);
+        
+        if (confirmWord !== 'delete') {
+            if (confirmWord !== null) {
+                showMessage('لم يتم إدخال كلمة التأكيد بشكل صحيح', 'error');
+            }
+            return;
+        }
+        
+        // تأكيد إضافي
+        if (!confirm(`⚠️ تحذير نهائي خطير!\n\nهل أنت متأكد تماماً من حذف جميع الملفات من نوع "${type}"؟\n\nهذا الإجراء لا يمكن التراجع عنه!`)) {
+            return;
+        }
+        
+        const result = await API.request('storage-management.php', 'DELETE', {
+            type: type,
+            delete_all: true
+        });
+        
+        if (result && result.success) {
+            showMessage(`تم حذف جميع الملفات بنجاح (${result.data?.deleted_count || 0} ملف)`, 'success');
+            // إعادة تعيين الصفحة الحالية
+            if (type === 'invoices') {
+                invoicesCurrentPage = 1;
+            } else if (type === 'images') {
+                imagesCurrentPage = 1;
+            }
+            loadStorageFiles(type);
+        } else {
+            showMessage(result?.message || 'فشل حذف الملفات', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في deleteAllStorageFiles:', error);
+        showMessage('حدث خطأ أثناء حذف الملفات', 'error');
+    }
+}
+
+// تحميل معلومات قاعدة البيانات
+async function loadDatabaseInfo() {
+    try {
+        const infoElement = document.getElementById('databaseInfo');
+        if (!infoElement) return;
+        
+        infoElement.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-light);"><i class="bi bi-hourglass-split"></i> جاري التحميل...</div>';
+        
+        const result = await API.request('storage-management.php?type=database', 'GET');
+        
+        if (!result || !result.success) {
+            infoElement.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> ${result?.message || 'خطأ في تحميل المعلومات'}</div>`;
+            return;
+        }
+        
+        const dbInfo = result.data || {};
+        
+        // تحويل الحجم من بايت إلى MB
+        const totalSizeBytes = dbInfo.size || 0;
+        const dataSizeBytes = dbInfo.data_size || 0;
+        const indexSizeBytes = dbInfo.index_size || 0;
+        
+        const totalSizeMB = (totalSizeBytes / (1024 * 1024)).toFixed(2);
+        const dataSizeMB = (dataSizeBytes / (1024 * 1024)).toFixed(2);
+        const indexSizeMB = (indexSizeBytes / (1024 * 1024)).toFixed(2);
+        
+        infoElement.innerHTML = `
+            <div class="database-info">
+                <div class="info-row">
+                    <span class="info-label">حجم قاعدة البيانات (الإجمالي):</span>
+                    <span class="info-value">${totalSizeMB} MB</span>
+                </div>
+                <div class="info-row" style="padding-right: 20px;">
+                    <span class="info-label" style="font-size: 0.9em; color: var(--text-light);">- حجم البيانات:</span>
+                    <span class="info-value" style="font-size: 0.9em;">${dataSizeMB} MB</span>
+                </div>
+                <div class="info-row" style="padding-right: 20px;">
+                    <span class="info-label" style="font-size: 0.9em; color: var(--text-light);">- حجم الفهارس:</span>
+                    <span class="info-value" style="font-size: 0.9em;">${indexSizeMB} MB</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">عدد الجداول:</span>
+                    <span class="info-value">${dbInfo.tables_count || 0}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">عدد السجلات:</span>
+                    <span class="info-value">${dbInfo.records_count || 0}</span>
+                </div>
+                <div class="info-note" style="margin-top: 15px; padding: 10px; background: var(--light-bg); border-radius: 5px; color: var(--text-light); font-size: 0.9em;">
+                    <i class="bi bi-info-circle"></i> قاعدة البيانات محمية ولا يمكن حذفها من هنا. استخدم النسخ الاحتياطي للتحكم في البيانات.
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('خطأ في loadDatabaseInfo:', error);
+        const infoElement = document.getElementById('databaseInfo');
+        if (infoElement) {
+            infoElement.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> خطأ في تحميل المعلومات</div>`;
+        }
+    }
+}
+
+// دالة تحميل الفروع (خاصة بإعدادات المستخدمين)
+async function loadUserBranches(forceRefresh = false) {
+    try {
+        // جلب الفروع
+        let result;
+        if (forceRefresh) {
+            const timestamp = Date.now();
+            result = await API.request(`branches.php?_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+        } else {
+            result = await API.request('branches.php', 'GET');
+        }
+        
+        // التحقق من النتيجة
+        if (!result || !result.success || !result.data || !Array.isArray(result.data)) {
+            console.error('❌ فشل تحميل الفروع:', result);
+            const branchSelect = document.getElementById('userBranch');
+            if (branchSelect) {
+                branchSelect.innerHTML = '<option value="">لا توجد فروع متاحة</option>';
+            }
+            return;
+        }
+        
+        if (result.data.length === 0) {
+            console.warn('⚠️ لا توجد فروع في قاعدة البيانات');
+            const branchSelect = document.getElementById('userBranch');
+            if (branchSelect) {
+                branchSelect.innerHTML = '<option value="">لا توجد فروع متاحة</option>';
+            }
+            return;
+        }
+        
+        // انتظار وجود العنصر (بحد أقصى 2 ثانية)
+        let branchSelect = document.getElementById('userBranch');
+        let retries = 0;
+        const maxRetries = 20;
+        const retryDelay = 100;
+        
+        while (!branchSelect && retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            branchSelect = document.getElementById('userBranch');
+            retries++;
+        }
+        
+        if (!branchSelect || branchSelect.tagName.toLowerCase() !== 'select') {
+            console.error('❌ العنصر userBranch غير موجود أو غير صحيح');
+            return;
+        }
+        
+        // حفظ القيمة الحالية
+        const currentValue = branchSelect.value;
+        
+        // مسح القائمة وإضافة الخيارات الجديدة
+        branchSelect.innerHTML = '<option value="">اختر الفرع...</option>';
+        
+        result.data.forEach(branch => {
+            if (branch && branch.id && branch.name) {
+                const option = document.createElement('option');
+                option.value = String(branch.id).trim();
+                option.textContent = String(branch.name).trim();
+                branchSelect.appendChild(option);
+            }
+        });
+        
+        console.log(`✅ تم تحميل ${result.data.length} فرع في القائمة المنسدلة`);
+        
+        // استعادة القيمة إذا كانت موجودة وصحيحة
+        if (currentValue && Array.from(branchSelect.options).some(opt => opt.value === currentValue)) {
+            branchSelect.value = currentValue;
+        }
+    } catch (error) {
+        console.error('❌ خطأ في تحميل الفروع:', error);
+        const branchSelect = document.getElementById('userBranch');
+        if (branchSelect) {
+            branchSelect.innerHTML = '<option value="">خطأ في تحميل الفروع</option>';
+        }
+    }
+}
+
+// دالة إظهار/إخفاء حقل الفرع
+function toggleBranchField() {
+    try {
+        const roleField = document.getElementById('userRole');
+        const branchGroup = document.getElementById('userBranchGroup');
+        const branchField = document.getElementById('userBranch');
+        
+        if (!roleField || !branchGroup || !branchField) {
+            return;
+        }
+        
+        const role = roleField.value;
+        if (role === 'admin') {
+            branchGroup.style.display = 'none';
+            branchField.required = false;
+            branchField.value = '';
+        } else {
+            branchGroup.style.display = 'block';
+            branchField.required = true;
+        }
+    } catch (error) {
+        console.error('خطأ في toggleBranchField:', error);
+    }
+}
+
+// ✅ تصدير فوري للدالة الرئيسية لضمان توفرها فور تحميل الملف
+// تصدير فوري في بداية الملف
+(function() {
+    'use strict';
+    try {
+        if (typeof window !== 'undefined' && typeof loadSettingsSection === 'function') {
+            window.loadSettingsSection = loadSettingsSection;
+            console.log('✅ [Settings] تم تصدير loadSettingsSection إلى window (في بداية الملف)');
+        }
+    } catch (e) {
+        console.error('❌ [Settings] خطأ في تصدير loadSettingsSection:', e);
+    }
+})();
+
+// تصدير مرة أخرى في نهاية الملف للتأكد
+if (typeof window !== 'undefined') {
+    try {
+        window.loadSettingsSection = loadSettingsSection;
+        console.log('✅ [Settings] تم تصدير loadSettingsSection إلى window (في نهاية الملف)');
+    } catch (e) {
+        console.error('❌ [Settings] خطأ في تصدير loadSettingsSection في نهاية الملف:', e);
     }
 }
 
 // جعل جميع دوال إدارة المستخدمين متاحة في النطاق العام
 if (typeof window !== 'undefined') {
+    // ✅ تصدير الدوال الرئيسية إلى window
+    window.loadSettings = loadSettings;
+    window.displaySettings = displaySettings;
     window.showAddUserModal = showAddUserModal;
     window.closeUserModal = closeUserModal;
     window.saveUser = saveUser;
-    window.editUser = editUser;
     window.deleteUser = deleteUser;
     window.loadUsers = loadUsers;
     window.displayUsers = displayUsers;
     
-    // دالة تحميل الفروع
-    async function loadBranches() {
+    // تصدير الدالة باسمين للتوافق
+    window.loadBranches = loadUserBranches; // للتوافق مع الكود القديم
+    window.loadUserBranches = loadUserBranches; // الاسم الجديد
+    window.toggleBranchField = toggleBranchField;
+    
+    // دالة مساعدة للتحقق من الفروع (للتشخيص)
+    window.checkBranches = async function() {
         try {
-            const result = await API.request('branches.php', 'GET');
-            if (result && result.success && result.data) {
-                const branchSelect = document.getElementById('userBranch');
-                if (branchSelect) {
-                    branchSelect.innerHTML = '<option value="">اختر الفرع...</option>';
-                    result.data.forEach(branch => {
-                        const option = document.createElement('option');
-                        option.value = branch.id;
-                        option.textContent = branch.name;
-                        branchSelect.appendChild(option);
+            console.log('🔍 التحقق من الفروع...');
+            const result = await API.request('branches.php', 'GET', null, { skipCache: true });
+            console.log('📊 نتيجة التحقق:', {
+                success: result?.success,
+                message: result?.message,
+                dataLength: Array.isArray(result?.data) ? result.data.length : 'N/A',
+                data: result?.data
+            });
+            
+            if (result && result.success && Array.isArray(result.data)) {
+                if (result.data.length === 0) {
+                    console.warn('⚠️ لا توجد فروع في قاعدة البيانات');
+                    showMessage('لا توجد فروع في قاعدة البيانات. يرجى إضافة فروع من إعدادات الفروع أولاً.', 'warning');
+                } else {
+                    console.log(`✅ يوجد ${result.data.length} فرع في قاعدة البيانات:`);
+                    result.data.forEach((branch, index) => {
+                        console.log(`  ${index + 1}. ${branch.name || 'بدون اسم'} (ID: ${branch.id || 'بدون ID'})`);
                     });
                 }
+            } else {
+                console.error('❌ فشل التحقق من الفروع:', result);
             }
         } catch (error) {
-            console.error('خطأ في تحميل الفروع:', error);
+            console.error('❌ خطأ في التحقق من الفروع:', error);
         }
-    }
-    
-    // دالة إظهار/إخفاء حقل الفرع
-    function toggleBranchField() {
-        const roleField = document.getElementById('userRole');
-        const branchGroup = document.getElementById('userBranchGroup');
-        const branchField = document.getElementById('userBranch');
+    };
+    window.switchBranchTab = switchBranchTab;
+    window.saveShopSettings = saveShopSettings;
+    window.switchStorageTab = switchStorageTab;
+    window.loadStorageFiles = loadStorageFiles;
+    window.deleteStorageFile = deleteStorageFile;
+    window.deleteAllStorageFiles = deleteAllStorageFiles;
+    window.loadDatabaseInfo = loadDatabaseInfo;
+    window.selectAllFiles = selectAllFiles;
+    window.deselectAllFiles = deselectAllFiles;
+    window.updateSelectedCount = updateSelectedCount;
+    window.deleteSelectedFiles = deleteSelectedFiles;
+    window.getImageTypeLabel = getImageTypeLabel;
+    window.showDeleteConfirmationModal = showDeleteConfirmationModal;
+}
+
+// نافذة تأكيد مخصصة لطلب إدخال كلمة "delete"
+function showDeleteConfirmationModal(message) {
+    return new Promise((resolve) => {
+        // إنشاء modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.id = 'deleteConfirmationModal';
         
-        if (roleField && branchGroup && branchField) {
-            const role = roleField.value;
-            if (role === 'admin') {
-                branchGroup.style.display = 'none';
-                branchField.required = false;
-            } else {
-                branchGroup.style.display = 'block';
-                branchField.required = true;
-            }
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="closeDeleteConfirmationModal(null)"></div>
+            <div class="modal-content delete-confirmation-modal" style="max-width: 520px; animation: slideDown 0.3s ease-out;">
+                <div class="delete-modal-header">
+                    <div class="delete-icon-wrapper">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <h3>تأكيد الحذف</h3>
+                    <button class="modal-close" onclick="closeDeleteConfirmationModal(null)" title="إغلاق">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div class="delete-modal-body">
+                    <div class="warning-message">
+                        <p>${message}</p>
+                    </div>
+                    <div class="delete-confirm-section">
+                        <label for="deleteConfirmInput" class="delete-label">
+                            <i class="bi bi-key"></i>
+                            <span>أدخل كلمة "<strong>delete</strong>" للتأكيد:</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="deleteConfirmInput" 
+                            class="delete-confirm-input" 
+                            placeholder="اكتب delete هنا..."
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <div class="input-hint">
+                            <i class="bi bi-info-circle"></i>
+                            <span>يجب إدخال الكلمة بشكل صحيح تماماً</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="delete-modal-footer">
+                    <button class="btn btn-secondary btn-cancel" onclick="closeDeleteConfirmationModal(null)">
+                        <i class="bi bi-x-circle"></i>
+                        <span>إلغاء</span>
+                    </button>
+                    <button class="btn btn-danger btn-confirm-delete" id="confirmDeleteBtn" onclick="confirmDeleteAction()" disabled>
+                        <i class="bi bi-trash3"></i>
+                        <span>تأكيد الحذف</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // التركيز على حقل الإدخال
+        const input = document.getElementById('deleteConfirmInput');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        
+        if (input) {
+            input.focus();
+            
+            // التحقق من صحة الإدخال في الوقت الفعلي
+            input.addEventListener('input', (e) => {
+                const value = e.target.value.trim().toLowerCase();
+                if (value === 'delete') {
+                    confirmBtn.disabled = false;
+                    confirmBtn.style.opacity = '1';
+                    confirmBtn.style.cursor = 'pointer';
+                    input.style.borderColor = 'var(--success-color)';
+                    input.style.boxShadow = '0 0 0 3px rgba(76, 175, 80, 0.1)';
+                } else {
+                    confirmBtn.disabled = true;
+                    confirmBtn.style.opacity = '0.6';
+                    confirmBtn.style.cursor = 'not-allowed';
+                    input.style.borderColor = value ? 'var(--danger-color)' : 'var(--border-color)';
+                    input.style.boxShadow = value ? '0 0 0 3px rgba(244, 67, 54, 0.1)' : 'none';
+                }
+            });
+            
+            // السماح بالحذف عند الضغط على Enter
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && input.value.trim().toLowerCase() === 'delete') {
+                    e.preventDefault();
+                    confirmDeleteAction();
+                }
+            });
         }
+        
+        // دالة إغلاق modal
+        window.closeDeleteConfirmationModal = function(value) {
+            const modal = document.getElementById('deleteConfirmationModal');
+            if (modal) {
+                modal.style.animation = 'fadeOut 0.2s ease-out';
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        modal.remove();
+                    }
+                }, 200);
+            }
+            resolve(value);
+        };
+        
+        // دالة تأكيد الحذف
+        window.confirmDeleteAction = function() {
+            const input = document.getElementById('deleteConfirmInput');
+            const value = input ? input.value.trim() : '';
+            if (value.toLowerCase() === 'delete') {
+                closeDeleteConfirmationModal(value);
+            } else {
+                showMessage('يجب إدخال كلمة "delete" بشكل صحيح', 'error');
+            }
+        };
+    });
+}
+
+// دالة للحصول على تسمية نوع الصورة
+function getImageTypeLabel(type) {
+    const labels = {
+        'repair': 'عملية',
+        'spare_part': 'قطع غيار',
+        'phone': 'هاتف',
+        'accessory': 'إكسسوار',
+        'chat': 'شات'
+    };
+    return labels[type] || type;
+}
+
+// تحديد جميع الملفات (في الصفحة الحالية فقط)
+function selectAllFiles(type) {
+    const checkboxes = document.querySelectorAll(`.storage-content[data-storage="${type}"] .file-checkbox-input`);
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelectedCount(type);
+}
+
+// إلغاء تحديد جميع الملفات
+function deselectAllFiles(type) {
+    const checkboxes = document.querySelectorAll(`.storage-content[data-storage="${type}"] .file-checkbox-input`);
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelectedCount(type);
+}
+
+// تحديث عدد الملفات المحددة
+function updateSelectedCount(type) {
+    const checkboxes = document.querySelectorAll(`.storage-content[data-storage="${type}"] .file-checkbox-input:checked`);
+    const count = checkboxes.length;
+    const countElement = document.getElementById(`selectedCount_${type}`);
+    const deleteBtn = document.getElementById(`deleteSelectedBtn_${type}`);
+    
+    if (countElement) {
+        countElement.textContent = `${count} ملف محدد`;
     }
     
-    window.loadBranches = loadBranches;
-    window.toggleBranchField = toggleBranchField;
+    if (deleteBtn) {
+        deleteBtn.disabled = count === 0;
+    }
+}
+
+// حذف الملفات المحددة
+async function deleteSelectedFiles(type) {
+    try {
+        if (!hasPermission('admin')) {
+            showMessage('ليس لديك صلاحية لهذا الإجراء', 'error');
+            return;
+        }
+        
+        const checkboxes = document.querySelectorAll(`.storage-content[data-storage="${type}"] .file-checkbox-input:checked`);
+        
+        if (checkboxes.length === 0) {
+            showMessage('لم يتم تحديد أي ملفات', 'error');
+            return;
+        }
+        
+        const selectedFiles = [];
+        checkboxes.forEach(checkbox => {
+            try {
+                const fileData = JSON.parse(checkbox.getAttribute('data-file').replace(/&#39;/g, "'"));
+                selectedFiles.push(fileData);
+            } catch (e) {
+                console.error('خطأ في قراءة بيانات الملف:', e);
+            }
+        });
+        
+        if (selectedFiles.length === 0) {
+            showMessage('خطأ في قراءة بيانات الملفات المحددة', 'error');
+            return;
+        }
+        
+        // طلب إدخال كلمة "delete" باستخدام modal مخصص
+        const confirmWord = await showDeleteConfirmationModal(`⚠️ تحذير: سيتم حذف ${selectedFiles.length} ملف نهائياً!\n\nيرجى كتابة كلمة "delete" للتأكيد:`);
+        
+        if (confirmWord !== 'delete') {
+            if (confirmWord !== null) {
+                showMessage('لم يتم إدخال كلمة التأكيد بشكل صحيح', 'error');
+            }
+            return;
+        }
+        
+        // تأكيد إضافي
+        const confirmMessage = `⚠️ تحذير نهائي!\n\nهل أنت متأكد تماماً من حذف ${selectedFiles.length} ملف؟\n\nهذا الإجراء لا يمكن التراجع عنه!`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        const result = await API.request('storage-management.php', 'DELETE', {
+            type: type,
+            files: selectedFiles.map(f => f.filename || f.name || f)
+        });
+        
+        if (result && result.success) {
+            const deletedCount = result.data?.deleted_count || selectedFiles.length;
+            const failedCount = result.data?.failed_count || 0;
+            
+            if (failedCount > 0) {
+                showMessage(`تم حذف ${deletedCount} ملف، فشل حذف ${failedCount} ملف`, 'warning');
+            } else {
+                showMessage(`تم حذف ${deletedCount} ملف بنجاح`, 'success');
+            }
+            
+            // إعادة تعيين الصفحة الحالية
+            if (type === 'invoices') {
+                invoicesCurrentPage = 1;
+            } else if (type === 'images') {
+                imagesCurrentPage = 1;
+            }
+            
+            loadStorageFiles(type);
+        } else {
+            showMessage(result?.message || 'فشل حذف الملفات', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في deleteSelectedFiles:', error);
+        showMessage('حدث خطأ أثناء حذف الملفات', 'error');
+    }
 }
 

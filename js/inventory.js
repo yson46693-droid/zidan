@@ -130,32 +130,63 @@ function switchInventoryTab(tab, element) {
 // قسم قطع الغيار
 // ============================================
 
-async function loadSpareParts() {
-    // منع الاستدعاءات المتكررة
-    if (isLoadingSpareParts) {
-        console.log('⏳ تحميل قطع الغيار قيد التنفيذ بالفعل...');
+async function loadSpareParts(silent = false, forceRefresh = false) {
+    // منع الاستدعاءات المتكررة (ما لم يكن forceRefresh)
+    if (isLoadingSpareParts && !forceRefresh) {
         return;
     }
     
     isLoadingSpareParts = true;
+    let cachedParts = null;
     try {
-        console.log('📥 بدء تحميل قطع الغيار...');
-        const result = await API.getSpareParts();
+        // ✅ محاولة تحميل من Cache أولاً (فقط إذا لم يكن forceRefresh)
+        if (!forceRefresh) {
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    cachedParts = await dbCache.loadSpareParts(3600000); // cache صالح لمدة ساعة
+                    if (cachedParts && cachedParts.length > 0) {
+                        allSpareParts = cachedParts;
+                        const grid = document.getElementById('sparePartsGrid');
+                        if (grid) {
+                            displaySpareParts(allSpareParts);
+                            createSparePartsBrandFilters();
+                        }
+                    }
+                }
+            } catch (error) {
+                // تجاهل أخطاء Cache
+            }
+        }
+        
+        // ✅ تحميل البيانات الجديدة من الخادم (Silent إذا كان هناك cache ولم يكن forceRefresh)
+        // إذا كان forceRefresh، نستخدم API.request مباشرة مع skipCache و timestamp
+        let result;
+        if (forceRefresh) {
+            const timestamp = Date.now();
+            result = await API.request(`inventory.php?type=spare_parts&_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+        } else {
+            result = await API.getSpareParts((cachedParts && !forceRefresh) ? true : silent);
+        }
         if (result.success) {
             allSpareParts = result.data || [];
-            console.log('✅ تم تحميل قطع الغيار:', allSpareParts.length, 'قطعة');
+            
+            // ✅ حفظ في IndexedDB
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    await dbCache.saveSpareParts(allSpareParts);
+                }
+            } catch (error) {
+                // تجاهل أخطاء الحفظ
+            }
             
             // التأكد من وجود العنصر قبل العرض
             const grid = document.getElementById('sparePartsGrid');
             if (!grid) {
-                console.warn('⚠️ العنصر sparePartsGrid غير موجود، إعادة المحاولة...');
                 setTimeout(() => {
                     const retryGrid = document.getElementById('sparePartsGrid');
                     if (retryGrid) {
                         displaySpareParts(allSpareParts);
                         createSparePartsBrandFilters();
-                    } else {
-                        console.error('❌ العنصر sparePartsGrid غير موجود بعد المحاولة');
                     }
                 }, 300);
                 return;
@@ -164,33 +195,33 @@ async function loadSpareParts() {
             displaySpareParts(allSpareParts);
             createSparePartsBrandFilters();
         } else {
-            console.error('❌ خطأ في تحميل قطع الغيار:', result.message);
-            showMessage(result.message || 'خطأ في تحميل قطع الغيار', 'error');
-            
-            // عرض رسالة فارغة في Grid
+            // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
+            if (!cachedParts || forceRefresh) {
+                showMessage(result.message || 'خطأ في تحميل قطع الغيار', 'error');
+                const grid = document.getElementById('sparePartsGrid');
+                if (grid) {
+                    grid.innerHTML = `
+                        <div class="inventory-empty">
+                            <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                            <div class="inventory-empty-text">${result.message || 'خطأ في تحميل قطع الغيار'}</div>
+                        </div>
+                    `;
+                }
+            }
+        }
+    } catch (error) {
+        // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
+        if (!cachedParts || forceRefresh) {
+            showMessage('حدث خطأ في تحميل قطع الغيار', 'error');
             const grid = document.getElementById('sparePartsGrid');
             if (grid) {
                 grid.innerHTML = `
                     <div class="inventory-empty">
                         <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                        <div class="inventory-empty-text">${result.message || 'خطأ في تحميل قطع الغيار'}</div>
+                        <div class="inventory-empty-text">حدث خطأ في تحميل قطع الغيار</div>
                     </div>
                 `;
             }
-        }
-    } catch (error) {
-        console.error('❌ خطأ في تحميل قطع الغيار:', error);
-        showMessage('حدث خطأ في تحميل قطع الغيار', 'error');
-        
-        // عرض رسالة خطأ في Grid
-        const grid = document.getElementById('sparePartsGrid');
-        if (grid) {
-            grid.innerHTML = `
-                <div class="inventory-empty">
-                    <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                    <div class="inventory-empty-text">حدث خطأ في تحميل قطع الغيار</div>
-                </div>
-            `;
         }
     } finally {
         isLoadingSpareParts = false;
@@ -235,21 +266,16 @@ function displaySpareParts(parts) {
     
     grid.innerHTML = parts.map(part => {
         const barcode = part.barcode || `${part.brand}-${part.model}-${part.id}`;
-        let barcodeImage = '';
-        try {
-            if (typeof BarcodeGenerator !== 'undefined') {
-                const barcodeGenerator = new BarcodeGenerator();
-                barcodeImage = barcodeGenerator.generateBarcode(barcode, 200, 60);
-            } else if (typeof window.barcodeGenerator !== 'undefined') {
-                barcodeImage = window.barcodeGenerator.generateBarcode(barcode, 200, 60);
-            } else {
-                // Fallback: نص بسيط
-                barcodeImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjYwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iNjAiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzMzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QmFyY29kZTwvdGV4dD48L3N2Zz4=';
-            }
-        } catch (error) {
-            console.error('خطأ في إنشاء الباركود:', error);
-            barcodeImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjYwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iNjAiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzMzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QmFyY29kZTwvdGV4dD48L3N2Zz4=';
-        }
+        // إنشاء بيانات QR Code
+        const qrData = JSON.stringify({
+            type: 'SPARE_PART',
+            id: part.id,
+            brand: part.brand || '',
+            model: part.model || '',
+            barcode: barcode
+        });
+        // استخدام QR Code بدلاً من الباركود
+        const qrCodeUrl = generateQRCodeFallback(qrData, 200);
         
         return `
             <div class="inventory-card">
@@ -264,30 +290,26 @@ function displaySpareParts(parts) {
                 </div>
                 
                 <div class="inventory-card-body">
-                    ${part.image ? `
-                        <div class="inventory-card-image">
-                            <img src="${part.image}" alt="${part.brand} ${part.model}" loading="lazy" decoding="async" width="200" height="200">
-                        </div>
-                    ` : `
-                        <div class="inventory-card-image">
-                            <i class="bi bi-image" style="font-size: 48px;"></i>
-                        </div>
-                    `}
-                    
-                    <div class="inventory-card-barcode">
-                        <img src="${barcodeImage}" alt="Barcode">
-                        <div class="inventory-card-barcode-code">
+                    <div class="inventory-card-qrcode">
+                        <img src="${qrCodeUrl}" alt="QR Code" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}';">
+                        <div class="inventory-card-qrcode-code">
                             <span>${barcode}</span>
-                            <button onclick="copyBarcode('${barcode}')" class="inventory-card-barcode-code-copy" title="نسخ الباركود">
-                                <i class="bi bi-copy"></i>
-                            </button>
                         </div>
                     </div>
                 </div>
                 
+                <div class="inventory-card-quantity" style="margin-top: 10px; padding: 8px; background: var(--light-bg); border-radius: 6px; text-align: center;">
+                    <span style="font-weight: bold; color: var(--text-color);">الكمية المتوفرة: </span>
+                    <span style="font-size: 1.2em; font-weight: bold; color: var(--primary-color);">${(() => {
+                        // حساب إجمالي الكمية من القطع الفرعية
+                        const totalQuantity = (part.items || []).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+                        return totalQuantity;
+                    })()}</span>
+                </div>
+                
                 <div class="inventory-card-actions">
                     ${canEditInventory() ? `
-                        <button onclick="printSparePartBarcode('${part.id}', '${barcode.replace(/'/g, "\\'")}', '${barcodeImage.replace(/'/g, "\\'")}')" class="btn btn-info btn-sm" title="طباعة الباركود">
+                        <button onclick="printSparePartQRCode('${part.id}')" class="btn btn-info btn-sm" title="طباعة QR Code">
                             <i class="bi bi-printer"></i> طباعة
                         </button>
                         <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
@@ -296,14 +318,16 @@ function displaySpareParts(parts) {
                         <button onclick="editSparePart('${part.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
                             <i class="bi bi-pencil"></i> تعديل
                         </button>
-                        <button onclick="deleteSparePart('${part.id}')" class="btn btn-danger btn-sm" data-permission="admin">
-                            <i class="bi bi-trash"></i> حذف
-                        </button>
-                    ` : `
+                        ${hasPermission('admin') ? `
+                            <button onclick="deleteSparePart('${part.id}')" class="btn btn-danger btn-sm" data-permission="admin">
+                                <i class="bi bi-trash"></i> حذف
+                            </button>
+                        ` : ''}
+                    ` : canRequestInventoryItem() ? `
                         <button onclick="requestInventoryItem('spare_part', '${part.id}', '${part.brand} ${part.model}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
                             <i class="bi bi-cart-plus"></i> طلب قطعة غيار
                         </button>
-                    `}
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -372,12 +396,23 @@ function showAddSparePartModal() {
     document.getElementById('sparePartId').value = '';
     document.getElementById('sparePartItems').innerHTML = '';
     document.getElementById('sparePartBrandCustom').style.display = 'none';
-    document.getElementById('sparePartImagePreview').style.display = 'none';
-    document.getElementById('sparePartImageFile').value = '';
     document.getElementById('sparePartModal').style.display = 'flex';
 }
 
 function editSparePart(id) {
+    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
+    try {
+        const user = getCurrentUser();
+        if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
+            showMessage('ليس لديك صلاحية لتعديل قطع الغيار', 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('خطأ في التحقق من الصلاحيات:', error);
+        showMessage('خطأ في التحقق من الصلاحيات', 'error');
+        return;
+    }
+    
     const part = allSpareParts.find(p => p.id === id);
     if (!part) return;
     
@@ -397,17 +432,6 @@ function editSparePart(id) {
     
     document.getElementById('sparePartModel').value = part.model;
     document.getElementById('sparePartBarcode').value = part.barcode || '';
-    document.getElementById('sparePartImage').value = part.image || '';
-    
-    // عرض معاينة الصورة
-    if (part.image) {
-        const preview = document.getElementById('sparePartImagePreview');
-        const previewImg = document.getElementById('sparePartImagePreviewImg');
-        previewImg.src = part.image;
-        preview.style.display = 'block';
-    } else {
-        document.getElementById('sparePartImagePreview').style.display = 'none';
-    }
     
     // تحميل القطع
     loadSparePartItems(part.items || []);
@@ -419,13 +443,22 @@ function loadSparePartItems(items) {
     const container = document.getElementById('sparePartItems');
     if (!container) return;
     
+    // التحقق من صلاحيات المستخدم (فقط المالك والمدير يمكنهم رؤية سعر التكلفة)
+    const user = getCurrentUser();
+    const canSeePurchasePrice = user && (user.role === 'admin' || user.role === 'manager');
+    
+    // تحديد grid-template-columns بناءً على الصلاحية
+    const gridColumns = canSeePurchasePrice 
+        ? '1.5fr 80px 100px 100px auto' 
+        : '1.5fr 80px 100px auto';
+    
     container.innerHTML = items.map(item => {
         const type = sparePartTypes.find(t => t.id === item.item_type);
         const showCustom = type && type.isCustom || item.item_type === 'other';
         const isOther = item.item_type === 'other' || !type;
         
         return `
-            <div class="spare-part-item-row" data-item-id="${item.id || ''}" style="display: grid; grid-template-columns: 1.5fr 80px 100px 100px auto; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;">
+            <div class="spare-part-item-row" data-item-id="${item.id || ''}" style="display: grid; grid-template-columns: ${gridColumns}; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;">
                 <select class="spare-part-item-type" onchange="handleSparePartItemTypeChange(this)">
                     ${sparePartTypes.map(t => `
                         <option value="${t.id}" ${item.item_type === t.id ? 'selected' : ''}>${t.name}</option>
@@ -433,7 +466,7 @@ function loadSparePartItems(items) {
                     ${isOther && !type ? `<option value="other" selected>${item.item_type || 'أخرى'}</option>` : ''}
                 </select>
                 <input type="number" class="spare-part-item-quantity" value="${item.quantity || 1}" min="1" placeholder="الكمية">
-                <input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}" placeholder="سعر التكلفة">
+                ${canSeePurchasePrice ? `<input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}" placeholder="سعر التكلفة">` : ''}
                 <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}" placeholder="سعر البيع">
                 <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'}; grid-column: 1 / -1;">
                 <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
@@ -453,7 +486,21 @@ async function deleteSparePart(id) {
     const result = await API.deleteSparePart(id);
     if (result.success) {
         showMessage(result.message);
-        loadSpareParts();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        try {
+            if (typeof dbCache !== 'undefined' && dbCache.db) {
+                const tx = dbCache.db.transaction('spareParts', 'readwrite');
+                const store = tx.objectStore('spareParts');
+                await store.clear();
+                await dbCache.saveMetadata('spareParts_last_update', 0);
+            }
+        } catch (error) {
+            console.warn('⚠️ لم يتم مسح cache:', error);
+        }
+        
+        isLoadingSpareParts = false;
+        await loadSpareParts(false, true);
     } else {
         showMessage(result.message, 'error');
     }
@@ -462,6 +509,10 @@ async function deleteSparePart(id) {
 function previewSparePart(id) {
     const part = allSpareParts.find(p => p.id === id);
     if (!part) return;
+    
+    // التحقق من صلاحيات المستخدم (فقط المالك يمكنه رؤية سعر التكلفة)
+    const user = getCurrentUser();
+    const isOwner = user && user.role === 'admin';
     
     const modal = document.getElementById('previewModal');
     const modalContent = document.getElementById('previewModalContent');
@@ -472,40 +523,42 @@ function previewSparePart(id) {
             <button onclick="closePreviewModal()" class="preview-modal-close">&times;</button>
         </div>
         
-        <div class="preview-items-grid">
-            ${(part.items || []).map(item => {
-                const type = sparePartTypes.find(t => t.id === item.item_type);
-                return `
-                    <div class="preview-item">
-                        <div class="preview-item-icon"><i class="bi ${type ? type.icon : 'bi-circle'}"></i></div>
-                        <div class="preview-item-name">${type ? type.name : item.item_type}</div>
-                        <div class="preview-item-quantity">الكمية: ${item.quantity || 1}</div>
-                        ${item.price && item.price > 0 ? `<div class="preview-item-price" style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">السعر: ${formatCurrency(item.price)}</div>` : ''}
-                        ${item.custom_value ? `<div class="preview-item-custom">${item.custom_value}</div>` : ''}
-                    </div>
-                `;
-            }).join('')}
-        </div>
-        
-        ${(part.items || []).length > 0 ? `
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--light-bg);">
-                <h4 style="margin-bottom: 15px; color: var(--text-color);">تفاصيل القطع وأسعارها:</h4>
+        <div class="preview-modal-body">
+            <div class="preview-items-grid">
                 ${(part.items || []).map(item => {
                     const type = sparePartTypes.find(t => t.id === item.item_type);
-                    const itemName = type ? type.name : (item.item_type || 'غير محدد');
                     return `
-                        <div style="padding: 10px; margin-bottom: 10px; background: var(--light-bg); border-radius: 6px;">
-                            <div style="font-weight: bold; margin-bottom: 5px;">${itemName} (الكمية: ${item.quantity || 1})</div>
-                            <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
-                                <span>سعر التكلفة: <strong>${formatCurrency(item.purchase_price || 0)}</strong></span>
-                                <span>سعر البيع: <strong style="color: var(--primary-color);">${formatCurrency(item.selling_price || item.price || 0)}</strong></span>
-                            </div>
-                            ${item.custom_value ? `<div style="margin-top: 5px; font-size: 0.85em; color: #666;">${item.custom_value}</div>` : ''}
+                        <div class="preview-item">
+                            <div class="preview-item-icon"><i class="bi ${type ? type.icon : 'bi-circle'}"></i></div>
+                            <div class="preview-item-name">${type ? type.name : item.item_type}</div>
+                            <div class="preview-item-quantity">الكمية: ${item.quantity || 1}</div>
+                            ${item.price && item.price > 0 ? `<div class="preview-item-price" style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">السعر: ${formatCurrency(item.price)}</div>` : ''}
+                            ${item.custom_value ? `<div class="preview-item-custom">${item.custom_value}</div>` : ''}
                         </div>
                     `;
                 }).join('')}
             </div>
-        ` : ''}
+            
+            ${(part.items || []).length > 0 ? `
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid var(--light-bg);">
+                    <h4 style="margin-bottom: 15px; color: var(--text-color);">تفاصيل القطع وأسعارها:</h4>
+                    ${(part.items || []).map(item => {
+                        const type = sparePartTypes.find(t => t.id === item.item_type);
+                        const itemName = type ? type.name : (item.item_type || 'غير محدد');
+                        return `
+                            <div style="padding: 10px; margin-bottom: 10px; background: var(--light-bg); border-radius: 6px;">
+                                <div style="font-weight: bold; margin-bottom: 5px;">${itemName} (الكمية: ${item.quantity || 1})</div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
+                                    ${isOwner ? `<span>سعر التكلفة: <strong>${formatCurrency(item.purchase_price || 0)}</strong></span>` : ''}
+                                    <span>سعر البيع: <strong style="color: var(--primary-color);">${formatCurrency(item.selling_price || item.price || 0)}</strong></span>
+                                </div>
+                                ${item.custom_value ? `<div style="margin-top: 5px; font-size: 0.85em; color: #666;">${item.custom_value}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            ` : ''}
+        </div>
     `;
     
     modal.style.display = 'block';
@@ -549,31 +602,61 @@ function filterAccessoriesByType(type, element) {
     filterAccessories();
 }
 
-async function loadAccessories() {
-    // منع الاستدعاءات المتكررة
-    if (isLoadingAccessories) {
-        console.log('⏳ تحميل الإكسسوارات قيد التنفيذ بالفعل...');
+async function loadAccessories(silent = false, forceRefresh = false) {
+    // منع الاستدعاءات المتكررة (ما لم يكن forceRefresh)
+    if (isLoadingAccessories && !forceRefresh) {
         return;
     }
     
     isLoadingAccessories = true;
+    let cachedAccessories = null;
     try {
-        console.log('📥 بدء تحميل الإكسسوارات...');
-        const result = await API.getAccessories();
+        // ✅ محاولة تحميل من Cache أولاً (فقط إذا لم يكن forceRefresh)
+        if (!forceRefresh) {
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    cachedAccessories = await dbCache.loadAccessories(3600000); // cache صالح لمدة ساعة
+                    if (cachedAccessories && cachedAccessories.length > 0) {
+                        allAccessories = cachedAccessories;
+                        const grid = document.getElementById('accessoriesGrid');
+                        if (grid) {
+                            displayAccessories(allAccessories);
+                        }
+                    }
+                }
+            } catch (error) {
+                // تجاهل أخطاء Cache
+            }
+        }
+        
+        // ✅ تحميل البيانات الجديدة من الخادم (Silent إذا كان هناك cache ولم يكن forceRefresh)
+        // إذا كان forceRefresh، نستخدم API.request مباشرة مع skipCache و timestamp
+        let result;
+        if (forceRefresh) {
+            const timestamp = Date.now();
+            result = await API.request(`inventory.php?type=accessories&_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+        } else {
+            result = await API.getAccessories((cachedAccessories && !forceRefresh) ? true : silent);
+        }
         if (result.success) {
             allAccessories = result.data || [];
-            console.log('✅ تم تحميل الإكسسوارات:', allAccessories.length, 'إكسسوار');
+            
+            // ✅ حفظ في IndexedDB
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    await dbCache.saveAccessories(allAccessories);
+                }
+            } catch (error) {
+                // تجاهل أخطاء الحفظ
+            }
             
             // التأكد من وجود العنصر قبل العرض
             const grid = document.getElementById('accessoriesGrid');
             if (!grid) {
-                console.warn('⚠️ العنصر accessoriesGrid غير موجود، إعادة المحاولة...');
                 setTimeout(() => {
                     const retryGrid = document.getElementById('accessoriesGrid');
                     if (retryGrid) {
                         displayAccessories(allAccessories);
-                    } else {
-                        console.error('❌ العنصر accessoriesGrid غير موجود بعد المحاولة');
                     }
                 }, 300);
                 return;
@@ -581,33 +664,33 @@ async function loadAccessories() {
             
             displayAccessories(allAccessories);
         } else {
-            console.error('❌ خطأ في تحميل الإكسسوارات:', result.message);
-            showMessage(result.message || 'خطأ في تحميل الإكسسوارات', 'error');
-            
-            // عرض رسالة فارغة في Grid
+            // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
+            if (!cachedAccessories || forceRefresh) {
+                showMessage(result.message || 'خطأ في تحميل الإكسسوارات', 'error');
+                const grid = document.getElementById('accessoriesGrid');
+                if (grid) {
+                    grid.innerHTML = `
+                        <div class="inventory-empty">
+                            <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                            <div class="inventory-empty-text">${result.message || 'خطأ في تحميل الإكسسوارات'}</div>
+                        </div>
+                    `;
+                }
+            }
+        }
+    } catch (error) {
+        // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
+        if (!cachedAccessories || forceRefresh) {
+            showMessage('حدث خطأ في تحميل الإكسسوارات', 'error');
             const grid = document.getElementById('accessoriesGrid');
             if (grid) {
                 grid.innerHTML = `
                     <div class="inventory-empty">
                         <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                        <div class="inventory-empty-text">${result.message || 'خطأ في تحميل الإكسسوارات'}</div>
+                        <div class="inventory-empty-text">حدث خطأ في تحميل الإكسسوارات</div>
                     </div>
                 `;
             }
-        }
-    } catch (error) {
-        console.error('❌ خطأ في تحميل الإكسسوارات:', error);
-        showMessage('حدث خطأ في تحميل الإكسسوارات', 'error');
-        
-        // عرض رسالة خطأ في Grid
-        const grid = document.getElementById('accessoriesGrid');
-        if (grid) {
-            grid.innerHTML = `
-                <div class="inventory-empty">
-                    <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                    <div class="inventory-empty-text">حدث خطأ في تحميل الإكسسوارات</div>
-                </div>
-            `;
         }
     } finally {
         isLoadingAccessories = false;
@@ -653,11 +736,24 @@ function displayAccessories(accessories) {
     grid.innerHTML = accessories.map(accessory => {
         const type = accessoryTypes.find(t => t.id === accessory.type);
         
+        // التحقق من صحة رابط الصورة
+        const isValidImage = accessory.image && (
+            accessory.image.startsWith('data:image/') || 
+            accessory.image.startsWith('http://') || 
+            accessory.image.startsWith('https://') || 
+            accessory.image.startsWith('/')
+        );
+        
+        // تنظيف الصورة من أي أحرف غير صالحة
+        const cleanImage = accessory.image ? accessory.image.trim().replace(/"/g, '&quot;').replace(/'/g, '&#39;') : '';
+        const cleanName = (accessory.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const cleanAccessoryId = (accessory.id || '').replace(/'/g, '&#39;');
+        
         return `
             <div class="inventory-card">
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
-                        <h2>${accessory.name}</h2>
+                        <h2>${cleanName}</h2>
                         <p>${type ? type.name : accessory.type}</p>
                     </div>
                     <div class="inventory-card-icon">
@@ -666,13 +762,20 @@ function displayAccessories(accessories) {
                 </div>
                 
                 <div class="inventory-card-body">
-                    ${accessory.image ? `
-                        <div class="inventory-card-image">
-                            <img src="${accessory.image}" alt="${accessory.name}" loading="lazy" decoding="async" width="200" height="200" style="object-fit: contain;">
+                    ${isValidImage ? `
+                        <div class="inventory-card-image" data-accessory-id="${cleanAccessoryId}">
+                            <img src="${cleanImage}" 
+                                 alt="${cleanName}" 
+                                 loading="lazy" 
+                                 decoding="async" 
+                                 width="200" 
+                                 height="200" 
+                                 style="object-fit: contain;"
+                                 onerror="handleAccessoryImageError(this, '${cleanAccessoryId}');">
                         </div>
                     ` : `
                         <div class="inventory-card-image">
-                            <i class="bi bi-image" style="font-size: 48px;"></i>
+                            <i class="bi bi-image" style="font-size: 48px; color: var(--text-light);"></i>
                         </div>
                     `}
                 </div>
@@ -689,24 +792,44 @@ function displayAccessories(accessories) {
                 
                 <div class="inventory-card-actions">
                     ${canEditInventory() ? `
-                        <button onclick="printAccessoryBarcode('${accessory.id}')" class="btn btn-info btn-sm">
-                            <i class="bi bi-printer"></i> طباعة باركود
+                        <button onclick="printAccessoryBarcode('${cleanAccessoryId}')" class="btn btn-info btn-sm" title="طباعة QR Code">
+                            <i class="bi bi-printer"></i> طباعة QR Code
                         </button>
-                        <button onclick="editAccessory('${accessory.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
+                        <button onclick="editAccessory('${cleanAccessoryId}')" class="btn btn-secondary btn-sm" data-permission="manager">
                             <i class="bi bi-pencil"></i> تعديل
                         </button>
-                        <button onclick="deleteAccessory('${accessory.id}')" class="btn btn-danger btn-sm" data-permission="admin">
-                            <i class="bi bi-trash"></i> حذف
-                        </button>
-                    ` : `
-                        <button onclick="requestInventoryItem('accessory', '${accessory.id}', '${accessory.name}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
+                        ${hasPermission('admin') ? `
+                            <button onclick="deleteAccessory('${cleanAccessoryId}')" class="btn btn-danger btn-sm" data-permission="admin">
+                                <i class="bi bi-trash"></i> حذف
+                            </button>
+                        ` : ''}
+                    ` : canRequestInventoryItem() ? `
+                        <button onclick="requestInventoryItem('accessory', '${cleanAccessoryId}', '${cleanName}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
                             <i class="bi bi-cart-plus"></i> طلب قطعة غيار
                         </button>
-                    `}
+                    ` : ''}
                 </div>
             </div>
         `;
     }).join('');
+    
+    // تحسين جودة الصور بعد إضافتها للـ DOM
+    setTimeout(() => {
+        const images = grid.querySelectorAll('.inventory-card-image img');
+        images.forEach(img => {
+            if (img.complete && img.naturalWidth > 0) {
+                img.classList.add('loaded');
+            } else {
+                img.addEventListener('load', function() {
+                    this.classList.add('loaded');
+                });
+                img.addEventListener('error', function() {
+                    const accessoryId = this.closest('.inventory-card-image')?.dataset?.accessoryId;
+                    handleAccessoryImageError(this, accessoryId);
+                });
+            }
+        });
+    }, 100);
     
     hideByPermission();
 }
@@ -735,7 +858,21 @@ async function deleteAccessory(id) {
     const result = await API.deleteAccessory(id);
     if (result.success) {
         showMessage(result.message);
-        loadAccessories();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        try {
+            if (typeof dbCache !== 'undefined' && dbCache.db) {
+                const tx = dbCache.db.transaction('accessories', 'readwrite');
+                const store = tx.objectStore('accessories');
+                await store.clear();
+                await dbCache.saveMetadata('accessories_last_update', 0);
+            }
+        } catch (error) {
+            console.warn('⚠️ لم يتم مسح cache:', error);
+        }
+        
+        isLoadingAccessories = false;
+        await loadAccessories(false, true);
     } else {
         showMessage(result.message, 'error');
     }
@@ -781,31 +918,61 @@ function filterPhonesByBrand(brand, element) {
     filterPhones();
 }
 
-async function loadPhones() {
-    // منع الاستدعاءات المتكررة
-    if (isLoadingPhones) {
-        console.log('⏳ تحميل الهواتف قيد التنفيذ بالفعل...');
+async function loadPhones(silent = false, forceRefresh = false) {
+    // منع الاستدعاءات المتكررة (ما لم يكن forceRefresh)
+    if (isLoadingPhones && !forceRefresh) {
         return;
     }
     
     isLoadingPhones = true;
+    let cachedPhones = null;
     try {
-        console.log('📥 بدء تحميل الهواتف...');
-        const result = await API.getPhones();
+        // ✅ محاولة تحميل من Cache أولاً (فقط إذا لم يكن forceRefresh)
+        if (!forceRefresh) {
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    cachedPhones = await dbCache.loadPhones(3600000); // cache صالح لمدة ساعة
+                    if (cachedPhones && cachedPhones.length > 0) {
+                        allPhones = cachedPhones;
+                        const grid = document.getElementById('phonesGrid');
+                        if (grid) {
+                            displayPhones(allPhones);
+                        }
+                    }
+                }
+            } catch (error) {
+                // تجاهل أخطاء Cache
+            }
+        }
+        
+        // ✅ تحميل البيانات الجديدة من الخادم (Silent إذا كان هناك cache ولم يكن forceRefresh)
+        // إذا كان forceRefresh، نستخدم API.request مباشرة مع skipCache و timestamp
+        let result;
+        if (forceRefresh) {
+            const timestamp = Date.now();
+            result = await API.request(`inventory.php?type=phones&_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+        } else {
+            result = await API.getPhones((cachedPhones && !forceRefresh) ? true : silent);
+        }
         if (result.success) {
             allPhones = result.data || [];
-            console.log('✅ تم تحميل الهواتف:', allPhones.length, 'هاتف');
+            
+            // ✅ حفظ في IndexedDB
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    await dbCache.savePhones(allPhones);
+                }
+            } catch (error) {
+                // تجاهل أخطاء الحفظ
+            }
             
             // التأكد من وجود العنصر قبل العرض
             const grid = document.getElementById('phonesGrid');
             if (!grid) {
-                console.warn('⚠️ العنصر phonesGrid غير موجود، إعادة المحاولة...');
                 setTimeout(() => {
                     const retryGrid = document.getElementById('phonesGrid');
                     if (retryGrid) {
                         displayPhones(allPhones);
-                    } else {
-                        console.error('❌ العنصر phonesGrid غير موجود بعد المحاولة');
                     }
                 }, 300);
                 return;
@@ -813,33 +980,33 @@ async function loadPhones() {
             
             displayPhones(allPhones);
         } else {
-            console.error('❌ خطأ في تحميل الهواتف:', result.message);
-            showMessage(result.message || 'خطأ في تحميل الهواتف', 'error');
-            
-            // عرض رسالة فارغة في Grid
+            // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
+            if (!cachedPhones || forceRefresh) {
+                showMessage(result.message || 'خطأ في تحميل الهواتف', 'error');
+                const grid = document.getElementById('phonesGrid');
+                if (grid) {
+                    grid.innerHTML = `
+                        <div class="inventory-empty">
+                            <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                            <div class="inventory-empty-text">${result.message || 'خطأ في تحميل الهواتف'}</div>
+                        </div>
+                    `;
+                }
+            }
+        }
+    } catch (error) {
+        // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
+        if (!cachedPhones || forceRefresh) {
+            showMessage('حدث خطأ في تحميل الهواتف', 'error');
             const grid = document.getElementById('phonesGrid');
             if (grid) {
                 grid.innerHTML = `
                     <div class="inventory-empty">
                         <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                        <div class="inventory-empty-text">${result.message || 'خطأ في تحميل الهواتف'}</div>
+                        <div class="inventory-empty-text">حدث خطأ في تحميل الهواتف</div>
                     </div>
                 `;
             }
-        }
-    } catch (error) {
-        console.error('❌ خطأ في تحميل الهواتف:', error);
-        showMessage('حدث خطأ في تحميل الهواتف', 'error');
-        
-        // عرض رسالة خطأ في Grid
-        const grid = document.getElementById('phonesGrid');
-        if (grid) {
-            grid.innerHTML = `
-                <div class="inventory-empty">
-                    <div class="inventory-empty-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                    <div class="inventory-empty-text">حدث خطأ في تحميل الهواتف</div>
-                </div>
-            `;
         }
     } finally {
         isLoadingPhones = false;
@@ -883,7 +1050,10 @@ function displayPhones(phones) {
     }
     
     grid.innerHTML = phones.map(phone => {
-        const brand = phoneBrands.find(b => b.id === phone.brand.toLowerCase()) || phoneBrands[phoneBrands.length - 1];
+        // التحقق من وجود brand قبل استخدام toLowerCase
+        const phoneBrand = phone.brand || '';
+        const brandId = phoneBrand ? phoneBrand.toLowerCase() : 'other';
+        const brand = phoneBrands.find(b => b.id === brandId) || phoneBrands[phoneBrands.length - 1];
         
         // التحقق من صحة الصورة
         const isValidImage = phone.image && (
@@ -899,8 +1069,17 @@ function displayPhones(phones) {
         const cleanModel = (phone.model || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         const cleanPhoneId = (phone.id || '').replace(/'/g, '&#39;');
         
+        // التحقق من الكمية لتحديد حالة البيع
+        const quantity = parseInt(phone.quantity || 0);
+        const isSoldOut = quantity === 0;
+        
         return `
-            <div class="inventory-card" onclick="viewPhoneDetails('${cleanPhoneId}')" style="cursor: pointer;">
+            <div class="inventory-card ${isSoldOut ? 'phone-sold-out' : ''}" onclick="viewPhoneDetails('${cleanPhoneId}')" style="cursor: pointer; position: relative;">
+                ${isSoldOut ? `
+                    <div class="phone-sold-out-badge">
+                        <span>SOLD OUT</span>
+                    </div>
+                ` : ''}
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
                         <h2>${cleanBrand}</h2>
@@ -930,6 +1109,11 @@ function displayPhones(phones) {
                     `}
                 </div>
                 
+                <div class="inventory-card-quantity" style="margin-top: 10px; padding: 8px; background: var(--light-bg); border-radius: 6px; text-align: center;">
+                    <span style="font-weight: bold; color: var(--text-color);">الكمية المتوفرة: </span>
+                    <span style="font-size: 1.2em; font-weight: bold; color: ${isSoldOut ? 'var(--danger-color)' : 'var(--primary-color)'};">${quantity}</span>
+                </div>
+                
                 <div class="inventory-card-price">
                     <span class="inventory-card-price-label">سعر البيع:</span>
                     <span class="inventory-card-price-value">${formatCurrency(phone.selling_price || 0)}</span>
@@ -937,23 +1121,48 @@ function displayPhones(phones) {
                 
                 <div class="inventory-card-actions">
                     ${canEditInventory() ? `
-                        <button onclick="event.stopPropagation(); printPhoneLabel('${phone.id}')" class="btn btn-info btn-sm">
-                            <i class="bi bi-printer"></i> طباعة ملصق
-                        </button>
-                        <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm">
-                            <i class="bi bi-eye"></i> التفاصيل
-                        </button>
-                        <button onclick="event.stopPropagation(); editPhone('${phone.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
-                            <i class="bi bi-pencil"></i> تعديل
-                        </button>
-                        <button onclick="event.stopPropagation(); deletePhone('${phone.id}')" class="btn btn-danger btn-sm" data-permission="admin">
-                            <i class="bi bi-trash"></i> حذف
-                        </button>
-                    ` : `
-                        <button onclick="event.stopPropagation(); requestInventoryItem('phone', '${phone.id}', '${phone.brand} ${phone.model}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
-                            <i class="bi bi-cart-plus"></i> طلب قطعة غيار
-                        </button>
-                    `}
+                        ${isSoldOut ? `
+                            <button disabled class="btn btn-info btn-sm" style="opacity: 0.5; cursor: not-allowed; pointer-events: none;">
+                                <i class="bi bi-printer"></i> طباعة ملصق
+                            </button>
+                            <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm">
+                                <i class="bi bi-eye"></i> التفاصيل
+                            </button>
+                            <button disabled class="btn btn-secondary btn-sm" style="opacity: 0.5; cursor: not-allowed; pointer-events: none;" data-permission="manager">
+                                <i class="bi bi-pencil"></i> تعديل
+                            </button>
+                            ${hasPermission('admin') ? `
+                                <button disabled class="btn btn-danger btn-sm" style="opacity: 0.5; cursor: not-allowed; pointer-events: none;" data-permission="admin">
+                                    <i class="bi bi-trash"></i> حذف
+                                </button>
+                            ` : ''}
+                        ` : `
+                            <button onclick="event.stopPropagation(); printPhoneLabel('${phone.id}')" class="btn btn-info btn-sm">
+                                <i class="bi bi-printer"></i> طباعة ملصق
+                            </button>
+                            <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm">
+                                <i class="bi bi-eye"></i> التفاصيل
+                            </button>
+                            <button onclick="event.stopPropagation(); editPhone('${phone.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
+                                <i class="bi bi-pencil"></i> تعديل
+                            </button>
+                            ${hasPermission('admin') ? `
+                                <button onclick="event.stopPropagation(); deletePhone('${phone.id}')" class="btn btn-danger btn-sm" data-permission="admin">
+                                    <i class="bi bi-trash"></i> حذف
+                                </button>
+                            ` : ''}
+                        `}
+                    ` : canRequestInventoryItem() ? `
+                        ${isSoldOut ? `
+                            <button disabled class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%; opacity: 0.5; cursor: not-allowed; pointer-events: none;">
+                                <i class="bi bi-cart-plus"></i> طلب قطعة غيار
+                            </button>
+                        ` : `
+                            <button onclick="event.stopPropagation(); requestInventoryItem('phone', '${phone.id}', '${phone.brand} ${phone.model}')" class="btn btn-warning btn-sm" title="طلب قطعة غيار" style="width: 100%;">
+                                <i class="bi bi-cart-plus"></i> طلب قطعة غيار
+                            </button>
+                        `}
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -995,6 +1204,30 @@ function filterPhones() {
     displayPhones(filtered);
 }
 
+// دالة للتحقق من صلاحيات عرض سعر التكلفة (مالك أو مدير في فرع HANOVIL)
+function canSeePurchasePrice() {
+    try {
+        const user = getCurrentUser();
+        if (!user) return false;
+        
+        // المالك له كامل الصلاحيات
+        if (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true') {
+            return true;
+        }
+        
+        // المدير في الفرع الأول (HANOVIL) له صلاحية
+        if (user.role === 'manager') {
+            const branchCode = user.branch_code || localStorage.getItem('branch_code') || '';
+            return branchCode === 'HANOVIL';
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('خطأ في التحقق من صلاحيات عرض سعر التكلفة:', error);
+        return false;
+    }
+}
+
 function viewPhoneDetails(id) {
     const phone = allPhones.find(p => p.id === id);
     if (!phone) return;
@@ -1034,7 +1267,7 @@ function viewPhoneDetails(id) {
             <button onclick="closePhoneDetailsModal()" class="preview-modal-close">&times;</button>
         </div>
         
-        <div style="max-height: 80vh; overflow-y: auto; padding: 20px;">
+        <div class="phone-details-content">
             ${(() => {
                 // التحقق من صحة الصورة
                 const isValidImage = phone.image && (
@@ -1046,77 +1279,83 @@ function viewPhoneDetails(id) {
                 const cleanImage = phone.image ? phone.image.trim().replace(/"/g, '&quot;') : '';
                 
                 return isValidImage ? `
-                    <div style="text-align: center; margin-bottom: 25px;">
+                    <div class="phone-details-image">
                         <img src="${cleanImage}" 
                              alt="${(phone.brand + ' ' + phone.model).replace(/"/g, '&quot;')}" 
                              loading="lazy"
                              decoding="async"
                              onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<i class=\\'bi bi-phone\\' style=\\'font-size: 64px; color: var(--text-light);\\'></i>';"
-                             style="max-width: 250px; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.1); image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; image-rendering: high-quality; object-fit: contain;">
+                             style="max-width: 100%; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: var(--shadow); image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; image-rendering: high-quality; object-fit: contain;">
                     </div>
                 ` : '';
             })()}
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+            <div class="phone-details-grid">
                 <!-- المعلومات الأساسية -->
-                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
-                    <h4 style="margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); display: flex; align-items: center; gap: 8px;">
+                <div class="phone-details-card">
+                    <h4 class="phone-details-card-title">
                         <i class="bi bi-info-circle"></i> المعلومات الأساسية
                     </h4>
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light-bg); border-radius: 8px;">
-                            <strong style="color: var(--text-color);">رقم التسلسل:</strong>
-                            <span style="font-family: 'Courier New', monospace; color: var(--text-secondary);">${formatSerial(phone.serial_number)}</span>
+                    <div class="phone-details-list">
+                        <div class="phone-details-item">
+                            <strong>رقم التسلسل:</strong>
+                            <span class="phone-details-value">${formatSerial(phone.serial_number)}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light-bg); border-radius: 8px;">
-                            <strong style="color: var(--text-color);">حالة الضريبة:</strong>
-                            <span style="padding: 4px 12px; border-radius: 6px; font-size: 0.9em; background: ${phone.tax_status === 'exempt' ? '#e8f5e9' : '#fff3e0'}; color: ${phone.tax_status === 'exempt' ? '#2e7d32' : '#e65100'};">
+                        <div class="phone-details-item">
+                            <strong>حالة الضريبة:</strong>
+                            <span class="phone-details-badge ${phone.tax_status === 'exempt' ? 'badge-success' : 'badge-warning'}">
                                 ${phone.tax_status === 'exempt' ? 'معفي' : 'مستحق'}
                             </span>
                         </div>
                         ${phone.tax_status === 'due' && phone.tax_amount ? `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light-bg); border-radius: 8px;">
-                            <strong style="color: var(--text-color);">مبلغ الضريبة:</strong>
-                            <span style="color: var(--text-secondary); font-weight: 600;">${formatCurrency(phone.tax_amount)}</span>
+                        <div class="phone-details-item">
+                            <strong>مبلغ الضريبة:</strong>
+                            <span class="phone-details-value">${formatCurrency(phone.tax_amount)}</span>
                         </div>
                         ` : ''}
                     </div>
                 </div>
                 
                 <!-- الإمكانيات -->
-                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
-                    <h4 style="margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid var(--primary-color); color: var(--primary-color); display: flex; align-items: center; gap: 8px;">
+                <div class="phone-details-card">
+                    <h4 class="phone-details-card-title">
                         <i class="bi bi-cpu"></i> الإمكانيات
                     </h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="phone-specs-grid">
                         ${phone.storage ? `
-                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">المساحة</div>
-                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${addUnit(phone.storage, 'GB')}</div>
+                            <div class="phone-spec-item">
+                                <div class="phone-spec-label">المساحة</div>
+                                <div class="phone-spec-value">${addUnit(phone.storage, 'GB')}</div>
                             </div>
                         ` : ''}
                         ${phone.ram ? `
-                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">الرام</div>
-                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${addUnit(phone.ram, 'GB')}</div>
+                            <div class="phone-spec-item">
+                                <div class="phone-spec-label">الرام</div>
+                                <div class="phone-spec-value">${addUnit(phone.ram, 'GB')}</div>
                             </div>
                         ` : ''}
                         ${phone.screen_type ? `
-                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">نوع الشاشة</div>
-                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${phone.screen_type.toUpperCase()}</div>
+                            <div class="phone-spec-item">
+                                <div class="phone-spec-label">نوع الشاشة</div>
+                                <div class="phone-spec-value">${phone.screen_type.toUpperCase()}</div>
                             </div>
                         ` : ''}
                         ${phone.processor ? `
-                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">المعالج</div>
-                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${phone.processor}</div>
+                            <div class="phone-spec-item">
+                                <div class="phone-spec-label">المعالج</div>
+                                <div class="phone-spec-value">${phone.processor}</div>
                             </div>
                         ` : ''}
                         ${phone.battery ? `
-                            <div style="padding: 10px; background: var(--light-bg); border-radius: 8px; text-align: center; grid-column: span 2;">
-                                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 4px;">البطارية</div>
-                                <div style="font-weight: bold; color: var(--text-color); font-size: 1.1em;">${addUnit(phone.battery, 'mAh')}</div>
+                            <div class="phone-spec-item">
+                                <div class="phone-spec-label">البطارية</div>
+                                <div class="phone-spec-value">${addUnit(phone.battery, 'mAh')}</div>
+                            </div>
+                        ` : ''}
+                        ${phone.battery_percent ? `
+                            <div class="phone-spec-item">
+                                <div class="phone-spec-label">نسبة البطارية</div>
+                                <div class="phone-spec-value">${phone.battery_percent}%</div>
                             </div>
                         ` : ''}
                     </div>
@@ -1124,58 +1363,52 @@ function viewPhoneDetails(id) {
             </div>
             
             <!-- الأسعار -->
-            <div style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; color: white;">
-                <h4 style="margin: 0 0 20px 0; display: flex; align-items: center; gap: 8px;">
+            <div class="phone-prices-card">
+                <h4 class="phone-prices-title">
                     <i class="bi bi-currency-exchange"></i> الأسعار
                 </h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; backdrop-filter: blur(10px);">
-                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 8px;">سعر التكلفة</div>
-                        <div style="font-size: 1.5em; font-weight: bold;">${formatCurrency(phone.purchase_price || 0)}</div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.25); padding: 15px; border-radius: 10px; backdrop-filter: blur(10px); border: 2px solid rgba(255,255,255,0.3);">
-                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 8px;">سعر البيع</div>
-                        <div style="font-size: 1.5em; font-weight: bold;">${formatCurrency(phone.selling_price || 0)}</div>
+                <div class="phone-prices-grid">
+                    ${canSeePurchasePrice() ? `
+                        <div class="phone-price-item">
+                            <div class="phone-price-label">سعر التكلفة</div>
+                            <div class="phone-price-value">${formatCurrency(phone.purchase_price || 0)}</div>
+                        </div>
+                    ` : ''}
+                    <div class="phone-price-item phone-price-item-primary">
+                        <div class="phone-price-label">سعر البيع</div>
+                        <div class="phone-price-value">${formatCurrency(phone.selling_price || 0)}</div>
                     </div>
                 </div>
-                ${phone.purchase_price && phone.selling_price ? `
-                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); text-align: center;">
-                        <div style="font-size: 0.9em; opacity: 0.9; margin-bottom: 5px;">الربح المتوقع</div>
-                        <div style="font-size: 1.3em; font-weight: bold;">
-                            ${formatCurrency((phone.selling_price || 0) - (phone.purchase_price || 0))}
-                        </div>
-                    </div>
-                ` : ''}
             </div>
             
             <!-- معلومات إضافية -->
             ${phone.accessories || phone.defects || phone.maintenance_history ? `
-                <div style="display: grid; grid-template-columns: ${phone.accessories && phone.defects ? '1fr 1fr' : '1fr'}; gap: 20px; margin-bottom: 20px;">
+                <div class="phone-additional-grid">
                     ${phone.accessories ? `
-                        <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
-                            <h4 style="margin: 0 0 12px 0; padding-bottom: 10px; border-bottom: 2px solid var(--success-color); color: var(--success-color); display: flex; align-items: center; gap: 8px;">
+                        <div class="phone-details-card phone-details-card-success">
+                            <h4 class="phone-details-card-title phone-details-card-title-success">
                                 <i class="bi bi-box-seam"></i> ملحقات الجهاز
                             </h4>
-                            <div style="color: var(--text-color); line-height: 1.6; white-space: pre-wrap;">${phone.accessories}</div>
+                            <div class="phone-details-text">${phone.accessories}</div>
                         </div>
                     ` : ''}
                     ${phone.defects ? `
-                        <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); border-right: 4px solid var(--error-color);">
-                            <h4 style="margin: 0 0 12px 0; padding-bottom: 10px; border-bottom: 2px solid var(--error-color); color: var(--error-color); display: flex; align-items: center; gap: 8px;">
+                        <div class="phone-details-card phone-details-card-danger">
+                            <h4 class="phone-details-card-title phone-details-card-title-danger">
                                 <i class="bi bi-exclamation-triangle"></i> العيوب
                             </h4>
-                            <div style="color: var(--text-color); line-height: 1.6; white-space: pre-wrap;">${phone.defects}</div>
+                            <div class="phone-details-text">${phone.defects}</div>
                         </div>
                     ` : ''}
                 </div>
             ` : ''}
             
             ${phone.maintenance_history ? `
-                <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
-                    <h4 style="margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid var(--info-color); color: var(--info-color); display: flex; align-items: center; gap: 8px;">
+                <div class="phone-details-card phone-details-card-info">
+                    <h4 class="phone-details-card-title phone-details-card-title-info">
                         <i class="bi bi-tools"></i> سجل الصيانة
                     </h4>
-                    <div style="color: var(--text-color);">${formatMaintenance(phone.maintenance_history) || phone.maintenance_history}</div>
+                    <div class="phone-details-text">${formatMaintenance(phone.maintenance_history) || phone.maintenance_history}</div>
                 </div>
             ` : ''}
         </div>
@@ -1199,7 +1432,21 @@ async function deletePhone(id) {
     const result = await API.deletePhone(id);
     if (result.success) {
         showMessage(result.message);
-        loadPhones();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        try {
+            if (typeof dbCache !== 'undefined' && dbCache.db) {
+                const tx = dbCache.db.transaction('phones', 'readwrite');
+                const store = tx.objectStore('phones');
+                await store.clear();
+                await dbCache.saveMetadata('phones_last_update', 0);
+            }
+        } catch (error) {
+            console.warn('⚠️ لم يتم مسح cache:', error);
+        }
+        
+        isLoadingPhones = false;
+        await loadPhones(false, true);
     } else {
         showMessage(result.message, 'error');
     }
@@ -1210,6 +1457,19 @@ async function deletePhone(id) {
 // ============================================
 
 function showAddInventoryModal() {
+    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
+    try {
+        const user = getCurrentUser();
+        if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
+            showMessage('ليس لديك صلاحية لإضافة عناصر المخزون', 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('خطأ في التحقق من الصلاحيات:', error);
+        showMessage('خطأ في التحقق من الصلاحيات', 'error');
+        return;
+    }
+    
     if (currentInventoryTab === 'spare_parts') {
         showAddSparePartModal();
     } else if (currentInventoryTab === 'accessories') {
@@ -1275,24 +1535,9 @@ function createInventoryModals() {
                         </div>
                     </div>
                     
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="sparePartBarcode">الباركود</label>
-                            <input type="text" id="sparePartBarcode" placeholder="سيتم إنشاؤه تلقائياً إذا تركت فارغاً">
-                        </div>
-                        <div class="form-group">
-                            <label for="sparePartImage">رابط الصورة</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="sparePartImage" placeholder="أو استخدم زر رفع الصورة" style="flex: 1;">
-                                <input type="file" id="sparePartImageFile" accept="image/*" style="display: none;" onchange="handleSparePartImageUpload(this)">
-                                <button type="button" onclick="document.getElementById('sparePartImageFile').click()" class="btn btn-secondary">
-                                    <i class="bi bi-upload"></i> رفع
-                                </button>
-                            </div>
-                            <div id="sparePartImagePreview" style="margin-top: 10px; display: none;">
-                                <img id="sparePartImagePreviewImg" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid var(--border-color);">
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label for="sparePartBarcode">QR Code / الباركود</label>
+                        <input type="text" id="sparePartBarcode" placeholder="سيتم إنشاؤه تلقائياً إذا تركت فارغاً" readonly style="background-color: var(--light-bg); cursor: not-allowed;">
                     </div>
                     
                     <div class="form-group">
@@ -1349,8 +1594,12 @@ function createInventoryModals() {
                         <div style="display: flex; gap: 10px;">
                             <input type="text" id="accessoryImage" placeholder="أو استخدم زر رفع الصورة" style="flex: 1;">
                             <input type="file" id="accessoryImageFile" accept="image/*" style="display: none;" onchange="handleAccessoryImageUpload(this)">
+                            <input type="file" id="accessoryImageCamera" accept="image/*" capture="environment" style="display: none;" onchange="handleAccessoryImageUpload(this)">
                             <button type="button" onclick="document.getElementById('accessoryImageFile').click()" class="btn btn-secondary">
                                 <i class="bi bi-upload"></i> رفع
+                            </button>
+                            <button type="button" onclick="document.getElementById('accessoryImageCamera').click()" class="btn btn-secondary">
+                                <i class="bi bi-camera"></i> كاميرا
                             </button>
                         </div>
                         <div id="accessoryImagePreview" style="margin-top: 10px; display: none;">
@@ -1403,8 +1652,12 @@ function createInventoryModals() {
                         <div style="display: flex; gap: 10px;">
                             <input type="text" id="phoneImage" placeholder="أو استخدم زر رفع الصورة" style="flex: 1;">
                             <input type="file" id="phoneImageFile" accept="image/*" style="display: none;" onchange="handlePhoneImageUpload(this)">
+                            <input type="file" id="phoneImageCamera" accept="image/*" capture="environment" style="display: none;" onchange="handlePhoneImageUpload(this)">
                             <button type="button" onclick="document.getElementById('phoneImageFile').click()" class="btn btn-secondary">
                                 <i class="bi bi-upload"></i> رفع
+                            </button>
+                            <button type="button" onclick="document.getElementById('phoneImageCamera').click()" class="btn btn-secondary">
+                                <i class="bi bi-camera"></i> كاميرا
                             </button>
                         </div>
                         <div id="phoneImagePreview" style="margin-top: 10px; display: none;">
@@ -1470,9 +1723,15 @@ function createInventoryModals() {
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="phoneBattery">البطارية</label>
-                        <input type="text" id="phoneBattery" placeholder="مثال: 5000mAh">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="phoneBattery">البطارية</label>
+                            <input type="text" id="phoneBattery" placeholder="مثال: 5000mAh">
+                        </div>
+                        <div class="form-group">
+                            <label for="phoneBatteryPercent">نسبة البطارية %</label>
+                            <input type="number" id="phoneBatteryPercent" min="0" max="100" step="1" placeholder="مثال: 85">
+                        </div>
                     </div>
                     
                     <div class="form-group">
@@ -1526,6 +1785,16 @@ function createInventoryModals() {
 function addSparePartItem() {
     const container = document.getElementById('sparePartItems');
     const itemId = 'item_' + Date.now();
+    
+    // التحقق من صلاحيات المستخدم (فقط المالك والمدير يمكنهم رؤية سعر التكلفة)
+    const user = getCurrentUser();
+    const canSeePurchasePrice = user && (user.role === 'admin' || user.role === 'manager');
+    
+    // تحديد grid-template-columns بناءً على الصلاحية
+    const gridColumns = canSeePurchasePrice 
+        ? '1.5fr 80px 100px 100px auto' 
+        : '1.5fr 80px 100px auto';
+    
     const itemRow = document.createElement('div');
     itemRow.className = 'spare-part-item-row';
     itemRow.dataset.itemId = itemId;
@@ -1536,12 +1805,12 @@ function addSparePartItem() {
             `).join('')}
         </select>
         <input type="number" class="spare-part-item-quantity" value="1" min="1" placeholder="الكمية">
-        <input type="number" class="spare-part-item-purchase-price" step="0.01" min="0" value="0" placeholder="سعر التكلفة">
+        ${canSeePurchasePrice ? `<input type="number" class="spare-part-item-purchase-price" step="0.01" min="0" value="0" placeholder="سعر التكلفة">` : ''}
         <input type="number" class="spare-part-item-selling-price" step="0.01" min="0" value="0" placeholder="سعر البيع">
         <input type="text" class="spare-part-item-custom" style="display: none; grid-column: 1 / -1;" placeholder="أدخل النوع يدوياً">
         <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
     `;
-    itemRow.style.cssText = 'display: grid; grid-template-columns: 1.5fr 80px 100px 100px auto; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;';
+    itemRow.style.cssText = `display: grid; grid-template-columns: ${gridColumns}; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;`;
     container.appendChild(itemRow);
 }
 
@@ -1584,19 +1853,7 @@ async function saveSparePart(event) {
     
     const model = document.getElementById('sparePartModel').value.trim();
     let barcode = document.getElementById('sparePartBarcode').value.trim();
-    let image = document.getElementById('sparePartImage').value.trim();
-    
-    // معالجة رفع الصورة
-    const imageFile = document.getElementById('sparePartImageFile').files[0];
-    if (imageFile) {
-        try {
-            const compressedImage = await compressImage(imageFile);
-            image = compressedImage;
-        } catch (error) {
-            console.error('خطأ في ضغط الصورة:', error);
-            showMessage('حدث خطأ في معالجة الصورة', 'warning');
-        }
-    }
+    const image = ''; // لا حاجة للصورة في قطع الغيار
     
     if (!brand || !model) {
         showMessage('الماركة والموديل مطلوبان', 'error');
@@ -1610,10 +1867,21 @@ async function saveSparePart(event) {
     
     // جمع القطع
     const items = [];
+    
+    // التحقق من صلاحيات المستخدم (فقط المالك والمدير يمكنهم رؤية/تعديل سعر التكلفة)
+    const user = getCurrentUser();
+    const canSeePurchasePrice = user && (user.role === 'admin' || user.role === 'manager');
+    
     document.querySelectorAll('.spare-part-item-row').forEach(row => {
         let itemType = row.querySelector('.spare-part-item-type').value;
         const quantity = parseInt(row.querySelector('.spare-part-item-quantity').value) || 1;
-        const purchasePrice = parseFloat(row.querySelector('.spare-part-item-purchase-price').value) || 0;
+        
+        // قراءة سعر التكلفة فقط إذا كان المستخدم لديه صلاحية رؤيته
+        const purchasePriceInput = row.querySelector('.spare-part-item-purchase-price');
+        const purchasePrice = canSeePurchasePrice && purchasePriceInput 
+            ? parseFloat(purchasePriceInput.value) || 0 
+            : 0; // إذا لم يكن المستخدم لديه صلاحية، استخدم 0
+        
         const sellingPrice = parseFloat(row.querySelector('.spare-part-item-selling-price').value) || 0;
         const customInput = row.querySelector('.spare-part-item-custom');
         const customValue = customInput && customInput.style.display !== 'none' ? customInput.value.trim() : '';
@@ -1648,7 +1916,6 @@ async function saveSparePart(event) {
         brand,
         model,
         barcode,
-        image,
         items
     };
     
@@ -1666,7 +1933,27 @@ async function saveSparePart(event) {
     if (result.success) {
         showMessage(result.message);
         closeSparePartModal();
-        loadSpareParts();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        // مسح cache أولاً
+        try {
+            if (typeof dbCache !== 'undefined' && dbCache.db) {
+                const tx = dbCache.db.transaction('spareParts', 'readwrite');
+                const store = tx.objectStore('spareParts');
+                await store.clear();
+                // مسح metadata أيضاً
+                await dbCache.saveMetadata('spareParts_last_update', 0);
+                console.log('✅ تم مسح cache قطع الغيار');
+            }
+        } catch (error) {
+            console.warn('⚠️ لم يتم مسح cache:', error);
+        }
+        
+        // إعادة تعيين flag التحميل لإجبار إعادة التحميل
+        isLoadingSpareParts = false;
+        
+        // تحميل البيانات من الخادم مباشرة (بدون cache)
+        await loadSpareParts(false, true);
     } else {
         showMessage(result.message, 'error');
     }
@@ -1683,6 +1970,19 @@ function showAddAccessoryModal() {
 }
 
 function editAccessory(id) {
+    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
+    try {
+        const user = getCurrentUser();
+        if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
+            showMessage('ليس لديك صلاحية لتعديل الإكسسوارات', 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('خطأ في التحقق من الصلاحيات:', error);
+        showMessage('خطأ في التحقق من الصلاحيات', 'error');
+        return;
+    }
+    
     const accessory = allAccessories.find(a => a.id === id);
     if (!accessory) return;
     
@@ -1711,6 +2011,9 @@ function editAccessory(id) {
         const preview = document.getElementById('accessoryImagePreview');
         const previewImg = document.getElementById('accessoryImagePreviewImg');
         previewImg.src = accessory.image;
+        // ✅ إضافة lazy loading للصور
+        previewImg.loading = 'lazy';
+        previewImg.decoding = 'async';
         preview.style.display = 'block';
     } else {
         document.getElementById('accessoryImagePreview').style.display = 'none';
@@ -1811,7 +2114,27 @@ async function saveAccessory(event) {
     if (result.success) {
         showMessage(result.message);
         closeAccessoryModal();
-        loadAccessories();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        // مسح cache أولاً
+        try {
+            if (typeof dbCache !== 'undefined' && dbCache.db) {
+                const tx = dbCache.db.transaction('accessories', 'readwrite');
+                const store = tx.objectStore('accessories');
+                await store.clear();
+                // مسح metadata أيضاً
+                await dbCache.saveMetadata('accessories_last_update', 0);
+                console.log('✅ تم مسح cache الإكسسوارات');
+            }
+        } catch (error) {
+            console.warn('⚠️ لم يتم مسح cache:', error);
+        }
+        
+        // إعادة تعيين flag التحميل لإجبار إعادة التحميل
+        isLoadingAccessories = false;
+        
+        // تحميل البيانات من الخادم مباشرة (بدون cache)
+        await loadAccessories(false, true);
     } else {
         showMessage(result.message, 'error');
     }
@@ -1831,6 +2154,19 @@ function showAddPhoneModal() {
 }
 
 function editPhone(id) {
+    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
+    try {
+        const user = getCurrentUser();
+        if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
+            showMessage('ليس لديك صلاحية لتعديل الهواتف', 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('خطأ في التحقق من الصلاحيات:', error);
+        showMessage('خطأ في التحقق من الصلاحيات', 'error');
+        return;
+    }
+    
     const phone = allPhones.find(p => p.id === id);
     if (!phone) return;
     
@@ -1858,6 +2194,7 @@ function editPhone(id) {
     document.getElementById('phoneScreenType').value = phone.screen_type || '';
     document.getElementById('phoneProcessor').value = phone.processor || '';
     document.getElementById('phoneBattery').value = phone.battery || '';
+    document.getElementById('phoneBatteryPercent').value = phone.battery_percent || '';
     document.getElementById('phoneAccessories').value = phone.accessories || '';
     document.getElementById('phonePassword').value = phone.password || '';
     document.getElementById('phoneMaintenanceHistory').value = phone.maintenance_history || '';
@@ -1870,6 +2207,9 @@ function editPhone(id) {
         const preview = document.getElementById('phoneImagePreview');
         const previewImg = document.getElementById('phoneImagePreviewImg');
         previewImg.src = phone.image;
+        // ✅ إضافة lazy loading للصور
+        previewImg.loading = 'lazy';
+        previewImg.decoding = 'async';
         preview.style.display = 'block';
     } else {
         document.getElementById('phoneImagePreview').style.display = 'none';
@@ -1930,6 +2270,7 @@ async function savePhone(event) {
     const screen_type = document.getElementById('phoneScreenType').value.trim();
     const processor = document.getElementById('phoneProcessor').value.trim();
     const battery = document.getElementById('phoneBattery').value.trim();
+    const battery_percent = document.getElementById('phoneBatteryPercent').value.trim() ? parseInt(document.getElementById('phoneBatteryPercent').value) : null;
     const accessories = document.getElementById('phoneAccessories').value.trim();
     const password = document.getElementById('phonePassword').value.trim();
     const maintenance_history = document.getElementById('phoneMaintenanceHistory').value.trim();
@@ -1966,6 +2307,7 @@ async function savePhone(event) {
         screen_type,
         processor,
         battery,
+        battery_percent,
         accessories,
         password,
         maintenance_history,
@@ -1985,31 +2327,33 @@ async function savePhone(event) {
     if (result.success) {
         showMessage(result.message);
         closePhoneModal();
-        loadPhones();
+        
+        // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
+        // مسح cache أولاً
+        try {
+            if (typeof dbCache !== 'undefined' && dbCache.db) {
+                const tx = dbCache.db.transaction('phones', 'readwrite');
+                const store = tx.objectStore('phones');
+                await store.clear();
+                // مسح metadata أيضاً
+                await dbCache.saveMetadata('phones_last_update', 0);
+                console.log('✅ تم مسح cache الهواتف');
+            }
+        } catch (error) {
+            console.warn('⚠️ لم يتم مسح cache:', error);
+        }
+        
+        // إعادة تعيين flag التحميل لإجبار إعادة التحميل
+        isLoadingPhones = false;
+        
+        // تحميل البيانات من الخادم مباشرة (بدون cache)
+        await loadPhones(false, true);
     } else {
         showMessage(result.message, 'error');
     }
 }
 
 // دوال رفع الصور
-async function handleSparePartImageUpload(input) {
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        try {
-            const compressedImage = await compressImage(file);
-            document.getElementById('sparePartImage').value = compressedImage;
-            
-            // عرض المعاينة
-            const preview = document.getElementById('sparePartImagePreview');
-            const previewImg = document.getElementById('sparePartImagePreviewImg');
-            previewImg.src = compressedImage;
-            preview.style.display = 'block';
-        } catch (error) {
-            console.error('خطأ في معالجة الصورة:', error);
-            showMessage('حدث خطأ في معالجة الصورة', 'error');
-        }
-    }
-}
 
 async function handleAccessoryImageUpload(input) {
     if (input.files && input.files[0]) {
@@ -2080,6 +2424,39 @@ function handlePhoneImageError(imgElement, phoneId) {
         }
     } catch (error) {
         console.error('خطأ في معالجة خطأ الصورة:', error);
+    }
+}
+
+function handleAccessoryImageError(imgElement, accessoryId) {
+    try {
+        if (!imgElement || !imgElement.parentElement) return;
+        
+        const imageContainer = imgElement.parentElement;
+        
+        // إخفاء الصورة
+        imgElement.style.display = 'none';
+        
+        // التحقق من عدم وجود placeholder بالفعل
+        if (imageContainer.querySelector('.bi-image')) {
+            return;
+        }
+        
+        // إضافة placeholder
+        const placeholder = document.createElement('i');
+        placeholder.className = 'bi bi-image';
+        placeholder.style.fontSize = '48px';
+        placeholder.style.color = 'var(--text-light)';
+        placeholder.style.display = 'block';
+        placeholder.style.margin = '0 auto';
+        
+        imageContainer.appendChild(placeholder);
+        
+        // تسجيل الخطأ للتشخيص
+        if (accessoryId) {
+            console.warn(`فشل تحميل صورة الإكسسوار: ${accessoryId}`);
+        }
+    } catch (error) {
+        console.error('خطأ في معالجة خطأ صورة الإكسسوار:', error);
     }
 }
 
@@ -2289,10 +2666,19 @@ function loadInventorySection() {
     }
     
     // التأكد من أن قسم المخزون هو القسم النشط قبل تحميل المحتوى
-    const isActive = section.classList.contains('active');
-    if (!isActive) {
-        console.log('⚠️ قسم المخزون غير نشط، لن يتم تحميل المحتوى');
-        return;
+    // إذا لم يكن نشطاً، تفعيله تلقائياً
+    if (!section.classList.contains('active')) {
+        console.log('⚠️ قسم المخزون غير نشط، سيتم تفعيله تلقائياً');
+        section.classList.add('active');
+        section.style.display = 'block';
+        
+        // التأكد من إخفاء جميع الأقسام الأخرى
+        document.querySelectorAll('.section').forEach(sec => {
+            if (sec !== section) {
+                sec.classList.remove('active');
+                sec.style.display = 'none';
+            }
+        });
     }
     
     isLoadingInventorySection = true;
@@ -2394,11 +2780,11 @@ function loadInventorySection() {
         }
         
         // التأكد من أن قسم المخزون هو القسم النشط الوحيد
-        const isActive = inventorySection.classList.contains('active');
-        if (!isActive) {
-            console.log('⚠️ قسم المخزون غير نشط، لن يتم تحميل البيانات');
-            isLoadingInventorySection = false;
-            return;
+        // إذا لم يكن نشطاً، تفعيله تلقائياً
+        if (!inventorySection.classList.contains('active')) {
+            console.log('⚠️ قسم المخزون غير نشط، سيتم تفعيله تلقائياً');
+            inventorySection.classList.add('active');
+            inventorySection.style.display = 'block';
         }
         
         // التأكد من إخفاء جميع الأقسام الأخرى
@@ -2410,34 +2796,57 @@ function loadInventorySection() {
         });
         
         // تأخير إضافي لضمان أن DOM جاهز تماماً
-        setTimeout(() => {
-            // تحميل البيانات حسب التبويب المحفوظ
-            if (savedTab === 'spare_parts') {
-                loadSpareParts();
-            } else if (savedTab === 'accessories') {
-                loadAccessories();
-            } else if (savedTab === 'phones') {
-                loadPhones();
-            } else {
-                // تحميل جميع البيانات
-                loadSpareParts();
-                loadAccessories();
-                loadPhones();
-            }
-            
-            // إنشاء أزرار الفلترة بعد تأخير إضافي لضمان أن DOM جاهز
-            setTimeout(() => {
-                try {
-                    createAccessoryFilters();
-                    createPhoneBrands();
-                    hideByPermission();
-                } catch (error) {
-                    console.error('خطأ في إنشاء أزرار الفلترة:', error);
+        setTimeout(async () => {
+            try {
+                // عرض loading overlay عند تحميل البيانات (إذا لم يكن معروضاً بالفعل)
+                // التحقق من أن overlay غير معروض بالفعل (مثل حالة تحميل الصفحة الأولي)
+                if (typeof window !== 'undefined' && window.loadingOverlay) {
+                    const isAlreadyVisible = window.loadingOverlay.overlayElement && 
+                                            window.loadingOverlay.overlayElement.classList.contains('active');
+                    if (!isAlreadyVisible) {
+                        window.loadingOverlay.show();
+                    }
                 }
-            }, 300);
-            
-            console.log('✅ تم تحميل قسم المخزون بنجاح');
-            isLoadingInventorySection = false;
+                
+                // تحميل جميع البيانات دائماً (قطع الغيار، الإكسسوارات، الهواتف)
+                // لا نستخدم silent: true حتى تظهر loading overlay عند النقر على التبويب
+                console.log('📥 بدء تحميل جميع بيانات المخزون (قطع الغيار، الإكسسوارات، الهواتف)...');
+                
+                await Promise.all([
+                    loadSpareParts(false), // silent = false لظهور loading overlay
+                    loadAccessories(false), // silent = false لظهور loading overlay
+                    loadPhones(false) // silent = false لظهور loading overlay
+                ]);
+                
+                // إنشاء أزرار الفلترة بعد اكتمال تحميل جميع البيانات
+                setTimeout(() => {
+                    try {
+                        createAccessoryFilters();
+                        createPhoneBrands();
+                        hideByPermission();
+                    } catch (error) {
+                        console.error('خطأ في إنشاء أزرار الفلترة:', error);
+                    }
+                }, 300);
+                
+                console.log('✅ تم تحميل جميع بيانات المخزون بنجاح');
+            } catch (error) {
+                console.error('❌ خطأ في تحميل بيانات المخزون:', error);
+            } finally {
+                isLoadingInventorySection = false;
+                
+                // إخفاء loading overlay بعد اكتمال تحميل جميع البيانات
+                if (typeof window !== 'undefined' && window.loadingOverlay) {
+                    // انتظار قليل لضمان اكتمال جميع العمليات
+                    setTimeout(() => {
+                        if (window.loadingOverlay) {
+                            // استخدام forceHide لإخفاء overlay بشكل كامل بعد اكتمال تحميل جميع البيانات
+                            window.loadingOverlay.forceHide();
+                            console.log('✅ تم إخفاء شاشة التحميل بعد اكتمال تحميل جميع البيانات');
+                        }
+                    }, 500);
+                }
+            }
         }, 200);
     }, 200);
 }
@@ -2446,165 +2855,150 @@ function loadInventorySection() {
 // دوال الطباعة
 // ============================================
 
-// طباعة باركود للإكسسوار
-function printAccessoryBarcode(id) {
-    const accessory = allAccessories.find(a => a.id === id);
-    if (!accessory) {
-        showMessage('الإكسسوار غير موجود', 'error');
-        return;
-    }
-    
-    // طلب عدد النسخ
-    const copies = prompt('كم عدد النسخ المطلوبة للطباعة؟', '1');
-    if (!copies || isNaN(copies) || parseInt(copies) < 1) {
-        return;
-    }
-    
-    const numCopies = parseInt(copies);
-    
-    // إنشاء باركود
-    const barcode = accessory.barcode || `${accessory.id}-${accessory.name.replace(/\s+/g, '-')}`;
-    let barcodeImage = '';
+// طباعة QR Code للإكسسوار
+async function printAccessoryBarcode(id) {
     try {
-        if (typeof BarcodeGenerator !== 'undefined') {
-            const barcodeGenerator = new BarcodeGenerator();
-            barcodeImage = barcodeGenerator.generateBarcode(barcode, 300, 80);
-        } else if (typeof window.barcodeGenerator !== 'undefined') {
-            barcodeImage = window.barcodeGenerator.generateBarcode(barcode, 300, 80);
-        } else {
-            showMessage('خطأ: مكتبة الباركود غير متاحة', 'error');
+        const accessory = allAccessories.find(a => a.id === id);
+        if (!accessory) {
+            showMessage('الإكسسوار غير موجود', 'error');
             return;
         }
-    } catch (error) {
-        console.error('خطأ في إنشاء الباركود:', error);
-        showMessage('حدث خطأ في إنشاء الباركود', 'error');
-        return;
-    }
-    
-    // إنشاء نافذة الطباعة
-    const printWindow = window.open('', '_blank');
-    const type = accessoryTypes.find(t => t.id === accessory.type);
-    
-    // إنشاء محتوى الطباعة
-    let printContent = '';
-    for (let i = 0; i < numCopies; i++) {
-        printContent += `
-            <div class="barcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 20px;">
-                <div class="barcode-header">
-                    <h2>${accessory.name}</h2>
+        
+        // طلب عدد النسخ باستخدام نافذة إدخال مخصصة
+        if (typeof window.showInputPrompt === 'undefined') {
+            showMessage('خطأ: نظام الإدخال غير متاح. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
+        
+        const copies = await window.showInputPrompt('كم عدد النسخ المطلوبة للطباعة؟', '1', 'number');
+        if (!copies || isNaN(copies) || parseInt(copies) < 1) {
+            return;
+        }
+        
+        const numCopies = parseInt(copies);
+        
+        // الحصول على قيمة الباركود للـ QR Code
+        const barcodeValue = accessory.barcode || accessory.code || accessory.id?.toString() || id;
+        
+        // إنشاء بيانات QR Code
+        const qrData = barcodeValue;
+        
+        // إنشاء QR Code
+        let qrImage = '';
+        try {
+            if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
+                qrImage = await new Promise((resolve) => {
+                    const timeout = setTimeout(() => {
+                        resolve(generateQRCodeFallback(qrData, 300));
+                    }, 3000);
+                    
+                    QRCode.toDataURL(qrData, {
+                        width: 300,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#FFFFFF'
+                        },
+                        errorCorrectionLevel: 'M'
+                    }, function (error, url) {
+                        clearTimeout(timeout);
+                        if (error || !url) {
+                            resolve(generateQRCodeFallback(qrData, 300));
+                        } else {
+                            resolve(url);
+                        }
+                    });
+                });
+            } else {
+                qrImage = generateQRCodeFallback(qrData, 300);
+            }
+        } catch (error) {
+            console.error('خطأ في إنشاء QR Code:', error);
+            qrImage = generateQRCodeFallback(qrData, 300);
+        }
+        
+        // إنشاء نافذة الطباعة
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+            return;
+        }
+        
+        // إنشاء محتوى الطباعة - ملصق بسيط يحتوي على QR Code فقط
+        let printContent = '';
+        for (let i = 0; i < numCopies; i++) {
+            printContent += `
+            <div class="qrcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 20px;">
+                <div class="qrcode-image">
+                    <img src="${qrImage}" alt="QR Code ${barcodeValue}" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}';" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
                 </div>
-                <div class="barcode-image">
-                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 24px; font-size: 24px; background: #f0f0f0; border-radius: 5px;">باركود</div>'}
-                </div>
-
-                <div class="barcode-info">
-                    <div class="barcode-info-item">
-                        <span class="barcode-info-label">السعر:</span>
-                        <span class="barcode-info-value">${formatCurrency(accessory.selling_price || 0)}</span>
-                    </div>
+                <div class="qrcode-value">
+                    ${barcodeValue}
                 </div>
             </div>
-        `;
-    }
-    
-    printWindow.document.write(`
+            `;
+        }
+        
+        printWindow.document.write(`
         <!DOCTYPE html>
         <html dir="rtl" lang="ar">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>طباعة باركود - ${accessory.name}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <title>طباعة QR Code - ${barcodeValue}</title>
+            <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
             <style>
+                :root {
+                    --primary-color: #2196F3;
+                    --text-dark: #333;
+                    --border-color: #ddd;
+                    --white: #ffffff;
+                }
                 * {
                     margin: 0;
                     padding: 0;
                     box-sizing: border-box;
                 }
                 body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     padding: 20px;
-                    background: #f5f5f5;
-                    font-size: 22px; /* كبر حجم الخط الأساسي */
+                    background: var(--white);
+                    font-size: 16px;
                 }
-                .barcode-container {
-                    background: white;
-                    padding: 40px;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    max-width: 480px;
+                .qrcode-container {
+                    background: var(--white);
+                    padding: 30px;
+                    max-width: 400px;
                     margin: 0 auto;
                     text-align: center;
-                    font-size: 22px;
                 }
-                .barcode-header {
-                    margin-bottom: 28px;
-                    border-bottom: 2px solid #2196F3;
-                    padding-bottom: 20px;
+                .qrcode-image {
+                    margin-bottom: 15px;
+                    padding: 20px;
                 }
-                .barcode-header h2 {
-                    color: #2196F3;
-                    font-size: 34px;
-                    margin-bottom: 16px;
-                }
-                .barcode-header p {
-                    color: #666;
-                    font-size: 22px;
-                }
-                .barcode-image {
-                    margin: 28px 0;
-                    padding: 22px;
-                    background: #f9f9f9;
-                    border-radius: 10px;
-                }
-                .barcode-image img {
+                .qrcode-image img {
                     max-width: 100%;
                     height: auto;
                     display: block;
                     margin: 0 auto;
                 }
-                .barcode-code {
+                .qrcode-value {
                     font-family: 'Courier New', monospace;
-                    font-size: 28px;
+                    font-size: 18px;
                     font-weight: bold;
-                    color: #333;
-                    letter-spacing: 5px;
-                    margin-top: 20px;
-                    padding: 15px;
-                    background: #f0f0f0;
-                    border-radius: 5px;
-                }
-                .barcode-info {
-                    margin-top: 28px;
-                    padding-top: 28px;
-                    border-top: 1px solid #ddd;
-                }
-                .barcode-info-item {
-                    display: flex;
-                    justify-content: space-between;
-                    margin: 18px 0;
-                    font-size: 22px;
-                }
-                .barcode-info-label {
-                    color: #666;
-                    font-weight: 600;
-                    font-size: 22px;
-                }
-                .barcode-info-value {
-                    color: #2196F3;
-                    font-weight: bold;
-                    font-size: 26px;
+                    color: var(--text-dark);
+                    letter-spacing: 2px;
+                    text-align: center;
+                    padding: 10px;
                 }
                 @media print {
                     body {
                         background: white;
-                        padding: 0;
-                        font-size: 22px;
+                        padding: 10mm;
+                        font-size: 16px;
                     }
-                    .barcode-container {
+                    .qrcode-container {
                         box-shadow: none;
-                        border: 1px solid #ddd;
-                        font-size: 22px;
                         page-break-inside: avoid;
                         margin-bottom: 10mm;
                     }
@@ -2624,21 +3018,19 @@ function printAccessoryBarcode(id) {
                 <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
                     <i class="bi bi-printer"></i> طباعة
                 </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-arrow-right"></i> رجوع
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    رجوع
                 </button>
             </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
-                };
-            </script>
         </body>
         </html>
-    `);
-    printWindow.document.close();
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+    } catch (error) {
+        console.error('خطأ في طباعة QR Code الإكسسوار:', error);
+        showMessage('حدث خطأ أثناء طباعة QR Code', 'error');
+    }
 }
 
 // دالة نسخ الباركود
@@ -2673,71 +3065,102 @@ function fallbackCopyBarcode(barcode) {
     document.body.removeChild(textArea);
 }
 
-// دالة طباعة باركود قطع الغيار
-function printSparePartBarcode(partId, barcode, barcodeImage) {
-    const part = allSpareParts.find(p => p.id === partId);
-    if (!part) {
-        showMessage('قطعة الغيار غير موجودة', 'error');
-        return;
-    }
-    
-    // استخدام الباركود الممرر أو إنشاء واحد جديد
-    const actualBarcode = barcode || part.barcode || `${part.brand}-${part.model}-${part.id}`;
-    
-    // استخدام صورة الباركود الممررة أو إنشاء واحدة جديدة
-    let actualBarcodeImage = barcodeImage || '';
-    
-    if (!actualBarcodeImage) {
-        try {
-            if (typeof BarcodeGenerator !== 'undefined') {
-                const barcodeGenerator = new BarcodeGenerator();
-                actualBarcodeImage = barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
-            } else if (typeof window.barcodeGenerator !== 'undefined') {
-                actualBarcodeImage = window.barcodeGenerator.generateBarcode(actualBarcode, 200, 60);
-            } else {
-                showMessage('خطأ: مكتبة الباركود غير متاحة', 'error');
-                return;
-            }
-        } catch (error) {
-            console.error('خطأ في إنشاء الباركود:', error);
-            showMessage('حدث خطأ في إنشاء الباركود', 'error');
+// دالة طباعة QR Code قطع الغيار
+async function printSparePartQRCode(partId) {
+    try {
+        const part = allSpareParts.find(p => p.id === partId);
+        if (!part) {
+            showMessage('قطعة الغيار غير موجودة', 'error');
             return;
         }
-    }
-    
-    // التحقق من أن صورة الباركود صالحة
-    if (!actualBarcodeImage || actualBarcodeImage.trim() === '') {
-        console.error('صورة الباركود فارغة');
-        showMessage('خطأ: لم يتم إنشاء صورة الباركود', 'error');
-        return;
-    }
-    
-    // طلب عدد النسخ
-    const copies = prompt('كم عدد النسخ المطلوبة للطباعة؟', '1');
-    if (!copies || isNaN(copies) || parseInt(copies) < 1) {
-        return;
-    }
-    
-    const numCopies = parseInt(copies);
+        
+        // إنشاء بيانات QR Code
+        const barcode = part.barcode || `${part.brand}-${part.model}-${part.id}`;
+        const qrData = JSON.stringify({
+            type: 'SPARE_PART',
+            id: part.id,
+            brand: part.brand || '',
+            model: part.model || '',
+            barcode: barcode,
+            price: part.selling_price || 0,
+            timestamp: Date.now()
+        });
+        
+        // إنشاء QR Code
+        let qrImage = '';
+        try {
+            if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
+                qrImage = await new Promise((resolve) => {
+                    const timeout = setTimeout(() => {
+                        resolve(generateQRCodeFallback(qrData, 200));
+                    }, 3000);
+                    
+                    QRCode.toDataURL(qrData, {
+                        width: 200,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#FFFFFF'
+                        },
+                        errorCorrectionLevel: 'M'
+                    }, function (error, url) {
+                        clearTimeout(timeout);
+                        if (error || !url) {
+                            resolve(generateQRCodeFallback(qrData, 200));
+                        } else {
+                            resolve(url);
+                        }
+                    });
+                });
+            } else {
+                qrImage = generateQRCodeFallback(qrData, 200);
+            }
+        } catch (error) {
+            console.error('خطأ في إنشاء QR Code:', error);
+            qrImage = generateQRCodeFallback(qrData, 200);
+        }
+        
+        // التحقق من أن صورة QR Code صالحة
+        if (!qrImage || qrImage.trim() === '') {
+            console.error('صورة QR Code فارغة');
+            showMessage('خطأ: لم يتم إنشاء صورة QR Code', 'error');
+            return;
+        }
+        
+        // طلب عدد النسخ باستخدام نافذة إدخال مخصصة
+        if (typeof window.showInputPrompt === 'undefined') {
+            showMessage('خطأ: نظام الإدخال غير متاح. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
+        
+        const copies = await window.showInputPrompt('كم عدد النسخ المطلوبة للطباعة؟', '1', 'number');
+        if (!copies || isNaN(copies) || parseInt(copies) < 1) {
+            return;
+        }
+        
+        const numCopies = parseInt(copies);
     
     // إنشاء نافذة الطباعة
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     
     // إنشاء محتوى الطباعة
     let printContent = '';
+    const safeQRImage = qrImage.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const safeQRData = encodeURIComponent(qrData);
+    
     for (let i = 0; i < numCopies; i++) {
         printContent += `
-            <div class="barcode-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 10px;">
-                <div class="barcode-label-content">
-                    <div class="barcode-label-header">
-                        <h4>${part.brand}</h4>
-                        <p>${part.model}</p>
+            <div class="qrcode-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 10px;">
+                <div class="qrcode-label-content">
+                    <div class="qrcode-label-header">
+                        <h4><i class="bi bi-tools"></i> ${part.brand || ''}</h4>
+                        <p>${part.model || ''}</p>
                     </div>
-                    <div class="barcode-label-barcode">
-                        <img src="${actualBarcodeImage.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}" alt="Barcode ${actualBarcode.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}" style="max-width: 100%; height: auto;">
+                    <div class="qrcode-label-qrcode">
+                        <img src="${safeQRImage}" alt="QR Code" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${safeQRData}';" style="max-width: 100%; height: auto; max-height: 120px;">
                     </div>
-                    <div class="barcode-label-code">
-                        ${actualBarcode.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}
+                    <div class="qrcode-label-code">
+                        ID: ${part.id || 'غير محدد'}
                     </div>
                 </div>
             </div>
@@ -2750,73 +3173,99 @@ function printSparePartBarcode(partId, barcode, barcodeImage) {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>طباعة باركود - ${part.brand} ${part.model}</title>
+            <title>طباعة QR Code - ${part.brand} ${part.model}</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
             <style>
+                :root {
+                    --primary-color: #2196F3;
+                    --text-dark: #333;
+                    --text-light: #666;
+                    --border-color: #ddd;
+                    --white: #ffffff;
+                }
                 * {
                     margin: 0;
                     padding: 0;
                     box-sizing: border-box;
                 }
                 body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     padding: 10px;
                     background: white;
                 }
-                .barcode-label {
+                .qrcode-label {
                     width: 100%;
                     max-width: 100mm;
                     margin: 0 auto 10px;
-                    border: 1px solid #ddd;
-                    border-radius: 5px;
+                    border: 2px solid var(--primary-color);
+                    border-radius: 8px;
                     overflow: hidden;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
                 }
-                .barcode-label-content {
-                    padding: 8px;
+                .qrcode-label-content {
+                    padding: 10px;
                     text-align: center;
+                    background: var(--white);
                 }
-                .barcode-label-header {
+                .qrcode-label-header {
                     margin-bottom: 8px;
                     padding-bottom: 6px;
-                    border-bottom: 1px solid #eee;
+                    border-bottom: 2px solid var(--primary-color);
                 }
-                .barcode-label-header h4 {
-                    font-size: 12px;
+                .qrcode-label-header h4 {
+                    font-size: 14px;
                     margin: 0 0 3px 0;
-                    color: #333;
+                    color: var(--primary-color);
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                }
+                .qrcode-label-header p {
+                    font-size: 11px;
+                    margin: 0;
+                    color: var(--text-light);
                     font-weight: 600;
                 }
-                .barcode-label-header p {
-                    font-size: 10px;
-                    margin: 0;
-                    color: #666;
+                .qrcode-label-qrcode {
+                    margin-top: 8px;
+                    padding: 8px;
+                    background: #f9f9f9;
+                    border-radius: 6px;
                 }
-                .barcode-label-barcode {
-                    margin-top: 5px;
-                }
-                .barcode-label-barcode img {
+                .qrcode-label-qrcode img {
                     max-width: 100%;
                     height: auto;
-                    max-height: 40px;
+                    max-height: 120px;
+                    width: auto;
                     display: block;
                     margin: 0 auto;
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    padding: 5px;
+                    background: var(--white);
                 }
-                .barcode-label-code {
-                    margin-top: 4px;
+                .qrcode-label-code {
+                    margin-top: 6px;
                     font-family: 'Courier New', monospace;
-                    font-size: 9px;
-                    color: #333;
-                    letter-spacing: 1px;
+                    font-size: 10px;
+                    color: var(--text-dark);
+                    font-weight: bold;
+                    padding: 4px;
+                    background: #f0f0f0;
+                    border-radius: 4px;
                 }
                 @media print {
                     body {
                         padding: 0;
                         margin: 0;
                     }
-                    .barcode-label {
+                    .qrcode-label {
                         page-break-inside: avoid;
                         margin-bottom: 5mm;
-                        border: none;
+                        border: 2px solid var(--primary-color);
                     }
                     .no-print {
                         display: none;
@@ -2838,200 +3287,613 @@ function printSparePartBarcode(partId, barcode, barcodeImage) {
                     <i class="bi bi-arrow-right"></i> رجوع
                 </button>
             </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
-                }
-            </script>
         </body>
         </html>
-    `);
-    printWindow.document.close();
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+    } catch (error) {
+        console.error('خطأ في طباعة QR Code قطعة الغيار:', error);
+        showMessage('حدث خطأ أثناء طباعة QR Code', 'error');
+    }
 }
 
-// طباعة ملصق احترافي للهاتف
-function printPhoneLabel(id) {
-    const phone = allPhones.find(p => p.id === id);
-    if (!phone) {
-        showMessage('الهاتف غير موجود', 'error');
-        return;
-    }
-    
-    // إنشاء باركود فريد لكل بطاقة يحمل بيانات الجهاز
-    // إنشاء معرف فريد لكل بطاقة (timestamp + random)
-    const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    
-    // بناء بيانات الباركود: نوع-ماركة-موديل-المساحة-الرام-سعر-معرف-رقم_فريد
-    const barcodeData = {
-        type: 'PHONE',
-        brand: phone.brand || '',
-        model: phone.model || '',
-        storage: phone.storage || '',
-        ram: phone.ram || '',
-        price: phone.selling_price || 0,
-        id: phone.id || '',
-        serial: phone.serial_number || '',
-        unique: uniqueId
-    };
-    
-    // إنشاء نص الباركود بتنسيق قابل للقراءة
-    const barcode = `PHONE-${barcodeData.brand}-${barcodeData.model}-${barcodeData.id}-${uniqueId}`;
-    
-    let barcodeImage = '';
+// دالة مساعدة لإنشاء QR Code (بديل إذا لم تكن المكتبة متوفرة)
+function generateQRCodeFallback(data, size = 250) {
     try {
-        if (typeof BarcodeGenerator !== 'undefined') {
-            const barcodeGenerator = new BarcodeGenerator();
-            barcodeImage = barcodeGenerator.generateBarcode(barcode, 350, 100);
-        } else if (typeof window.barcodeGenerator !== 'undefined') {
-            barcodeImage = window.barcodeGenerator.generateBarcode(barcode, 350, 100);
+        const encodedData = encodeURIComponent(data);
+        return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodedData}`;
+    } catch (error) {
+        console.error('خطأ في إنشاء QR Code البديل:', error);
+        return `https://chart.googleapis.com/chart?chs=${size}x${size}&cht=qr&chl=${encodeURIComponent(data)}&choe=UTF-8`;
+    }
+}
+
+// طباعة ملصق الهاتف - دالة اختيار نوع الملصق
+async function printPhoneLabel(id) {
+    try {
+        const phone = allPhones.find(p => p.id === id);
+        if (!phone) {
+            showMessage('الهاتف غير موجود', 'error');
+            return;
+        }
+        
+        // عرض خيارات الطباعة
+        const labelType = await showPrintLabelOptions();
+        if (!labelType) {
+            return; // المستخدم ألغى
+        }
+        
+        if (labelType === 'full') {
+            await printPhoneFullLabel(id);
+        } else if (labelType === 'qrcode') {
+            await printPhoneQRCodeOnly(id);
         }
     } catch (error) {
-        console.error('خطأ في إنشاء الباركود:', error);
+        console.error('خطأ في طباعة ملصق الهاتف:', error);
+        showMessage('حدث خطأ أثناء طباعة الملصق', 'error');
     }
-    
-    // إنشاء نافذة الطباعة
-    const printWindow = window.open('', '_blank');
-    
-    printWindow.document.write(`
+}
+
+// عرض خيارات الطباعة
+function showPrintLabelOptions() {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>اختر نوع الملصق</h2>
+                    <button class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 30px; text-align: center;">
+                    <button id="full-label-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 15px; padding: 15px; font-size: 16px;">
+                        <i class="bi bi-tag-fill"></i> ملصق كامل
+                    </button>
+                    <button id="qrcode-only-btn" class="btn btn-info" style="width: 100%; padding: 15px; font-size: 16px;">
+                        <i class="bi bi-qr-code-scan"></i> QR Code فقط
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // معالجة الإغلاق
+        const closeModal = () => {
+            modal.remove();
+            resolve(null);
+        };
+        
+        modal.querySelector('.btn-close').onclick = closeModal;
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+        
+        // معالجة الاختيارات
+        modal.querySelector('#full-label-btn').onclick = () => {
+            modal.remove();
+            resolve('full');
+        };
+        
+        modal.querySelector('#qrcode-only-btn').onclick = () => {
+            modal.remove();
+            resolve('qrcode');
+        };
+    });
+}
+
+// طباعة الملصق الكامل للهاتف
+async function printPhoneFullLabel(id) {
+    try {
+        const phone = allPhones.find(p => p.id === id);
+        if (!phone) {
+            showMessage('الهاتف غير موجود', 'error');
+            return;
+        }
+        
+        // طلب عدد النسخ
+        if (typeof window.showInputPrompt === 'undefined') {
+            showMessage('خطأ: نظام الإدخال غير متاح. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
+        
+        const copies = await window.showInputPrompt('كم عدد النسخ المطلوبة للطباعة؟', '1', 'number');
+        if (!copies || isNaN(copies) || parseInt(copies) < 1) {
+            return;
+        }
+        
+        const numCopies = parseInt(copies);
+        
+        // الحصول على قيمة الباركود للـ QR Code
+        const barcodeValue = phone.barcode || phone.code || phone.id?.toString() || id;
+        
+        // إنشاء بيانات QR Code
+        const qrData = barcodeValue;
+        
+        // إنشاء QR Code
+        let qrImage = '';
+        try {
+            if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
+                qrImage = await new Promise((resolve) => {
+                    const timeout = setTimeout(() => {
+                        resolve(generateQRCodeFallback(qrData, 300));
+                    }, 3000);
+                    
+                    QRCode.toDataURL(qrData, {
+                        width: 150,
+                        margin: 1,
+                        color: {
+                            dark: '#000000',
+                            light: '#FFFFFF'
+                        },
+                        errorCorrectionLevel: 'M'
+                    }, function (error, url) {
+                        clearTimeout(timeout);
+                        if (error || !url) {
+                            resolve(generateQRCodeFallback(qrData, 150));
+                        } else {
+                            resolve(url);
+                        }
+                    });
+                });
+            } else {
+                qrImage = generateQRCodeFallback(qrData, 150);
+            }
+        } catch (error) {
+            console.error('خطأ في إنشاء QR Code:', error);
+            qrImage = generateQRCodeFallback(qrData, 150);
+        }
+        
+        // إنشاء نافذة الطباعة
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+            return;
+        }
+        
+        // إنشاء محتوى الطباعة - ملصق كامل للهاتف
+        let printContent = '';
+        for (let i = 0; i < numCopies; i++) {
+            printContent += `
+            <div class="phone-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'};">
+                <div class="label-header">
+                    <div class="brand-name">${phone.brand || 'غير محدد'}</div>
+                    <div class="model-name">${phone.model || 'غير محدد'}</div>
+                </div>
+                
+                <div class="label-qrcode">
+                    <img src="${qrImage}" alt="QR Code ${barcodeValue}" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}';">
+                    <div class="qrcode-text">${barcodeValue}</div>
+                </div>
+                
+                ${(phone.storage || phone.ram || phone.screen_type || phone.processor || phone.battery || (phone.battery_percent !== null && phone.battery_percent !== undefined)) ? `
+                <div class="label-specs">
+                    ${phone.storage ? `<div class="spec-row"><span class="spec-label">المساحة</span><span class="spec-value">${phone.storage}</span></div>` : ''}
+                    ${phone.ram ? `<div class="spec-row"><span class="spec-label">الرام</span><span class="spec-value">${phone.ram}</span></div>` : ''}
+                    ${phone.screen_type ? `<div class="spec-row"><span class="spec-label">الشاشة</span><span class="spec-value">${phone.screen_type}</span></div>` : ''}
+                    ${phone.processor ? `<div class="spec-row"><span class="spec-label">المعالج</span><span class="spec-value">${phone.processor}</span></div>` : ''}
+                    ${phone.battery ? `<div class="spec-row"><span class="spec-label">البطارية</span><span class="spec-value">${phone.battery}</span></div>` : ''}
+                    ${(phone.battery_percent !== null && phone.battery_percent !== undefined) ? `<div class="spec-row"><span class="spec-label">نسبة البطارية</span><span class="spec-value">${phone.battery_percent}%</span></div>` : ''}
+                </div>
+                ` : ''}
+                
+                <div class="label-price">
+                    ${formatCurrency(phone.selling_price || 0)}
+                </div>
+            </div>
+            `;
+        }
+        
+        printWindow.document.write(`
         <!DOCTYPE html>
         <html dir="rtl" lang="ar">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>ملصق جهاز - ${phone.brand} ${phone.model}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <title>ملصق الهاتف - ${phone.brand} ${phone.model}</title>
+            <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
             <style>
+                :root {
+                    --primary-color: #2196F3;
+                    --secondary-color: #64B5F6;
+                    --text-dark: #1a1a1a;
+                    --text-light: #555;
+                    --border-color: #e0e0e0;
+                    --light-bg: #f8f9fa;
+                    --white: #ffffff;
+                }
                 * {
                     margin: 0;
                     padding: 0;
                     box-sizing: border-box;
                 }
                 body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    padding: 20px;
-                    background: #f5f5f5;
-                }
-                .label-container {
-                    background: white;
-                    padding: 20px;
-                    border: 2px solid #000000;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-                    max-width: 750px;
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 5mm;
+                    background: var(--light-bg);
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 5mm;
+                    max-width: 210mm;
                     margin: 0 auto;
-                    color: #000000;
+                }
+                .phone-label {
+                    width: 100%;
+                    max-width: 95mm;
+                    background: var(--white);
+                    border: 1.5px solid var(--border-color);
+                    border-radius: 4px;
+                    padding: 5mm;
+                    margin: 0 auto;
+                    text-align: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    overflow: hidden;
+                    position: relative;
+                }
+                .phone-label::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    left: 0;
+                    height: 3mm;
+                    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
                 }
                 .label-header {
+                    padding-bottom: 2mm;
+                    margin-bottom: 2mm;
+                    border-bottom: 1.5px solid var(--border-color);
+                }
+                .brand-name {
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: var(--primary-color);
+                    margin-bottom: 0.5mm;
+                    letter-spacing: 0.3px;
+                }
+                .model-name {
+                    font-size: 10px;
+                    color: var(--text-dark);
+                    font-weight: 500;
+                }
+                .label-qrcode {
+                    margin: 3mm 0;
+                    padding: 2.5mm;
+                    background: var(--light-bg);
+                    border-radius: 3px;
+                }
+                .label-qrcode img {
+                    width: 32mm;
+                    height: 32mm;
+                    display: block;
+                    margin: 0 auto;
+                    border: 1px solid var(--border-color);
+                    background: var(--white);
+                    padding: 2mm;
+                    border-radius: 3px;
+                }
+                .qrcode-text {
+                    font-family: 'Courier New', monospace;
+                    font-size: 8px;
+                    color: var(--text-dark);
+                    margin-top: 2mm;
+                    word-break: break-all;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                }
+                .label-specs {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1.5mm;
+                    margin: 2.5mm 0;
+                    padding: 2mm;
+                    background: var(--light-bg);
+                    border-radius: 3px;
+                }
+                .spec-row {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    padding: 1.5mm 1mm;
+                    background: var(--white);
+                    border-radius: 3px;
+                    border: 0.5px solid rgba(0,0,0,0.08);
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+                    min-height: 8mm;
+                }
+                .spec-label {
+                    color: var(--text-light);
+                    font-weight: 600;
+                    font-size: 7px;
+                    margin-bottom: 0.5mm;
                     text-align: center;
-                    margin-bottom: 20px;
-                    padding-bottom: 15px;
-                    border-bottom: 2px solid #000000;
+                    line-height: 1.2;
                 }
-                .label-header h1 {
-                    font-size: 28px;
-                    margin-bottom: 8px;
-                    color: #000000;
+                .spec-value {
+                    color: var(--text-dark);
+                    font-weight: 700;
+                    font-size: 8.5px;
+                    text-align: center;
+                    word-break: break-word;
+                    line-height: 1.2;
                 }
-                .label-header h2 {
-                    font-size: 22px;
-                    color: #000000;
-                    font-weight: 400;
+                .label-price {
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: var(--white);
+                    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                    margin-top: 2.5mm;
+                    padding: 2.5mm 2mm;
+                    border-radius: 3px;
+                    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                    letter-spacing: 0.5px;
                 }
-                .label-barcode {
-                    background: white;
-                    padding: 15px;
-                    border: 1px solid #000000;
+                @media print {
+                    body {
+                        padding: 5mm;
+                        margin: 0;
+                        background: white;
+                        display: grid;
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 5mm;
+                    }
+                    .phone-label {
+                        page-break-inside: avoid;
+                        margin-bottom: 0;
+                        border: 1.5px solid var(--border-color);
+                        box-shadow: none;
+                    }
+                    .phone-label::before {
+                        display: block;
+                    }
+                    .no-print {
+                        display: none;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 5mm;
+                    }
+                }
+                @media screen and (max-width: 768px) {
+                    body {
+                        grid-template-columns: 1fr;
+                    }
+                }
+                .print-controls {
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    z-index: 1000;
+                }
+                .print-btn {
+                    padding: 12px 24px;
+                    border: none;
                     border-radius: 8px;
-                    margin: 15px 0;
+                    cursor: pointer;
+                    font-size: 15px;
+                    font-weight: 600;
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    width: 140px;
+                    color: var(--white);
+                }
+                @media screen and (max-width: 768px) {
+                    .print-controls {
+                        position: fixed;
+                        bottom: 20px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        flex-direction: row;
+                        gap: 10px;
+                    }
+                    .print-btn {
+                        width: auto;
+                        padding: 10px 20px;
+                        font-size: 14px;
+                    }
+                }
+                .print-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                }
+                .print-btn:active {
+                    transform: translateY(0);
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+                }
+                .print-btn-primary {
+                    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                }
+                .print-btn-primary:hover {
+                    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+                }
+                .print-btn-secondary {
+                    background: linear-gradient(135deg, #6c757d, #868e96);
+                }
+                .print-btn-secondary:hover {
+                    background: linear-gradient(135deg, #5a6268, #6c757d);
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+            <div class="no-print print-controls">
+                <button onclick="window.print()" class="print-btn print-btn-primary">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()" class="print-btn print-btn-secondary">
+                    <i class="bi bi-arrow-right"></i> رجوع
+                </button>
+            </div>
+        </body>
+        </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+    } catch (error) {
+        console.error('خطأ في طباعة الملصق الكامل:', error);
+        showMessage('حدث خطأ أثناء طباعة الملصق', 'error');
+    }
+}
+
+// طباعة QR Code فقط للهاتف
+async function printPhoneQRCodeOnly(id) {
+    try {
+        const phone = allPhones.find(p => p.id === id);
+        if (!phone) {
+            showMessage('الهاتف غير موجود', 'error');
+            return;
+        }
+        
+        // طلب عدد النسخ
+        if (typeof window.showInputPrompt === 'undefined') {
+            showMessage('خطأ: نظام الإدخال غير متاح. يرجى إعادة تحميل الصفحة.', 'error');
+            return;
+        }
+        
+        const copies = await window.showInputPrompt('كم عدد النسخ المطلوبة للطباعة؟', '1', 'number');
+        if (!copies || isNaN(copies) || parseInt(copies) < 1) {
+            return;
+        }
+        
+        const numCopies = parseInt(copies);
+        
+        // الحصول على قيمة الباركود للـ QR Code
+        const barcodeValue = phone.barcode || phone.code || phone.id?.toString() || id;
+        
+        // إنشاء بيانات QR Code
+        const qrData = barcodeValue;
+        
+        // إنشاء QR Code
+        let qrImage = '';
+        try {
+            if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
+                qrImage = await new Promise((resolve) => {
+                    const timeout = setTimeout(() => {
+                        resolve(generateQRCodeFallback(qrData, 300));
+                    }, 3000);
+                    
+                    QRCode.toDataURL(qrData, {
+                        width: 300,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#FFFFFF'
+                        },
+                        errorCorrectionLevel: 'M'
+                    }, function (error, url) {
+                        clearTimeout(timeout);
+                        if (error || !url) {
+                            resolve(generateQRCodeFallback(qrData, 300));
+                        } else {
+                            resolve(url);
+                        }
+                    });
+                });
+            } else {
+                qrImage = generateQRCodeFallback(qrData, 300);
+            }
+        } catch (error) {
+            console.error('خطأ في إنشاء QR Code:', error);
+            qrImage = generateQRCodeFallback(qrData, 300);
+        }
+        
+        // إنشاء نافذة الطباعة
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+            return;
+        }
+        
+        // إنشاء محتوى الطباعة - QR Code فقط
+        let printContent = '';
+        for (let i = 0; i < numCopies; i++) {
+            printContent += `
+            <div class="qrcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 20px;">
+                <div class="qrcode-image">
+                    <img src="${qrImage}" alt="QR Code ${barcodeValue}" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}';" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
+                </div>
+                <div class="qrcode-value">
+                    ${barcodeValue}
+                </div>
+            </div>
+            `;
+        }
+        
+        printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>طباعة QR Code - ${barcodeValue}</title>
+            <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+            <style>
+                :root {
+                    --primary-color: #2196F3;
+                    --text-dark: #333;
+                    --border-color: #ddd;
+                    --white: #ffffff;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 20px;
+                    background: var(--white);
+                    font-size: 16px;
+                }
+                .qrcode-container {
+                    background: var(--white);
+                    padding: 30px;
+                    max-width: 400px;
+                    margin: 0 auto;
                     text-align: center;
                 }
-                .label-barcode img {
+                .qrcode-image {
+                    margin-bottom: 15px;
+                    padding: 20px;
+                }
+                .qrcode-image img {
                     max-width: 100%;
                     height: auto;
                     display: block;
-                    margin: 0 auto 12px;
+                    margin: 0 auto;
                 }
-                .label-barcode-code {
+                .qrcode-value {
                     font-family: 'Courier New', monospace;
-                    font-size: 14px;
-                    font-weight: bold;
-                    color: #333;
-                    letter-spacing: 2px;
-                    padding: 8px;
-                    background: #f0f0f0;
-                    border: 1px solid #000000;
-                    border-radius: 5px;
-                }
-                .label-specs {
-                    background: white;
-                    padding: 15px;
-                    border: 1px solid #000000;
-                    border-radius: 8px;
-                    margin-top: 15px;
-                }
-                .label-specs h3 {
                     font-size: 18px;
-                    margin-bottom: 12px;
+                    font-weight: bold;
+                    color: var(--text-dark);
+                    letter-spacing: 2px;
                     text-align: center;
-                    border-bottom: 2px solid #000000;
-                    padding-bottom: 8px;
-                    color: #000000;
-                }
-                .specs-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr 1fr;
-                    gap: 12px;
-                    margin-top: 12px;
-                }
-                .spec-item {
-                    background: white;
                     padding: 10px;
-                    border: 1px solid #000000;
-                    border-radius: 5px;
-                }
-                .spec-label {
-                    font-size: 11px;
-                    color: #000000;
-                    margin-bottom: 4px;
-                }
-                .spec-value {
-                    font-size: 15px;
-                    font-weight: bold;
-                    color: #000000;
-                }
-                .label-footer {
-                    margin-top: 15px;
-                    padding-top: 15px;
-                    border-top: 2px solid #000000;
-                    text-align: center;
-                }
-                .label-footer-item {
-                    display: flex;
-                    justify-content: space-between;
-                    margin: 8px 0;
-                    font-size: 16px;
-                    color: #000000;
-                }
-                .label-price {
-                    font-size: 22px;
-                    font-weight: bold;
-                    color: #000000;
-                }
-                .label-serial {
-                    font-family: 'Courier New', monospace;
-                    font-size: 14px;
-                    margin-top: 10px;
                 }
                 @media print {
                     body {
                         background: white;
-                        padding: 0;
+                        padding: 10mm;
+                        font-size: 16px;
                     }
-                    .label-container {
+                    .qrcode-container {
                         box-shadow: none;
-                        border: 2px solid #000000;
+                        page-break-inside: avoid;
+                        margin-bottom: 10mm;
+                    }
+                    .no-print {
+                        display: none;
                     }
                     @page {
                         size: A4;
@@ -3041,88 +3903,24 @@ function printPhoneLabel(id) {
             </style>
         </head>
         <body>
-            <div class="label-container">
-                <div class="label-header">
-                    <h1>${phone.brand}</h1>
-                    <h2>${phone.model}</h2>
-                </div>
-                
-                <div class="label-barcode">
-                    ${barcodeImage ? `<img src="${barcodeImage}" alt="Barcode">` : '<div style="padding: 30px; background: #f0f0f0; border-radius: 5px; color: #333;">باركود</div>'}
-                </div>
-                
-                <div class="label-specs">
-                    <h3>إمكانيات الجهاز</h3>
-                    <div class="specs-grid">
-                        ${phone.storage ? `
-                            <div class="spec-item">
-                                <div class="spec-label">المساحة</div>
-                                <div class="spec-value">${phone.storage}</div>
-                            </div>
-                        ` : ''}
-                        ${phone.ram ? `
-                            <div class="spec-item">
-                                <div class="spec-label">الرام</div>
-                                <div class="spec-value">${phone.ram}</div>
-                            </div>
-                        ` : ''}
-                        ${phone.screen_type ? `
-                            <div class="spec-item">
-                                <div class="spec-label">نوع الشاشة</div>
-                                <div class="spec-value">${phone.screen_type}</div>
-                            </div>
-                        ` : ''}
-                        ${phone.processor ? `
-                            <div class="spec-item">
-                                <div class="spec-label">المعالج</div>
-                                <div class="spec-value">${phone.processor}</div>
-                            </div>
-                        ` : ''}
-                        ${phone.battery ? `
-                            <div class="spec-item">
-                                <div class="spec-label">البطارية</div>
-                                <div class="spec-value">${phone.battery}</div>
-                            </div>
-                        ` : ''}
-                        ${phone.tax_status ? `
-                            <div class="spec-item">
-                                <div class="spec-label">حالة الضريبة</div>
-                                <div class="spec-value">${phone.tax_status === 'exempt' ? 'معفي' : 'مستحق'}</div>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                <div class="label-footer">
-                    <div class="label-footer-item">
-                        <span style="font-size: 1.3em;">سعر الجهاز</span>
-                        <span class="label-price">${formatCurrency(phone.selling_price || 0)}</span>
-                    </div>
-                </div>
-            </div>
+            ${printContent}
             <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
                     <i class="bi bi-printer"></i> طباعة
                 </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-arrow-right"></i> رجوع
+                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                    رجوع
                 </button>
             </div>
-            <style>
-                .no-print { display: block !important; }
-                @media print {
-                    .no-print { display: none !important; }
-                }
-            </style>
-            <script>
-                window.onload = function() {
-                    window.print();
-                };
-            </script>
         </body>
         </html>
-    `);
-    printWindow.document.close();
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+    } catch (error) {
+        console.error('خطأ في طباعة QR Code:', error);
+        showMessage('حدث خطأ أثناء طباعة QR Code', 'error');
+    }
 }
 
 // دالة نسخ الباركود

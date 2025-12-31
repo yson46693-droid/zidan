@@ -39,5 +39,5 @@ jobs:
           port: 21
           security: loose
           timeout: 120000
-          server-dir: ./zidan/
+          server-dir: /httpdocs/zidan/
           dangerous-clean-slate: false

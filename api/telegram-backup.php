@@ -71,7 +71,8 @@ function updateTelegramConfig($data) {
     }
 }
 
-$method = getRequestMethod();
+$data = getRequestData();
+$method = $data['_method'] ?? getRequestMethod();
 
 // قراءة إعدادات النسخ الاحتياطي
 if ($method === 'GET') {
@@ -257,7 +258,11 @@ if ($method === 'POST') {
 // حذف نسخة احتياطية
 if ($method === 'DELETE') {
     checkPermission('admin');
-    $data = getRequestData();
+    
+    // إذا لم يتم الحصول على البيانات بعد، احصل عليها
+    if (!isset($data)) {
+        $data = getRequestData();
+    }
     
     $backupFile = $data['backup_file'] ?? '';
     if (empty($backupFile)) {
@@ -265,11 +270,28 @@ if ($method === 'DELETE') {
     }
     
     $backupPath = BACKUP_DIR . $backupFile;
-    if (file_exists($backupPath)) {
-        unlink($backupPath);
+    
+    if (!file_exists($backupPath)) {
+        response(false, 'النسخة الاحتياطية غير موجودة', null, 404);
+    }
+    
+    // التحقق من نوع الملف (ملف عادي أو مجلد)
+    $deleted = false;
+    if (is_dir($backupPath)) {
+        // حذف المجلد
+        $deleted = deleteDirectory($backupPath);
+    } else {
+        // حذف الملف
+        $deleted = @unlink($backupPath);
+    }
+    
+    if ($deleted) {
         response(true, 'تم حذف النسخة الاحتياطية بنجاح');
     } else {
-        response(false, 'النسخة الاحتياطية غير موجودة', null, 404);
+        $error = error_get_last();
+        $errorMessage = $error ? $error['message'] : 'فشل حذف النسخة الاحتياطية';
+        error_log('فشل حذف النسخة الاحتياطية: ' . $backupPath . ' - ' . $errorMessage);
+        response(false, 'فشل حذف النسخة الاحتياطية: ' . $errorMessage, null, 500);
     }
 }
 
@@ -583,19 +605,32 @@ function deleteDirectory($dir) {
         return false;
     }
     
-    $files = scandir($dir);
-    foreach ($files as $file) {
-        if ($file != '.' && $file != '..') {
-            $filePath = $dir . '/' . $file;
-            if (is_dir($filePath)) {
-                deleteDirectory($filePath);
-            } else {
-                unlink($filePath);
+    try {
+        $files = scandir($dir);
+        if ($files === false) {
+            return false;
+        }
+        
+        foreach ($files as $file) {
+            if ($file != '.' && $file != '..') {
+                $filePath = $dir . '/' . $file;
+                if (is_dir($filePath)) {
+                    if (!deleteDirectory($filePath)) {
+                        return false;
+                    }
+                } else {
+                    if (!@unlink($filePath)) {
+                        return false;
+                    }
+                }
             }
         }
+        
+        return @rmdir($dir);
+    } catch (Exception $e) {
+        error_log('خطأ في حذف المجلد: ' . $e->getMessage());
+        return false;
     }
-    
-    return rmdir($dir);
 }
 
 // دالة حساب حجم المجلد

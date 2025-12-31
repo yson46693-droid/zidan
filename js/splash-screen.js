@@ -14,13 +14,15 @@ class SplashScreenManager {
         this.hideProcessCompleted = false;
         this.isHiding = false;
         this.initialized = false;
+        // ✅ إضافة flag لمنع إعادة العرض بعد الإخفاء
+        this.hasBeenHidden = false;
         this.init();
     }
 
     init() {
         // ✅ منع التهيئة المتعددة على مستوى instance بشكل أقوى
-        if (this.initialized) {
-            console.log('⚠️ SplashScreenManager: تم التهيئة مسبقاً - تم إلغاء التهيئة المكررة');
+        if (this.initialized || this.hasBeenHidden) {
+            console.log('⚠️ SplashScreenManager: تم التهيئة مسبقاً أو تم إخفاؤه - تم إلغاء التهيئة المكررة');
             return;
         }
         this.initialized = true;
@@ -32,6 +34,49 @@ class SplashScreenManager {
         
         if (!isLoginPage) {
             // إذا لم نكن في صفحة تسجيل الدخول، لا نعرض splash screen
+            this.hasBeenHidden = true; // ✅ تعيين flag لمنع إعادة العرض
+            return;
+        }
+
+        // ✅ التحقق من sessionStorage لمنع إعادة العرض بعد إخفاء ناجح
+        const splashHidden = sessionStorage.getItem('splash_screen_hidden');
+        if (splashHidden === 'true') {
+            console.log('⚠️ SplashScreen: تم إخفاؤه مسبقاً في هذه الجلسة - إخفاء فوري');
+            this.hasBeenHidden = true;
+            
+            // ✅ إخفاء splash screen الموجود في HTML فوراً وإزالته من DOM
+            const existingSplash = document.getElementById('splash-screen');
+            if (existingSplash) {
+                // إخفاء فوري
+                existingSplash.classList.add('hidden');
+                existingSplash.style.opacity = '0';
+                existingSplash.style.visibility = 'hidden';
+                existingSplash.style.pointerEvents = 'none';
+                existingSplash.style.zIndex = '-1';
+                existingSplash.style.display = 'none';
+                
+                // ✅ إزالة من DOM بعد تأخير قصير
+                setTimeout(() => {
+                    if (existingSplash && existingSplash.parentNode) {
+                        try {
+                            existingSplash.parentNode.removeChild(existingSplash);
+                        } catch (e) {
+                            console.warn('خطأ في إزالة splash screen:', e);
+                        }
+                    }
+                }, 100);
+            }
+            
+            // إظهار login-container مباشرة
+            const loginContainer = document.querySelector('.login-container');
+            if (loginContainer) {
+                loginContainer.classList.add('show');
+                loginContainer.style.opacity = '1';
+                loginContainer.style.visibility = 'visible';
+                loginContainer.style.display = 'flex';
+                loginContainer.style.zIndex = '10';
+            }
+            
             return;
         }
 
@@ -98,6 +143,77 @@ class SplashScreenManager {
         this.splashElement = splashScreen;
     }
 
+    // ✅ دالة للتحقق من تحميل جميع ملفات CSS المطلوبة
+    checkAllCSSLoaded() {
+        let allLoaded = true;
+        const missingCSS = [];
+        
+        // ✅ التحقق من style.css (مطلوب)
+        const styleLink = document.querySelector('link[href*="style.css"]');
+        if (styleLink) {
+            // التحقق من أن media تم تغييره من "print" إلى "all"
+            if (styleLink.media === 'all' || styleLink.media === '') {
+                // التحقق من أن الـ sheet محمّل
+                try {
+                    if (styleLink.sheet) {
+                        // style.css محمّل بشكل صحيح
+                    } else {
+                        allLoaded = false;
+                        missingCSS.push('style.css (sheet not loaded)');
+                    }
+                } catch (e) {
+                    // قد يكون CORS error، لكن نعتبره محمّل إذا media = 'all'
+                }
+            } else {
+                allLoaded = false;
+                missingCSS.push('style.css (media=' + styleLink.media + ')');
+            }
+        } else {
+            allLoaded = false;
+            missingCSS.push('style.css (not found)');
+        }
+        
+        // ✅ التحقق من Bootstrap Icons (مطلوب أيضاً)
+        // Bootstrap Icons يتم تحميله بعد window.load، لذلك قد لا يكون موجوداً في DOM بعد
+        const bootstrapIconsLink = document.querySelector('link[href*="bootstrap-icons"]');
+        if (bootstrapIconsLink) {
+            // التحقق من أن media تم تغييره من "print" إلى "all" أو أنه محمّل
+            if (bootstrapIconsLink.media === 'all' || bootstrapIconsLink.media === '') {
+                // التحقق من أن الـ sheet محمّل
+                try {
+                    if (bootstrapIconsLink.sheet) {
+                        // Bootstrap Icons محمّل بشكل صحيح
+                    } else {
+                        allLoaded = false;
+                        missingCSS.push('bootstrap-icons.css (sheet not loaded)');
+                    }
+                } catch (e) {
+                    // قد يكون CORS error، لكن نعتبره محمّل إذا media = 'all'
+                }
+            } else {
+                allLoaded = false;
+                missingCSS.push('bootstrap-icons.css (media=' + bootstrapIconsLink.media + ')');
+            }
+        } else {
+            // ✅ Bootstrap Icons قد لا يكون موجوداً في DOM بعد (يتم تحميله بشكل متأخر بعد window.load)
+            // نعتبره غير محمّل حتى يظهر في DOM
+            allLoaded = false;
+            missingCSS.push('bootstrap-icons.css (not in DOM yet)');
+        }
+        
+        if (!allLoaded && missingCSS.length > 0) {
+            // ✅ طباعة رسالة واحدة فقط كل 10 محاولات لتقليل الضوضاء
+            if (!this._lastCSSLogTime || Date.now() - this._lastCSSLogTime > 1000) {
+                console.log('⏳ انتظار تحميل CSS:', missingCSS.join(', '));
+                this._lastCSSLogTime = Date.now();
+            }
+        } else if (allLoaded) {
+            console.log('✅ جميع ملفات CSS محملة بنجاح (style.css + bootstrap-icons.css)');
+        }
+        
+        return allLoaded;
+    }
+
     startHideProcess() {
         // منع تشغيل العملية أكثر من مرة
         if (this.hideProcessStarted) {
@@ -105,12 +221,34 @@ class SplashScreenManager {
         }
         this.hideProcessStarted = true;
 
-        // الانتظار حتى يتم تحميل الصفحة بالكامل
+        // ✅ دالة للتحقق من تحميل الصفحة وجميع CSS
+        const checkAndHide = () => {
+            // التحقق من حالة الصفحة
+            if (document.readyState !== 'complete') {
+                return false;
+            }
+            
+            // ✅ التحقق من تحميل جميع ملفات CSS المطلوبة
+            if (!this.checkAllCSSLoaded()) {
+                return false;
+            }
+            
+            return true;
+        };
+
+        // الانتظار حتى يتم تحميل الصفحة بالكامل وجميع CSS
         const hideSplash = () => {
             // التأكد من أن العملية لم تبدأ بالفعل
             if (this.hideProcessCompleted) {
                 return;
             }
+            
+            // ✅ التحقق مرة أخرى من تحميل جميع CSS قبل الإخفاء
+            if (!checkAndHide()) {
+                console.log('⏳ انتظار تحميل CSS قبل إخفاء splash screen...');
+                return;
+            }
+            
             this.hideProcessCompleted = true;
 
             const elapsedTime = Date.now() - this.startTime;
@@ -121,22 +259,41 @@ class SplashScreenManager {
             }, remainingTime);
         };
 
-        // التحقق من حالة الصفحة
-        if (document.readyState === 'complete') {
-            // الصفحة محملة بالفعل
+        // ✅ التحقق الفوري إذا كانت الصفحة محملة بالفعل
+        if (checkAndHide()) {
             hideSplash();
         } else {
             // انتظار تحميل الصفحة (مرة واحدة فقط)
             const loadHandler = () => {
                 window.removeEventListener('load', loadHandler);
-                hideSplash();
+                
+                // ✅ بعد window.load، نتحقق من CSS بشكل دوري
+                // Bootstrap Icons يتم تحميله بعد window.load، لذلك ننتظر قليلاً
+                let cssCheckCount = 0;
+                const maxCSSChecks = 30; // 3 ثوان (30 * 100ms)
+                const cssCheckInterval = setInterval(() => {
+                    cssCheckCount++;
+                    if (checkAndHide()) {
+                        clearInterval(cssCheckInterval);
+                        console.log('✅ تم تحميل جميع CSS - إخفاء splash screen');
+                        hideSplash();
+                    } else if (cssCheckCount >= maxCSSChecks) {
+                        clearInterval(cssCheckInterval);
+                        // ✅ بعد 3 ثوان، نخفي splash screen حتى لو لم يتم تحميل Bootstrap Icons
+                        console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 3 ثوان من window.load (قد لا يكون Bootstrap Icons محمّل بالكامل)');
+                        if (!this.hideProcessCompleted) {
+                            this.hideProcessCompleted = true;
+                            this.hide();
+                        }
+                    }
+                }, 100);
             };
             window.addEventListener('load', loadHandler);
         }
 
-        // أيضاً التحقق بشكل دوري (fallback) - فقط إذا لم يتم استدعاء hideSplash بعد
+        // ✅ التحقق بشكل دوري من تحميل CSS (fallback)
         let checkCount = 0;
-        const maxChecks = 30; // 3 ثوان
+        const maxChecks = 50; // 5 ثوان (50 * 100ms)
         const checkInterval = setInterval(() => {
             if (this.hideProcessCompleted) {
                 clearInterval(checkInterval);
@@ -144,16 +301,18 @@ class SplashScreenManager {
             }
             
             checkCount++;
-            if (document.readyState === 'complete') {
+            if (checkAndHide()) {
                 clearInterval(checkInterval);
                 if (!this.hideProcessCompleted) {
                     hideSplash();
                 }
             } else if (checkCount >= maxChecks) {
                 clearInterval(checkInterval);
-                // إجبار الإخفاء بعد 3 ثوان
+                // ✅ إجبار الإخفاء بعد 5 ثوان حتى لو لم يتم تحميل CSS
+                console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 5 ثوان (قد لا يكون CSS محمّل بالكامل)');
                 if (!this.hideProcessCompleted) {
-                    hideSplash();
+                    this.hideProcessCompleted = true;
+                    this.hide();
                 }
             }
         }, 100);
@@ -171,10 +330,14 @@ class SplashScreenManager {
     }
 
     hide() {
-        // منع الإخفاء المتعدد - لكن السماح بالإخفاء إذا كان العنصر غير موجود
-        if (this.isHiding) {
+        // ✅ منع الإخفاء المتعدد - لكن السماح بالإخفاء إذا كان العنصر غير موجود
+        if (this.isHiding || this.hasBeenHidden) {
             return;
         }
+        
+        // ✅ تعيين flag لمنع إعادة العرض
+        this.hasBeenHidden = true;
+        sessionStorage.setItem('splash_screen_hidden', 'true');
         
         // إذا لم يكن splashElement موجوداً، تأكد من إظهار login-container فقط
         if (!this.splashElement) {
@@ -182,10 +345,15 @@ class SplashScreenManager {
         }
         
         this.isHiding = true;
+        this.hideProcessCompleted = true; // ✅ تأكيد إكمال العملية
 
         // إضافة class للإخفاء
         if (this.splashElement) {
             this.splashElement.classList.add('hidden');
+            // ✅ إضافة style مباشرة كحماية إضافية
+            this.splashElement.style.opacity = '0';
+            this.splashElement.style.visibility = 'hidden';
+            this.splashElement.style.pointerEvents = 'none';
         }
         
         // ✅ إظهار صفحة تسجيل الدخول بشكل صحيح
@@ -196,6 +364,7 @@ class SplashScreenManager {
             loginContainer.style.opacity = '1';
             loginContainer.style.visibility = 'visible';
             loginContainer.style.display = 'flex'; // إضافة display للتأكد
+            loginContainer.style.zIndex = '1'; // ✅ ضمان أن login-container فوق splash screen
         }
         
         // إزالة العنصر من DOM بعد انتهاء الانتقال
@@ -212,8 +381,8 @@ class SplashScreenManager {
     }
 
     show() {
-        // منع إظهار splash screen إذا تم إخفاؤه بالفعل
-        if (this.isHiding || this.hideProcessCompleted) {
+        // ✅ منع إظهار splash screen إذا تم إخفاؤه بالفعل
+        if (this.isHiding || this.hideProcessCompleted || this.hasBeenHidden) {
             return;
         }
         
@@ -240,6 +409,48 @@ let splashScreenInitialized = false;
 function initSplashScreen() {
     // ✅ منع التهيئة المتعددة بشكل أقوى
     if (splashScreenInitialized || window.splashScreenManager) {
+        return;
+    }
+    
+    // ✅ التحقق من sessionStorage لمنع إعادة التهيئة
+    const splashHidden = sessionStorage.getItem('splash_screen_hidden');
+    if (splashHidden === 'true') {
+        console.log('⚠️ SplashScreen: تم إخفاؤه مسبقاً - إخفاء فوري');
+        splashScreenInitialized = true;
+        
+        // ✅ إخفاء splash screen الموجود في HTML فوراً عند refresh وإزالته من DOM
+        const existingSplash = document.getElementById('splash-screen');
+        if (existingSplash) {
+            // إخفاء فوري
+            existingSplash.classList.add('hidden');
+            existingSplash.style.opacity = '0';
+            existingSplash.style.visibility = 'hidden';
+            existingSplash.style.pointerEvents = 'none';
+            existingSplash.style.zIndex = '-1';
+            existingSplash.style.display = 'none';
+            
+            // ✅ إزالة من DOM بعد تأخير قصير
+            setTimeout(() => {
+                if (existingSplash && existingSplash.parentNode) {
+                    try {
+                        existingSplash.parentNode.removeChild(existingSplash);
+                    } catch (e) {
+                        console.warn('خطأ في إزالة splash screen:', e);
+                    }
+                }
+            }, 100);
+        }
+        
+        // ✅ إظهار login-container مباشرة
+        const loginContainer = document.querySelector('.login-container');
+        if (loginContainer) {
+            loginContainer.classList.add('show');
+            loginContainer.style.opacity = '1';
+            loginContainer.style.visibility = 'visible';
+            loginContainer.style.display = 'flex';
+            loginContainer.style.zIndex = '10';
+        }
+        
         return;
     }
     

@@ -33,17 +33,29 @@ async function loadBackupStatus() {
 }
 
 // تحميل قائمة النسخ الاحتياطية
-async function loadBackupList() {
+async function loadBackupList(forceRefresh = false) {
     try {
-        const result = await API.listBackups();
-        if (result.success) {
-            backupList = result.data;
+        // إجبار إعادة التحميل بدون cache إذا كان forceRefresh = true
+        const url = forceRefresh 
+            ? `telegram-backup.php?action=list_backups&_t=${Date.now()}`
+            : 'telegram-backup.php?action=list_backups';
+        
+        const result = await API.request(url, 'GET', null, { skipCache: forceRefresh });
+        
+        if (result && result.success && result.data) {
+            backupList = Array.isArray(result.data) ? result.data : [];
+            console.log(`✅ تم تحميل ${backupList.length} نسخة احتياطية`);
             return backupList;
+        } else {
+            console.warn('⚠️ لم يتم الحصول على بيانات النسخ الاحتياطية:', result);
+            backupList = [];
+            return [];
         }
     } catch (error) {
-        console.error('خطأ في تحميل قائمة النسخ الاحتياطية:', error);
+        console.error('❌ خطأ في تحميل قائمة النسخ الاحتياطية:', error);
+        backupList = [];
+        return [];
     }
-    return [];
 }
 
 // تحميل حالة التنظيف التلقائي
@@ -66,17 +78,18 @@ async function cleanupOldBackups() {
         
         const result = await API.request('telegram-backup.php', 'GET', { action: 'cleanup_old_backups' });
         
-        if (result.success) {
+        if (result && result.success) {
             showMessage(result.message, 'success');
-            await loadBackupList();
+            await loadBackupList(true); // forceRefresh = true
+            updateBackupListUI();
             return true;
         } else {
-            showMessage(result.message, 'error');
+            showMessage(result?.message || 'فشل تنظيف النسخ القديمة', 'error');
             return false;
         }
     } catch (error) {
-        console.error('خطأ في تنظيف النسخ القديمة:', error);
-        showMessage('خطأ في تنظيف النسخ القديمة', 'error');
+        console.error('❌ خطأ في تنظيف النسخ القديمة:', error);
+        showMessage('حدث خطأ أثناء تنظيف النسخ القديمة', 'error');
         return false;
     }
 }
@@ -114,24 +127,25 @@ async function createManualBackup() {
             action: 'create_backup'
         });
         
-        if (result.success) {
+        if (result && result.success) {
             showMessage('تم إنشاء النسخة الاحتياطية بنجاح', 'success');
             
             // إرسال إلى تليجرام إذا كان مفعلاً
-            if (backupConfig && backupConfig.telegram_bot.enabled) {
-                await sendBackupToTelegram(result.data.backup_file);
+            if (backupConfig && backupConfig.telegram_bot && backupConfig.telegram_bot.enabled) {
+                await sendBackupToTelegram(result.data?.backup_file);
             }
             
-            await loadBackupList();
+            await loadBackupList(true); // forceRefresh = true
+            updateBackupListUI();
             await loadBackupStatus();
             return true;
         } else {
-            showMessage(result.message, 'error');
+            showMessage(result?.message || 'فشل إنشاء النسخة الاحتياطية', 'error');
             return false;
         }
     } catch (error) {
-        console.error('خطأ في إنشاء النسخة الاحتياطية:', error);
-        showMessage('خطأ في إنشاء النسخة الاحتياطية', 'error');
+        console.error('❌ خطأ في إنشاء النسخة الاحتياطية:', error);
+        showMessage('حدث خطأ أثناء إنشاء النسخة الاحتياطية', 'error');
         return false;
     }
 }
@@ -181,6 +195,70 @@ async function testTelegramConnection() {
     }
 }
 
+// دالة مساعدة لـ escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// تحديث واجهة قائمة النسخ الاحتياطية
+function updateBackupListUI() {
+    try {
+        const backupListContainer = document.querySelector('.backup-list');
+        if (!backupListContainer) {
+            console.warn('⚠️ عنصر backup-list غير موجود في DOM');
+            return;
+        }
+        
+        console.log(`🔄 تحديث واجهة القائمة - عدد النسخ: ${backupList.length}`);
+        
+        if (!backupList || backupList.length === 0) {
+            backupListContainer.innerHTML = '<p class="no-backups">لا توجد نسخ احتياطية محفوظة</p>';
+        } else {
+            // استخدام DocumentFragment لتحسين الأداء
+            const fragment = document.createDocumentFragment();
+            const tempDiv = document.createElement('div');
+            
+            tempDiv.innerHTML = backupList.map(backup => {
+                if (!backup || !backup.filename) {
+                    console.warn('⚠️ نسخة احتياطية غير صحيحة:', backup);
+                    return '';
+                }
+                
+                const safeFilename = escapeHtml(backup.filename);
+                const safeFilenameForJS = safeFilename.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                
+                return `
+                    <div class="backup-item">
+                        <div class="backup-info">
+                            <div class="backup-name">${safeFilename}</div>
+                            <div class="backup-details">
+                                <span class="backup-date">${formatDate(backup.created_at)}</span>
+                                <span class="backup-size">${escapeHtml(backup.size_formatted || '')}</span>
+                            </div>
+                        </div>
+                        <div class="backup-actions">
+                            <button onclick="sendBackupToTelegram('${safeFilenameForJS}')" class="btn btn-sm btn-info">
+                                <i class="bi bi-telegram"></i> إرسال لتليجرام
+                            </button>
+                            <button onclick="deleteBackup('${safeFilenameForJS}')" class="btn btn-sm btn-danger">
+                                <i class="bi bi-trash"></i> حذف
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).filter(html => html !== '').join('');
+            
+            backupListContainer.innerHTML = tempDiv.innerHTML;
+            console.log('✅ تم تحديث واجهة القائمة بنجاح');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في تحديث واجهة قائمة النسخ الاحتياطية:', error);
+    }
+}
+
 // حذف نسخة احتياطية
 async function deleteBackup(backupFile) {
     if (!confirm('هل أنت متأكد من حذف هذه النسخة الاحتياطية؟')) {
@@ -188,21 +266,53 @@ async function deleteBackup(backupFile) {
     }
     
     try {
+        // إظهار شاشة التحميل
+        if (window.loadingOverlay && typeof window.loadingOverlay.show === 'function') {
+            window.loadingOverlay.show();
+        }
+        
         const result = await API.request('telegram-backup.php', 'DELETE', {
             backup_file: backupFile
         });
         
-        if (result.success) {
+        if (result && result.success) {
             showMessage('تم حذف النسخة الاحتياطية بنجاح', 'success');
-            await loadBackupList();
+            
+            // إزالة النسخة المحذوفة من القائمة المحلية فوراً
+            backupList = backupList.filter(backup => backup.filename !== backupFile);
+            updateBackupListUI();
+            
+            // تحديث القائمة من الخادم (بدون cache) بعد تأخير بسيط
+            setTimeout(async () => {
+                try {
+                    await loadBackupList(true); // forceRefresh = true
+                    updateBackupListUI();
+                } catch (error) {
+                    console.error('خطأ في تحديث القائمة بعد الحذف:', error);
+                } finally {
+                    // إخفاء شاشة التحميل
+                    if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+                        window.loadingOverlay.hide();
+                    }
+                }
+            }, 300);
+            
             return true;
         } else {
-            showMessage(result.message, 'error');
+            showMessage(result?.message || 'فشل حذف النسخة الاحتياطية', 'error');
+            // إخفاء شاشة التحميل في حالة الخطأ
+            if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+                window.loadingOverlay.hide();
+            }
             return false;
         }
     } catch (error) {
-        console.error('خطأ في حذف النسخة الاحتياطية:', error);
-        showMessage('خطأ في حذف النسخة الاحتياطية', 'error');
+        console.error('❌ خطأ في حذف النسخة الاحتياطية:', error);
+        showMessage('حدث خطأ أثناء حذف النسخة الاحتياطية', 'error');
+        // إخفاء شاشة التحميل في حالة الخطأ
+        if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+            window.loadingOverlay.hide();
+        }
         return false;
     }
 }

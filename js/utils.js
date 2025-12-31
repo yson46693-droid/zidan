@@ -39,17 +39,48 @@ function getServiceWorkerPath() {
  */
 function canEditInventory() {
     try {
-        const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        const branchCode = localStorage.getItem('branch_code');
-        const isOwner = localStorage.getItem('is_owner') === 'true';
+        const userStr = localStorage.getItem('currentUser');
+        if (!userStr) {
+            return false;
+        }
         
-        // المالك له كامل الصلاحيات
-        if (isOwner) return true;
+        const user = JSON.parse(userStr);
+        if (!user || typeof user !== 'object') {
+            return false;
+        }
         
-        // الفرع الأول فقط يمكنه التعديل
-        return branchCode === 'HANOVIL';
+        // ✅ فقط المالك والمدير يمكنهم التعديل
+        return user.role === 'admin' || user.role === 'manager';
     } catch (e) {
         console.error('خطأ في التحقق من صلاحيات المخزون:', e);
+        return false;
+    }
+}
+
+// التحقق من إمكانية طلب قطع الغيار (فقط لفرع البيطاش)
+function canRequestInventoryItem() {
+    try {
+        const userStr = localStorage.getItem('currentUser');
+        if (!userStr) {
+            return false;
+        }
+        
+        const user = JSON.parse(userStr);
+        if (!user || typeof user !== 'object') {
+            return false;
+        }
+        
+        const branchCode = user.branch_code || localStorage.getItem('branch_code');
+        
+        // المالك له كامل الصلاحيات (يرى جميع الأزرار)
+        if (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true') {
+            return false; // المالك لا يحتاج زر الطلب لأنه يرى أزرار التعديل
+        }
+        
+        // فقط فرع البيطاش يمكنه طلب قطع الغيار
+        return branchCode === 'BITASH';
+    } catch (e) {
+        console.error('خطأ في التحقق من صلاحيات طلب قطع الغيار:', e);
         return false;
     }
 }
@@ -170,11 +201,17 @@ function debounce(func, wait) {
 // الحصول على الحالة بالعربية
 function getStatusText(status) {
     const statuses = {
-        'pending': 'قيد الانتظار',
+        'received': 'تم الاستلام',
+        'under_inspection': 'قيد الفحص',
+        'awaiting_customer_approval': 'بانتظار موافقة العميل',
         'in_progress': 'قيد الإصلاح',
-        'ready': 'جاهز',
+        'ready_for_delivery': 'جاهز للتسليم',
         'delivered': 'تم التسليم',
-        'cancelled': 'ملغي'
+        'cancelled': 'عملية ملغية',
+        'lost': 'عملية خاسرة',
+        // دعم الحالات القديمة للتوافق
+        'pending': 'تم الاستلام', // تم الاستلام
+        'ready': 'جاهز للتسليم' // جاهز للتسليم
     };
     return statuses[status] || status;
 }
@@ -182,11 +219,17 @@ function getStatusText(status) {
 // الحصول لون الحالة
 function getStatusColor(status) {
     const colors = {
-        'pending': '#FFA500',
-        'in_progress': '#2196F3',
-        'ready': '#4CAF50',
-        'delivered': '#4CAF50',
-        'cancelled': '#f44336'
+        'received': '#2196F3', // primary-color
+        'under_inspection': '#FFA500', // warning-color
+        'awaiting_customer_approval': '#FFA500', // warning-color
+        'in_progress': '#2196F3', // primary-color
+        'ready_for_delivery': '#4CAF50', // success-color
+        'delivered': '#4CAF50', // success-color
+        'cancelled': '#f44336', // danger-color
+        'lost': '#f44336', // danger-color
+        // دعم الحالات القديمة للتوافق
+        'pending': '#2196F3', // تم الاستلام
+        'ready': '#4CAF50' // جاهز للتسليم
     };
     return colors[status] || '#999';
 }
@@ -196,6 +239,7 @@ function getRoleText(role) {
     const roles = {
         'admin': 'مالك',
         'manager': 'مدير',
+        'technician': 'فني صيانة',
         'employee': 'موظف'
     };
     return roles[role] || role;
@@ -309,15 +353,28 @@ function importFromJSON(callback) {
 // تبديل الوضع الليلي
 function toggleDarkMode() {
     const isDark = document.body.classList.toggle('dark-mode');
+    document.documentElement.classList.toggle('dark-mode', isDark);
     localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
     return isDark;
 }
 
 // تحميل الوضع الليلي
 function loadDarkMode() {
-    const darkMode = localStorage.getItem('darkMode');
-    if (darkMode === 'enabled') {
-        document.body.classList.add('dark-mode');
+    try {
+        const darkMode = localStorage.getItem('darkMode');
+        if (darkMode === 'enabled') {
+            document.documentElement.classList.add('dark-mode');
+            if (document.body) {
+                document.body.classList.add('dark-mode');
+            }
+        } else {
+            document.documentElement.classList.remove('dark-mode');
+            if (document.body) {
+                document.body.classList.remove('dark-mode');
+            }
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل الوضع الليلي:', error);
     }
 }
 
@@ -480,6 +537,311 @@ async function setCachedLogo(imgElement) {
     } catch (error) {
         console.error('خطأ في تعيين الشعار:', error);
         img.src = DEFAULT_LOGO_PATH;
+    }
+}
+
+/**
+ * عرض نافذة إدخال مخصصة (بديل لـ prompt)
+ * @param {string} message - الرسالة المراد عرضها
+ * @param {string} defaultValue - القيمة الافتراضية
+ * @param {string} inputType - نوع الإدخال (text, number, etc.)
+ * @returns {Promise<string|null>} قيمة الإدخال أو null إذا تم الإلغاء
+ */
+function showInputPrompt(message, defaultValue = '', inputType = 'text') {
+    return new Promise((resolve) => {
+        try {
+            // إنشاء modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+            modal.style.zIndex = '20000';
+            modal.setAttribute('id', 'inputPromptModal');
+            
+            modal.innerHTML = `
+                <div class="modal-content modal-sm" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h3>إدخال البيانات</h3>
+                        <button class="btn-close" onclick="this.closest('.modal').remove(); window.inputPromptResolve(null);">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        <div class="form-group">
+                            <label style="display: block; margin-bottom: 10px; color: var(--text-dark); font-weight: 500;">
+                                ${message}
+                            </label>
+                            <input 
+                                type="${inputType}" 
+                                id="inputPromptInput" 
+                                value="${defaultValue.replace(/"/g, '&quot;')}" 
+                                class="form-control"
+                                style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 16px;"
+                                autofocus
+                            />
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; padding: 15px 20px; border-top: 1px solid var(--border-color);">
+                        <button 
+                            type="button" 
+                            class="btn btn-secondary" 
+                            onclick="this.closest('.modal').remove(); window.inputPromptResolve(null);"
+                            style="padding: 10px 20px; background: var(--secondary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer;"
+                        >
+                            إلغاء
+                        </button>
+                        <button 
+                            type="button" 
+                            class="btn btn-primary" 
+                            onclick="handleInputPromptSubmit()"
+                            style="padding: 10px 20px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer;"
+                        >
+                            تأكيد
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // حفظ resolve function في window
+            window.inputPromptResolve = resolve;
+            
+            // دالة submit
+            window.handleInputPromptSubmit = function() {
+                try {
+                    const input = document.getElementById('inputPromptInput');
+                    if (!input) {
+                        window.inputPromptResolve(null);
+                        return;
+                    }
+                    
+                    const value = input.value.trim();
+                    const modal = document.getElementById('inputPromptModal');
+                    if (modal) {
+                        modal.remove();
+                    }
+                    
+                    // تنظيف
+                    delete window.inputPromptResolve;
+                    delete window.handleInputPromptSubmit;
+                    
+                    resolve(value || null);
+                } catch (error) {
+                    console.error('خطأ في معالجة الإدخال:', error);
+                    resolve(null);
+                }
+            };
+            
+            // إغلاق عند النقر خارج الـ modal
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                    if (window.inputPromptResolve) {
+                        window.inputPromptResolve(null);
+                        delete window.inputPromptResolve;
+                        delete window.handleInputPromptSubmit;
+                    }
+                }
+            });
+            
+            // إرسال عند الضغط على Enter
+            const input = document.getElementById('inputPromptInput');
+            if (input) {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (window.handleInputPromptSubmit) {
+                            window.handleInputPromptSubmit();
+                        }
+                    }
+                });
+                
+                // التركيز على الإدخال
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 100);
+            }
+            
+        } catch (error) {
+            console.error('خطأ في إنشاء نافذة الإدخال:', error);
+            resolve(null);
+        }
+    });
+}
+
+/**
+ * ✅ دالة عامة لإصلاح CSS و Bootstrap Icons عند التحميل أو التنقل
+ * تستخدم عند:
+ * - التوجيه بعد تسجيل الدخول
+ * - عمل refresh لأي صفحة
+ * - الرجوع من صفحة خارجية
+ */
+function ensureCSSAndIconsLoaded() {
+    console.log('🔧 [CSS Fix] بدء ensureCSSAndIconsLoaded...');
+    try {
+        const styleSheets = [
+            { href: 'css/style.css', id: 'main-style' },
+            { href: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css', id: 'bootstrap-icons' }
+        ];
+        
+        let fixedCount = 0;
+        let addedCount = 0;
+        
+        styleSheets.forEach(({ href, id }) => {
+            // البحث عن الـ stylesheet (قد يكون href كاملاً أو جزئياً أو مع query parameters)
+            const fileName = href.split('/').pop().split('?')[0]; // اسم الملف بدون query params
+            const existingLink = document.querySelector(`link[href*="${fileName}"]`);
+            
+            if (existingLink) {
+                // التحقق من أن الـ stylesheet محمّل فعلياً
+                try {
+                    // ✅ إصلاح: التحقق من media="print" أولاً وتغييره
+                    if (existingLink.media === 'print' || existingLink.getAttribute('media') === 'print') {
+                        existingLink.media = 'all';
+                        fixedCount++;
+                        console.log(`✅ [CSS Fix] تم تغيير media من print إلى all لـ ${fileName}`);
+                    }
+                    
+                    // ✅ التحقق من أن الـ stylesheet محمّل فعلياً
+                    const isLoaded = existingLink.sheet !== null || 
+                                    (existingLink.href && existingLink.href.length > 0);
+                    
+                    if (!isLoaded) {
+                        console.log(`🔄 [CSS Fix] ${fileName} غير محمّل - إعادة تحميل...`);
+                        // إزالة الـ link القديم
+                        const parent = existingLink.parentNode;
+                        existingLink.remove();
+                        
+                        // إنشاء link جديد مع cache busting
+                        const newLink = document.createElement('link');
+                        newLink.rel = 'stylesheet';
+                        newLink.href = href + (href.includes('?') ? '&' : '?') + '_cssfix=' + Date.now();
+                        newLink.media = 'all';
+                        if (id) newLink.id = id;
+                        if (href.includes('bootstrap-icons')) {
+                            newLink.crossOrigin = 'anonymous';
+                        }
+                        
+                        // ✅ إضافة event listeners للتأكد من التحميل
+                        newLink.onload = () => {
+                            console.log(`✅ [CSS Fix] تم تحميل ${fileName} بنجاح`);
+                            // إزالة cache busting parameter بعد التحميل
+                            if (newLink.href.includes('_cssfix=')) {
+                                newLink.href = href;
+                            }
+                        };
+                        newLink.onerror = () => {
+                            console.warn(`⚠️ [CSS Fix] فشل تحميل ${fileName} - محاولة بدون cache busting`);
+                            newLink.href = href;
+                        };
+                        
+                        if (parent) {
+                            parent.appendChild(newLink);
+                        } else {
+                            document.head.appendChild(newLink);
+                        }
+                        addedCount++;
+                        console.log(`✅ [CSS Fix] تم إضافة ${fileName} بنجاح`);
+                    } else {
+                        // التأكد من أن media = "all" (حتى لو كان محمّل)
+                        if (existingLink.media === 'print' || existingLink.getAttribute('media') === 'print') {
+                            existingLink.media = 'all';
+                            fixedCount++;
+                            console.log(`✅ [CSS Fix] تم تغيير media من print إلى all لـ ${fileName} (كان محمّل)`);
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`⚠️ [CSS Fix] خطأ في التحقق من ${fileName}:`, e);
+                }
+            } else {
+                // إذا لم يكن موجوداً، إضافته
+                console.log(`➕ [CSS Fix] ${fileName} غير موجود - إضافة...`);
+                const newLink = document.createElement('link');
+                newLink.rel = 'stylesheet';
+                newLink.href = href;
+                newLink.media = 'all';
+                if (id) newLink.id = id;
+                if (href.includes('bootstrap-icons')) {
+                    newLink.crossOrigin = 'anonymous';
+                }
+                
+                // ✅ إضافة event listeners للتأكد من التحميل
+                newLink.onload = () => {
+                    console.log(`✅ [CSS Fix] تم تحميل ${fileName} بنجاح`);
+                };
+                newLink.onerror = () => {
+                    console.warn(`⚠️ [CSS Fix] فشل تحميل ${fileName}`);
+                };
+                
+                document.head.appendChild(newLink);
+                addedCount++;
+                console.log(`✅ [CSS Fix] تم إضافة ${fileName} بنجاح`);
+            }
+        });
+        
+        // ✅ إصلاح إضافي: تغيير جميع stylesheets من media="print" إلى "all"
+        const fixAllPrintMedia = () => {
+            const allStyleSheets = document.querySelectorAll('link[rel="stylesheet"]');
+            let fixedCount = 0;
+            allStyleSheets.forEach(link => {
+                if (link.media === 'print' || link.getAttribute('media') === 'print') {
+                    link.media = 'all';
+                    fixedCount++;
+                    console.log(`✅ [CSS Fix] تم تغيير media من print إلى all لـ ${link.href.split('/').pop()}`);
+                }
+            });
+            if (fixedCount > 0) {
+                console.log(`✅ [CSS Fix] تم إصلاح ${fixedCount} stylesheet(s)`);
+            }
+        };
+        
+        fixAllPrintMedia();
+        
+        // التأكد من أن CSS محمّل بعد قليل
+        setTimeout(() => {
+            // إضافة class css-loaded إذا لم يكن موجوداً
+            if (!document.documentElement.classList.contains('css-loaded')) {
+                document.documentElement.classList.add('css-loaded');
+            }
+            if (!document.body.classList.contains('css-loaded')) {
+                document.body.classList.add('css-loaded');
+            }
+        }, 100);
+        
+        // ✅ إصلاح إضافي: إعادة التحقق بعد قليل للتأكد من التطبيق
+        setTimeout(() => {
+            // التحقق مرة أخرى من media="print"
+            const allStyleSheets = document.querySelectorAll('link[rel="stylesheet"]');
+            let recheckFixed = 0;
+            allStyleSheets.forEach(link => {
+                if (link.media === 'print' || link.getAttribute('media') === 'print') {
+                    link.media = 'all';
+                    recheckFixed++;
+                }
+            });
+            if (recheckFixed > 0) {
+                console.log(`✅ [CSS Fix] إصلاح إضافي: تم تغيير ${recheckFixed} stylesheet(s) من print إلى all`);
+            }
+        }, 300);
+        
+        console.log(`✅ [CSS Fix] انتهى ensureCSSAndIconsLoaded - تم إصلاح ${fixedCount} ملف، تمت إضافة ${addedCount} ملف`);
+    } catch (error) {
+        console.error('❌ [CSS Fix] خطأ في ensureCSSAndIconsLoaded:', error);
+    }
+}
+
+// ✅ تصدير الدوال إلى window للاستخدام العام
+if (typeof window !== 'undefined') {
+    window.showMessage = showMessage;
+    window.getBasePath = getBasePath;
+    window.formatCurrency = formatCurrency;
+    window.formatDate = formatDate;
+    window.formatDateTime = formatDateTime;
+    window.getTodayDate = getTodayDate;
+    window.showInputPrompt = showInputPrompt;
+    window.ensureCSSAndIconsLoaded = ensureCSSAndIconsLoaded; // ✅ تصدير الدالة الجديدة
+    // تصدير debounce فقط إذا كان موجوداً
+    if (typeof debounce !== 'undefined') {
+        window.debounce = debounce;
     }
 }
 

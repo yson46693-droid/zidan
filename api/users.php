@@ -9,9 +9,86 @@ $method = $data['_method'] ?? getRequestMethod();
 error_log('users.php - Method: ' . $method . ', Request Method: ' . getRequestMethod());
 error_log('users.php - Data keys: ' . implode(', ', array_keys($data)));
 
-// قراءة جميع المستخدمين
+// قراءة المستخدمين
 if ($method === 'GET') {
     checkPermission('admin');
+    
+    // ✅ إذا كان هناك id أو username في query parameter، جلب مستخدم واحد
+    $userId = $_GET['id'] ?? $data['id'] ?? null;
+    $username = $_GET['username'] ?? $data['username'] ?? null;
+    
+    if ($userId || $username) {
+        // ✅ التحقق من وجود الأعمدة قبل استخدامها في الاستعلام
+        $hasAvatar = dbColumnExists('users', 'avatar');
+        $hasSpecialization = dbColumnExists('users', 'specialization');
+        $hasWebauthnEnabled = dbColumnExists('users', 'webauthn_enabled');
+        
+        // بناء الاستعلام بناءً على الأعمدة الموجودة
+        $selectFields = "u.id, u.username, u.name, u.role, u.branch_id, u.salary";
+        if ($hasAvatar) {
+            $selectFields .= ", u.avatar";
+        }
+        if ($hasWebauthnEnabled) {
+            $selectFields .= ", u.webauthn_enabled";
+        }
+        if ($hasSpecialization) {
+            $selectFields .= ", u.specialization";
+        }
+        $selectFields .= ", b.name as branch_name, u.created_at, u.updated_at";
+        
+        // بناء شرط WHERE حسب المعامل الممرر
+        $whereClause = "";
+        $whereParams = [];
+        
+        if ($userId) {
+            // تنظيف userId
+            $userId = trim($userId);
+            if (empty($userId) || $userId === 'null' || $userId === 'undefined') {
+                response(false, 'معرف المستخدم غير صحيح', null, 400);
+            }
+            $whereClause = "WHERE u.id = ?";
+            $whereParams[] = $userId;
+        } elseif ($username) {
+            // تنظيف username
+            $username = trim($username);
+            if (empty($username) || $username === 'null' || $username === 'undefined') {
+                response(false, 'اسم المستخدم غير صحيح', null, 400);
+            }
+            $whereClause = "WHERE u.username = ?";
+            $whereParams[] = $username;
+        }
+        
+        // جلب بيانات المستخدم مع معلومات الفرع
+        $user = dbSelectOne(
+            "SELECT {$selectFields}
+             FROM users u 
+             LEFT JOIN branches b ON u.branch_id = b.id 
+             {$whereClause}",
+            $whereParams
+        );
+        
+        if (!$user || $user === false) {
+            response(false, 'المستخدم غير موجود', null, 404);
+        }
+        
+        // إزالة الحقول الحساسة
+        unset($user['password']);
+        
+        // التأكد من وجود جميع الحقول (تعيين null للأعمدة غير الموجودة)
+        if (!isset($user['avatar'])) {
+            $user['avatar'] = null;
+        }
+        if (!isset($user['specialization'])) {
+            $user['specialization'] = null;
+        }
+        if (!isset($user['webauthn_enabled'])) {
+            $user['webauthn_enabled'] = 0;
+        }
+        
+        response(true, '', $user);
+    }
+    
+    // ✅ إذا لم يكن هناك id، جلب جميع المستخدمين
     $users = dbSelect("SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at, u.updated_at 
                        FROM users u 
                        LEFT JOIN branches b ON u.branch_id = b.id 
@@ -118,86 +195,6 @@ if ($method === 'POST') {
     ];
     
     response(true, 'تم إضافة المستخدم بنجاح', $newUser);
-}
-
-// تعديل مستخدم
-if ($method === 'PUT') {
-    checkPermission('admin');
-    if (!isset($data['id'])) {
-        $data = getRequestData();
-    }
-    
-    $id = $data['id'] ?? '';
-    
-    if (empty($id)) {
-        response(false, 'معرف المستخدم مطلوب', null, 400);
-    }
-    
-    // التحقق من وجود المستخدم
-    $user = dbSelectOne("SELECT id FROM users WHERE id = ?", [$id]);
-    if (!$user) {
-        response(false, 'المستخدم غير موجود', null, 404);
-    }
-    
-    // بناء استعلام التحديث
-    $updateFields = [];
-    $updateParams = [];
-    
-    if (isset($data['name'])) {
-        $updateFields[] = "name = ?";
-        $updateParams[] = trim($data['name']);
-    }
-    
-    if (isset($data['role'])) {
-        // التحقق من صحة نوع الدور
-        if (!in_array($data['role'], ['admin', 'manager', 'employee', 'technician'])) {
-            response(false, 'نوع الدور غير صحيح', null, 400);
-        }
-        $updateFields[] = "role = ?";
-        $updateParams[] = $data['role'];
-    }
-    
-    if (isset($data['branch_id'])) {
-        $branchId = !empty($data['branch_id']) ? trim($data['branch_id']) : null;
-        
-        // التحقق من وجود الفرع إذا كان محدداً
-        if ($branchId) {
-            $branch = dbSelectOne("SELECT id FROM branches WHERE id = ?", [$branchId]);
-            if (!$branch) {
-                response(false, 'الفرع المحدد غير موجود', null, 404);
-            }
-        }
-        
-        $updateFields[] = "branch_id = ?";
-        $updateParams[] = $branchId;
-    }
-    
-    if (isset($data['salary'])) {
-        $updateFields[] = "salary = ?";
-        $updateParams[] = floatval($data['salary']);
-    }
-    
-    if (isset($data['password']) && !empty($data['password'])) {
-        $updateFields[] = "password = ?";
-        $updateParams[] = password_hash($data['password'], PASSWORD_DEFAULT);
-    }
-    
-    if (empty($updateFields)) {
-        response(false, 'لا توجد بيانات للتحديث', null, 400);
-    }
-    
-    $updateFields[] = "updated_at = NOW()";
-    $updateParams[] = $id;
-    
-    $query = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = ?";
-    
-    $result = dbExecute($query, $updateParams);
-    
-    if ($result === false) {
-        response(false, 'خطأ في تعديل المستخدم', null, 500);
-    }
-    
-    response(true, 'تم تعديل المستخدم بنجاح');
 }
 
 // حذف مستخدم

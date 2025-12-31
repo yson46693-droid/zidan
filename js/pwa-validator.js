@@ -3,8 +3,10 @@
  * أداة للتحقق من أن جميع متطلبات PWA متوفرة
  */
 
-class PWAValidator {
-    constructor() {
+// ✅ منع إعادة التصريح عند تحميل الملف عدة مرات
+if (typeof PWAValidator === 'undefined') {
+    class PWAValidator {
+        constructor() {
         this.results = {
             https: false,
             manifest: false,
@@ -246,13 +248,14 @@ class PWAValidator {
         }
         console.log('\n');
     }
-}
+} // ✅ إغلاق الـ class
 
-// تصدير
+// ✅ تصدير - خارج الـ class
 if (typeof window !== 'undefined') {
     window.PWAValidator = PWAValidator;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = PWAValidator;
+}
 }

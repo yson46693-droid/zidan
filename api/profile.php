@@ -12,21 +12,19 @@ $currentUserId = $session['user_id'];
 // قراءة بيانات الملف الشخصي للمستخدم الحالي
 if ($method === 'GET') {
     try {
-        // محاولة جلب avatar مع البيانات
-        try {
-            $user = dbSelectOne(
-                "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
-                [$currentUserId]
-            );
-        } catch (Exception $e) {
-            // إذا فشل بسبب عمود avatar غير موجود، جلب البيانات بدون avatar
-            error_log('محاولة جلب البيانات بدون avatar: ' . $e->getMessage());
-            $user = dbSelectOne(
-                "SELECT id, username, name, role, created_at, updated_at FROM users WHERE id = ?",
-                [$currentUserId]
-            );
-            if ($user) {
+        // محاولة جلب avatar مع البيانات (بدون specialization لأنه قد لا يكون موجوداً)
+        $user = dbSelectOne(
+            "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
+            [$currentUserId]
+        );
+        
+        // التأكد من وجود الحقول (تعيين null للأعمدة غير الموجودة)
+        if ($user) {
+            if (!isset($user['avatar'])) {
                 $user['avatar'] = null;
+            }
+            if (!isset($user['specialization'])) {
+                $user['specialization'] = null;
             }
         }
         
@@ -37,9 +35,12 @@ if ($method === 'GET') {
         // إزالة الحقول الحساسة إن وجدت
         unset($user['password']);
         
-        // التأكد من وجود avatar (null إذا لم يكن موجوداً)
+        // التأكد من وجود avatar و specialization (null إذا لم يكن موجوداً)
         if (!isset($user['avatar'])) {
             $user['avatar'] = null;
+        }
+        if (!isset($user['specialization'])) {
+            $user['specialization'] = null;
         }
         
         response(true, '', $user);
@@ -110,6 +111,31 @@ if ($method === 'PUT') {
             $updateParams[] = password_hash($password, PASSWORD_DEFAULT);
         }
         
+        // تحديث التخصص (فقط للفنيين) - مع التحقق من وجود العمود
+        if (isset($data['specialization'])) {
+            $specialization = trim($data['specialization']);
+            // التحقق من أن التخصص صحيح
+            if (!empty($specialization) && !in_array($specialization, ['soft', 'hard', 'fast'])) {
+                response(false, 'التخصص غير صحيح', null, 400);
+            }
+            // محاولة التحقق من وجود عمود specialization قبل إضافته للاستعلام
+            try {
+                $conn = getDBConnection();
+                if ($conn) {
+                    $checkColumn = $conn->query("SHOW COLUMNS FROM users LIKE 'specialization'");
+                    if ($checkColumn && $checkColumn->num_rows > 0) {
+                        $updateFields[] = "specialization = ?";
+                        $updateParams[] = !empty($specialization) ? $specialization : null;
+                    } else {
+                        error_log('⚠️ عمود specialization غير موجود في جدول users - سيتم تجاهل التحديث');
+                    }
+                }
+            } catch (Exception $e) {
+                error_log('⚠️ خطأ في التحقق من عمود specialization: ' . $e->getMessage());
+                // تجاهل الخطأ ومتابعة التحديثات الأخرى
+            }
+        }
+        
         // إذا لم يكن هناك أي تحديثات
         if (empty($updateFields)) {
             response(false, 'لا توجد بيانات للتحديث', null, 400);
@@ -129,11 +155,21 @@ if ($method === 'PUT') {
             response(false, 'خطأ في تحديث بيانات الملف الشخصي', null, 500);
         }
         
-        // الحصول على البيانات المحدثة
+        // الحصول على البيانات المحدثة (بدون specialization لأنه قد لا يكون موجوداً)
         $updatedUser = dbSelectOne(
-            "SELECT id, username, name, role, created_at, updated_at FROM users WHERE id = ?",
+            "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
             [$currentUserId]
         );
+        
+        // التأكد من وجود الحقول (تعيين null للأعمدة غير الموجودة)
+        if ($updatedUser) {
+            if (!isset($updatedUser['avatar'])) {
+                $updatedUser['avatar'] = null;
+            }
+            if (!isset($updatedUser['specialization'])) {
+                $updatedUser['specialization'] = null;
+            }
+        }
         
         // تحديث الجلسة
         if (isset($data['name'])) {
@@ -227,6 +263,84 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'remove_
     } catch (Exception $e) {
         error_log('خطأ في حذف صورة الملف الشخصي: ' . $e->getMessage());
         response(false, 'حدث خطأ أثناء حذف الصورة: ' . $e->getMessage(), null, 500);
+    }
+}
+
+// جلب تقييم الفني (للفنيين فقط)
+if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_technician_rating') {
+    try {
+        // التحقق من أن المستخدم فني
+        $user = dbSelectOne("SELECT id, role, branch_id FROM users WHERE id = ?", [$currentUserId]);
+        if (!$user) {
+            response(false, 'المستخدم غير موجود', null, 404);
+        }
+        
+        if ($user['role'] !== 'technician') {
+            response(false, 'هذه الميزة متاحة للفنيين فقط', null, 403);
+        }
+        
+        $branchId = $user['branch_id'];
+        
+        // جلب التقييم التراكمي من repair_ratings
+        $autoRating = dbSelectOne(
+            "SELECT 
+                AVG(rr.technician_rating) as avg_rating, 
+                COUNT(rr.id) as total_ratings
+             FROM repair_ratings rr
+             INNER JOIN repairs r ON rr.repair_id = r.id
+             WHERE r.created_by = ? AND r.branch_id = ?",
+            [$currentUserId, $branchId]
+        );
+        
+        // جلب التقييم اليدوي (من المالك) مع الملاحظات
+        $manualRating = dbSelectOne(
+            "SELECT rating, note, created_at, updated_at 
+             FROM technician_manual_ratings 
+             WHERE technician_id = ? 
+             ORDER BY created_at DESC LIMIT 1",
+            [$currentUserId]
+        );
+        
+        // حساب التقييم النهائي
+        $finalRating = 0;
+        $hasAutoRating = false;
+        $hasManualRating = false;
+        
+        if ($autoRating && isset($autoRating['avg_rating']) && $autoRating['avg_rating'] !== null) {
+            $autoRatingValue = round(floatval($autoRating['avg_rating']), 2);
+            $totalRatings = intval($autoRating['total_ratings']);
+            $hasAutoRating = true;
+            
+            // إذا كان هناك تقييم يدوي، دمجه مع التقييم التلقائي (70% تلقائي + 30% يدوي)
+            if ($manualRating && isset($manualRating['rating'])) {
+                $manualRatingValue = intval($manualRating['rating']);
+                $finalRating = round(($autoRatingValue * 0.7) + ($manualRatingValue * 0.3), 2);
+                $hasManualRating = true;
+            } else {
+                $finalRating = $autoRatingValue;
+            }
+        } else {
+            // إذا لم يكن هناك تقييمات تلقائية، استخدام التقييم اليدوي فقط
+            if ($manualRating && isset($manualRating['rating'])) {
+                $finalRating = intval($manualRating['rating']);
+                $hasManualRating = true;
+            }
+        }
+        
+        response(true, '', [
+            'final_rating' => $finalRating,
+            'auto_rating' => $hasAutoRating ? round(floatval($autoRating['avg_rating']), 2) : null,
+            'total_ratings' => $hasAutoRating ? intval($autoRating['total_ratings']) : 0,
+            'manual_rating' => $hasManualRating ? intval($manualRating['rating']) : null,
+            'manual_note' => $hasManualRating ? ($manualRating['note'] ?? null) : null,
+            'manual_rating_date' => $hasManualRating ? ($manualRating['updated_at'] ?? $manualRating['created_at'] ?? null) : null,
+            'has_manual_rating' => $hasManualRating,
+            'has_auto_rating' => $hasAutoRating
+        ]);
+        
+    } catch (Exception $e) {
+        error_log('خطأ في جلب تقييم الفني: ' . $e->getMessage());
+        response(false, 'حدث خطأ أثناء جلب التقييم: ' . $e->getMessage(), null, 500);
     }
 }
 

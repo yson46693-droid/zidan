@@ -22,6 +22,14 @@
     // تهيئة النظام
     async function init() {
         try {
+            // ✅ منع التهيئة في صفحة تسجيل الدخول
+            const pathname = window.location.pathname;
+            const isLoginPage = pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/');
+            if (isLoginPage) {
+                console.log('📋 صفحة تسجيل الدخول - لن يتم تهيئة عداد الرسائل غير المقروءة');
+                return;
+            }
+            
             // الانتظار قليلاً لضمان تحميل API
             let retries = 0;
             while ((typeof API === 'undefined' || !API.request) && retries < 10) {
@@ -64,22 +72,42 @@
             // إعداد مراقبة حالة الصفحة
             setupVisibilityListener();
             
-            // 🔧 تحسين الأداء: تأجيل بدء التحقق حتى بعد 5 ثواني لتقليل الطلبات الفورية
+            // ✅ تحسين الأداء: استخدام MessagePollingManager الموحد
             if (!isChatPage) {
-                // تأخير بدء التحقق حتى بعد 5 ثواني أو عند التفاعل
-                let checkingStarted = false;
-                const startCheckingDelayed = () => {
-                    if (!checkingStarted) {
-                        checkingStarted = true;
-                        startChecking();
+                // الانتظار حتى يتم تحميل MessagePollingManager
+                const waitForPollingManager = () => {
+                    if (window.MessagePollingManager) {
+                        // الاشتراك في MessagePollingManager
+                        window.MessagePollingManager.subscribe((result) => {
+                            if (result && result.messages) {
+                                processMessagesForBadge(result.messages);
+                            }
+                        });
+                        console.log('✅ تم الاشتراك في MessagePollingManager للـ badge');
+                    } else {
+                        // إعادة المحاولة بعد 500ms
+                        setTimeout(waitForPollingManager, 500);
                     }
                 };
                 
-                // بدء عند التفاعل الأول أو بعد 5 ثواني
-                ['click', 'touchstart', 'mousemove'].forEach(event => {
-                    document.addEventListener(event, startCheckingDelayed, { once: true, passive: true });
-                });
-                setTimeout(startCheckingDelayed, 5000); // تأخير 5 ثواني
+                // بدء بعد 2 ثانية (بعد تحميل MessagePollingManager)
+                setTimeout(() => {
+                    waitForPollingManager();
+                    // Fallback: بدء النظام القديم إذا لم يكن MessagePollingManager متاحاً
+                    if (!window.MessagePollingManager) {
+                        let checkingStarted = false;
+                        const startCheckingDelayed = () => {
+                            if (!checkingStarted) {
+                                checkingStarted = true;
+                                startChecking();
+                            }
+                        };
+                        ['click', 'touchstart', 'mousemove'].forEach(event => {
+                            document.addEventListener(event, startCheckingDelayed, { once: true, passive: true });
+                        });
+                        setTimeout(startCheckingDelayed, 5000);
+                    }
+                }, 2000);
             } else {
                 // في صفحة الشات، ننتظر حتى يتم تحميل الرسائل ثم نحدث العداد
                 // سيتم استدعاء updateBadgeFromChat من chat.js
@@ -173,8 +201,54 @@
         }
     }
     
-    // التحقق من الرسائل غير المقروءة
+    // ✅ تحسين الأداء: دالة لمعالجة الرسائل من MessagePollingManager
+    function processMessagesForBadge(messages) {
+        try {
+            if (!currentUser || !currentUser.id) {
+                return;
+            }
+            
+            loadLastReadMessageId();
+            
+            if (messages && messages.length > 0) {
+                let unreadCount = 0;
+                
+                messages.forEach(message => {
+                    if (message.user_id !== currentUser.id && 
+                        message.id && 
+                        !message.id.startsWith('temp-') &&
+                        (lastReadMessageId === '' || message.id > lastReadMessageId)) {
+                        unreadCount++;
+                    }
+                });
+                
+                const now = Date.now();
+                cachedResult = { count: unreadCount };
+                cacheExpiry = now + CACHE_DURATION;
+                
+                updateBadge(unreadCount);
+            } else {
+                const now = Date.now();
+                cachedResult = { count: 0 };
+                cacheExpiry = now + CACHE_DURATION;
+                updateBadge(0);
+            }
+        } catch (error) {
+            console.error('خطأ في معالجة الرسائل للـ badge:', error);
+        }
+    }
+
+    // التحقق من الرسائل غير المقروءة (Fallback)
     async function checkForUnreadMessages() {
+        // ✅ تحسين الأداء: استخدام MessagePollingManager إذا كان متاحاً
+        if (window.MessagePollingManager && window.MessagePollingManager.isActive) {
+            const cachedResult = window.MessagePollingManager.getCachedResult();
+            if (cachedResult && cachedResult.messages) {
+                processMessagesForBadge(cachedResult.messages);
+            }
+            return;
+        }
+
         try {
             if (!currentUser || !currentUser.id) {
                 return;
@@ -183,7 +257,6 @@
             // التحقق من cache
             const now = Date.now();
             if (cachedResult && cacheExpiry > now) {
-                // استخدام النتيجة المخزنة
                 updateBadge(cachedResult.count);
                 return;
             }
@@ -196,46 +269,15 @@
             pendingCheck = true;
             lastCheckTime = now;
             
-            // تحديث lastReadMessageId من localStorage قبل التحقق
             loadLastReadMessageId();
             
-            // جلب آخر رسالة
             const result = await API.request('get_messages.php?last_id=0', 'GET', null, { silent: true });
             
             pendingCheck = false;
             
             if (result && result.success && result.data && result.data.length > 0) {
-                // العثور على آخر رسالة
-                const lastMessage = result.data[result.data.length - 1];
-                
-                if (lastMessage && lastMessage.id) {
-                    // حساب عدد الرسائل غير المقروءة
-                    let unreadCount = 0;
-                    
-                    result.data.forEach(message => {
-                        // فقط الرسائل من مستخدمين آخرين بعد آخر رسالة مقروءة
-                        if (message.user_id !== currentUser.id && 
-                            message.id && 
-                            !message.id.startsWith('temp-') &&
-                            (lastReadMessageId === '' || message.id > lastReadMessageId)) {
-                            unreadCount++;
-                        }
-                    });
-                    
-                    // حفظ في cache
-                    cachedResult = { count: unreadCount };
-                    cacheExpiry = now + CACHE_DURATION;
-                    
-                    // تحديث العداد
-                    updateBadge(unreadCount);
-                } else {
-                    // لا توجد رسائل، تصفير العداد
-                    cachedResult = { count: 0 };
-                    cacheExpiry = now + CACHE_DURATION;
-                    updateBadge(0);
-                }
+                processMessagesForBadge(result.data);
             } else {
-                // لا توجد رسائل، تصفير العداد
                 cachedResult = { count: 0 };
                 cacheExpiry = now + CACHE_DURATION;
                 updateBadge(0);

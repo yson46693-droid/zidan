@@ -1,5 +1,7 @@
 // إدارة تثبيت PWA
-class PWAInstallManager {
+// ✅ منع إعادة التصريح عند تحميل الملف عدة مرات
+if (typeof PWAInstallManager === 'undefined') {
+    class PWAInstallManager {
     constructor() {
         this.deferredPrompt = null;
         this.isInstalled = false;
@@ -607,14 +609,21 @@ class PWAInstallManager {
     }
 }
 
+// ✅ إغلاق فحص منع إعادة التصريح
+    // ✅ التأكد من أن الكلاس متاح عالمياً
+    if (typeof window !== 'undefined') {
+        window.PWAInstallManager = PWAInstallManager;
+    }
+}
+
 // تهيئة مدير التثبيت
 let pwaInstallManager;
 
 if (typeof window !== 'undefined') {
     // تهيئة فورية عند تحميل الملف
     const initPWAInstall = () => {
-        if (!window.pwaInstallManager) {
-            pwaInstallManager = new PWAInstallManager();
+        if (!window.pwaInstallManager && window.PWAInstallManager) {
+            pwaInstallManager = new window.PWAInstallManager();
             window.pwaInstallManager = pwaInstallManager;
             console.log('✅ PWA Install Manager initialized');
         }
@@ -629,8 +638,8 @@ if (typeof window !== 'undefined') {
     
     // تهيئة إضافية عند DOMContentLoaded للتأكد
     window.addEventListener('DOMContentLoaded', () => {
-        if (!window.pwaInstallManager) {
-            pwaInstallManager = new PWAInstallManager();
+        if (!window.pwaInstallManager && window.PWAInstallManager) {
+            pwaInstallManager = new window.PWAInstallManager();
             window.pwaInstallManager = pwaInstallManager;
         }
         

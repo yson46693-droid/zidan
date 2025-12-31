@@ -62,7 +62,7 @@ async function checkLogin() {
     lastCheckLoginTime = now;
     
     try {
-        const result = await API.checkAuth(false);
+        const result = await API.checkAuth(true); // ✅ استخدام silent: true لتجنب عرض loading overlay
         
         if (!result || !result.success) {
             // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
@@ -98,7 +98,7 @@ async function checkLogin() {
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 // محاولة مرة أخرى
                 try {
-                    const retryResult = await API.checkAuth();
+                    const retryResult = await API.checkAuth(true); // ✅ استخدام silent: true لتجنب عرض loading overlay
                     if (retryResult && retryResult.success) {
                         const user = retryResult.data;
                         if (user) {
@@ -140,6 +140,46 @@ async function checkLogin() {
         // حفظ بيانات المستخدم
         const user = result.data;
         if (user) {
+            // ✅ التحقق من role وبيانات المستخدم
+            let errorReason = null;
+            
+            // التحقق من وجود role
+            if (!user.role || user.role === '') {
+                errorReason = 'فشل في تحديد دور المستخدم: role فارغ';
+                console.error('❌ ' + errorReason, user);
+            } 
+            // التحقق من صحة role
+            else if (!['admin', 'manager', 'employee', 'technician'].includes(user.role)) {
+                errorReason = 'دور المستخدم غير صحيح: ' + user.role;
+                console.error('❌ ' + errorReason, user);
+            }
+            // التحقق من وجود بيانات أساسية
+            else if (!user.id || !user.username || !user.name) {
+                errorReason = 'بيانات المستخدم غير مكتملة: id=' + (user.id || 'null') + ', username=' + (user.username || 'null') + ', name=' + (user.name || 'null');
+                console.error('❌ ' + errorReason, user);
+            }
+            
+            // إذا كان هناك خطأ، عمل logout وطباعة الخطأ
+            if (errorReason !== null) {
+                console.error('❌ فشل في تحديد دور الحساب وبياناته:', errorReason);
+                console.error('❌ بيانات المستخدم المستلمة:', user);
+                
+                // مسح البيانات المحلية
+                localStorage.clear();
+                sessionStorage.clear();
+                cachedAuthResult = null;
+                cacheTime = 0;
+                
+                // عمل logout
+                try {
+                    await logout();
+                } catch (logoutError) {
+                    console.error('❌ خطأ في تسجيل الخروج:', logoutError);
+                }
+                
+                return null;
+            }
+            
             localStorage.setItem('currentUser', JSON.stringify(user));
             // حفظ في التخزين المؤقت
             cachedAuthResult = user;
@@ -155,11 +195,32 @@ async function checkLogin() {
     } catch (error) {
         console.error('خطأ في checkLogin:', error);
         
-        // في حالة خطأ، محاولة استخدام البيانات المحفوظة
+        // في حالة خطأ، محاولة استخدام البيانات المحفوظة (مع التحقق من صحتها)
         try {
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 const user = JSON.parse(savedUser);
+                
+                // ✅ التحقق من role وبيانات المستخدم المحفوظة
+                let errorReason = null;
+                
+                if (!user.role || user.role === '') {
+                    errorReason = 'فشل في تحديد دور المستخدم المحفوظ: role فارغ';
+                } else if (!['admin', 'manager', 'employee'].includes(user.role)) {
+                    errorReason = 'دور المستخدم المحفوظ غير صحيح: ' + user.role;
+                } else if (!user.id || !user.username || !user.name) {
+                    errorReason = 'بيانات المستخدم المحفوظة غير مكتملة';
+                }
+                
+                // إذا كانت البيانات المحفوظة غير صحيحة، مسحها
+                if (errorReason !== null) {
+                    console.error('❌ ' + errorReason, user);
+                    localStorage.removeItem('currentUser');
+                    cachedAuthResult = null;
+                    cacheTime = 0;
+                    return null;
+                }
+                
                 console.log('⚠️ استخدام بيانات المستخدم المحفوظة بعد الخطأ');
                 // تحديث cache بدون تحديث cacheTime (لإجبار إعادة المحاولة لاحقاً)
                 cachedAuthResult = user;
@@ -181,12 +242,67 @@ async function checkLogin() {
 let isRedirectingAfterLogin = false;
 
 // تسجيل الدخول
-async function login(username, password) {
+async function login(username, password, rememberMe = false) {
     try {
         const result = await API.login(username, password);
         
+        // ✅ فحص محتوى النتيجة للتشخيص
+        console.log('🔍 فحص نتيجة تسجيل الدخول:');
+        console.log('  - hasResult:', !!result);
+        console.log('  - success:', result?.success);
+        console.log('  - success type:', typeof result?.success);
+        console.log('  - hasData:', !!result?.data);
+        console.log('  - data:', result?.data);
+        console.log('  - dataType:', typeof result?.data);
+        console.log('  - result keys:', result ? Object.keys(result) : null);
+        console.log('  - full result:', JSON.stringify(result, null, 2));
+        
         // التحقق من النتيجة بشكل صحيح
         if (result && result.success === true && result.data) {
+            const userData = result.data;
+            
+            // ✅ التحقق من role وبيانات المستخدم
+            let errorReason = null;
+            
+            // التحقق من وجود role
+            if (!userData.role || userData.role === '') {
+                errorReason = 'فشل في تحديد دور المستخدم: role فارغ';
+                console.error('❌ ' + errorReason, userData);
+            } 
+            // التحقق من صحة role
+            else if (!['admin', 'manager', 'employee', 'technician'].includes(userData.role)) {
+                errorReason = 'دور المستخدم غير صحيح: ' + userData.role;
+                console.error('❌ ' + errorReason, userData);
+            }
+            // التحقق من وجود بيانات أساسية
+            else if (!userData.id || !userData.username || !userData.name) {
+                errorReason = 'بيانات المستخدم غير مكتملة: id=' + (userData.id || 'null') + ', username=' + (userData.username || 'null') + ', name=' + (userData.name || 'null');
+                console.error('❌ ' + errorReason, userData);
+            }
+            
+            // إذا كان هناك خطأ، عمل logout وطباعة الخطأ
+            if (errorReason !== null) {
+                console.error('❌ فشل في تحديد دور الحساب وبياناته:', errorReason);
+                console.error('❌ بيانات المستخدم المستلمة:', userData);
+                
+                // عمل logout
+                try {
+                    await logout();
+                } catch (logoutError) {
+                    console.error('❌ خطأ في تسجيل الخروج:', logoutError);
+                    // مسح البيانات المحلية حتى لو فشل logout
+                    localStorage.clear();
+                    sessionStorage.clear();
+                }
+                
+                return {
+                    success: false,
+                    message: errorReason,
+                    error: errorReason,
+                    data: null
+                };
+            }
+            
             // منع التوجيه المتعدد
             if (isRedirectingAfterLogin) {
                 console.log('⏸️ توجيه قيد التنفيذ بالفعل - تم إلغاء التوجيه المكرر');
@@ -200,7 +316,20 @@ async function login(username, password) {
             sessionStorage.clear();
             
             // حفظ بيانات المستخدم الجديدة
-            localStorage.setItem('currentUser', JSON.stringify(result.data));
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            
+            // ✅ حفظ اسم المستخدم إذا تم تفعيل "تذكرني" (بعد localStorage.clear())
+            if (rememberMe) {
+                try {
+                    // حفظ اسم المستخدم في localStorage (بدون كلمة المرور لأسباب أمنية)
+                    localStorage.setItem('rememberedUsername', username);
+                    console.log('✅ تم حفظ اسم المستخدم للذكرى');
+                } catch (e) {
+                    console.warn('⚠️ فشل حفظ اسم المستخدم:', e);
+                }
+            }
+            // ملاحظة: إذا لم يتم تفعيل "تذكرني"، فلا حاجة لمسح rememberedUsername
+            // لأن localStorage.clear() قد قام بذلك بالفعل
             
             // 🔧 الحل 2: إضافة علامة تسجيل دخول حديث مع timestamp
             sessionStorage.setItem('just_logged_in_time', Date.now().toString());
@@ -212,11 +341,71 @@ async function login(username, password) {
                 window.syncManager = new SyncManager();
             }
             
-            console.log('✅ تسجيل الدخول ناجح - التوجيه إلى dashboard.html');
-            // استخدام window.location.replace بدلاً من href لتجنب مشاكل التوجيه المتعددة
-            window.location.replace('dashboard.html');
+            // ✅ تحديد الصفحة المستهدفة للتوجيه
+            // التحقق من وجود معامل redirect في URL
+            const urlParams = new URLSearchParams(window.location.search);
+            let redirectUrl = urlParams.get('redirect');
+            
+            // إذا لم يكن هناك redirect محدد، استخدم dashboard.html كافتراضي
+            if (!redirectUrl || redirectUrl === '') {
+                redirectUrl = 'dashboard.html';
+            } else {
+                // ✅ التأكد من أن URL آمن (منع XSS)
+                // إزالة أي محاولات للوصول إلى صفحات خارجية
+                if (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://') || redirectUrl.startsWith('//')) {
+                    console.warn('⚠️ محاولة توجيه غير آمنة تم رفضها:', redirectUrl);
+                    redirectUrl = 'dashboard.html';
+                }
+                // التأكد من أن الصفحة موجودة في نفس المجلد
+                if (!redirectUrl.endsWith('.html')) {
+                    redirectUrl = 'dashboard.html';
+                }
+            }
+            
+            console.log('✅ تسجيل الدخول ناجح - التوجيه إلى', redirectUrl);
+            console.log('🔄 بدء عملية التوجيه...');
+            
+            // ✅ وضع علامة للصفحة المستهدفة لاستدعاء ensureCSSAndIconsLoaded
+            sessionStorage.setItem('after_login_fix_css', 'true');
+            
+            // ✅ التوجيه مباشرة بعد حفظ البيانات
+            // استخدام window.location.href لضمان التوجيه في جميع المتصفحات
+            try {
+                console.log('📍 محاولة التوجيه باستخدام window.location.href:', redirectUrl);
+                window.location.href = redirectUrl;
+                console.log('✅ تم استدعاء window.location.href بنجاح');
+            } catch (error) {
+                console.error('❌ خطأ في التوجيه:', error);
+                // محاولة بديلة باستخدام replace
+                try {
+                    console.log('📍 محاولة التوجيه البديلة باستخدام window.location.replace:', redirectUrl);
+                    window.location.replace(redirectUrl);
+                    console.log('✅ تم استدعاء window.location.replace بنجاح');
+                } catch (replaceError) {
+                    console.error('❌ خطأ في التوجيه البديل:', replaceError);
+                    // آخر محاولة - استخدام assign
+                    try {
+                        console.log('📍 محاولة التوجيه الأخيرة باستخدام window.location.assign:', redirectUrl);
+                        window.location.assign(redirectUrl);
+                        console.log('✅ تم استدعاء window.location.assign بنجاح');
+                    } catch (assignError) {
+                        console.error('❌ فشلت جميع محاولات التوجيه:', assignError);
+                    }
+                }
+            }
+            
             return result;
         }
+        
+        // ✅ إذا فشل الشرط، طباعة السبب
+        console.warn('⚠️ لم يتم تنفيذ التوجيه - فحص النتيجة:');
+        console.warn('  - hasResult:', !!result);
+        console.warn('  - success:', result?.success);
+        console.warn('  - success type:', typeof result?.success);
+        console.warn('  - success === true:', result?.success === true);
+        console.warn('  - hasData:', !!result?.data);
+        console.warn('  - data:', result?.data);
+        console.warn('  - full result:', JSON.stringify(result, null, 2));
         
         return result;
     } catch (error) {
@@ -286,7 +475,7 @@ function hasPermission(requiredRole) {
     
     console.log('hasPermission: user =', user, 'requiredRole =', requiredRole);
     
-    const roles = { 'admin': 3, 'manager': 2, 'employee': 1 };
+    const roles = { 'admin': 3, 'manager': 2, 'technician': 1.5, 'employee': 1 };
     const userRoleLevel = roles[user.role];
     const requiredRoleLevel = roles[requiredRole];
     
@@ -301,10 +490,29 @@ function hideByPermission() {
     const user = getCurrentUser();
     if (!user) return;
     
-    // إخفاء عناصر تحتاج صلاحية admin
+    // ✅ إخفاء عناصر تحتاج صلاحية admin بشكل قوي
     if (user.role !== 'admin') {
         document.querySelectorAll('[data-permission="admin"]').forEach(el => {
             el.style.display = 'none';
+            el.style.visibility = 'hidden';
+            el.style.opacity = '0';
+            el.style.height = '0';
+            el.style.width = '0';
+            el.style.overflow = 'hidden';
+            el.style.position = 'absolute';
+            el.style.margin = '0';
+            el.style.padding = '0';
+        });
+        
+        // ✅ إخفاء رابط الإعدادات بشكل صريح
+        document.querySelectorAll('a[href="#settings"], .nav-link[onclick*="settings"], .mobile-nav-item[onclick*="settings"]').forEach(link => {
+            link.style.display = 'none';
+            link.style.visibility = 'hidden';
+            link.style.position = 'absolute';
+            link.style.opacity = '0';
+            link.style.width = '0';
+            link.style.height = '0';
+            link.style.overflow = 'hidden';
         });
     }
     
@@ -334,9 +542,11 @@ function hideByPermission() {
             link.style.height = '0';
             link.style.overflow = 'hidden';
         });
-        
-        // إخفاء العملاء من الشريط الجانبي والموبايل
-        document.querySelectorAll('a[href="#customers"]').forEach(link => {
+    }
+    
+    // ✅ إخفاء لوحة التحكم لجميع المستخدمين غير admin (manager, technician, employee)
+    if (user.role !== 'admin') {
+        document.querySelectorAll('a[href="#dashboard"], .nav-link[onclick*="dashboard"], .mobile-nav-item[onclick*="dashboard"]').forEach(link => {
             link.style.display = 'none';
             link.style.visibility = 'hidden';
             link.style.position = 'absolute';
@@ -346,37 +556,57 @@ function hideByPermission() {
             link.style.overflow = 'hidden';
         });
         
-        // إخفاء المصروفات من الشريط الجانبي والموبايل
-        document.querySelectorAll('a[href="#expenses"]').forEach(link => {
-            link.style.display = 'none';
-            link.style.visibility = 'hidden';
-            link.style.position = 'absolute';
-            link.style.opacity = '0';
-            link.style.width = '0';
-            link.style.height = '0';
-            link.style.overflow = 'hidden';
-        });
+        // إخفاء العملاء والمصروفات للموظف فقط (وليس للمدير والفني)
+        if (user.role === 'employee') {
+            document.querySelectorAll('a[href="#customers"]').forEach(link => {
+                link.style.display = 'none';
+                link.style.visibility = 'hidden';
+                link.style.position = 'absolute';
+                link.style.opacity = '0';
+                link.style.width = '0';
+                link.style.height = '0';
+                link.style.overflow = 'hidden';
+            });
+            
+            document.querySelectorAll('a[href="#expenses"]').forEach(link => {
+                link.style.display = 'none';
+                link.style.visibility = 'hidden';
+                link.style.position = 'absolute';
+                link.style.opacity = '0';
+                link.style.width = '0';
+                link.style.height = '0';
+                link.style.overflow = 'hidden';
+            });
+        }
         
         // إضافة CSS مباشرة لإخفاء العناصر
         const styleElement = document.getElementById('employee-permissions-style');
         if (styleElement) {
-            styleElement.textContent = `
-                /* إخفاء العناصر المحظورة للموظف */
+            let cssContent = `
+                /* إخفاء لوحة التحكم لجميع المستخدمين غير admin */
                 .sidebar-nav a[href="#dashboard"],
                 .mobile-nav-container a[href="#dashboard"],
-                .mobile-nav-item[href="#dashboard"],
-                .sidebar-nav a[href="#customers"],
-                .mobile-nav-container a[href="#customers"],
-                .mobile-nav-item[href="#customers"],
-                .sidebar-nav a[href="#expenses"],
-                .mobile-nav-container a[href="#expenses"],
-                .mobile-nav-item[href="#expenses"],
-                /* إخفاء العناصر التي تحتاج صلاحية manager */
-                .sidebar-nav [data-permission="manager"],
-                .mobile-nav-container [data-permission="manager"],
-                .mobile-nav-item[data-permission="manager"],
-                .nav-link[data-permission="manager"],
-                a[data-permission="manager"] {
+                .mobile-nav-item[onclick*="'dashboard'"],
+                .nav-link[onclick*="'dashboard'"] {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    height: 0 !important;
+                    width: 0 !important;
+                    overflow: hidden !important;
+                    position: absolute !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                /* ✅ إخفاء الإعدادات لجميع المستخدمين غير admin */
+                .sidebar-nav a[href="#settings"],
+                .mobile-nav-container a[href="#settings"],
+                .mobile-nav-item[onclick*="'settings'"],
+                .nav-link[onclick*="'settings'"],
+                .sidebar-nav [data-permission="admin"],
+                .mobile-nav-container [data-permission="admin"],
+                .mobile-nav-item[data-permission="admin"],
+                .nav-link[data-permission="admin"] {
                     display: none !important;
                     visibility: hidden !important;
                     opacity: 0 !important;
@@ -388,6 +618,37 @@ function hideByPermission() {
                     padding: 0 !important;
                 }
             `;
+            
+            // إضافة CSS للموظف فقط
+            if (user.role === 'employee') {
+                cssContent += `
+                    /* إخفاء العناصر المحظورة للموظف */
+                    .sidebar-nav a[href="#customers"],
+                    .mobile-nav-container a[href="#customers"],
+                    .mobile-nav-item[href="#customers"],
+                    .sidebar-nav a[href="#expenses"],
+                    .mobile-nav-container a[href="#expenses"],
+                    .mobile-nav-item[href="#expenses"],
+                    /* إخفاء العناصر التي تحتاج صلاحية manager */
+                    .sidebar-nav [data-permission="manager"],
+                    .mobile-nav-container [data-permission="manager"],
+                    .mobile-nav-item[data-permission="manager"],
+                    .nav-link[data-permission="manager"],
+                    a[data-permission="manager"] {
+                        display: none !important;
+                        visibility: hidden !important;
+                        opacity: 0 !important;
+                        height: 0 !important;
+                        width: 0 !important;
+                        overflow: hidden !important;
+                        position: absolute !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                `;
+            }
+            
+            styleElement.textContent = cssContent;
         }
     } else {
         // إزالة CSS للموظف إذا لم يكن موظفاً
@@ -435,6 +696,8 @@ function displayUserInfo() {
     
     const userNameElement = document.getElementById('userName');
     const userRoleElement = document.getElementById('userRole');
+    const userSpecializationElement = document.getElementById('userSpecialization');
+    const userSpecializationTextElement = document.getElementById('userSpecializationText');
     
     if (userNameElement) {
         userNameElement.textContent = user.name;
@@ -442,6 +705,19 @@ function displayUserInfo() {
     
     if (userRoleElement) {
         userRoleElement.textContent = getRoleText(user.role);
+    }
+    
+    // عرض التخصص للفنيين فقط
+    if (user.role === 'technician' && userSpecializationElement && userSpecializationTextElement) {
+        const specializationText = getSpecializationText(user.specialization);
+        if (specializationText) {
+            userSpecializationTextElement.textContent = specializationText;
+            userSpecializationElement.style.display = 'block';
+        } else {
+            userSpecializationElement.style.display = 'none';
+        }
+    } else if (userSpecializationElement) {
+        userSpecializationElement.style.display = 'none';
     }
     
     // تحديث معلومات المستخدم في الـ top-bar للهواتف
@@ -455,6 +731,19 @@ function displayUserInfo() {
     if (mobileUserRoleElement) {
         mobileUserRoleElement.textContent = getRoleText(user.role);
     }
+}
+
+// دالة للحصول على نص التخصص
+function getSpecializationText(specialization) {
+    if (!specialization) return '';
+    
+    const specializationMap = {
+        'soft': 'سوفت',
+        'hard': 'هارد',
+        'fast': 'فاست'
+    };
+    
+    return specializationMap[specialization] || '';
 }
 
 // متغير لمنع استدعاء showLoginRequiredMessage المتعدد
@@ -573,5 +862,17 @@ function showLoginRequiredMessage() {
         // التوجيه لصفحة تسجيل الدخول
         window.location.replace('index.html');
     }, 3000);
+}
+
+// ✅ تصدير الدوال إلى window للاستخدام العام
+if (typeof window !== 'undefined') {
+    window.login = login;
+    window.checkLogin = checkLogin;
+    window.logout = logout;
+    // تصدير showLoginRequiredMessage إذا كان موجوداً
+    if (typeof showLoginRequiredMessage !== 'undefined') {
+        window.showLoginRequired = showLoginRequiredMessage;
+        window.showLoginRequiredMessage = showLoginRequiredMessage;
+    }
 }
 

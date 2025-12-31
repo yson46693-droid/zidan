@@ -41,21 +41,54 @@
     <link rel="shortcut icon" href="icons/icon-192x192.png?v=2.0.1">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png?v=2.0.1">
     
+    <!-- ✅ تحسين: نقل preconnect للـ Google Fonts في البداية لتحسين الأداء -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Preconnect للخوادم الخارجية لتحسين الأداء -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     
     <!-- تحديد المسار الأساسي للتطبيق (يعمل مع المجلدات الفرعية) -->
     <script>
+        // ✅ مسح sessionStorage عند تحميل الصفحة لضمان عمل splash screen بشكل صحيح
+        // (سيتم إعادة تعيينه عند إخفاء splash screen بنجاح)
+        // sessionStorage.removeItem('splash_screen_hidden');
+        
+        // ✅ إزالة timeout الإضافي - سيتم التعامل معه في splash-screen.js
+        // (function() {
+        //     setTimeout(() => {
+        //         const splashScreen = document.getElementById('splash-screen');
+        //         const loginContainer = document.querySelector('.login-container');
+        //         if (splashScreen && !splashScreen.classList.contains('hidden')) {
+        //             console.warn('⚠️ Force hiding splash screen after 5 seconds (fallback)');
+        //             splashScreen.classList.add('hidden');
+        //             splashScreen.style.opacity = '0';
+        //             splashScreen.style.visibility = 'hidden';
+        //             splashScreen.style.pointerEvents = 'none';
+        //             if (loginContainer) {
+        //                 loginContainer.style.opacity = '1';
+        //                 loginContainer.style.visibility = 'visible';
+        //                 loginContainer.style.display = 'flex';
+        //             }
+        //         }
+        //     }, 5000);
+        // })();
+        
         // تحديد المسار الأساسي قبل تحميل أي ملفات أخرى
         (function() {
             try {
                 const pathname = window.location.pathname;
-                // استخراج المجلد الفرعي إذا كان موجوداً (مثل /z/index.html)
-                const match = pathname.match(/^(\/[^\/]+)/);
                 let basePath = '';
-                if (match && match[1] !== '/') {
-                    basePath = match[1]; // مثل '/z'
+                
+                // ✅ إصلاح: التحقق من أن pathname ليس مجرد ملف في root
+                // إذا كان pathname هو /index.html أو /، نكون في root (basePath = '')
+                // إذا كان pathname مثل /z/index.html، basePath = '/z'
+                if (pathname !== '/' && pathname !== '/index.html' && !pathname.endsWith('/index.html')) {
+                    // استخراج المجلد الفرعي إذا كان موجوداً (مثل /z/index.html -> /z)
+                    const match = pathname.match(/^(\/[^\/]+)/);
+                    if (match && match[1] !== '/' && !match[1].startsWith('/index')) {
+                        basePath = match[1]; // مثل '/z'
+                    }
                 }
                 
                 // حفظ المسار الأساسي في window للاستخدام لاحقاً
@@ -104,10 +137,10 @@
         })();
     </script>
     
-    <!-- تحميل ملف الإصدارات أولاً -->
-    <script src="js/version.js"></script>
-    <!-- Console Manager - إدارة console.log للإنتاج -->
-    <script src="js/console-manager.js"></script>
+    <!-- تحميل ملف الإصدارات أولاً - ✅ تحسين: استخدام defer لتجنب blocking -->
+    <script src="js/version.js" defer></script>
+    <!-- Console Manager - إدارة console.log للإنتاج - ✅ تحسين: استخدام defer -->
+    <script src="js/console-manager.js" defer></script>
     <script>
         // استخدام رقم الإصدار من window.APP_VERSION (معرّف في version.js)
         // لا نعيد تعريف APP_VERSION لتجنب خطأ redeclaration
@@ -117,82 +150,38 @@
                 return window.APP_VERSION || 'v' + Date.now();
             };
             
-            // إضافة query parameters لجميع ملفات CSS/JS لضمان عدم عرض كاش قديم
-            document.addEventListener('DOMContentLoaded', function() {
-                const version = getAppVersion();
-                const versionParam = '?v=' + version;
-                
-                // تحديث ملفات CSS
-                const cssLinks = document.querySelectorAll('link[rel="stylesheet"]:not([href^="http"])');
-                cssLinks.forEach(link => {
-                    if (link.href && !link.href.includes('?')) {
-                        link.href = link.href + versionParam;
-                    }
-                });
-                
-                // تحديث ملفات JS (باستثناء version.js)
-                const jsScripts = document.querySelectorAll('script[src]:not([src*="version.js"]):not([src^="http"])');
-                jsScripts.forEach(script => {
-                    if (script.src && !script.src.includes('?')) {
-                        script.src = script.src + versionParam;
-                    }
-                });
-            });
+            // ✅ تحسين: إضافة query parameters مباشرة في HTML بدلاً من DOMContentLoaded لتجنب التحميل المزدوج
+            // لكن هذا يتطلب معرفة version قبل DOMContentLoaded، لذا سنستخدم timestamp مؤقت
+            // سيتم تحديثه لاحقاً من version.js إذا كان متاحاً
+            // (تم إزالة هذا الكود لأن version.js يحتاج وقت للتحميل)
         })();
     </script>
     
-    <!-- Google Fonts - Preconnect + async loading مع font-display: swap لتحسين الأداء -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Google Fonts - Preconnect + async loading مع font-display: swap لتحسين الأداء -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <!-- ✅ تحسين: Google Fonts - تحميل غير متزامن مع font-display: swap -->
+    <!-- Removed preload - onload conversion pattern causes warnings -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap"></noscript>
-    <!-- ملاحظة: font-display: swap يتم تطبيقه تلقائياً من خلال display=swap في URL -->
     
-    <!-- Critical CSS - non-blocking using media trick for better performance -->
-    <!-- ✅ إزالة crossorigin من الملفات المحلية -->
-    <link rel="preload" href="css/style.css" as="style">
-    <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all';this.onload=null">
-    <noscript><link rel="stylesheet" href="css/style.css"></noscript>
-    <script>
-        // Fallback for browsers that don't support onload on link tags
-        (function() {
-            var link = document.querySelector('link[href="css/style.css"][media="print"]');
-            if (link && link.sheet && link.sheet.cssRules.length === 0) {
-                link.media = 'all';
-            }
-        })();
-    </script>
+    <!-- ✅ تحسين: Critical CSS - non-blocking using media trick -->
+    <!-- Removed preload - media="print" conversion pattern causes warnings -->
+    <link rel="stylesheet" href="css/style.css?v=2.0.1" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link rel="stylesheet" href="css/style.css?v=2.0.1"></noscript>
     
-    <!-- Non-critical CSS - تحميل غير متزامن لتحسين الأداء -->
-    <link rel="preload" href="css/loading-overlay.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="css/loading-overlay.css"></noscript>
+    <!-- Dark Mode CSS -->
+    <link rel="stylesheet" href="css/dark-mode.css">
     
-    <link rel="preload" href="css/splash-screen.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="css/splash-screen.css"></noscript>
+    <!-- ✅ تحسين: Non-critical CSS - تحميل متأخر جداً (بعد تحميل الصفحة) -->
+    <!-- سيتم تحميلها ديناميكياً بعد تحميل الصفحة لتقليل وقت Load -->
     
-    <!-- Security CSS - تحميل متأخر (non-blocking) -->
-    <link rel="preload" href="css/security.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="css/security.css"></noscript>
+    <!-- ✅ تحسين: Bootstrap Icons - تحميل متأخر جداً (بعد التفاعل الأول) -->
+    <!-- سيتم تحميله ديناميكياً بعد تحميل الصفحة -->
     
-    <!-- Preconnect للخوادم الخارجية -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <!-- ✅ تحسين: Preload critical image - LCP optimization (بعد CSS) -->
+    <!-- Note: Only preload resources that are used immediately (within 3 seconds) -->
+    <link rel="preload" href="icon-512x512.png" as="image" type="image/png" fetchpriority="high" crossorigin="anonymous">
     
-    <!-- Bootstrap Icons - تحميل غير متزامن لتحسين الأداء -->
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></noscript>
-    
-    <!-- Preload critical image - LCP optimization -->
-    <link rel="preload" href="icon-512x512.png" as="image" type="image/png" fetchpriority="high">
-    
-    <!-- Preload Critical JS Files - في head للتحميل المبكر (يتم استخدامها مباشرة في body) -->
-    <!-- ✅ إزالة crossorigin من الملفات المحلية لتجنب تحذيرات credentials mismatch -->
-    <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في الأعلى -->
-    <link rel="preload" href="js/api.js" as="script">
-    <link rel="preload" href="js/utils.js" as="script">
-    <link rel="preload" href="js/loading-overlay.js" as="script">
-    <link rel="preload" href="js/auth.js" as="script">
+    <!-- ✅ تحسين: Removed preload for deferred JS files - they won't be used immediately -->
+    <!-- JS files are loaded with defer, so preloading them doesn't help and causes warnings -->
     
     <!-- Critical CSS Inline - للعرض الفوري بدون انتظار CSS الخارجي -->
     <style>
@@ -222,13 +211,35 @@
         .login-container.show{opacity:1;visibility:visible}
         @media (max-width:575.98px){.splash-logo{width:120px;height:120px;border-radius:30px;margin-bottom:25px;padding:12px}.splash-title{font-size:26px;margin-bottom:8px}.splash-subtitle{font-size:16px;margin-bottom:30px}}
     </style>
+    
+    <!-- تحميل الوضع الليلي فوراً - قبل تحميل body -->
+    <script>
+        (function loadDarkModeEarly() {
+            try {
+                const darkMode = localStorage.getItem('darkMode');
+                if (darkMode === 'enabled') {
+                    document.documentElement.classList.add('dark-mode');
+                    // body لم يتم تحميله بعد، سنضيف class لاحقاً
+                    if (document.body) {
+                        document.body.classList.add('dark-mode');
+                    } else {
+                        document.addEventListener('DOMContentLoaded', function() {
+                            document.body.classList.add('dark-mode');
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('خطأ في تحميل الوضع الليلي:', error);
+            }
+        })();
+    </script>
 </head>
 <body class="login-page">
     <!-- Splash Screen - شاشة البداية -->
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
             <div class="splash-logo">
-                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" onload="this.style.opacity='1'" onerror="this.style.display='none'">
+                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" crossorigin="anonymous" onload="this.style.opacity='1'" onerror="this.style.display='none'">
             </div>
             <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
             <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>
@@ -236,7 +247,7 @@
         </div>
     </div>
     
-    <div class="login-container" style="opacity: 0; visibility: visible; display: flex;">
+    <div class="login-container" style="opacity: 0; visibility: visible; display: flex; z-index: 1;">
         <div class="login-box">
             <!-- زر التثبيت PWA -->
             <div style="position: fixed; top: 20px; left: 20px; z-index: 10000;">
@@ -259,6 +270,11 @@
                 <div class="form-group">
                     <label for="password">كلمة المرور</label>
                     <input type="password" id="password" name="password" required placeholder="أدخل كلمة المرور">
+                </div>
+                
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+                    <input type="checkbox" id="rememberMe" name="rememberMe" style="width: auto; margin: 0; cursor: pointer;">
+                    <label for="rememberMe" style="margin: 0; cursor: pointer; font-weight: normal; color: var(--text-dark);">تذكرني</label>
                 </div>
                 
                 <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn">
@@ -286,13 +302,21 @@
                     </button>
                 </div>
             </form>
+            
+            <!-- عرض رقم الإصدار في صفحة تسجيل الدخول -->
+            <div class="login-footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center;">
+                <small style="color: var(--text-light); font-size: 0.85em;">
+                    <i class="bi bi-code-slash"></i> 
+                    <span id="appVersionDisplay">v2.0.1</span>
+                </small>
+            </div>
         </div>
     </div>
 
     <!-- تحميل ملفات JS بشكل غير متزامن (defer) لتحسين الأداء -->
     <!-- سيتم إصلاح المسارات تلقائياً بواسطة script في head -->
     <script>
-        // إصلاح المسارات قبل تحميل الملفات
+        // إصلاح المسارات قبل تحميل الملفات مع معالجة الأخطاء
         (function() {
             const basePath = window.BASE_PATH || '';
             const scripts = [
@@ -305,8 +329,79 @@
             
             scripts.forEach(src => {
                 const script = document.createElement('script');
-                script.src = basePath ? basePath + '/' + src : src;
+                const fullPath = basePath ? basePath + '/' + src : src;
+                script.src = fullPath;
                 script.defer = true;
+                
+                // ✅ إضافة معالجة الأخطاء للكشف عن HTML بدلاً من JavaScript
+                script.onerror = function() {
+                    console.error(`❌ فشل تحميل ${fullPath} - قد يكون الملف غير موجود أو المسار خاطئ`);
+                    // محاولة تحميل بدون basePath إذا كان موجوداً
+                    if (basePath && !fullPath.startsWith('http')) {
+                        console.log(`🔄 محاولة تحميل ${src} بدون basePath...`);
+                        const fallbackScript = document.createElement('script');
+                        fallbackScript.src = src;
+                        fallbackScript.defer = true;
+                        fallbackScript.onerror = () => {
+                            console.error(`❌ فشل تحميل ${src} حتى بدون basePath`);
+                            // ✅ إذا فشل تحميل splash-screen.js، إخفاء splash screen يدوياً
+                            if (src === 'js/splash-screen.js') {
+                                setTimeout(() => {
+                                    const splashScreen = document.getElementById('splash-screen');
+                                    const loginContainer = document.querySelector('.login-container');
+                                    if (splashScreen) {
+                                        splashScreen.classList.add('hidden');
+                                        splashScreen.style.opacity = '0';
+                                        splashScreen.style.visibility = 'hidden';
+                                        splashScreen.style.pointerEvents = 'none';
+                                    }
+                                    if (loginContainer) {
+                                        loginContainer.classList.add('show');
+                                        loginContainer.style.opacity = '1';
+                                        loginContainer.style.visibility = 'visible';
+                                        loginContainer.style.display = 'flex';
+                                    }
+                                }, 2000); // إخفاء بعد ثانيتين كحل احتياطي
+                            }
+                        };
+                        document.body.appendChild(fallbackScript);
+                    } else if (src === 'js/splash-screen.js') {
+                        // ✅ إذا فشل تحميل splash-screen.js بدون basePath أيضاً، إخفاء يدوي
+                        setTimeout(() => {
+                            const splashScreen = document.getElementById('splash-screen');
+                            const loginContainer = document.querySelector('.login-container');
+                            if (splashScreen) {
+                                splashScreen.classList.add('hidden');
+                                splashScreen.style.opacity = '0';
+                                splashScreen.style.visibility = 'hidden';
+                                splashScreen.style.pointerEvents = 'none';
+                            }
+                            if (loginContainer) {
+                                loginContainer.classList.add('show');
+                                loginContainer.style.opacity = '1';
+                                loginContainer.style.visibility = 'visible';
+                                loginContainer.style.display = 'flex';
+                            }
+                        }, 2000); // إخفاء بعد ثانيتين كحل احتياطي
+                    }
+                };
+                
+                // ✅ التحقق من أن الملف المحمّل هو JavaScript وليس HTML
+                script.onload = function() {
+                    // التحقق من أن الملف محمّل بشكل صحيح
+                    try {
+                        // محاولة الوصول إلى دالة معروفة من الملف
+                        if (src === 'js/api.js' && typeof window.API === 'undefined') {
+                            console.warn(`⚠️ ${src} تم تحميله لكن window.API غير موجود`);
+                        }
+                        if (src === 'js/utils.js' && typeof window.showMessage === 'undefined') {
+                            console.warn(`⚠️ ${src} تم تحميله لكن window.showMessage غير موجود`);
+                        }
+                    } catch (e) {
+                        console.error(`❌ خطأ في التحقق من ${src}:`, e);
+                    }
+                };
+                
                 document.body.appendChild(script);
             });
         })();
@@ -314,10 +409,57 @@
     <script>
         // التحقق من تحميل جميع العناصر بشكل صحيح
         window.addEventListener('DOMContentLoaded', () => {
+            // ✅ تحميل الوضع الليلي من localStorage
+            try {
+                if (typeof loadDarkMode === 'function') {
+                    loadDarkMode();
+                } else {
+                    // Fallback: تحميل الوضع الليلي مباشرة
+                    const darkMode = localStorage.getItem('darkMode');
+                    if (darkMode === 'enabled') {
+                        document.documentElement.classList.add('dark-mode');
+                        document.body.classList.add('dark-mode');
+                    }
+                }
+            } catch (error) {
+                console.error('خطأ في تحميل الوضع الليلي:', error);
+            }
+            
             // إظهار الصفحة بعد تحميل CSS
             const checkCSSLoaded = () => {
-                const styleSheet = document.querySelector('link[href*="style.css"]');
-                if (styleSheet && styleSheet.sheet) {
+                // ✅ تحسين: التحقق من جميع style sheets المحملة
+                const styleSheets = document.styleSheets;
+                let styleCssLoaded = false;
+                
+                // التحقق من وجود style.css في styleSheets
+                for (let i = 0; i < styleSheets.length; i++) {
+                    try {
+                        const sheet = styleSheets[i];
+                        if (sheet.href && sheet.href.includes('style.css')) {
+                            // التحقق من أن الـ sheet محمّل بشكل صحيح
+                            if (sheet.cssRules && sheet.cssRules.length > 0) {
+                                styleCssLoaded = true;
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        // تجاهل أخطاء CORS في styleSheets
+                        continue;
+                    }
+                }
+                
+                // ✅ تحسين: التحقق أيضاً من link tag مباشرة
+                if (!styleCssLoaded) {
+                    const styleLink = document.querySelector('link[href*="style.css"][rel="stylesheet"]');
+                    if (styleLink) {
+                        // التحقق من أن media تم تغييره من "print" إلى "all"
+                        if (styleLink.media === 'all' || styleLink.media === '') {
+                            styleCssLoaded = true;
+                        }
+                    }
+                }
+                
+                if (styleCssLoaded) {
                     document.body.classList.add('css-loaded');
                     document.body.classList.add('loaded');
                     return true;
@@ -325,97 +467,128 @@
                 return false;
             };
             
-            // محاولة متعددة للتحقق من تحميل CSS
-            let attempts = 0;
-            const maxAttempts = 10;
-            const checkInterval = setInterval(() => {
-                attempts++;
-                if (checkCSSLoaded() || attempts >= maxAttempts) {
-                    clearInterval(checkInterval);
-                    if (attempts >= maxAttempts) {
-                        // إظهار الصفحة حتى لو لم يتم تحميل CSS بشكل كامل
+            // ✅ تحسين: استخدام event listener فقط (إزالة polling غير الضروري)
+            const styleLink = document.querySelector('link[href*="style.css"]');
+            if (styleLink) {
+                // إذا كان CSS محمّل بالفعل
+                if (styleLink.sheet || styleLink.media === 'all' || styleLink.media === '') {
+                    document.body.classList.add('css-loaded');
+                    document.body.classList.add('loaded');
+                } else {
+                    // انتظار تحميل CSS
+                    styleLink.addEventListener('load', () => {
                         document.body.classList.add('css-loaded');
                         document.body.classList.add('loaded');
-                        console.warn('⚠️ CSS قد لا يكون محملاً بالكامل، لكن الصفحة ستظهر');
-                    }
-                }
-            }, 100);
-            
-            // التحقق من تحميل Bootstrap Icons
-            const checkIconsLoaded = () => {
-                // التحقق من وجود ملف الأيقونات
-                const iconLink = document.querySelector('link[href*="bootstrap-icons"]');
-                if (iconLink && iconLink.sheet) {
-                    console.log('✅ Bootstrap Icons تم تحميله بنجاح');
-                    return true;
-                } else {
-                    console.warn('⚠️ Bootstrap Icons قد لا يكون محملاً بعد');
-                    // إعادة محاولة بعد ثانية
+                    });
+                    // ✅ تحسين: إضافة fallback بسيط بعد 500ms فقط (بدلاً من polling)
                     setTimeout(() => {
-                        if (iconLink && !iconLink.sheet) {
-                            const newIconLink = document.createElement('link');
-                            newIconLink.rel = 'stylesheet';
-                            newIconLink.href = iconLink.href;
-                            document.head.appendChild(newIconLink);
+                        if (!document.body.classList.contains('css-loaded')) {
+                            document.body.classList.add('css-loaded');
+                            document.body.classList.add('loaded');
                         }
-                    }, 1000);
-                    return false;
+                    }, 500);
+                }
+            } else {
+                // إذا لم يوجد link tag، إضافة class مباشرة
+                document.body.classList.add('css-loaded');
+                document.body.classList.add('loaded');
+            }
+            
+            // ✅ تحسين: تحميل CSS غير الحرجة و Bootstrap Icons بعد تحميل الصفحة
+            const loadNonCriticalCSS = () => {
+                const cssFiles = [
+                    'css/loading-overlay.css?v=2.0.1',
+                    'css/splash-screen.css?v=2.0.1',
+                    'css/security.css?v=2.0.1',
+                    'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css'
+                ];
+                
+                cssFiles.forEach(href => {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = href;
+                    link.media = 'print';
+                    link.onload = () => { link.media = 'all'; };
+                    document.head.appendChild(link);
+                });
+            };
+            
+            // ✅ تحسين: تحميل CSS غير الحرجة بعد تحميل الصفحة
+            window.addEventListener('load', () => {
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(loadNonCriticalCSS, { timeout: 1000 });
+                } else {
+                    setTimeout(loadNonCriticalCSS, 500);
+                }
+            });
+            
+            // ✅ تحسين: استخدام requestIdleCallback للتحقق من العناصر
+            const checkElements = () => {
+                
+                // التحقق من وجود جميع العناصر المطلوبة (فقط في وضع المطور)
+                if (window.location.search.includes('debug=true')) {
+                    const requiredElements = {
+                        'username': document.getElementById('username'),
+                        'password': document.getElementById('password'),
+                        'loginForm': document.getElementById('loginForm'),
+                        'loginSubmitBtn': document.getElementById('loginSubmitBtn'),
+                        'biometricLoginBtn': document.getElementById('biometricLoginBtn')
+                    };
+                    
+                    let allElementsLoaded = true;
+                    for (const [name, element] of Object.entries(requiredElements)) {
+                        if (!element) {
+                            console.error(`❌ العنصر ${name} غير موجود`);
+                            allElementsLoaded = false;
+                        }
+                    }
+                    
+                    if (allElementsLoaded) {
+                        console.log('✅ جميع العناصر تم تحميلها بشكل صحيح');
+                    }
                 }
             };
             
-            // التحقق من العناصر بعد تحميل الصفحة
-            setTimeout(() => {
-                checkIconsLoaded();
-                
-                // التحقق من وجود جميع العناصر المطلوبة
-                const requiredElements = {
-                    'username': document.getElementById('username'),
-                    'password': document.getElementById('password'),
-                    'loginForm': document.getElementById('loginForm'),
-                    'loginSubmitBtn': document.getElementById('loginSubmitBtn'),
-                    'biometricLoginBtn': document.getElementById('biometricLoginBtn')
-                };
-                
-                let allElementsLoaded = true;
-                for (const [name, element] of Object.entries(requiredElements)) {
-                    if (!element) {
-                        console.error(`❌ العنصر ${name} غير موجود`);
-                        allElementsLoaded = false;
-                    } else {
-                        console.log(`✅ العنصر ${name} موجود`);
-                    }
-                }
-                
-                if (allElementsLoaded) {
-                    console.log('✅ جميع العناصر تم تحميلها بشكل صحيح');
-                } else {
-                    console.error('❌ بعض العناصر مفقودة');
-                }
-            }, 200);
+            // ✅ تحسين: استخدام requestIdleCallback أو setTimeout
+            if (window.requestIdleCallback) {
+                requestIdleCallback(checkElements, { timeout: 100 });
+            } else {
+                setTimeout(checkElements, 100);
+            }
             
-            // تحميل الملفات غير الحرجة بشكل متأخر جداً (بعد تحميل الصفحة)
-            window.addEventListener('load', () => {
+            // ✅ الحل 2: تحميل الملفات غير الحرجة فقط بعد تسجيل الدخول
+            const loadNonCriticalScripts = () => {
+                // ✅ التحقق من أن المستخدم مسجل دخول أولاً
+                const currentUser = localStorage.getItem('currentUser');
+                if (!currentUser) {
+                    console.log('⏸️ المستخدم غير مسجل دخول - تأجيل تحميل الملفات غير الحرجة');
+                    return; // ✅ إيقاف تحميل الملفات غير الضرورية في صفحة تسجيل الدخول
+                }
+                
+                // تحميل data-protection.js بشكل غير متزامن
+                const dataProtectionScript = document.createElement('script');
+                dataProtectionScript.src = 'js/data-protection.js';
+                dataProtectionScript.async = true;
+                dataProtectionScript.onerror = () => {
+                    console.warn('⚠️ فشل تحميل data-protection.js');
+                };
+                document.body.appendChild(dataProtectionScript);
+                
+                // تحميل security.js بشكل غير متزامن بعد 500ms
                 setTimeout(() => {
-                    // تحميل data-protection.js بشكل غير متزامن
-                    const dataProtectionScript = document.createElement('script');
-                    dataProtectionScript.src = 'js/data-protection.js';
-                    dataProtectionScript.async = true;
-                    dataProtectionScript.onerror = () => {
-                        console.warn('⚠️ فشل تحميل data-protection.js');
+                    const securityScript = document.createElement('script');
+                    securityScript.src = 'js/security.js';
+                    securityScript.async = true;
+                    securityScript.onerror = () => {
+                        console.warn('⚠️ فشل تحميل security.js');
                     };
-                    document.body.appendChild(dataProtectionScript);
-                    
-                    // تحميل security.js بشكل غير متزامن بعد 500ms
-                    setTimeout(() => {
-                        const securityScript = document.createElement('script');
-                        securityScript.src = 'js/security.js';
-                        securityScript.async = true;
-                        securityScript.onerror = () => {
-                            console.warn('⚠️ فشل تحميل security.js');
-                        };
-                        document.body.appendChild(securityScript);
-                    }, 500);
-                }, 1000); // تأخير ثانية بعد تحميل الصفحة
+                    document.body.appendChild(securityScript);
+                }, 500);
+            };
+            
+            // ✅ الحل 2: تأجيل تحميل الملفات غير الحرجة إلى 3 ثوان (بعد تحميل الصفحة)
+            window.addEventListener('load', () => {
+                setTimeout(loadNonCriticalScripts, 3000); // ✅ زيادة التأخير إلى 3 ثوان
             });
             
             // تحميل webauthn.js فوراً لتجنب أي تأخير
@@ -441,6 +614,61 @@
             console.log('✅ وضع المطور مفعّل - يمكنك استخدام F12 و Ctrl+Shift+I لفتح الكونسول');
         })();
         
+        // دالة مساعدة للتحقق من تحميل الدوال المطلوبة
+        function waitForFunctions(functions, timeout = 10000) {
+            return new Promise((resolve, reject) => {
+                const startTime = Date.now();
+                const checkInterval = setInterval(() => {
+                    const allLoaded = functions.every(fn => {
+                        // التحقق من window[fn] (الدوال العامة متاحة كـ window.functionName)
+                        return typeof window[fn] === 'function';
+                    });
+                    if (allLoaded) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    } else if (Date.now() - startTime > timeout) {
+                        clearInterval(checkInterval);
+                        const missing = functions.filter(fn => typeof window[fn] !== 'function');
+                        reject(new Error(`Timeout: Functions not loaded: ${missing.join(', ')}`));
+                    }
+                }, 100);
+            });
+        }
+        
+        // دالة showMessage بديلة في حالة عدم تحميل utils.js
+        function showMessageFallback(message, type = 'info') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${type}`;
+            messageDiv.textContent = message;
+            const bgColor = type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3';
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${bgColor};
+                color: white;
+                border-radius: 5px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            document.body.appendChild(messageDiv);
+            setTimeout(() => {
+                messageDiv.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => messageDiv.remove(), 300);
+            }, 3000);
+        }
+        
+        // دالة showMessage آمنة - تستخدم الدالة من utils.js إذا كانت متاحة
+        function showMessage(message, type = 'info') {
+            if (typeof window.showMessage === 'function') {
+                window.showMessage(message, type);
+            } else {
+                showMessageFallback(message, type);
+            }
+        }
+        
         // متغير لمنع النقرات المتعددة
         let isLoggingIn = false;
         
@@ -457,6 +685,42 @@
             isLoggingIn = true;
             
             try {
+                // الانتظار حتى يتم تحميل الدوال المطلوبة (API و login)
+                try {
+                    // الانتظار حتى يتم تحميل API أولاً
+                    let apiLoaded = false;
+                    let attempts = 0;
+                    const maxAttempts = 50; // 5 ثوان (50 * 100ms)
+                    
+                    while (!apiLoaded && attempts < maxAttempts) {
+                        if (typeof window.API !== 'undefined' && typeof window.API.login === 'function') {
+                            apiLoaded = true;
+                            break;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        attempts++;
+                    }
+                    
+                    if (!apiLoaded) {
+                        throw new Error('فشل تحميل API - تأكد من اتصال الإنترنت');
+                    }
+                    
+                    // الانتظار حتى يتم تحميل login
+                    await waitForFunctions(['login'], 5000);
+                } catch (error) {
+                    console.error('❌ خطأ في تحميل الدوال المطلوبة:', error);
+                    showMessage('جاري تحميل الملفات المطلوبة... يرجى المحاولة مرة أخرى بعد لحظة.', 'error');
+                    isLoggingIn = false;
+                    
+                    // إعادة تفعيل الزر
+                    const submitBtn = document.getElementById('loginSubmitBtn') || event.target.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> تسجيل الدخول';
+                    }
+                    return;
+                }
+                
                 // التحقق من الحظر (إذا كان securityManager متاحاً)
                 if (typeof securityManager !== 'undefined' && securityManager) {
                     try {
@@ -475,8 +739,9 @@
                 
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
+                const rememberMe = document.getElementById('rememberMe') ? document.getElementById('rememberMe').checked : false;
                 
-                console.log('📝 بيانات الدخول:', { username, passwordLength: password.length });
+                console.log('📝 بيانات الدخول:', { username, passwordLength: password.length, rememberMe });
                 
                 if (!username || !password) {
                     console.error('❌ اسم المستخدم أو كلمة المرور فارغة');
@@ -494,7 +759,12 @@
                 }
                 
                 console.log('📡 إرسال طلب تسجيل الدخول...');
-                const result = await login(username, password);
+                // التحقق من أن login متاح كدالة
+                if (typeof window.login !== 'function') {
+                    throw new Error('دالة login غير متاحة - يرجى تحديث الصفحة');
+                }
+                // استخدام window.login بعد التأكد من تحميله مع تمرير rememberMe
+                const result = await window.login(username, password, rememberMe);
                 
                 console.log('📥 نتيجة تسجيل الدخول:', result);
                 
@@ -555,6 +825,24 @@
         function initPage() {
             if (authCheckDone) return;
             authCheckDone = true;
+            
+            // ✅ تحميل اسم المستخدم المحفوظ إذا كان موجوداً
+            try {
+                const rememberedUsername = localStorage.getItem('rememberedUsername');
+                if (rememberedUsername) {
+                    const usernameInput = document.getElementById('username');
+                    if (usernameInput) {
+                        usernameInput.value = rememberedUsername;
+                        // ✅ تفعيل checkbox "تذكرني" إذا كان اسم المستخدم محفوظاً
+                        const rememberMeCheckbox = document.getElementById('rememberMe');
+                        if (rememberMeCheckbox) {
+                            rememberMeCheckbox.checked = true;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ فشل تحميل اسم المستخدم المحفوظ:', e);
+            }
             
             // إعداد زر تسجيل الدخول بالبصمة
             const biometricBtn = document.getElementById('biometricLoginBtn');
@@ -657,7 +945,14 @@
                         return;
                     }
                     
-                    const result = await API.checkAuth();
+                    // ✅ إضافة timeout للطلب (3 ثوان) لمنع التوقف
+                    const checkAuthPromise = API.checkAuth();
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), 3000)
+                    );
+                    
+                    const result = await Promise.race([checkAuthPromise, timeoutPromise]);
+                    
                     if (result && result.success) {
                         // منع التوجيه المتعدد
                         if (isRedirecting) {
@@ -677,8 +972,17 @@
                     }
                 } catch (error) {
                     // تجاهل الأخطاء في التحقق من الجلسة
-                    console.log('⏸️ خطأ في التحقق من الجلسة - تم تجاهله');
+                    console.log('⏸️ خطأ في التحقق من الجلسة - تم تجاهله:', error.message || error);
                     sessionStorage.removeItem('just_logged_in_time');
+                    
+                    // ✅ التأكد من إخفاء splash screen حتى لو فشل checkAuth
+                    if (window.splashScreenManager && !window.splashScreenManager.hideProcessCompleted) {
+                        setTimeout(() => {
+                            if (window.splashScreenManager) {
+                                window.splashScreenManager.hide();
+                            }
+                        }, 500);
+                    }
                 }
             }, 1500); // زيادة التأخير إلى 1.5 ثانية لتجنب التداخل مع تسجيل الدخول
         }
@@ -700,19 +1004,18 @@
                     // تحديد المسار الأساسي تلقائياً
                     const getBasePath = () => {
                         try {
-                            const pathname = window.location.pathname;
-                            const match = pathname.match(/^(\/[^\/]+)/);
-                            if (match && match[1] !== '/') {
-                                return match[1];
-                            }
-                            return '';
+                            // ✅ استخدام BASE_PATH المحفوظ مسبقاً بدلاً من إعادة الحساب
+                            return window.BASE_PATH || '';
                         } catch (e) {
                             return '';
                         }
                     };
                     const basePath = getBasePath();
-                    const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
-                    // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
+                    // ✅ إصلاح: استخدام مسار مطلق للـ service worker
+                    // ✅ استخدام sw.js.php كحل بديل لضمان MIME type الصحيح
+                    const swUrl = basePath ? `${basePath}/sw.js.php` : '/sw.js.php';
+                    // ✅ إصلاح: scope يجب أن يكون root دائماً (/) أو basePath/
+                    // لا نستخدم pathname الحالي لأن scope يجب أن يكون من root
                     const scope = basePath ? `${basePath}/` : '/';
                     
                     const registration = await navigator.serviceWorker.register(swUrl, {
@@ -741,9 +1044,15 @@
                         console.log('✅ Service Worker already active');
                     }
                     
-                    // التحقق من التحديثات فوراً عند تحميل الصفحة
-                    // ثم بشكل دوري كل 30 ثانية لضمان الحصول على آخر إصدار
+                    // ✅ الحل 4: إلغاء Polling في صفحة تسجيل الدخول
                     const checkForUpdates = async () => {
+                        // ✅ إلغاء التحقق إذا كنا في صفحة تسجيل الدخول
+                        const currentPath = window.location.pathname;
+                        if (currentPath.includes('index.html') || currentPath === '/') {
+                            console.log('⏸️ في صفحة تسجيل الدخول - تم إلغاء التحقق من التحديثات');
+                            return;
+                        }
+                        
                         try {
                             console.log('🔄 التحقق من التحديثات...');
                             await registration.update();
@@ -758,11 +1067,19 @@
                         }
                     };
                     
-                    // التحقق فوراً بعد تحميل الصفحة
-                    setTimeout(checkForUpdates, 1000);
-                    
-                    // التحقق بشكل دوري كل 30 ثانية
-                    setInterval(checkForUpdates, 30000); // كل 30 ثانية
+                    // ✅ الحل 4: التحقق من التحديثات فقط في الصفحات الأخرى (ليس في صفحة تسجيل الدخول)
+                    const currentPath = window.location.pathname;
+                    if (!currentPath.includes('index.html') && currentPath !== '/') {
+                        // ✅ تحسين: استخدام requestIdleCallback للتحقق من التحديثات
+                        if (window.requestIdleCallback) {
+                            requestIdleCallback(checkForUpdates, { timeout: 2000 });
+                        } else {
+                            setTimeout(checkForUpdates, 1000);
+                        }
+                        
+                        // التحقق بشكل دوري كل 30 ثانية (فقط في الصفحات الأخرى)
+                        setInterval(checkForUpdates, 30000); // كل 30 ثانية
+                    }
                     
                     return registration;
                 } catch (error) {
@@ -777,30 +1094,68 @@
             }
         };
         
-        // ✅ تسجيل Service Worker مبكراً (قبل load event)
+        // ✅ الحل 3: تأخير تسجيل Service Worker حتى بعد تحميل الصفحة
+        const registerServiceWorkerDelayed = async () => {
+            // ✅ تأخير 2 ثانية بعد تحميل الصفحة
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            await registerServiceWorker();
+        };
+        
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(registerServiceWorker, 100);
+                setTimeout(registerServiceWorkerDelayed, 100);
             });
         } else {
-            setTimeout(registerServiceWorker, 100);
+            // ✅ استخدام requestIdleCallback إذا كان متاحاً
+            if (window.requestIdleCallback) {
+                requestIdleCallback(registerServiceWorkerDelayed, { timeout: 500 });
+            } else {
+                setTimeout(registerServiceWorkerDelayed, 100);
+            }
         }
         
         // تحميل PWA Validator و Install Manager
+        let pwaToolsLoaded = false; // ✅ منع التحميل المكرر
         const loadPWATools = () => {
+            // ✅ التحقق من عدم تحميل السكريبتات مرتين
+            if (pwaToolsLoaded) {
+                return;
+            }
+            
+            // ✅ التحقق من وجود السكريبتات بالفعل في DOM
+            const existingValidator = document.querySelector('script[src="js/pwa-validator.js"]');
+            const existingInstall = document.querySelector('script[src="js/pwa-install.js"]');
+            
+            if (existingValidator || existingInstall) {
+                pwaToolsLoaded = true;
+                return;
+            }
+            
+            pwaToolsLoaded = true;
+            
             // تحميل Validator
             const validatorScript = document.createElement('script');
             validatorScript.src = 'js/pwa-validator.js';
             validatorScript.async = true;
             validatorScript.onload = () => {
                 console.log('✅ PWA Validator loaded');
-                // تشغيل التحقق بعد تحميل Service Worker
-                setTimeout(async () => {
+                // ✅ تحسين: استخدام requestIdleCallback للتحقق
+                const validatePWA = async () => {
                     if (window.PWAValidator) {
                         const validator = new window.PWAValidator();
                         await validator.validate();
                     }
-                }, 3000);
+                };
+                
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(validatePWA, { timeout: 3000 });
+                } else {
+                    setTimeout(validatePWA, 2000);
+                }
+            };
+            validatorScript.onerror = () => {
+                console.warn('⚠️ Failed to load PWA Validator');
+                pwaToolsLoaded = false; // السماح بالمحاولة مرة أخرى في حالة الفشل
             };
             document.body.appendChild(validatorScript);
             
@@ -813,18 +1168,28 @@
             };
             script.onerror = () => {
                 console.warn('⚠️ Failed to load PWA Install Manager');
+                pwaToolsLoaded = false; // السماح بالمحاولة مرة أخرى في حالة الفشل
             };
             document.body.appendChild(script);
         };
         
-        // تحميل PWA Tools بعد تحميل الصفحة
-        if (window.requestIdleCallback) {
-            window.requestIdleCallback(loadPWATools, { timeout: 3000 });
-        } else {
-            window.addEventListener('load', () => {
-                setTimeout(loadPWATools, 1000);
-            });
-        }
+        // ✅ تحسين: تحميل PWA Tools بعد التفاعل الأول (lazy load)
+        const loadPWAToolsOnInteraction = () => {
+            loadPWATools();
+        };
+        
+        // تحميل بعد التفاعل الأول أو بعد 3 ثوان
+        ['click', 'touchstart', 'keydown'].forEach(event => {
+            document.addEventListener(event, loadPWAToolsOnInteraction, { once: true, passive: true });
+        });
+        
+        window.addEventListener('load', () => {
+            if (window.requestIdleCallback) {
+                requestIdleCallback(loadPWAToolsOnInteraction, { timeout: 3000 });
+            } else {
+                setTimeout(loadPWAToolsOnInteraction, 3000);
+            }
+        });
     </script>
     
     <!-- Fallback script لتحميل CSS بشكل async للمتصفحات القديمة -->

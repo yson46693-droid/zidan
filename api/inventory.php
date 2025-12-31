@@ -115,14 +115,50 @@ if ($method === 'GET') {
         response(true, '', $accessories);
     }
     elseif ($type === 'phones') {
-        // قراءة الهواتف - حد أقصى 500 هاتف لتقليل استهلاك الباندويث
+        // إذا كان هناك phone_id محدد، جلب بيانات هاتف واحد
+        $phoneId = $_GET['phone_id'] ?? null;
+        if ($phoneId) {
+            // جلب بيانات الهاتف من جدول phones
+            $phone = dbSelectOne("SELECT * FROM phones WHERE id = ?", [$phoneId]);
+            
+            if (!$phone) {
+                response(false, 'بطاقة الهاتف غير موجودة', null, 404);
+                return;
+            }
+            
+            // إضافة بيانات inventory (الكمية)
+            $inventoryData = dbSelectOne("SELECT quantity FROM inventory WHERE id = ?", [$phoneId]);
+            if ($inventoryData) {
+                $phone['quantity'] = intval($inventoryData['quantity'] ?? 0);
+            } else {
+                $phone['quantity'] = 0;
+            }
+            
+            response(true, 'تم جلب بيانات الهاتف بنجاح', $phone);
+            return;
+        }
+        
+        // قراءة الهواتف - النظام الجديد: من جدول phones مع ربط inventory
         $phones = dbSelect("SELECT * FROM phones ORDER BY created_at DESC LIMIT 500");
         
         if ($phones === false) {
             response(false, 'خطأ في قراءة الهواتف', null, 500);
+            return;
         }
         
-        response(true, '', $phones);
+        // إضافة بيانات inventory (الكمية) لكل هاتف
+        $processedPhones = [];
+        foreach ($phones as $phone) {
+            $inventoryData = dbSelectOne("SELECT quantity FROM inventory WHERE id = ?", [$phone['id']]);
+            if ($inventoryData) {
+                $phone['quantity'] = intval($inventoryData['quantity'] ?? 0);
+            } else {
+                $phone['quantity'] = 0;
+            }
+            $processedPhones[] = $phone;
+        }
+        
+        response(true, '', $processedPhones);
     }
     else {
         // قراءة المخزون القديم (للتوافق) - حد أقصى 500 عنصر لتقليل استهلاك الباندويث
@@ -194,49 +230,60 @@ if ($method === 'POST') {
                 $customValue = trim($item['custom_value'] ?? '');
                 
                 if (!empty($itemType)) {
-                    // محاولة استخدام purchase_price و selling_price أولاً، وإذا لم تكن موجودة في الجدول، استخدم price
-                    $insertResult = dbExecute(
-                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, price, notes, custom_value, created_at) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                         ON DUPLICATE KEY UPDATE 
-                         item_type = VALUES(item_type),
-                         quantity = VALUES(quantity),
-                         purchase_price = VALUES(purchase_price),
-                         selling_price = VALUES(selling_price),
-                         price = VALUES(price),
-                         notes = VALUES(notes),
-                         custom_value = VALUES(custom_value),
-                         updated_at = NOW()",
-                        [$itemId, $partId, $itemType, $quantity, $purchasePrice, $sellingPrice, $sellingPrice, $notes, $customValue]
-                    );
+                    // التحقق من وجود الأعمدة في الجدول
+                    $hasPrice = dbColumnExists('spare_part_items', 'price');
+                    $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
+                    $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
+                    
+                    // بناء الاستعلام بناءً على الأعمدة الموجودة
+                    if ($hasPurchasePrice && $hasSellingPrice) {
+                        // استخدام purchase_price و selling_price فقط (الأفضل)
+                        $insertResult = dbExecute(
+                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE 
+                             item_type = VALUES(item_type),
+                             quantity = VALUES(quantity),
+                             purchase_price = VALUES(purchase_price),
+                             selling_price = VALUES(selling_price),
+                             notes = VALUES(notes),
+                             custom_value = VALUES(custom_value),
+                             updated_at = NOW()",
+                            [$itemId, $partId, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue]
+                        );
+                    } elseif ($hasPrice) {
+                        // استخدام price فقط (للتوافق مع الإصدارات القديمة)
+                        $insertResult = dbExecute(
+                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE 
+                             item_type = VALUES(item_type),
+                             quantity = VALUES(quantity),
+                             price = VALUES(price),
+                             notes = VALUES(notes),
+                             custom_value = VALUES(custom_value),
+                             updated_at = NOW()",
+                            [$itemId, $partId, $itemType, $quantity, $sellingPrice, $notes, $customValue]
+                        );
+                    } else {
+                        // لا توجد أعمدة سعر - إدراج بدون أسعار
+                        $insertResult = dbExecute(
+                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE 
+                             item_type = VALUES(item_type),
+                             quantity = VALUES(quantity),
+                             notes = VALUES(notes),
+                             custom_value = VALUES(custom_value),
+                             updated_at = NOW()",
+                            [$itemId, $partId, $itemType, $quantity, $notes, $customValue]
+                        );
+                    }
                     
                     if ($insertResult === false) {
                         global $lastDbError;
                         $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
-                        
-                        // التحقق إذا كان الخطأ بسبب عدم وجود purchase_price أو selling_price
-                        if (stripos($error, 'Unknown column') !== false && 
-                            (stripos($error, 'purchase_price') !== false || stripos($error, 'selling_price') !== false)) {
-                            // محاولة إدراج بدون purchase_price و selling_price إذا لم تكن موجودة
-                            $insertResult = dbExecute(
-                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                                 ON DUPLICATE KEY UPDATE 
-                                 item_type = VALUES(item_type),
-                                 quantity = VALUES(quantity),
-                                 price = VALUES(price),
-                                 notes = VALUES(notes),
-                                 custom_value = VALUES(custom_value),
-                                 updated_at = NOW()",
-                                [$itemId, $partId, $itemType, $quantity, $sellingPrice, $notes, $customValue]
-                            );
-                            if ($insertResult === false) {
-                                global $lastDbError;
-                                response(false, 'خطأ في إضافة تفاصيل القطع: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
-                            }
-                        } else {
-                            response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
-                        }
+                        response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
                     }
                 }
             }
@@ -283,6 +330,7 @@ if ($method === 'POST') {
         $image = trim($data['image'] ?? '');
         $purchase_price = floatval($data['purchase_price'] ?? 0);
         $selling_price = floatval($data['selling_price'] ?? 0);
+        $quantity = intval($data['quantity'] ?? 0);
         
         if (empty($name) || empty($accessoryType)) {
             response(false, 'الاسم والنوع مطلوبان', null, 400);
@@ -292,9 +340,9 @@ if ($method === 'POST') {
         $accessoryId = generateId();
         
         $result = dbExecute(
-            "INSERT INTO accessories (id, name, type, image, purchase_price, selling_price, created_at, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)",
-            [$accessoryId, $name, $accessoryType, $image, $purchase_price, $selling_price, $session['user_id']]
+            "INSERT INTO accessories (id, name, type, image, purchase_price, selling_price, quantity, created_at, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+            [$accessoryId, $name, $accessoryType, $image, $purchase_price, $selling_price, $quantity, $session['user_id']]
         );
         
         if ($result === false) {
@@ -313,7 +361,7 @@ if ($method === 'POST') {
         response(true, 'تم إضافة الإكسسوار بنجاح', $newAccessory);
     }
     elseif ($type === 'phones') {
-        // إضافة هاتف
+        // إضافة هاتف - النظام الجديد: حفظ بيانات الهاتف في جدول phones وربطها بـ inventory
         $brand = trim($data['brand'] ?? '');
         $model = trim($data['model'] ?? '');
         $serial_number = trim($data['serial_number'] ?? '');
@@ -325,39 +373,114 @@ if ($method === 'POST') {
         $screen_type = trim($data['screen_type'] ?? '');
         $processor = trim($data['processor'] ?? '');
         $battery = trim($data['battery'] ?? '');
+        $battery_percent = isset($data['battery_percent']) && $data['battery_percent'] !== '' && $data['battery_percent'] !== null ? intval($data['battery_percent']) : null;
         $accessories = trim($data['accessories'] ?? '');
         $password = trim($data['password'] ?? '');
         $maintenance_history = trim($data['maintenance_history'] ?? '');
         $defects = trim($data['defects'] ?? '');
         $purchase_price = floatval($data['purchase_price'] ?? 0);
         $selling_price = floatval($data['selling_price'] ?? 0);
+        $quantity = intval($data['quantity'] ?? 1); // الكمية الافتراضية 1
         
         if (empty($brand) || empty($model)) {
             response(false, 'الماركة والموديل مطلوبان', null, 400);
         }
         
         $session = checkAuth();
-        $phoneId = generateId();
         
-        $result = dbExecute(
-            "INSERT INTO phones (id, brand, model, serial_number, image, tax_status, tax_amount, storage, ram, screen_type, processor, battery, accessories, password, maintenance_history, defects, purchase_price, selling_price, created_at, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
-            [$phoneId, $brand, $model, $serial_number, $image, $tax_status, $tax_amount, $storage, $ram, $screen_type, $processor, $battery, $accessories, $password, $maintenance_history, $defects, $purchase_price, $selling_price, $session['user_id']]
+        // توليد ID من 7 أرقام عشوائية
+        $phoneId = generatePhoneId();
+        
+        // التأكد من عدم تكرار ID في phones و inventory
+        $maxAttempts = 10;
+        $attempts = 0;
+        while ($attempts < $maxAttempts) {
+            $existingPhone = dbSelectOne("SELECT id FROM phones WHERE id = ?", [$phoneId]);
+            $existingInventory = dbSelectOne("SELECT id FROM inventory WHERE id = ?", [$phoneId]);
+            if (!$existingPhone && !$existingInventory) {
+                break; // ID فريد
+            }
+            $phoneId = generatePhoneId();
+            $attempts++;
+        }
+        
+        if ($attempts >= $maxAttempts) {
+            response(false, 'فشل توليد ID فريد للهاتف', null, 500);
+            return;
+        }
+        
+        // بناء اسم الهاتف
+        $phoneName = $brand . ' ' . $model;
+        if (!empty($serial_number)) {
+            $phoneName .= ' - SN: ' . $serial_number;
+        }
+        
+        // حفظ بيانات الهاتف الكاملة في جدول phones
+        $phoneResult = dbExecute(
+            "INSERT INTO phones (id, brand, model, serial_number, image, tax_status, tax_amount, storage, ram, screen_type, processor, battery, battery_percent, accessories, password, maintenance_history, defects, purchase_price, selling_price, created_at, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+            [$phoneId, $brand, $model, $serial_number, $image, $tax_status, $tax_amount, $storage, $ram, $screen_type, $processor, $battery, $battery_percent, $accessories, $password, $maintenance_history, $defects, $purchase_price, $selling_price, $session['user_id']]
         );
         
-        if ($result === false) {
+        if ($phoneResult === false) {
             global $lastDbError;
             $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
             
-            // فحص إذا كان الخطأ متعلق بـ price
-            if (stripos($error, 'price') !== false && stripos($error, 'Unknown column') !== false) {
-                response(false, 'خطأ: تم إرسال حقل price القديم. يرجى استخدام purchase_price و selling_price بدلاً منه. الخطأ: ' . $error, null, 500);
+            // فحص إذا كان الخطأ متعلق بـ battery_percent
+            if (stripos($error, 'battery_percent') !== false && stripos($error, 'Unknown column') !== false) {
+                // محاولة إضافة العمود تلقائياً
+                try {
+                    $conn = getDBConnection();
+                    if ($conn) {
+                        $conn->query("ALTER TABLE `phones` ADD COLUMN `battery_percent` int(11) DEFAULT NULL AFTER `battery`");
+                        error_log("✅ تم إضافة عمود battery_percent إلى جدول phones تلقائياً");
+                        // إعادة المحاولة
+                        $phoneResult = dbExecute(
+                            "INSERT INTO phones (id, brand, model, serial_number, image, tax_status, tax_amount, storage, ram, screen_type, processor, battery, battery_percent, accessories, password, maintenance_history, defects, purchase_price, selling_price, created_at, created_by) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+                            [$phoneId, $brand, $model, $serial_number, $image, $tax_status, $tax_amount, $storage, $ram, $screen_type, $processor, $battery, $battery_percent, $accessories, $password, $maintenance_history, $defects, $purchase_price, $selling_price, $session['user_id']]
+                        );
+                        if ($phoneResult === false) {
+                            response(false, 'خطأ في إضافة الهاتف بعد إضافة العمود: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
+                            return;
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("❌ خطأ في إضافة عمود battery_percent تلقائياً: " . $e->getMessage());
+                    response(false, 'خطأ: العمود battery_percent غير موجود. يرجى تحديث قاعدة البيانات. الخطأ: ' . $error, null, 500);
+                    return;
+                }
             } else {
                 response(false, 'خطأ في إضافة الهاتف: ' . $error, null, 500);
+                return;
             }
         }
         
+        // إنشاء بطاقة في inventory بنفس ID (بدون category - البيانات في phones)
+        $inventoryResult = dbExecute(
+            "INSERT INTO inventory (id, name, quantity, purchase_price, selling_price, created_at, created_by) 
+             VALUES (?, ?, ?, ?, ?, NOW(), ?)",
+            [$phoneId, $phoneName, $quantity, $purchase_price, $selling_price, $session['user_id']]
+        );
+        
+        if ($inventoryResult === false) {
+            global $lastDbError;
+            // في حالة فشل إنشاء inventory، نحذف الهاتف من phones
+            dbExecute("DELETE FROM phones WHERE id = ?", [$phoneId]);
+            response(false, 'خطأ في إنشاء بطاقة المخزون: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
+            return;
+        }
+        
+        // جلب بيانات الهاتف الكاملة من phones
         $newPhone = dbSelectOne("SELECT * FROM phones WHERE id = ?", [$phoneId]);
+        if ($newPhone) {
+            // إضافة بيانات inventory
+            $inventoryData = dbSelectOne("SELECT quantity FROM inventory WHERE id = ?", [$phoneId]);
+            if ($inventoryData) {
+                $newPhone['quantity'] = intval($inventoryData['quantity'] ?? 0);
+            }
+        }
+        
         response(true, 'تم إضافة الهاتف بنجاح', $newPhone);
     }
     else {
@@ -516,48 +639,60 @@ if ($method === 'PUT') {
                 $customValue = trim($item['custom_value'] ?? '');
                 
                 if (!empty($itemType)) {
-                    // محاولة استخدام purchase_price و selling_price أولاً، وإذا لم تكن موجودة في الجدول، استخدم price
-                    $insertResult = dbExecute(
-                        "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, price, notes, custom_value, created_at) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                         ON DUPLICATE KEY UPDATE 
-                         item_type = VALUES(item_type),
-                         quantity = VALUES(quantity),
-                         purchase_price = VALUES(purchase_price),
-                         selling_price = VALUES(selling_price),
-                         price = VALUES(price),
-                         notes = VALUES(notes),
-                         custom_value = VALUES(custom_value),
-                         updated_at = NOW()",
-                        [$itemId, $id, $itemType, $quantity, $purchasePrice, $sellingPrice, $sellingPrice, $notes, $customValue]
-                    );
+                    // التحقق من وجود الأعمدة في الجدول
+                    $hasPrice = dbColumnExists('spare_part_items', 'price');
+                    $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
+                    $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
+                    
+                    // بناء الاستعلام بناءً على الأعمدة الموجودة
+                    if ($hasPurchasePrice && $hasSellingPrice) {
+                        // استخدام purchase_price و selling_price فقط (الأفضل)
+                        $insertResult = dbExecute(
+                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE 
+                             item_type = VALUES(item_type),
+                             quantity = VALUES(quantity),
+                             purchase_price = VALUES(purchase_price),
+                             selling_price = VALUES(selling_price),
+                             notes = VALUES(notes),
+                             custom_value = VALUES(custom_value),
+                             updated_at = NOW()",
+                            [$itemId, $id, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue]
+                        );
+                    } elseif ($hasPrice) {
+                        // استخدام price فقط (للتوافق مع الإصدارات القديمة)
+                        $insertResult = dbExecute(
+                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE 
+                             item_type = VALUES(item_type),
+                             quantity = VALUES(quantity),
+                             price = VALUES(price),
+                             notes = VALUES(notes),
+                             custom_value = VALUES(custom_value),
+                             updated_at = NOW()",
+                            [$itemId, $id, $itemType, $quantity, $sellingPrice, $notes, $customValue]
+                        );
+                    } else {
+                        // لا توجد أعمدة سعر - إدراج بدون أسعار
+                        $insertResult = dbExecute(
+                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, NOW())
+                             ON DUPLICATE KEY UPDATE 
+                             item_type = VALUES(item_type),
+                             quantity = VALUES(quantity),
+                             notes = VALUES(notes),
+                             custom_value = VALUES(custom_value),
+                             updated_at = NOW()",
+                            [$itemId, $id, $itemType, $quantity, $notes, $customValue]
+                        );
+                    }
                     
                     if ($insertResult === false) {
                         global $lastDbError;
                         $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
-                        
-                        // التحقق إذا كان الخطأ بسبب عدم وجود purchase_price أو selling_price
-                        if (stripos($error, 'Unknown column') !== false && 
-                            (stripos($error, 'purchase_price') !== false || stripos($error, 'selling_price') !== false)) {
-                            // محاولة إدراج بدون purchase_price و selling_price إذا لم تكن موجودة
-                            $insertResult = dbExecute(
-                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                                 ON DUPLICATE KEY UPDATE 
-                                 item_type = VALUES(item_type),
-                                 quantity = VALUES(quantity),
-                                 price = VALUES(price),
-                                 notes = VALUES(notes),
-                                 custom_value = VALUES(custom_value),
-                                 updated_at = NOW()",
-                                [$itemId, $id, $itemType, $quantity, $sellingPrice, $notes, $customValue]
-                            );
-                            if ($insertResult === false) {
-                                response(false, 'خطأ في إضافة تفاصيل القطع: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
-                            }
-                        } else {
-                            response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
-                        }
+                        response(false, 'خطأ في إضافة تفاصيل القطع: ' . $error, null, 500);
                     }
                 }
             }
@@ -680,6 +815,10 @@ if ($method === 'PUT') {
             $updateFields[] = "battery = ?";
             $updateParams[] = trim($data['battery']);
         }
+        if (isset($data['battery_percent'])) {
+            $updateFields[] = "battery_percent = ?";
+            $updateParams[] = ($data['battery_percent'] !== '' && $data['battery_percent'] !== null) ? intval($data['battery_percent']) : null;
+        }
         if (isset($data['accessories'])) {
             $updateFields[] = "accessories = ?";
             $updateParams[] = trim($data['accessories']);
@@ -716,7 +855,32 @@ if ($method === 'PUT') {
         $result = dbExecute($query, $updateParams);
         
         if ($result === false) {
-            response(false, 'خطأ في تعديل الهاتف', null, 500);
+            global $lastDbError;
+            $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+            
+            // فحص إذا كان الخطأ متعلق بـ battery_percent
+            if (stripos($error, 'battery_percent') !== false && stripos($error, 'Unknown column') !== false) {
+                // محاولة إضافة العمود تلقائياً
+                try {
+                    $conn = getDBConnection();
+                    if ($conn) {
+                        $conn->query("ALTER TABLE `phones` ADD COLUMN `battery_percent` int(11) DEFAULT NULL AFTER `battery`");
+                        error_log("✅ تم إضافة عمود battery_percent إلى جدول phones تلقائياً");
+                        // إعادة المحاولة
+                        $result = dbExecute($query, $updateParams);
+                        if ($result !== false) {
+                            response(true, 'تم تعديل الهاتف بنجاح');
+                            return;
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("❌ خطأ في إضافة عمود battery_percent تلقائياً: " . $e->getMessage());
+                }
+                response(false, 'خطأ: العمود battery_percent غير موجود. يرجى تحديث قاعدة البيانات. الخطأ: ' . $error, null, 500);
+                return;
+            }
+            
+            response(false, 'خطأ في تعديل الهاتف: ' . $error, null, 500);
         }
         
         response(true, 'تم تعديل الهاتف بنجاح');

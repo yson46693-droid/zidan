@@ -1,11 +1,64 @@
 // إعدادات API
 const API_BASE_URL = 'api/';
 
+// نظام Caching للطلبات
+const API_CACHE = {
+    cache: new Map(),
+    maxAge: 5 * 60 * 1000, // 5 دقائق
+    
+    get(key) {
+        const item = this.cache.get(key);
+        if (!item) return null;
+        if (Date.now() - item.timestamp > this.maxAge) {
+            this.cache.delete(key);
+            return null;
+        }
+        return item.data;
+    },
+    
+    set(key, data) {
+        this.cache.set(key, {
+            data,
+            timestamp: Date.now()
+        });
+    },
+    
+    clear() {
+        this.cache.clear();
+    },
+    
+    // تنظيف الـ cache القديم
+    cleanup() {
+        const now = Date.now();
+        for (const [key, item] of this.cache.entries()) {
+            if (now - item.timestamp > this.maxAge) {
+                this.cache.delete(key);
+            }
+        }
+    }
+};
+
+// تنظيف الـ cache كل 10 دقائق
+setInterval(() => API_CACHE.cleanup(), 10 * 60 * 1000);
+
 // دوال التواصل مع API
 const API = {
     // دالة عامة لإرسال الطلبات
     // يمكن تمرير options إضافية مثل { silent: true } لمنع عرض loading overlay
     async request(endpoint, method = 'GET', data = null, requestOptions = {}) {
+        // ✅ استخدام cache للطلبات GET فقط (ما لم يكن skipCache = true)
+        if (method === 'GET' && !requestOptions.skipCache) {
+            const cacheKey = `${endpoint}_${JSON.stringify(data || {})}`;
+            const cached = API_CACHE.get(cacheKey);
+            if (cached) {
+                // ✅ تحسين: تقليل console.log في الإنتاج (فقط في وضع التطوير)
+                if (window.location.search.includes('debug=true') || window.location.hostname === 'localhost') {
+                    console.log(`%c📦 استخدام cache:`, 'color: #FFA500; font-weight: bold;', endpoint);
+                }
+                return cached;
+            }
+        }
+        
         // تحويل PUT/DELETE إلى POST للتوافق مع الاستضافات المجانية
         let actualMethod = method;
         if (method === 'PUT' || method === 'DELETE') {
@@ -48,20 +101,65 @@ const API = {
                 fetchOptions.headers['X-Silent-Request'] = 'true';
             }
             
+            const fullUrl = API_BASE_URL + endpoint;
+            
             if (!isSilent && !(isGetMessages && !isChatPage)) {
-                console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${API_BASE_URL + endpoint}`);
+                console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${fullUrl}`);
             }
             if (data && actualMethod !== 'GET' && !isSilent && !(isGetMessages && !isChatPage)) {
                 console.log('📦 بيانات الطلب:', data);
             }
             
-            // إضافة timeout للطلبات
+            // إضافة timeout للطلبات (تقليل إلى 15 ثانية لتحسين الأداء)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 ثانية
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 ثانية
             
             fetchOptions.signal = controller.signal;
             
-            const response = await fetch(API_BASE_URL + endpoint, fetchOptions);
+            // ✅ تحسين: إضافة retry mechanism للطلبات الفاشلة
+            let response;
+            const maxRetries = 2;
+            
+            try {
+                for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                    try {
+                        response = await fetch(fullUrl, fetchOptions);
+                        clearTimeout(timeoutId);
+                        break; // نجح الطلب
+                    } catch (error) {
+                        clearTimeout(timeoutId);
+                        // إعادة المحاولة فقط للأخطاء الشبكية (ليس أخطاء HTTP)
+                        if (attempt < maxRetries && (
+                            error.name === 'TypeError' || 
+                            error.name === 'NetworkError' ||
+                            error.name === 'AbortError' ||
+                            error.message?.includes('Failed to fetch') ||
+                            error.message?.includes('Network request failed')
+                        )) {
+                            console.warn(`[API] محاولة إعادة الطلب (${attempt + 1}/${maxRetries}):`, fullUrl);
+                            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // تأخير متزايد
+                            // إعادة إنشاء controller للطلب الجديد
+                            const newController = new AbortController();
+                            const newTimeoutId = setTimeout(() => newController.abort(), 15000);
+                            fetchOptions.signal = newController.signal;
+                            continue;
+                        }
+                        throw error; // رمي الخطأ إذا لم يكن خطأ شبكي أو تجاوزنا عدد المحاولات
+                    }
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                // معالجة الخطأ النهائي
+                if (error.name === 'AbortError') {
+                    return {
+                        success: false,
+                        message: 'انتهت مهلة الطلب. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.',
+                        error: 'Request timeout',
+                        status: 408
+                    };
+                }
+                throw error; // رمي الخطأ للتعامل معه في catch الخارجي
+            }
             clearTimeout(timeoutId);
             
             console.log(`%c📥 استجابة الخادم: ${response.status} ${response.statusText}`, 
@@ -133,6 +231,20 @@ const API = {
                 console.warn('%c⚠️ الاستجابة لا تحتوي على success:', 'color: #ff9800; font-weight: bold;', result);
                 // إضافة success افتراضياً إذا لم يكن موجوداً
                 result.success = false;
+            }
+            
+            // ✅ حفظ في cache بعد الاستجابة الناجحة للطلبات GET فقط
+            if (method === 'GET' && result.success && !requestOptions.skipCache) {
+                const cacheKey = `${endpoint}_${JSON.stringify(data || {})}`;
+                API_CACHE.set(cacheKey, result);
+            }
+            
+            // ✅ مسح الكاش تلقائياً بعد أي عملية POST/PUT/DELETE ناجحة
+            // لضمان ظهور التغييرات بشكل فوري في جميع الصفحات
+            if ((method === 'POST' || method === 'PUT' || method === 'DELETE' || actualMethod === 'POST') && result.success) {
+                // مسح الكاش بالكامل لضمان تحديث جميع البيانات
+                API_CACHE.clear();
+                console.log('%c🗑️ تم مسح الكاش بعد العملية:', 'color: #FFA500; font-weight: bold;', endpoint);
             }
             
             return result;
@@ -212,12 +324,22 @@ const API = {
         return await this.request('users.php', 'GET');
     },
 
-    async addUser(userData) {
-        return await this.request('users.php', 'POST', userData);
+    async getUser(id) {
+        if (!id) {
+            return { success: false, message: 'معرف المستخدم مطلوب' };
+        }
+        return await this.request(`users.php?id=${encodeURIComponent(id)}`, 'GET');
     },
 
-    async updateUser(userData) {
-        return await this.request('users.php', 'PUT', userData);
+    async getUserByUsername(username) {
+        if (!username) {
+            return { success: false, message: 'اسم المستخدم مطلوب' };
+        }
+        return await this.request(`users.php?username=${encodeURIComponent(username)}`, 'GET');
+    },
+
+    async addUser(userData) {
+        return await this.request('users.php', 'POST', userData);
     },
 
     async deleteUser(id) {
@@ -251,6 +373,10 @@ const API = {
         return await this.request(`customers.php?action=rating&customer_id=${customerId}`, 'GET');
     },
     
+    async getProductReturns() {
+        return await this.request('product-returns.php', 'GET', null, { silent: true });
+    },
+    
     async saveCustomerRating(customerId, saleId, rating) {
         return await this.request('customers.php', 'POST', {
             action: 'rating',
@@ -276,13 +402,26 @@ const API = {
         return await this.request('customers.php', 'PUT', customerData);
     },
 
+    async collectCustomerDebt(customerId, amount, notes = '') {
+        return await this.request('customers.php', 'POST', {
+            action: 'collect_debt',
+            customer_id: customerId,
+            amount: amount,
+            notes: notes
+        });
+    },
+    
     async deleteCustomer(id) {
         return await this.request('customers.php', 'DELETE', { id });
     },
 
     // عمليات الصيانة
-    async getRepairs() {
-        return await this.request('repairs.php', 'GET');
+    async getRepairs(branchId = null) {
+        let url = 'repairs.php';
+        if (branchId) {
+            url += `?branch_id=${encodeURIComponent(branchId)}`;
+        }
+        return await this.request(url, 'GET');
     },
 
     async addRepair(repairData) {
@@ -315,8 +454,9 @@ const API = {
     },
 
     // قطع الغيار
-    async getSpareParts() {
-        return await this.request('inventory.php?type=spare_parts', 'GET');
+    async getSpareParts(silent = false) {
+        const options = silent ? { silent: true } : {};
+        return await this.request('inventory.php?type=spare_parts', 'GET', null, options);
     },
 
     async addSparePart(partData) {
@@ -332,8 +472,9 @@ const API = {
     },
 
     // الإكسسوارات
-    async getAccessories() {
-        return await this.request('inventory.php?type=accessories', 'GET');
+    async getAccessories(silent = false) {
+        const options = silent ? { silent: true } : {};
+        return await this.request('inventory.php?type=accessories', 'GET', null, options);
     },
 
     async addAccessory(accessoryData) {
@@ -349,8 +490,13 @@ const API = {
     },
 
     // الهواتف
-    async getPhones() {
-        return await this.request('inventory.php?type=phones', 'GET');
+    async getPhones(silent = false) {
+        const options = silent ? { silent: true } : {};
+        return await this.request('inventory.php?type=phones', 'GET', null, options);
+    },
+
+    async getPhoneById(phoneId) {
+        return await this.request(`inventory.php?type=phones&phone_id=${encodeURIComponent(phoneId)}`, 'GET');
     },
 
     async addPhone(phoneData) {
@@ -366,8 +512,9 @@ const API = {
     },
 
     // المصروفات
-    async getExpenses() {
-        return await this.request('expenses.php', 'GET');
+    async getExpenses(branchId = null) {
+        const url = branchId ? `expenses.php?branch_id=${encodeURIComponent(branchId)}` : 'expenses.php';
+        return await this.request(url, 'GET');
     },
 
     async addExpense(expenseData) {
@@ -383,10 +530,13 @@ const API = {
     },
 
     // التقارير
-    async getReport(type, startDate, endDate = null) {
+    async getReport(type, startDate, endDate = null, branchId = null) {
         let url = `reports.php?type=${type}&start_date=${startDate}`;
         if (endDate) {
             url += `&end_date=${endDate}`;
+        }
+        if (branchId) {
+            url += `&branch_id=${branchId}`;
         }
         return await this.request(url, 'GET');
     },
@@ -478,8 +628,25 @@ const API = {
     },
 
     // المستحقات والرواتب
-    async getSalaries(branchId = null) {
-        const url = branchId ? `salaries.php?branch_id=${branchId}` : 'salaries.php';
+    async getSalaries(branchId = null, monthYear = null) {
+        let url = 'salaries.php?';
+        const params = [];
+        if (branchId) {
+            params.push(`branch_id=${branchId}`);
+        }
+        if (monthYear) {
+            params.push(`month_year=${monthYear}`);
+        }
+        if (params.length > 0) {
+            url += params.join('&');
+        } else {
+            url = 'salaries.php';
+        }
+        return await this.request(url, 'GET');
+    },
+
+    async getAllDeductions(userId = null) {
+        const url = userId && userId !== 'all' ? `salaries.php?action=all_deductions&user_id=${userId}` : 'salaries.php?action=all_deductions';
         return await this.request(url, 'GET');
     },
 
@@ -497,6 +664,17 @@ const API = {
 
     async deleteSalaryDeduction(id) {
         return await this.request('salaries.php', 'DELETE', { id });
+    },
+
+    // تحديث راتب المستخدم (للمالك فقط)
+    async updateUserSalary(userId, salary) {
+        return await this.request('users.php', 'PUT', { id: userId, salary: salary });
     }
 };
+
+// ✅ تصدير API و API_CACHE إلى window للاستخدام العام
+if (typeof window !== 'undefined') {
+    window.API = API;
+    window.API_CACHE = API_CACHE; // تصدير API_CACHE للاستخدام في api-batch.js
+}
 

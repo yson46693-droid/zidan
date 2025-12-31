@@ -125,14 +125,12 @@ class SyncManager {
             this.connectionRetries = 0;
             this.updateSyncStatus('online');
 
-            // مزامنة كل نوع بيانات
+            // ✅ تحسين الأداء: مزامنة بشكل متسلسل بدلاً من متوازي لتقليل الضغط على الخادم
             // ملاحظة: syncLossOperations يجب أن يعمل بعد syncRepairs لتجنب التضارب
-            await Promise.all([
-                this.syncRepairs(),
-                this.syncCustomers(),
-                this.syncInventory(),
-                this.syncExpenses()
-            ]);
+            await this.syncRepairs();
+            await this.syncCustomers();
+            await this.syncInventory();
+            await this.syncExpenses();
             
             // مزامنة العمليات الخاسرة بعد العمليات العادية
             await this.syncLossOperations();
@@ -182,7 +180,8 @@ class SyncManager {
                 signal: signal,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Silent-Request': 'true' // ✅ منع عرض loading overlay للاستدعاءات الدورية
                 }
             });
             
@@ -203,7 +202,7 @@ class SyncManager {
     // مزامنة العمليات
     async syncRepairs() {
         try {
-            const result = await API.getRepairs();
+            const result = await API.request('repairs.php', 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
             if (result.success) {
                 localStorage.setItem('repairs_cache', JSON.stringify(result.data));
                 if (typeof allRepairs !== 'undefined') {
@@ -230,17 +229,104 @@ class SyncManager {
     // مزامنة العملاء
     async syncCustomers() {
         try {
-            const result = await API.getCustomers();
-            if (result.success) {
-                localStorage.setItem('customers_cache', JSON.stringify(result.data));
-                if (typeof allCustomers !== 'undefined') {
-                    allCustomers = result.data;
-                    
-                    // التحقق من وجود العنصر والدالة قبل الاستدعاء
-                    const tbody = document.getElementById('customersTableBody');
-                    if (tbody && typeof displayCustomers === 'function') {
-                        displayCustomers(allCustomers);
+            // ✅ إصلاح: إضافة branch_id للمالك إذا كان محدداً
+            let retailUrl = 'customers.php?type=retail';
+            let commercialUrl = 'customers.php?type=commercial';
+            
+            // التحقق من أن المستخدم مالك وأن هناك فرع محدد
+            try {
+                const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+                
+                if (isOwner) {
+                    // محاولة الحصول على branch_id من selectedBranchId أو من DOM
+                    let branchId = null;
+                    if (typeof selectedBranchId !== 'undefined' && selectedBranchId) {
+                        branchId = selectedBranchId;
+                    } else {
+                        const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+                        if (branchFilterHeader && branchFilterHeader.value) {
+                            branchId = branchFilterHeader.value;
+                        } else if (typeof firstBranchId !== 'undefined' && firstBranchId) {
+                            branchId = firstBranchId;
+                        }
                     }
+                    
+                    if (branchId) {
+                        retailUrl += `&branch_id=${encodeURIComponent(branchId)}`;
+                        commercialUrl += `&branch_id=${encodeURIComponent(branchId)}`;
+                        console.log('🔄 [Sync] مزامنة العملاء للفرع:', branchId);
+                    }
+                }
+            } catch (error) {
+                console.warn('[Sync] خطأ في تحديد branch_id، سيتم جلب جميع العملاء:', error);
+            }
+            
+            // جلب العملاء حسب النوع (retail و commercial منفصلين)
+            const retailResult = await API.request(retailUrl, 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
+            const commercialResult = await API.request(commercialUrl, 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
+            
+            if (retailResult.success && commercialResult.success) {
+                // ✅ إصلاح: فلترة العملاء حسب branch_id إذا كان المستخدم مالكاً
+                let retailData = retailResult.data || [];
+                let commercialData = commercialResult.data || [];
+                
+                try {
+                    const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+                    
+                    if (isOwner) {
+                        let branchId = null;
+                        if (typeof selectedBranchId !== 'undefined' && selectedBranchId) {
+                            branchId = selectedBranchId;
+                        } else {
+                            const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
+                            if (branchFilterHeader && branchFilterHeader.value) {
+                                branchId = branchFilterHeader.value;
+                            } else if (typeof firstBranchId !== 'undefined' && firstBranchId) {
+                                branchId = firstBranchId;
+                            }
+                        }
+                        
+                        if (branchId) {
+                            const branchIdStr = String(branchId);
+                            retailData = retailData.filter(c => {
+                                const customerBranchId = c.branch_id ? String(c.branch_id) : null;
+                                return customerBranchId === branchIdStr;
+                            });
+                            commercialData = commercialData.filter(c => {
+                                const customerBranchId = c.branch_id ? String(c.branch_id) : null;
+                                return customerBranchId === branchIdStr;
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[Sync] خطأ في فلترة العملاء حسب branch_id:', error);
+                }
+                
+                // تجميع العملاء في متغير مؤقت
+                const customersData = [...retailData, ...commercialData];
+                
+                // تحديث المصفوفات المنفصلة
+                if (typeof retailCustomers !== 'undefined') {
+                    retailCustomers = retailData;
+                }
+                if (typeof commercialCustomers !== 'undefined') {
+                    commercialCustomers = commercialData;
+                }
+                if (typeof allCustomers !== 'undefined') {
+                    allCustomers = customersData;
+                }
+                
+                // حفظ في localStorage
+                localStorage.setItem('customers_cache', JSON.stringify(customersData));
+                
+                // تحديث العرض فقط إذا كان قسم العملاء مفتوحاً
+                const tbody = document.getElementById('customersTableBody');
+                if (tbody && typeof switchCustomerType === 'function') {
+                    // استخدام switchCustomerType للحفاظ على النوع الحالي
+                    const currentType = typeof currentCustomerType !== 'undefined' ? currentCustomerType : 'retail';
+                    switchCustomerType(currentType);
                 }
             }
         } catch (error) {
@@ -255,7 +341,7 @@ class SyncManager {
     // مزامنة المخزون
     async syncInventory() {
         try {
-            const result = await API.getInventory();
+            const result = await API.request('inventory.php', 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
             if (result.success) {
                 localStorage.setItem('inventory_cache', JSON.stringify(result.data));
                 if (typeof allInventory !== 'undefined') {
@@ -277,7 +363,7 @@ class SyncManager {
     // مزامنة المصروفات
     async syncExpenses() {
         try {
-            const result = await API.getExpenses();
+            const result = await API.request('expenses.php', 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
             if (result.success) {
                 localStorage.setItem('expenses_cache', JSON.stringify(result.data));
                 if (typeof allExpenses !== 'undefined') {
@@ -299,7 +385,7 @@ class SyncManager {
     // مزامنة العمليات الخاسرة
     async syncLossOperations() {
         try {
-            const result = await API.getLossOperations();
+            const result = await API.request('loss-operations.php', 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
             if (result.success) {
                 localStorage.setItem('loss_operations_cache', JSON.stringify(result.data));
                 

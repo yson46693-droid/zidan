@@ -3,6 +3,14 @@
 let currentUser = null;
 let userCredentials = [];
 
+// دالة مساعدة لتنظيف النصوص من HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // تحميل قسم الملف الشخصي
 // تحميل webauthn.js إذا لم يكن محمّلاً
 async function ensureWebAuthnLoaded() {
@@ -160,6 +168,42 @@ async function loadProfileSection() {
 
         // تحميل البصمات المسجلة
         await loadCredentials();
+        
+        // جلب تقييم الفني إذا كان المستخدم فني
+        let technicianRating = null;
+        if (currentUser.role === 'technician') {
+            try {
+                const ratingResult = await API.request('profile.php?action=get_technician_rating', 'GET');
+                if (ratingResult && ratingResult.success && ratingResult.data) {
+                    technicianRating = ratingResult.data;
+                }
+            } catch (error) {
+                console.warn('⚠️ فشل جلب تقييم الفني:', error);
+            }
+        }
+
+        // جلب بيانات المستحقات للمستخدم الحالي (للموظفين والمديرين والفنيين فقط)
+        // ✅ استخدام نفس الطريقة المستخدمة في خزنة الفرع للحصول على بيانات دقيقة
+        let userSalaryData = null;
+        if (currentUser.role !== 'admin' && currentUser.id) {
+            try {
+                // استخدام الشهر الحالي (نفس الطريقة في خزنة الفرع)
+                const now = new Date();
+                const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+                
+                // جلب المستحقات للشهر الحالي (نفس API المستخدم في خزنة الفرع)
+                const salaryResult = await API.getSalaries(null, currentMonth);
+                if (salaryResult && salaryResult.success && salaryResult.data && Array.isArray(salaryResult.data)) {
+                    // البحث عن المستخدم الحالي في النتائج
+                    const userData = salaryResult.data.find(u => String(u.id) === String(currentUser.id));
+                    if (userData) {
+                        userSalaryData = userData;
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ فشل جلب بيانات المستحقات:', error);
+            }
+        }
 
         // استخدام أيقونة Bootstrap الافتراضية للملف الشخصي
         // التحقق من وجود avatar بشكل صحيح
@@ -222,11 +266,148 @@ async function loadProfileSection() {
                         <span>${getRoleText(currentUser.role)}</span>
                     </div>
                     <div class="profile-info-item">
+                        <label><i class="bi bi-building"></i> الفرع:</label>
+                        <span>${currentUser.branch_name || 'غير محدد'}</span>
+                    </div>
+                    ${currentUser.role === 'technician' && currentUser.specialization ? `
+                    <div class="profile-info-item">
+                        <label><i class="bi bi-tools"></i> التخصص:</label>
+                        <span>${getSpecializationText(currentUser.specialization)}</span>
+                    </div>
+                    ` : ''}
+                    <div class="profile-info-item">
                         <label><i class="bi bi-fingerprint"></i> حالة البصمة:</label>
                         <span id="biometric-status">${userCredentials.length > 0 ? '<span style="color: #4CAF50;"><i class="bi bi-check-circle"></i> مفعّلة</span>' : '<span style="color: #f44336;"><i class="bi bi-x-circle"></i> غير مفعّلة</span>'}</span>
                     </div>
                 </div>
             </div>
+
+            ${userSalaryData && currentUser.role !== 'admin' ? `
+            <!-- المستحقات -->
+            <div class="profile-section">
+                ${(() => {
+                    const monthYear = userSalaryData.month_year || new Date().toISOString().slice(0, 7);
+                    const formatMonthYear = function(monthYear) {
+                        if (!monthYear) return '';
+                        try {
+                            if (typeof monthYear === 'string' && monthYear.match(/^\d{4}-\d{2}$/)) {
+                                const [year, month] = monthYear.split('-');
+                                const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
+                                                 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+                                const monthIndex = parseInt(month) - 1;
+                                return `${monthNames[monthIndex]} ${year}`;
+                            }
+                            return monthYear;
+                        } catch (e) {
+                            return monthYear;
+                        }
+                    };
+                    const monthText = formatMonthYear(monthYear);
+                    return `<h3><i class="bi bi-cash-stack"></i> المستحقات ${monthText ? `- ${monthText}` : ''}</h3>`;
+                })()}
+                <div class="profile-info-card">
+                    ${(() => {
+                        // ✅ استخدام نفس البيانات المحسوبة من API (مثل خزنة الفرع)
+                        const salaryAmount = parseFloat(userSalaryData.salary || 0);
+                        const totalWithdrawals = parseFloat(userSalaryData.total_withdrawals || 0);
+                        const totalDeductions = parseFloat(userSalaryData.total_deductions || 0);
+                        const netSalary = parseFloat(userSalaryData.net_salary || salaryAmount);
+                        
+                        const formatCurrency = window.formatCurrency || function(amount) {
+                            return parseFloat(amount || 0).toFixed(2) + ' ج.م';
+                        };
+                        
+                        return `
+                            <div class="profile-info-item">
+                                <label><i class="bi bi-currency-exchange"></i> الراتب الشهري:</label>
+                                <span style="color: var(--primary-color); font-weight: bold;">${formatCurrency(salaryAmount)}</span>
+                            </div>
+                            <div class="profile-info-item">
+                                <label><i class="bi bi-arrow-down-circle"></i> المسحوبات:</label>
+                                <span style="color: var(--danger-color); font-weight: bold;">${formatCurrency(totalWithdrawals)}</span>
+                            </div>
+                            <div class="profile-info-item">
+                                <label><i class="bi bi-dash-circle"></i> الخصومات:</label>
+                                <span style="color: var(--warning-color); font-weight: bold;">${formatCurrency(totalDeductions)}</span>
+                            </div>
+                            <div class="profile-info-item" style="border-top: 2px solid var(--border-color); padding-top: 10px; margin-top: 10px;">
+                                <label><i class="bi bi-calculator"></i> الصافي:</label>
+                                <span style="color: var(--success-color); font-weight: bold; font-size: 1.1em;">${formatCurrency(netSalary)}</span>
+                            </div>
+                        `;
+                    })()}
+                </div>
+            </div>
+            ` : ''}
+
+            ${currentUser.role === 'technician' ? `
+            <!-- تقييم الفني -->
+            <div class="profile-section technician-rating-section">
+                <h3><i class="bi bi-star-fill"></i> تقييم الأداء</h3>
+                <div class="technician-rating-card">
+                    ${technicianRating ? `
+                        <div class="technician-rating-display">
+                            <div class="rating-main-display">
+                                <div class="rating-value-large">
+                                    <span class="rating-number">${technicianRating.final_rating > 0 ? technicianRating.final_rating.toFixed(1) : '0.0'}</span>
+                                    <span class="rating-max">/ 5.0</span>
+                                </div>
+                                <div class="rating-stars-display">
+                                    ${[5, 4, 3, 2, 1].map(star => `
+                                        <i class="bi bi-star${star <= Math.round(technicianRating.final_rating) ? '-fill' : ''}" 
+                                           style="color: ${star <= Math.round(technicianRating.final_rating) ? 'var(--warning-color)' : 'var(--border-color)'}; 
+                                                  font-size: 1.8em;"></i>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            ${technicianRating.has_auto_rating ? `
+                            <div class="rating-details">
+                                <div class="rating-detail-item">
+                                    <label><i class="bi bi-graph-up"></i> التقييم التراكمي:</label>
+                                    <span class="rating-value">${technicianRating.auto_rating.toFixed(1)} / 5.0</span>
+                                    <span class="rating-count">(${technicianRating.total_ratings} تقييم)</span>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            ${technicianRating.has_manual_rating ? `
+                            <div class="rating-details">
+                                <div class="rating-detail-item">
+                                    <label><i class="bi bi-pencil-square"></i> التقييم اليدوي:</label>
+                                    <span class="rating-value">${technicianRating.manual_rating} / 5</span>
+                                </div>
+                                ${technicianRating.manual_note ? `
+                                <div class="rating-note">
+                                    <label><i class="bi bi-chat-left-text"></i> الملاحظات:</label>
+                                    <div class="note-content">${escapeHtml(technicianRating.manual_note)}</div>
+                                    ${technicianRating.manual_rating_date ? `
+                                    <div class="note-date">
+                                        <i class="bi bi-calendar"></i>
+                                        ${formatDate(technicianRating.manual_rating_date)}
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                ` : ''}
+                            </div>
+                            ` : ''}
+                            
+                            ${!technicianRating.has_auto_rating && !technicianRating.has_manual_rating ? `
+                            <div class="no-rating-message">
+                                <i class="bi bi-info-circle"></i>
+                                <p>لا يوجد تقييمات حتى الآن</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    ` : `
+                        <div class="loading-rating">
+                            <i class="bi bi-hourglass-split"></i>
+                            <p>جاري تحميل التقييم...</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+            ` : ''}
 
             <!-- تعديل بيانات الحساب -->
             <div class="profile-section">
@@ -276,6 +457,24 @@ async function loadProfileSection() {
                             <i class="bi bi-info-circle"></i> اترك الحقل فارغاً إذا كنت لا تريد تغيير كلمة المرور
                         </small>
                     </div>
+
+                    ${currentUser.role === 'technician' ? `
+                    <div class="form-group">
+                        <label for="profileSpecialization">
+                            <i class="bi bi-tools"></i> التخصص *
+                        </label>
+                        <select 
+                            id="profileSpecialization" 
+                            name="specialization" 
+                            required
+                        >
+                            <option value="">اختر التخصص</option>
+                            <option value="soft" ${currentUser.specialization === 'soft' ? 'selected' : ''}>سوفت</option>
+                            <option value="hard" ${currentUser.specialization === 'hard' ? 'selected' : ''}>هارد</option>
+                            <option value="fast" ${currentUser.specialization === 'fast' ? 'selected' : ''}>فاست</option>
+                        </select>
+                    </div>
+                    ` : ''}
 
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary" id="saveProfileBtn">
@@ -457,8 +656,16 @@ async function handleRegisterBiometric() {
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري التسجيل...';
 
-        // طلب اسم الجهاز
-        const deviceName = prompt('أدخل اسم للجهاز (مثال: iPhone 13, Samsung Galaxy, Windows PC):', simpleWebAuthn.detectDeviceName());
+        // طلب اسم الجهاز باستخدام نافذة إدخال مخصصة
+        if (typeof window.showInputPrompt === 'undefined') {
+            showMessage('خطأ: نظام الإدخال غير متاح. يرجى إعادة تحميل الصفحة.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل بصمة جديدة</span>';
+            return;
+        }
+        
+        const defaultDeviceName = simpleWebAuthn.detectDeviceName() || '';
+        const deviceName = await window.showInputPrompt('أدخل اسم للجهاز (مثال: iPhone 13, Samsung Galaxy, Windows PC):', defaultDeviceName, 'text');
         
         if (!deviceName || deviceName.trim() === '') {
             btn.disabled = false;
@@ -595,6 +802,7 @@ async function updateProfile(event) {
     const nameInput = document.getElementById('profileName');
     const usernameInput = document.getElementById('profileUsername');
     const passwordInput = document.getElementById('profilePassword');
+    const specializationInput = document.getElementById('profileSpecialization');
     const saveBtn = document.getElementById('saveProfileBtn');
     const validationDiv = document.getElementById('usernameValidation');
 
@@ -606,6 +814,7 @@ async function updateProfile(event) {
     const name = nameInput.value.trim();
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
+    const specialization = specializationInput ? specializationInput.value : null;
 
     // التحقق من صحة البيانات
     if (!name || !username) {
@@ -645,6 +854,12 @@ async function updateProfile(event) {
         return;
     }
 
+    // التحقق من التخصص للفنيين
+    if (currentUser?.role === 'technician' && (!specialization || specialization === '')) {
+        showMessage('التخصص مطلوب للفنيين', 'error');
+        return;
+    }
+
     // بناء بيانات التحديث
     const updateData = {
         name: name,
@@ -653,6 +868,11 @@ async function updateProfile(event) {
 
     if (password && password.length > 0) {
         updateData.password = password;
+    }
+
+    // إضافة التخصص للفنيين
+    if (currentUser?.role === 'technician' && specialization) {
+        updateData.specialization = specialization;
     }
 
     // تعطيل الزر أثناء الحفظ
@@ -700,11 +920,13 @@ function resetProfileForm() {
     const nameInput = document.getElementById('profileName');
     const usernameInput = document.getElementById('profileUsername');
     const passwordInput = document.getElementById('profilePassword');
+    const specializationInput = document.getElementById('profileSpecialization');
     const validationDiv = document.getElementById('usernameValidation');
 
     if (nameInput) nameInput.value = currentUser.name || '';
     if (usernameInput) usernameInput.value = currentUser.username || '';
     if (passwordInput) passwordInput.value = '';
+    if (specializationInput) specializationInput.value = currentUser.specialization || '';
     if (validationDiv) {
         validationDiv.innerHTML = '';
         validationDiv.className = 'validation-message';
@@ -794,6 +1016,22 @@ function getInitials(name) {
     return name.substring(0, 2).toUpperCase();
 }
 
+// دالة للحصول على نص التخصص (إذا لم تكن موجودة في auth.js)
+if (typeof getSpecializationText === 'undefined') {
+    function getSpecializationText(specialization) {
+        if (!specialization) return '';
+        
+        const specializationMap = {
+            'soft': 'سوفت',
+            'hard': 'هارد',
+            'fast': 'فاست'
+        };
+        
+        return specializationMap[specialization] || '';
+    }
+    window.getSpecializationText = getSpecializationText;
+}
+
 // معالجة رفع صورة الملف الشخصي
 async function handleAvatarUpload(event) {
     const file = event.target.files[0];
@@ -847,6 +1085,9 @@ async function handleAvatarUpload(event) {
                         let avatarImg = document.getElementById('profileAvatarImg');
                         if (!avatarImg) {
                             avatarImg = document.createElement('img');
+                            // ✅ إضافة lazy loading للصور
+                            avatarImg.loading = 'lazy';
+                            avatarImg.decoding = 'async';
                             avatarImg.id = 'profileAvatarImg';
                             avatarImg.className = 'profile-avatar-preview';
                             avatarImg.alt = 'صورة الملف الشخصي';

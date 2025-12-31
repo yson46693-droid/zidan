@@ -28,6 +28,7 @@ function checkAndCreateMissingTables() {
     
     // قائمة الجداول المطلوبة
     $requiredTables = [
+        'branches',
         'users',
         'customers',
         'settings',
@@ -42,6 +43,8 @@ function checkAndCreateMissingTables() {
         'loss_operations',
         'sales',
         'sale_items',
+        'product_returns',
+        'product_return_items',
         'customer_ratings',
         'webauthn_credentials',
         'chat_rooms',

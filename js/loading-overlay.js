@@ -5,6 +5,7 @@ class LoadingOverlay {
         this.progressBar = null;
         this.activeRequests = 0;
         this.progress = 0;
+        this.pageLoadRequest = false; // لتتبع طلب تحميل الصفحة
         this.init();
     }
 
@@ -73,9 +74,18 @@ class LoadingOverlay {
         }
 
         if (this.overlayElement) {
-            this.activeRequests++;
-            this.overlayElement.classList.add('active');
-            this.startProgress();
+            // التحقق من أن overlay غير معروض بالفعل
+            const isAlreadyVisible = this.overlayElement.classList.contains('active');
+            
+            if (!isAlreadyVisible) {
+                // فقط نزيد activeRequests ونعرض overlay إذا لم يكن معروضاً بالفعل
+                this.activeRequests++;
+                this.overlayElement.classList.add('active');
+                this.startProgress();
+            } else {
+                // إذا كان معروضاً بالفعل، نزيد activeRequests فقط (دون إعادة عرض)
+                this.activeRequests++;
+            }
         }
     }
 
@@ -101,6 +111,31 @@ class LoadingOverlay {
                 }
             }, 300);
         }
+    }
+
+    // إخفاء overlay بشكل كامل (للاستخدام بعد اكتمال تحميل البيانات)
+    forceHide() {
+        if (!this.overlayElement) {
+            return;
+        }
+
+        // إعادة تعيين جميع الطلبات النشطة
+        this.activeRequests = 0;
+        this.pageLoadRequest = false;
+
+        // إكمال شريط التقدم
+        this.updateProgress(100);
+        
+        // إخفاء overlay
+        setTimeout(() => {
+            if (this.overlayElement) {
+                this.overlayElement.classList.remove('active');
+                this.progress = 0;
+                if (this.progressBar) {
+                    this.progressBar.style.width = '0%';
+                }
+            }
+        }, 300);
     }
 
     updateProgress(percentage) {
@@ -157,11 +192,15 @@ class LoadingOverlay {
                     isSilent = true;
                 }
                 
-                // إظهار overlay فقط إذا لم يكن silent
+                // إظهار overlay فقط إذا لم يكن silent ولم يكن هناك pageLoadRequest نشط
+                // هذا يمنع عرض overlay مرتين (مرة من setupPageLoadListener ومرة من setupAPIInterceptor)
                 let overlayShown = false;
                 if (!isSilent && (!isGetMessages || isChatPage)) {
-                    self.show();
-                    overlayShown = true;
+                    // لا نعرض overlay إذا كان هناك pageLoadRequest نشط (overlay معروض بالفعل من setupPageLoadListener)
+                    if (!self.pageLoadRequest) {
+                        self.show();
+                        overlayShown = true;
+                    }
                 }
                 
                 try {
@@ -206,8 +245,11 @@ class LoadingOverlay {
                     const isSilent = headers['X-Silent-Request'] === 'true';
                     
                     if (!isSilent) {
-                        shouldShowOverlay = true;
-                        self.show();
+                        // لا نعرض overlay إذا كان هناك pageLoadRequest نشط (overlay معروض بالفعل من setupPageLoadListener)
+                        if (!self.pageLoadRequest) {
+                            shouldShowOverlay = true;
+                            self.show();
+                        }
                     }
                 }
             }
@@ -234,27 +276,52 @@ class LoadingOverlay {
             return;
         }
         
-        // إظهار overlay عند تحميل الصفحة
+        // متغير لتتبع طلب تحميل الصفحة
+        this.pageLoadRequest = false;
+        
+        // إظهار overlay عند تحميل الصفحة - مرة واحدة فقط
         if (document.readyState === 'loading') {
+            // تعيين pageLoadRequest قبل استدعاء show() لتجنب العرض المتكرر
+            this.pageLoadRequest = true;
             this.show();
             
             // محاكاة التقدم أثناء تحميل الصفحة
             this.simulatePageLoad();
+        } else if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            // إذا كانت الصفحة محملة جزئياً أو كلياً، نعرض overlay مرة واحدة فقط
+            if (!this.pageLoadRequest) {
+                this.pageLoadRequest = true;
+                this.show();
+            }
         }
 
-        // إخفاء عند تحميل الصفحة بالكامل
+        // إخفاء عند تحميل الصفحة بالكامل - لكن لا نخفي overlay هنا
+        // سيتم إخفاء overlay من loadInventorySection بعد اكتمال تحميل جميع البيانات
         if (document.readyState !== 'complete') {
             window.addEventListener('load', () => {
                 this.updateProgress(100);
+                // لا نخفي overlay هنا - سيتم إخفاؤه بعد اكتمال تحميل البيانات في loadInventorySection
+                // فقط نتحقق من عدم وجود طلبات API نشطة بعد وقت طويل (fallback)
                 setTimeout(() => {
-                    this.hide();
-                }, 500);
+                    // Fallback: إخفاء فقط إذا لم تكن هناك طلبات API نشطة بعد 5 ثوانٍ
+                    // هذا يضمن عدم بقاء overlay للأبد في حالة حدوث خطأ
+                    if (this.pageLoadRequest && this.activeRequests <= 1) {
+                        console.warn('⚠️ Fallback: إخفاء overlay بعد timeout (5 ثوانٍ)');
+                        this.hide();
+                        this.pageLoadRequest = false;
+                    }
+                }, 5000); // 5 ثوانٍ كـ fallback
             });
         } else {
-            // إذا كانت الصفحة محملة بالفعل
+            // إذا كانت الصفحة محملة بالفعل - نفس المنطق
             setTimeout(() => {
-                this.hide();
-            }, 500);
+                // Fallback: إخفاء فقط إذا لم تكن هناك طلبات API نشطة بعد 5 ثوانٍ
+                if (this.pageLoadRequest && this.activeRequests <= 1) {
+                    console.warn('⚠️ Fallback: إخفاء overlay بعد timeout (5 ثوانٍ)');
+                    this.hide();
+                    this.pageLoadRequest = false;
+                }
+            }, 5000);
         }
     }
 

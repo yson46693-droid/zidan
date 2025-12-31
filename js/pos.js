@@ -11,9 +11,26 @@ let debounceTimer = null;
 let allCustomers = [];
 let currentCustomerType = 'retail';
 let selectedCustomerId = null;
+let firstBranchId = null;
 
 // Initialize POS
 document.addEventListener('DOMContentLoaded', function() {
+    // ✅ تحميل الوضع الليلي من localStorage
+    if (typeof loadDarkMode === 'function') {
+        loadDarkMode();
+    } else {
+        // Fallback: تحميل الوضع الليلي مباشرة
+        const darkMode = localStorage.getItem('darkMode');
+        if (darkMode === 'enabled') {
+            document.body.classList.add('dark-mode');
+        }
+    }
+    
+    // ✅ إصلاح CSS و Bootstrap Icons عند تحميل الصفحة
+    if (typeof ensureCSSAndIconsLoaded === 'function') {
+        ensureCSSAndIconsLoaded();
+    }
+    
     if (document.querySelector('.pos-container')) {
         initializePOS();
     }
@@ -26,6 +43,9 @@ async function initializePOS() {
         
         // Load all products
         await loadAllProducts();
+        
+        // Load first branch ID (for new customers)
+        await loadFirstBranchId();
         
         // Load customers
         await loadCustomers();
@@ -40,15 +60,23 @@ async function initializePOS() {
         updateCartDisplay();
     } catch (error) {
         console.error('خطأ في تهيئة نظام POS:', error);
-        showMessage('حدث خطأ في تحميل البيانات', 'error');
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        showMessage(`❌ فشل تحميل نظام نقاط البيع: ${errorMessage}. يرجى تحديث الصفحة والمحاولة مرة أخرى.`, 'error');
     }
 }
 
 // Load Customers
 async function loadCustomers() {
     try {
-        const retailRes = await API.getCustomers('retail');
-        const commercialRes = await API.getCustomers('commercial');
+        // التأكد من تحميل الفرع الأول أولاً
+        if (!firstBranchId) {
+            await loadFirstBranchId();
+        }
+        
+        // جلب العملاء المرتبطين بالفرع الأول فقط
+        const branchIdParam = firstBranchId ? `&branch_id=${encodeURIComponent(firstBranchId)}` : '';
+        const retailRes = await API.request(`customers.php?type=retail${branchIdParam}`, 'GET');
+        const commercialRes = await API.request(`customers.php?type=commercial${branchIdParam}`, 'GET');
         
         allCustomers = [];
         if (retailRes && retailRes.success && retailRes.data) {
@@ -57,8 +85,12 @@ async function loadCustomers() {
         if (commercialRes && commercialRes.success && commercialRes.data) {
             allCustomers = allCustomers.concat(commercialRes.data.map(c => ({...c, customer_type: 'commercial'})));
         }
+        
+        console.log(`✅ تم تحميل ${allCustomers.length} عميل من الفرع الأول (${firstBranchId})`);
     } catch (error) {
         console.error('خطأ في تحميل العملاء:', error);
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        showMessage(`❌ فشل تحميل قائمة العملاء: ${errorMessage}. قد لا تتمكن من إتمام عملية البيع.`, 'error');
     }
 }
 
@@ -71,6 +103,33 @@ async function loadShopSettings() {
         }
     } catch (error) {
         console.error('خطأ في تحميل إعدادات المتجر:', error);
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        showMessage(`⚠️ فشل تحميل إعدادات المتجر: ${errorMessage}. قد لا تظهر بعض المعلومات في الفاتورة.`, 'error');
+    }
+}
+
+// Load First Branch ID (for new customers)
+async function loadFirstBranchId() {
+    try {
+        const response = await API.request('branches.php', 'GET', null, { silent: true });
+        if (response && response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
+            // ترتيب الفروع حسب created_at واختيار الأول
+            const sortedBranches = [...response.data].sort((a, b) => {
+                const dateA = new Date(a.created_at || 0);
+                const dateB = new Date(b.created_at || 0);
+                if (dateA.getTime() !== dateB.getTime()) {
+                    return dateA.getTime() - dateB.getTime();
+                }
+                return (a.id || '').localeCompare(b.id || '');
+            });
+            firstBranchId = sortedBranches[0].id;
+            console.log('✅ تم تحميل الفرع الأول:', firstBranchId);
+        } else {
+            console.warn('⚠️ لا توجد فروع متاحة');
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل الفرع الأول:', error);
+        // لا نوقف التطبيق في حالة الخطأ، فقط نسجل الخطأ
     }
 }
 
@@ -82,82 +141,149 @@ async function loadAllProducts() {
             productsGrid.innerHTML = '<div class="pos-loading"><i class="bi bi-arrow-repeat"></i> جاري التحميل...</div>';
         }
         
-        // Load all product types in parallel
-        const [sparePartsRes, accessoriesRes, phonesRes] = await Promise.all([
-            API.request('inventory.php?type=spare_parts', 'GET'),
-            API.request('inventory.php?type=accessories', 'GET'),
-            API.request('inventory.php?type=phones', 'GET')
-        ]);
-        
-        allProducts = [];
-        
-        // Process spare parts
-        if (sparePartsRes && sparePartsRes.success && sparePartsRes.data) {
-            sparePartsRes.data.forEach(part => {
-                // حساب إجمالي الكمية من القطع الفرعية
-                const totalQuantity = (part.items || []).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
-                
-                // التأكد من أن items موجودة وليست null
-                const items = Array.isArray(part.items) ? part.items : [];
-                
-                allProducts.push({
-                    id: part.id,
-                    name: `${part.brand} ${part.model}`,
-                    type: 'spare_part',
-                    price: parseFloat(part.selling_price || 0),
-                    image: part.image || '',
-                    quantity: totalQuantity, // إجمالي الكمية من القطع الفرعية
-                    brand: part.brand,
-                    model: part.model,
-                    items: items // حفظ القطع الفرعية
-                });
-                
-                // سجل للتأكد من تحميل القطع الفرعية
-                if (items.length > 0) {
-                    console.log(`تم تحميل قطعة غيار: ${part.brand} ${part.model} مع ${items.length} قطعة فرعية`);
+        // ✅ محاولة تحميل من Cache أولاً (سريع جداً)
+        let cachedProducts = null;
+        try {
+            if (typeof dbCache !== 'undefined') {
+                cachedProducts = await dbCache.loadProducts(3600000); // cache صالح لمدة ساعة
+                if (cachedProducts && cachedProducts.length > 0) {
+                    allProducts = cachedProducts;
+                    filteredProducts = [...allProducts];
+                    renderProducts();
+                    updateCartDisplay();
+                    
+                    // عرض رسالة أن البيانات من الكاش (فقط إذا كانت موجودة)
+                    if (productsGrid && productsGrid.parentElement) {
+                        // التحقق من عدم وجود رسالة سابقة
+                        const existingNotice = productsGrid.parentElement.querySelector('.pos-cache-notice');
+                        if (!existingNotice) {
+                            const cacheNotice = document.createElement('div');
+                            cacheNotice.className = 'pos-cache-notice';
+                            cacheNotice.innerHTML = '<i class="bi bi-database"></i> البيانات من التخزين المحلي - جاري تحديث البيانات في الخلفية...';
+                            cacheNotice.style.cssText = 'padding: 8px; background: var(--light-bg); color: var(--text-light); font-size: 12px; text-align: center; border-radius: 4px; margin-bottom: 10px;';
+                            productsGrid.parentElement.insertBefore(cacheNotice, productsGrid);
+                            
+                            // إخفاء الرسالة بعد 5 ثوان
+                            setTimeout(() => {
+                                if (cacheNotice.parentElement) {
+                                    cacheNotice.remove();
+                                }
+                            }, 5000);
+                        }
+                    }
                 }
-            });
+            }
+        } catch (error) {
+            // تجاهل الأخطاء في تحميل Cache
         }
         
-        // Process accessories
-        if (accessoriesRes && accessoriesRes.success && accessoriesRes.data) {
-            accessoriesRes.data.forEach(accessory => {
-                allProducts.push({
-                    id: accessory.id,
-                    name: accessory.name,
-                    type: 'accessory',
-                    price: parseFloat(accessory.selling_price || 0),
-                    image: accessory.image || '',
-                    quantity: parseInt(accessory.quantity || 0),
-                    accessoryType: accessory.type
+        // ✅ تحميل البيانات الجديدة من الخادم في الخلفية (Silent)
+        try {
+            const [sparePartsRes, accessoriesRes, phonesRes] = await Promise.all([
+                API.request('inventory.php?type=spare_parts', 'GET', null, { silent: true }),
+                API.request('inventory.php?type=accessories', 'GET', null, { silent: true }),
+                API.request('inventory.php?type=phones', 'GET', null, { silent: true })
+            ]);
+            
+            allProducts = [];
+            
+            // Process spare parts
+            if (sparePartsRes && sparePartsRes.success && sparePartsRes.data) {
+                sparePartsRes.data.forEach(part => {
+                    // حساب إجمالي الكمية من القطع الفرعية
+                    const totalQuantity = (part.items || []).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+                    
+                    // التأكد من أن items موجودة وليست null
+                    const items = Array.isArray(part.items) ? part.items : [];
+                    
+                    allProducts.push({
+                        id: part.id,
+                        name: `${part.brand} ${part.model}`,
+                        type: 'spare_part',
+                        price: parseFloat(part.selling_price || 0),
+                        image: part.image || '',
+                        quantity: totalQuantity, // إجمالي الكمية من القطع الفرعية
+                        brand: part.brand,
+                        model: part.model,
+                        items: items, // حفظ القطع الفرعية
+                        barcode: part.barcode || part.code || part.id?.toString() // Bar code for scanning
+                    });
                 });
-            });
-        }
-        
-        // Process phones
-        if (phonesRes && phonesRes.success && phonesRes.data) {
-            phonesRes.data.forEach(phone => {
-                allProducts.push({
-                    id: phone.id,
-                    name: `${phone.brand} ${phone.model}`,
-                    type: 'phone',
-                    price: parseFloat(phone.selling_price || 0),
-                    image: phone.image || '',
-                    quantity: 1, // Phones are usually unique items
-                    brand: phone.brand,
-                    model: phone.model
+            }
+            
+            // Process accessories
+            if (accessoriesRes && accessoriesRes.success && accessoriesRes.data) {
+                accessoriesRes.data.forEach(accessory => {
+                    allProducts.push({
+                        id: accessory.id,
+                        name: accessory.name,
+                        type: 'accessory',
+                        price: parseFloat(accessory.selling_price || 0),
+                        image: accessory.image || '',
+                        quantity: parseInt(accessory.quantity || 0),
+                        accessoryType: accessory.type,
+                        barcode: accessory.barcode || accessory.code || accessory.id?.toString() // Bar code for scanning
+                    });
                 });
-            });
+            }
+            
+            // Process phones - النظام الجديد: إخفاء البطاقات بكمية 0
+            if (phonesRes && phonesRes.success && phonesRes.data) {
+                phonesRes.data.forEach(phone => {
+                    // إخفاء البطاقات بكمية 0 من نقاط البيع
+                    const quantity = parseInt(phone.quantity || 0);
+                    if (quantity > 0) {
+                        allProducts.push({
+                            id: phone.id,
+                            name: `${phone.brand || ''} ${phone.model || ''}`.trim() || phone.name,
+                            type: 'phone',
+                            price: parseFloat(phone.selling_price || 0),
+                            image: phone.image || '',
+                            quantity: quantity,
+                            brand: phone.brand || '',
+                            model: phone.model || '',
+                            barcode: phone.barcode || phone.code || phone.id?.toString(), // Bar code for scanning
+                            phone_data: phone // حفظ بيانات الهاتف الكاملة
+                        });
+                    }
+                });
+            }
+            
+            filteredProducts = [...allProducts];
+            
+            // ✅ حفظ البيانات الجديدة في IndexedDB
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    await dbCache.saveProducts(allProducts);
+                }
+            } catch (error) {
+                // تجاهل أخطاء الحفظ
+            }
+            
+            // ✅ تحديث العرض إذا تغيرت البيانات
+            if (!cachedProducts || cachedProducts.length !== allProducts.length) {
+                renderProducts();
+                updateCartDisplay();
+            }
+            
+        } catch (error) {
+            // إذا فشل التحميل ولم يكن هناك cache، عرض رسالة خطأ
+            if (!cachedProducts) {
+                const errorMessage = error?.message || 'خطأ غير معروف';
+                showMessage(`❌ فشل تحميل المنتجات: ${errorMessage}. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.`, 'error');
+                if (productsGrid) {
+                    productsGrid.innerHTML = '<div class="pos-loading" style="color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> فشل تحميل المنتجات. يرجى تحديث الصفحة.</div>';
+                }
+            }
         }
-        
-        filteredProducts = [...allProducts];
         
     } catch (error) {
         console.error('خطأ في تحميل المنتجات:', error);
-        showMessage('حدث خطأ في تحميل المنتجات', 'error');
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        showMessage(`❌ فشل تحميل المنتجات: ${errorMessage}. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.`, 'error');
         const productsGrid = document.getElementById('productsGrid');
         if (productsGrid) {
-            productsGrid.innerHTML = '<div class="pos-loading">حدث خطأ في تحميل المنتجات</div>';
+            productsGrid.innerHTML = '<div class="pos-loading" style="color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> فشل تحميل المنتجات. يرجى تحديث الصفحة.</div>';
         }
     }
 }
@@ -191,17 +317,8 @@ function setupEventListeners() {
         });
     }
     
-    // Search button
-    const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn) {
-        searchBtn.addEventListener('click', function() {
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchQuery = searchInput.value.trim().toLowerCase();
-                filterProducts();
-            }
-        });
-    }
+    // Search button - removed, replaced with barcode scanner
+    // Barcode scanner is handled by openPOSBarcodeScanner() function
     
     // Clear cart button
     const clearCartBtn = document.getElementById('clearCartBtn');
@@ -256,16 +373,11 @@ function setupEventListeners() {
         printInvoiceBtn.addEventListener('click', printInvoice);
     }
     
-    // Discount and tax inputs
+    // Discount input
     const discountInput = document.getElementById('discountInput');
-    const taxInput = document.getElementById('taxInput');
     
     if (discountInput) {
         discountInput.addEventListener('input', updateCartSummary);
-    }
-    
-    if (taxInput) {
-        taxInput.addEventListener('input', updateCartSummary);
     }
     
     // Close modals on outside click
@@ -367,6 +479,9 @@ function createProductCard(product) {
     if (product.image && product.image.trim() !== '') {
         const img = document.createElement('img');
         img.src = product.image;
+        // ✅ إضافة lazy loading للصور
+        img.loading = 'lazy';
+        img.decoding = 'async';
         img.alt = product.name;
         img.className = 'pos-product-image';
         img.loading = 'lazy';
@@ -500,7 +615,7 @@ function openSparePartItemsModal(product) {
     
     if (!modalInstance) {
         console.error('فشل في إنشاء النموذج المنبثق');
-        showMessage('حدث خطأ في عرض القطع الفرعية', 'error');
+        showMessage('❌ فشل عرض القطع الفرعية. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
         return;
     }
     
@@ -632,7 +747,7 @@ function increaseSparePartItemQuantity(index, maxQuantity) {
         if (currentValue < maxQuantity) {
             input.value = currentValue + 1;
         } else {
-            showMessage('الكمية المتاحة محدودة', 'error');
+            showMessage(`❌ الكمية المتاحة محدودة! الحد الأقصى: ${maxQuantity} قطعة.`, 'error');
         }
     }
 }
@@ -643,9 +758,10 @@ function updateSparePartItemQuantity(index, maxQuantity) {
         const value = parseInt(input.value) || 1;
         if (value < 1) {
             input.value = 1;
+            showMessage('⚠️ الكمية يجب أن تكون على الأقل 1 قطعة', 'error');
         } else if (value > maxQuantity) {
             input.value = maxQuantity;
-            showMessage('الكمية المتاحة محدودة', 'error');
+            showMessage(`❌ الكمية المتاحة محدودة! الحد الأقصى: ${maxQuantity} قطعة.`, 'error');
         }
     }
 }
@@ -659,13 +775,13 @@ function addSparePartItemToCart(index) {
     const product = allProducts.find(p => p.id === productId && p.type === 'spare_part');
     
     if (!product) {
-        showMessage('المنتج غير موجود', 'error');
+        showMessage('❌ المنتج غير موجود في قاعدة البيانات. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
         return;
     }
     
     const itemOption = document.querySelectorAll('.spare-part-item-option')[index];
     if (!itemOption) {
-        showMessage('القطعة غير موجودة', 'error');
+        showMessage('❌ القطعة غير موجودة. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
         return;
     }
     
@@ -679,17 +795,17 @@ function addSparePartItemToCart(index) {
     // التحقق من وجود itemId (مطلوب)
     if (!itemId || itemId.trim() === '') {
         console.error('itemId is missing or empty', { itemOption, index });
-        showMessage('خطأ: معرف القطعة الفرعية غير موجود', 'error');
+        showMessage('❌ خطأ في البيانات: معرف القطعة الفرعية غير موجود. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
         return;
     }
     
     if (quantity < 1) {
-        showMessage('الكمية يجب أن تكون على الأقل 1', 'error');
+        showMessage('⚠️ الكمية يجب أن تكون على الأقل 1 قطعة', 'error');
         return;
     }
     
     if (quantity > maxQuantity) {
-        showMessage(`الكمية المتاحة: ${maxQuantity}`, 'error');
+        showMessage(`❌ الكمية المتاحة محدودة! الكمية المتوفرة: ${maxQuantity} قطعة فقط.`, 'error');
         return;
     }
     
@@ -697,7 +813,7 @@ function addSparePartItemToCart(index) {
     const sparePartItem = (product.items || []).find(item => item.id === itemId);
     if (!sparePartItem) {
         console.error('Spare part item not found in product.items', { itemId, productItems: product.items });
-        showMessage('القطعة الفرعية غير موجودة', 'error');
+        showMessage('❌ القطعة الفرعية غير موجودة في قاعدة البيانات. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
         return;
     }
     
@@ -739,7 +855,7 @@ function addSparePartItemToCart(index) {
         const availableQuantity = maxQuantity;
         
         if (newQuantity > availableQuantity) {
-            showMessage(`الكمية المتاحة: ${availableQuantity}، الموجود في السلة: ${existingItem.quantity}`, 'error');
+            showMessage(`❌ الكمية المتاحة محدودة! المتوفرة: ${availableQuantity} قطعة، الموجود في السلة: ${existingItem.quantity} قطعة.`, 'error');
             return;
         }
         
@@ -748,6 +864,7 @@ function addSparePartItemToCart(index) {
         updateCartDisplay();
         closeSparePartItemsModal();
         showMessage('تم تحديث الكمية في السلة', 'success');
+        playSuccessSound(); // تشغيل صوت النجاح
         return;
     }
     
@@ -767,7 +884,7 @@ function addSparePartItemToCart(index) {
     // التحقق النهائي من وجود spare_part_item_id
     if (!cartItem.spare_part_item_id) {
         console.error('spare_part_item_id is missing before adding to cart', cartItem);
-        showMessage('خطأ: معرف القطعة الفرعية غير موجود', 'error');
+        showMessage('❌ خطأ في البيانات: معرف القطعة الفرعية غير موجود. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
         return;
     }
     
@@ -784,22 +901,48 @@ function addSparePartItemToCart(index) {
     updateCartDisplay();
     closeSparePartItemsModal();
     showMessage('تم إضافة المنتج للسلة', 'success');
+    playSuccessSound(); // تشغيل صوت النجاح
 }
 
 // Add to Cart
-function addToCart(product) {
+// Play success sound
+function playSuccessSound() {
+    try {
+        // إنشاء صوت نجاح باستخدام Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800; // تردد عالي
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+        console.error('Error playing success sound:', error);
+    }
+}
+
+async function addToCart(product) {
     const existingItem = cart.find(item => item.id === product.id && item.type === product.type && !item.spare_part_item_id);
     
     if (existingItem) {
         // Check quantity limit
         if (product.quantity > 0 && existingItem.quantity >= product.quantity) {
-            showMessage('الكمية المتاحة محدودة', 'error');
+            const availableQty = product.quantity || 0;
+            showMessage(`❌ الكمية المتاحة محدودة! الكمية المتوفرة: ${availableQty} قطعة فقط.`, 'error');
             return;
         }
         existingItem.quantity += 1;
         existingItem.totalPrice = existingItem.quantity * existingItem.unitPrice;
     } else {
-        cart.push({
+        const cartItem = {
             id: product.id,
             name: product.name,
             type: product.type,
@@ -807,11 +950,37 @@ function addToCart(product) {
             quantity: 1,
             totalPrice: product.price,
             image: product.image
-        });
+        };
+        
+        // إضافة phone_data إذا كان المنتج من نوع phone
+        if (product.type === 'phone') {
+            // إذا كانت البيانات موجودة في product، استخدمها
+            if (product.phone_data) {
+                cartItem.phone_data = product.phone_data;
+            } else {
+                // جلب بيانات الهاتف من API
+                try {
+                    const phoneRes = await API.getPhoneById(product.id);
+                    if (phoneRes && phoneRes.success && phoneRes.data) {
+                        cartItem.phone_data = phoneRes.data;
+                        console.log('✅ تم جلب بيانات الهاتف من API:', phoneRes.data);
+                    } else {
+                        console.warn('⚠️ لم يتم جلب بيانات الهاتف من API');
+                    }
+                } catch (error) {
+                    console.error('❌ خطأ في جلب بيانات الهاتف:', error);
+                    const errorMessage = error?.message || 'خطأ غير معروف';
+                    showMessage(`⚠️ فشل جلب بيانات الهاتف: ${errorMessage}. قد لا تظهر بعض المعلومات في الفاتورة.`, 'error');
+                }
+            }
+        }
+        
+        cart.push(cartItem);
     }
     
     updateCartDisplay();
     showMessage('تم إضافة المنتج للسلة', 'success');
+    playSuccessSound(); // تشغيل صوت النجاح
 }
 
 // Remove from Cart
@@ -837,7 +1006,8 @@ function updateCartQuantity(index, change) {
         // Check if product still exists and has quantity
         const product = allProducts.find(p => p.id === item.id && p.type === item.type);
         if (product && product.quantity > 0 && newQuantity > product.quantity) {
-            showMessage('الكمية المتاحة محدودة', 'error');
+            const availableQty = product.quantity || 0;
+            showMessage(`❌ الكمية المتاحة محدودة! الكمية المتوفرة: ${availableQty} قطعة فقط.`, 'error');
             return;
         }
         
@@ -941,16 +1111,13 @@ function updateCartSummary() {
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
     
     const discountInput = document.getElementById('discountInput');
-    const taxInput = document.getElementById('taxInput');
     const discountDisplay = document.getElementById('discountDisplay');
-    const taxDisplay = document.getElementById('taxDisplay');
     const subtotalDisplay = document.getElementById('subtotal');
     const totalDisplay = document.getElementById('totalAmount');
     
     const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
-    const tax = taxInput ? parseFloat(taxInput.value) || 0 : 0;
     
-    const finalAmount = subtotal - discount + tax;
+    const finalAmount = subtotal - discount;
     
     if (subtotalDisplay) {
         subtotalDisplay.textContent = formatPrice(subtotal);
@@ -958,10 +1125,6 @@ function updateCartSummary() {
     
     if (discountDisplay) {
         discountDisplay.textContent = formatPrice(discount);
-    }
-    
-    if (taxDisplay) {
-        taxDisplay.textContent = formatPrice(tax);
     }
     
     if (totalDisplay) {
@@ -991,6 +1154,31 @@ function selectCustomerType(type) {
         }
     }
     
+    // Show/hide payment amount field (for commercial customers only)
+    const paymentAmountGroup = document.getElementById('paymentAmountGroup');
+    if (paymentAmountGroup) {
+        paymentAmountGroup.style.display = type === 'commercial' ? 'block' : 'none';
+        if (type === 'commercial') {
+            // Set default to full payment
+            const paidAmountInput = document.getElementById('paidAmountInput');
+            if (paidAmountInput) {
+                const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+                const discountInput = document.getElementById('discountInput');
+                const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+                const finalAmount = subtotal - discount;
+                paidAmountInput.value = finalAmount.toFixed(2);
+                paidAmountInput.max = finalAmount;
+                updatePaymentAmount();
+            }
+        } else {
+            // Reset for retail customers
+            const paidAmountInput = document.getElementById('paidAmountInput');
+            if (paidAmountInput) {
+                paidAmountInput.value = '';
+            }
+        }
+    }
+    
     // Load and display customers for this type
     loadCustomersForType(type);
     
@@ -1003,7 +1191,14 @@ function loadCustomersForType(type) {
     const select = document.getElementById('existingCustomerSelect');
     if (!select) return;
     
-    const customers = allCustomers.filter(c => c.customer_type === type);
+    // فلترة العملاء حسب النوع والفرع الأول فقط
+    const customers = allCustomers.filter(c => {
+        // فلترة حسب النوع
+        if (c.customer_type !== type) return false;
+        // فلترة حسب الفرع الأول فقط
+        if (firstBranchId && c.branch_id !== firstBranchId) return false;
+        return true;
+    });
     
     select.innerHTML = '<option value="">-- اختر عميل --</option>';
     customers.forEach(customer => {
@@ -1079,21 +1274,27 @@ function openPaymentModal() {
     // Update modal summary
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
     const discountInput = document.getElementById('discountInput');
-    const taxInput = document.getElementById('taxInput');
     const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
-    const tax = taxInput ? parseFloat(taxInput.value) || 0 : 0;
-    const finalAmount = subtotal - discount + tax;
+    const finalAmount = subtotal - discount;
     
     const modalSubtotal = document.getElementById('modalSubtotal');
     const modalDiscount = document.getElementById('modalDiscount');
-    const modalTax = document.getElementById('modalTax');
     const modalTotal = document.getElementById('modalTotal');
     
     if (modalSubtotal) modalSubtotal.textContent = formatPrice(subtotal);
     if (modalDiscount) modalDiscount.textContent = formatPrice(discount);
-    if (modalTax) modalTax.textContent = formatPrice(tax);
     if (modalTotal) modalTotal.textContent = formatPrice(Math.max(0, finalAmount));
     
+    // Reset payment amount for commercial customers
+    const paidAmountInput = document.getElementById('paidAmountInput');
+    if (paidAmountInput) {
+        paidAmountInput.value = '';
+        paidAmountInput.max = finalAmount;
+    }
+    updatePaymentAmount();
+    
+    // التأكد من إعادة تعيين display قبل إظهار modal
+    paymentModal.style.display = '';
     paymentModal.classList.add('active');
 }
 
@@ -1102,6 +1303,60 @@ function closePaymentModalFunc() {
     const paymentModal = document.getElementById('paymentModal');
     if (paymentModal) {
         paymentModal.classList.remove('active');
+        paymentModal.style.display = ''; // إعادة تعيين display إلى حالته الأصلية
+    }
+}
+
+// Update Payment Amount
+function updatePaymentAmount() {
+    const paidAmountInput = document.getElementById('paidAmountInput');
+    const remainingAmountDisplay = document.getElementById('remainingAmountDisplay');
+    
+    if (!paidAmountInput || !remainingAmountDisplay) return;
+    
+    const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+    const discountInput = document.getElementById('discountInput');
+    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const finalAmount = subtotal - discount;
+    
+    const paidAmount = parseFloat(paidAmountInput.value) || 0;
+    const remainingAmount = Math.max(0, finalAmount - paidAmount);
+    
+    remainingAmountDisplay.textContent = formatPrice(remainingAmount);
+    
+    // Validate paid amount
+    if (paidAmount > finalAmount) {
+        paidAmountInput.value = finalAmount.toFixed(2);
+        remainingAmountDisplay.textContent = '0.00';
+    }
+}
+
+// Set Full Payment
+function setFullPayment() {
+    const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+    const discountInput = document.getElementById('discountInput');
+    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const finalAmount = subtotal - discount;
+    
+    const paidAmountInput = document.getElementById('paidAmountInput');
+    if (paidAmountInput) {
+        paidAmountInput.value = finalAmount.toFixed(2);
+        updatePaymentAmount();
+    }
+}
+
+// Set Partial Payment (50%)
+function setPartialPayment() {
+    const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+    const discountInput = document.getElementById('discountInput');
+    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const finalAmount = subtotal - discount;
+    
+    const paidAmountInput = document.getElementById('paidAmountInput');
+    if (paidAmountInput) {
+        const partialAmount = (finalAmount * 0.5).toFixed(2);
+        paidAmountInput.value = partialAmount;
+        updatePaymentAmount();
     }
 }
 
@@ -1116,7 +1371,6 @@ async function processPayment() {
         
         const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
         const discountInput = document.getElementById('discountInput');
-        const taxInput = document.getElementById('taxInput');
         const customerNameInput = document.getElementById('customerNameInput');
         const customerPhoneInput = document.getElementById('customerPhoneInput');
         
@@ -1125,7 +1379,7 @@ async function processPayment() {
         const customerPhone = customerPhoneInput ? customerPhoneInput.value.trim() : '';
         
         if (!customerName) {
-            showMessage('اسم العميل مطلوب', 'error');
+            showMessage('❌ اسم العميل مطلوب! يرجى إدخال اسم العميل لإتمام عملية البيع.', 'error');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
@@ -1137,7 +1391,7 @@ async function processPayment() {
         }
         
         if (!customerPhone) {
-            showMessage('رقم هاتف العميل مطلوب', 'error');
+            showMessage('❌ رقم هاتف العميل مطلوب! يرجى إدخال رقم الهاتف لإتمام عملية البيع.', 'error');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
@@ -1151,7 +1405,7 @@ async function processPayment() {
         // التحقق من صحة رقم الهاتف (يجب أن يكون على الأقل 8 أرقام)
         const phoneDigits = customerPhone.replace(/\D/g, ''); // إزالة كل ما عدا الأرقام
         if (phoneDigits.length < 8) {
-            showMessage('رقم الهاتف غير صحيح (يجب أن يكون 8 أرقام على الأقل)', 'error');
+            showMessage('❌ رقم الهاتف غير صحيح! يجب أن يكون رقم الهاتف 8 أرقام على الأقل.', 'error');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
@@ -1163,8 +1417,20 @@ async function processPayment() {
         }
         
         const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
-        const tax = taxInput ? parseFloat(taxInput.value) || 0 : 0;
-        const finalAmount = subtotal - discount + tax;
+        const finalAmount = subtotal - discount;
+        
+        // Get payment amounts (for commercial customers)
+        const paidAmountInput = document.getElementById('paidAmountInput');
+        let paidAmount = finalAmount; // Default: full payment
+        let remainingAmount = 0;
+        
+        if (currentCustomerType === 'commercial' && paidAmountInput) {
+            paidAmount = parseFloat(paidAmountInput.value) || finalAmount;
+            if (paidAmount > finalAmount) {
+                paidAmount = finalAmount;
+            }
+            remainingAmount = Math.max(0, finalAmount - paidAmount);
+        }
         
         // Get shop name for commercial customers
         const shopNameInput = document.getElementById('shopNameInput');
@@ -1174,7 +1440,7 @@ async function processPayment() {
         
         // Validate shop name for commercial customers
         if (currentCustomerType === 'commercial' && !selectedCustomerId && !shopName) {
-            showMessage('اسم المحل مطلوب للعملاء التجاريين', 'error');
+            showMessage('❌ اسم المحل مطلوب للعملاء التجاريين! يرجى إدخال اسم المحل لإتمام عملية البيع.', 'error');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
@@ -1211,12 +1477,18 @@ async function processPayment() {
                 }
             } else {
                 // Create new customer
+                // جلب الفرع الأول إذا لم يكن محملاً
+                if (!firstBranchId) {
+                    await loadFirstBranchId();
+                }
+                
                 const customerData = {
                     name: customerName,
                     phone: customerPhone,
                     address: address,
                     customer_type: currentCustomerType,
-                    shop_name: currentCustomerType === 'commercial' ? shopName : null
+                    shop_name: currentCustomerType === 'commercial' ? shopName : null,
+                    branch_id: firstBranchId // ربط العميل بالفرع الأول تلقائياً
                 };
                 
                 const customerRes = await API.addCustomer(customerData);
@@ -1227,7 +1499,8 @@ async function processPayment() {
                     // تحديث selectedCustomerId
                     selectedCustomerId = customerId;
                 } else {
-                    showMessage('فشل في إنشاء العميل. يرجى المحاولة مرة أخرى', 'error');
+                    const errorMsg = customerRes?.message || 'خطأ غير معروف';
+                    showMessage(`❌ فشل في إنشاء العميل: ${errorMsg}. يرجى التحقق من البيانات والمحاولة مرة أخرى.`, 'error');
                     if (confirmBtn) {
                         confirmBtn.disabled = false;
                         confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
@@ -1239,17 +1512,7 @@ async function processPayment() {
         
         // التأكد من وجود customerId قبل المتابعة
         if (!customerId) {
-            showMessage('خطأ في ربط العميل بالفاتورة. يرجى المحاولة مرة أخرى', 'error');
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
-            }
-            return;
-        }
-        
-        // التأكد النهائي من وجود customerId قبل إرسال البيانات
-        if (!customerId) {
-            showMessage('خطأ في ربط العميل بالفاتورة. يرجى المحاولة مرة أخرى', 'error');
+            showMessage('❌ خطأ في ربط العميل بالفاتورة! يرجى التحقق من بيانات العميل والمحاولة مرة أخرى.', 'error');
             if (confirmBtn) {
                 confirmBtn.disabled = false;
                 confirmBtn.innerHTML = '<i class="bi bi-check-circle"></i> تأكيد الدفع';
@@ -1273,12 +1536,19 @@ async function processPayment() {
                     saleItem.spare_part_item_id = item.spare_part_item_id;
                 }
                 
+                // إرسال phone_data إذا كان المنتج من نوع phone وكان موجوداً
+                if (item.type === 'phone' && item.phone_data) {
+                    saleItem.phone_data = item.phone_data;
+                }
+                
                 return saleItem;
             }),
             total_amount: subtotal,
             discount: discount,
-            tax: tax,
+            tax: 0, // لا توجد ضرائب في النظام
             final_amount: Math.max(0, finalAmount),
+            paid_amount: paidAmount,
+            remaining_amount: remainingAmount,
             customer_id: customerId, // هذا إلزامي
             customer_name: customerName,
             customer_phone: customerPhone
@@ -1295,7 +1565,12 @@ async function processPayment() {
         const response = await API.request('sales.php', 'POST', saleData);
         
         if (response && response.success) {
+            // إغلاق modal الدفع أولاً (سيتم إعادة تعيين display تلقائياً)
             closePaymentModalFunc();
+            
+            // حفظ بيانات آخر عملية بيع للاستخدام في الطباعة
+            window.lastSaleData = response.data;
+            
             showInvoice(response.data);
             cart = [];
             updateCartDisplay();
@@ -1306,19 +1581,23 @@ async function processPayment() {
             
             showMessage('تم إتمام عملية البيع بنجاح', 'success');
             
-            // عرض modal التقييم إذا كان هناك customer_id
-            if (customerId && response.data && response.data.id) {
+            // عرض modal التقييم إذا كان هناك customer_id صحيح
+            if (customerId && customerId !== 'undefined' && customerId !== 'null' && String(customerId).trim() !== '' && response.data && response.data.id) {
                 setTimeout(() => {
+                    // التأكد مرة أخرى من إغلاق modal الدفع قبل عرض modal التقييم
+                    closePaymentModalFunc();
                     showRatingModal(customerId, response.data.id);
-                }, 1000); // تأخير ثانية واحدة بعد إظهار الفاتورة
+                }, 1500); // تأخير 1.5 ثانية بعد إظهار الفاتورة لضمان إغلاق modal الدفع
             }
         } else {
-            showMessage(response?.message || 'حدث خطأ في معالجة الدفع', 'error');
+            const errorMsg = response?.message || 'خطأ غير معروف';
+            showMessage(`❌ فشل إتمام عملية البيع: ${errorMsg}. يرجى التحقق من البيانات والمحاولة مرة أخرى.`, 'error');
         }
         
     } catch (error) {
         console.error('خطأ في معالجة الدفع:', error);
-        showMessage('حدث خطأ في معالجة الدفع', 'error');
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        showMessage(`❌ فشل إتمام عملية البيع: ${errorMessage}. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.`, 'error');
     } finally {
         const confirmBtn = document.getElementById('confirmPaymentBtn');
         if (confirmBtn) {
@@ -1356,10 +1635,14 @@ async function showInvoice(saleData) {
     const currency = shopSettings.currency || 'ج.م';
     const branchName = 'الهانوفيل';
     const salesPersonName = saleData.created_by_name || 'غير محدد';
-    const whatsappNumber = '01276855966';
+    const whatsappNumber = shopSettings.whatsapp_number || '01276855966';
     
     // Check if there's a phone product in the sale
     const hasPhoneProduct = (saleData.items || []).some(item => item.item_type === 'phone');
+    // Check if there's a spare part product in the sale
+    const hasSparePartProduct = (saleData.items || []).some(item => item.item_type === 'spare_part');
+    // Check if there's an accessory product in the sale
+    const hasAccessoryProduct = (saleData.items || []).some(item => item.item_type === 'accessory');
     let phoneData = null;
     
     if (hasPhoneProduct) {
@@ -1550,12 +1833,6 @@ async function showInvoice(saleData) {
             <h3>بيانات الهاتف</h3>
             <div class="phone-data-grid">
                 <div class="phone-data-item">
-                    <strong>الماركة:</strong> ${phoneData.brand || '-'}
-                </div>
-                <div class="phone-data-item">
-                    <strong>الموديل:</strong> ${phoneData.model || '-'}
-                </div>
-                <div class="phone-data-item">
                     <strong>المساحة:</strong> ${phoneData.storage || '-'}
                 </div>
                 <div class="phone-data-item">
@@ -1568,8 +1845,16 @@ async function showInvoice(saleData) {
                     <strong>حالة الضريبة:</strong> ${phoneData.tax_status === 'due' ? 'مستحقة' : 'معفاة'}
                 </div>
                 <div class="phone-data-item">
-                    <strong>السيريال نمبر (IMEI):</strong> ${phoneData.serial_number || '-'}
+                    <strong>السيريال نمبر (SN):</strong> ${phoneData.serial_number || '-'}
                 </div>
+                <div class="phone-data-item">
+                    <strong>الملحقات:</strong> ${phoneData.accessories || '-'}
+                </div>
+                ${phoneData.battery_percent !== null && phoneData.battery_percent !== undefined ? `
+                <div class="phone-data-item">
+                    <strong>نسبة البطارية:</strong> ${phoneData.battery_percent}%
+                </div>
+                ` : ''}
                 <div class="phone-data-item">
                     <strong>سجل الصيانة:</strong> ${phoneData.maintenance_history || '-'}
                 </div>
@@ -1582,24 +1867,76 @@ async function showInvoice(saleData) {
         </div>
     ` : '';
     
-    // Invoice terms based on whether there's a phone
-    const invoiceTerms = `
+    // Invoice terms based on whether there's a phone or spare part
+    let invoiceTerms = '';
+    if (hasSparePartProduct && !hasAccessoryProduct) {
+        // For spare parts only, show only one warning
+        invoiceTerms = `
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجي تجربة قطعة الغيار بشكل جيد اثناء التواجد في الفرع حيث ان الضمان مقتصر علي التجربه فقط</li>
+            </ol>
+        </div>
+    `;
+    } else if (hasSparePartProduct && hasAccessoryProduct) {
+        // For spare parts AND accessories, show all warnings including spare part warning as fourth
+        invoiceTerms = `
         <div class="invoice-terms">
             <h4>تنبيهات هامة:</h4>
             <ol>
                 <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
-                <li>لا يتم الإرجاع أو الاستبدال إلا بإبراز الفاتورة الأصلية.</li>
-                ${hasPhoneProduct ? `
-                <li>يجب مطابقة رقم الـ IMEI المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
+                <li>لا يتم الإرجاع أو الاستبدال إلا بالفاتورة الأصلية.</li>
+                <li>يرجي تجربة المنتج جيدا حيث ان ضمان الاكسسوارات مقتصر علي التجربه فقط</li>
+                <li>يرجي تجربة قطعة الغيار بشكل جيد اثناء التواجد في الفرع حيث ان الضمان مقتصر علي التجربه فقط</li>
+            </ol>
+        </div>
+    `;
+    } else if (hasAccessoryProduct && hasPhoneProduct) {
+        // For accessories AND phone, show all warnings for both
+        invoiceTerms = `
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
+                <li>لا يتم الإرجاع أو الاستبدال إلا بالفاتورة الأصلية.</li>
+                <li>يرجي تجربة المنتج جيدا حيث ان ضمان الاكسسوارات مقتصر علي التجربه فقط</li>
+                <li>يجب مطابقة رقم الـ Serial Number المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
                 <li>لا يتم استبدال أو رد الأجهزة الجديدة بعد الاستخدام أو فتح ستيكر الضمان الموجود على العلبة.</li>
-                ` : ''}
                 <li>الضمان يشمل عيوب الصناعة فقط ولا يشمل سوء الاستخدام أو الكسر أو السوائل.</li>
             </ol>
         </div>
     `;
+    } else {
+        // For other products, show standard warnings
+        const warrantyWarning = hasAccessoryProduct 
+            ? '<li>يرجي تجربة المنتج جيدا حيث ان ضمان الاكسسوارات مقتصر علي التجربه فقط</li>'
+            : '<li>الضمان يشمل عيوب الصناعة فقط ولا يشمل سوء الاستخدام أو الكسر أو السوائل.</li>';
+        
+        invoiceTerms = `
+        <div class="invoice-terms">
+            <h4>تنبيهات هامة:</h4>
+            <ol>
+                <li>يرجى الاحتفاظ بالفاتورة حيث إنها المستند الوحيد لإثبات عملية الشراء.</li>
+                <li>لا يتم الإرجاع أو الاستبدال إلا بالفاتورة الأصلية.</li>
+                ${hasPhoneProduct ? `
+                <li>يجب مطابقة رقم الـ Serial Number المدون بالفاتورة مع الجهاز عند الإرجاع أو الضمان.</li>
+                <li>لا يتم استبدال أو رد الأجهزة الجديدة بعد الاستخدام أو فتح ستيكر الضمان الموجود على العلبة.</li>
+                ` : ''}
+                ${warrantyWarning}
+            </ol>
+        </div>
+    `;
+    }
+    
+    // حفظ sale_id في متغير منفصل للاستخدام في الطباعة
+    const currentSaleId = saleData.id || saleData.sale_id || '';
+    if (currentSaleId) {
+        window.currentInvoiceSaleId = currentSaleId;
+    }
     
     const invoiceHtml = `
-        <div class="invoice-wrapper">
+        <div class="invoice-wrapper" data-sale-id="${currentSaleId}">
             <!-- Logo Section - في البداية -->
             <div class="invoice-logo-section">
                 ${logoHtml}
@@ -1672,6 +2009,12 @@ async function showInvoice(saleData) {
                     <span>المجموع الفرعي:</span>
                     <span>${formatPrice(saleData.total_amount)} ${currency}</span>
                 </div>
+                ${(saleData.paid_amount !== undefined && saleData.paid_amount !== null && parseFloat(saleData.paid_amount) > 0 && parseFloat(saleData.paid_amount) < parseFloat(saleData.final_amount)) ? `
+                    <div class="summary-row">
+                        <span>المدفوع:</span>
+                        <span>${formatPrice(saleData.paid_amount)} ${currency}</span>
+                    </div>
+                ` : ''}
                 ${saleData.discount > -1 ? `
                     <div class="summary-row">
                         <span>الخصم:</span>
@@ -1684,6 +2027,12 @@ async function showInvoice(saleData) {
                     <span>الإجمالي:</span>
                     <span>${formatPrice(saleData.final_amount)} ${currency}</span>
                 </div>
+                ${(saleData.remaining_amount !== undefined && saleData.remaining_amount !== null && parseFloat(saleData.remaining_amount) > 0) ? `
+                    <div class="summary-row">
+                        <span>المتبقي:</span>
+                        <span>${formatPrice(saleData.remaining_amount)} ${currency}</span>
+                    </div>
+                ` : ''}
             </div>
             
             <!-- Invoice Terms - البنود -->
@@ -1691,7 +2040,7 @@ async function showInvoice(saleData) {
             
             <!-- Footer -->
             <div class="invoice-footer">
-                <div>شكراً لزيارتك</div>
+                <div>شكرا لتعاملكم معنا</div>
             </div>
             
             <!-- QR Code - في نهاية الفاتورة -->
@@ -1707,10 +2056,24 @@ async function showInvoice(saleData) {
     invoiceBody.innerHTML = invoiceHtml;
     invoiceModal.classList.add('active');
     
-    // Auto-print after showing invoice
+    // Auto-print after showing invoice - انتظار تحميل جميع العناصر
+    // التأكد من أن QR code وجميع العناصر قد تم تحميلها قبل الطباعة
     setTimeout(() => {
-        printInvoice();
-    }, 500);
+        // التحقق من وجود جميع العناصر في DOM
+        const qrCodeImg = document.querySelector('.invoice-qrcode img');
+        const logoImg = document.querySelector('.invoice-logo');
+        const itemsTable = document.querySelector('.invoice-items-table');
+        
+        // إذا كانت جميع العناصر موجودة، ابدأ عملية الطباعة
+        if (qrCodeImg && itemsTable) {
+            printInvoice();
+        } else {
+            // إذا لم تكن العناصر جاهزة، انتظر قليلاً ثم حاول مرة أخرى
+            setTimeout(() => {
+                printInvoice();
+            }, 500);
+        }
+    }, 800);
 }
 
 // Close Invoice Modal
@@ -1719,30 +2082,224 @@ function closeInvoiceModalFunc() {
     if (invoiceModal) {
         invoiceModal.classList.remove('active');
     }
+    
+    // التأكد من إغلاق modal الدفع أيضاً وإعادة تعيين حالته
+    const paymentModal = document.getElementById('paymentModal');
+    if (paymentModal) {
+        paymentModal.classList.remove('active');
+        paymentModal.style.display = ''; // إعادة تعيين display إلى حالته الأصلية
+    }
+    
+    // التأكد من أن زر الدفع في الحالة الصحيحة
+    const payBtn = document.getElementById('payBtn');
+    if (payBtn && cart.length > 0) {
+        payBtn.disabled = false;
+    } else if (payBtn && cart.length === 0) {
+        payBtn.disabled = true;
+    }
 }
 
 // Print Invoice
 function printInvoice() {
-    // Ensure modal is visible for printing
+    // استخدام النظام الجديد - فتح الفاتورة من API
     const invoiceModal = document.getElementById('invoiceModal');
+    const invoiceBody = document.getElementById('invoiceBody');
+    
+    if (!invoiceModal || !invoiceBody) {
+        console.error('عناصر الفاتورة غير موجودة');
+        return;
+    }
+    
+    // محاولة جلب sale_id من البيانات المعروضة في modal
+    // الأولوية: استخدام sale_id المحفوظ في المتغير
+    let saleId = window.currentInvoiceSaleId || null;
+    
+    // إذا لم يكن موجوداً، البحث في HTML
+    if (!saleId) {
+        const saleIdMatch = invoiceBody.innerHTML.match(/data-sale-id=["']([^"']+)["']/);
+        if (saleIdMatch && saleIdMatch[1]) {
+            saleId = saleIdMatch[1];
+        }
+    }
+    
+    // إذا لم يكن موجوداً، استخدام آخر عملية بيع
+    if (!saleId) {
+        const lastSaleData = window.lastSaleData;
+        if (lastSaleData && lastSaleData.id) {
+            saleId = lastSaleData.id;
+        }
+    }
+    
+    // التأكد من أن sale_id صحيح وليس فاتورة سابقة
+    if (!saleId) {
+        console.error('لم يتم العثور على sale_id للفاتورة');
+        showMessage('خطأ: لم يتم العثور على بيانات الفاتورة', 'error');
+        return;
+    }
+    
+    // إذا كان هناك sale_id، استخدم النظام الجديد
+    if (saleId) {
+        const invoiceUrl = `api/invoice-view.php?sale_id=${encodeURIComponent(saleId)}`;
+        
+        // فتح الفاتورة في نافذة جديدة مع اسم محدد لسهولة الإغلاق
+        // استخدام نفس الاسم للنافذة لضمان إغلاق النافذة القديمة إذا كانت مفتوحة
+        const windowName = 'invoice_print_window';
+        const printWindow = window.open(invoiceUrl, windowName, 'width=800,height=600,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes');
+        
+        if (!printWindow) {
+            showMessage('يرجى السماح بالنوافذ المنبثقة لطباعة الفاتورة', 'error');
+            return;
+        }
+        
+        // حفظ مرجع النافذة للاستخدام لاحقاً
+        window.currentInvoiceWindow = printWindow;
+        
+        // التأكد من أن النافذة مفتوحة بشكل صحيح
+        try {
+            printWindow.focus();
+        } catch (e) {
+            console.debug('لا يمكن التركيز على النافذة:', e);
+        }
+        
+        // انتظار تحميل الصفحة ثم طباعتها
+        const checkLoad = setInterval(() => {
+            try {
+                if (printWindow.closed) {
+                    clearInterval(checkLoad);
+                    window.currentInvoiceWindow = null;
+                    return;
+                }
+                
+                // التحقق من تحميل الصفحة
+                if (printWindow.document && printWindow.document.readyState === 'complete') {
+                    clearInterval(checkLoad);
+                    setTimeout(() => {
+                        try {
+                            if (!printWindow.closed) {
+                                printWindow.print();
+                            }
+                        } catch (e) {
+                            console.debug('خطأ في الطباعة:', e);
+                        }
+                    }, 500);
+                }
+            } catch (e) {
+                // إذا كان هناك خطأ في الوصول للنافذة (CORS أو إغلاقها)
+                clearInterval(checkLoad);
+                console.debug('لا يمكن الوصول للنافذة:', e);
+            }
+        }, 100);
+        
+        // timeout أقصى (10 ثواني) للتأكد من عدم الانتظار إلى ما لا نهاية
+        setTimeout(() => {
+            clearInterval(checkLoad);
+        }, 10000);
+        
+        // معالجة إغلاق النافذة
+        const checkWindowClosed = setInterval(() => {
+            try {
+                if (printWindow.closed) {
+                    clearInterval(checkWindowClosed);
+                    window.currentInvoiceWindow = null;
+                }
+            } catch (e) {
+                // إذا كان هناك خطأ، النافذة مغلقة على الأرجح
+                clearInterval(checkWindowClosed);
+                window.currentInvoiceWindow = null;
+            }
+        }, 500);
+        
+        return;
+    }
+    
+    // Fallback للطريقة القديمة (إذا لم يكن sale_id متوفراً)
+    // Ensure modal is visible for printing
     if (invoiceModal) {
         invoiceModal.classList.add('active');
     }
     
     // Wait a bit for rendering and image loading, then print
     setTimeout(() => {
-        // التأكد من تحميل الصور قبل الطباعة
+        // التأكد من تحميل جميع الصور قبل الطباعة (اللوجو وQR Code)
         const logoImg = document.querySelector('.invoice-logo');
-        if (logoImg && !logoImg.complete) {
-            logoImg.onload = () => {
-                setTimeout(() => window.print(), 100);
-            };
-            logoImg.onerror = () => {
-                setTimeout(() => window.print(), 100);
-            };
-        } else {
+        const qrCodeImg = document.querySelector('.invoice-qrcode img');
+        
+        // timeout أقصى للانتظار (5 ثواني) - في حالة فشل تحميل الصور
+        const maxTimeout = setTimeout(() => {
+            console.warn('انتهت مهلة الانتظار لتحميل الصور، سيتم الطباعة الآن');
             window.print();
-        }
+        }, 5000);
+        
+        // دالة للتحقق من تحميل جميع الصور
+        const checkImagesAndPrint = () => {
+            let imagesLoaded = 0;
+            let imagesToCheck = 0;
+            let hasError = false;
+            let printCalled = false;
+            
+            // دالة مساعدة للطباعة (تضمن عدم الطباعة مرتين)
+            const doPrint = () => {
+                if (!printCalled) {
+                    printCalled = true;
+                    clearTimeout(maxTimeout);
+                    setTimeout(() => window.print(), 200);
+                }
+            };
+            
+            // التحقق من اللوجو
+            if (logoImg) {
+                imagesToCheck++;
+                if (logoImg.complete && logoImg.naturalHeight !== 0) {
+                    imagesLoaded++;
+                } else {
+                    logoImg.onload = () => {
+                        imagesLoaded++;
+                        if (imagesLoaded === imagesToCheck) {
+                            doPrint();
+                        }
+                    };
+                    logoImg.onerror = () => {
+                        hasError = true;
+                        imagesLoaded++;
+                        if (imagesLoaded === imagesToCheck) {
+                            doPrint();
+                        }
+                    };
+                }
+            }
+            
+            // التحقق من QR Code (الأهم)
+            if (qrCodeImg) {
+                imagesToCheck++;
+                if (qrCodeImg.complete && qrCodeImg.naturalHeight !== 0) {
+                    imagesLoaded++;
+                } else {
+                    qrCodeImg.onload = () => {
+                        imagesLoaded++;
+                        if (imagesLoaded === imagesToCheck) {
+                            doPrint();
+                        }
+                    };
+                    qrCodeImg.onerror = () => {
+                        hasError = true;
+                        imagesLoaded++;
+                        if (imagesLoaded === imagesToCheck) {
+                            doPrint();
+                        }
+                    };
+                }
+            }
+            
+            // إذا لم تكن هناك صور للتحقق منها، اطبع مباشرة
+            if (imagesToCheck === 0) {
+                doPrint();
+            } else if (imagesLoaded === imagesToCheck) {
+                // جميع الصور محملة بالفعل
+                doPrint();
+            }
+        };
+        
+        checkImagesAndPrint();
     }, 500);
 }
 
@@ -1793,35 +2350,139 @@ function formatDateTime12Hour(dateString) {
 
 // عرض modal التقييم بعد البيع
 function showRatingModal(customerId, saleId) {
+    // التأكد من إغلاق جميع الـ modals الأخرى أولاً
+    const paymentModal = document.getElementById('paymentModal');
+    if (paymentModal) {
+        paymentModal.classList.remove('active');
+    }
+    
+    // إزالة أي modals موجودة مسبقاً
+    const existingRatingModals = document.querySelectorAll('.modal[data-rating-modal]');
+    existingRatingModals.forEach(m => m.remove());
+    
+    // التحقق من صحة customerId و saleId
+    if (!customerId || customerId === 'undefined' || customerId === 'null' || String(customerId).trim() === '') {
+        console.warn('showRatingModal: customerId غير صحيح، سيتم تخطي عرض modal التقييم');
+        return;
+    }
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
+    modal.setAttribute('data-rating-modal', 'true');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 20000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;';
     modal.innerHTML = `
-        <div class="modal-content modal-sm">
-            <div class="modal-header">
-                <h3><i class="bi bi-star"></i> تقييم العملية</h3>
-                <button onclick="this.closest('.modal').remove()" class="btn-close">&times;</button>
+        <div class="modal-content" style="max-width: 480px; width: 90%; max-height: 90vh; background: var(--white); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: slideUp 0.4s ease; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--warning-color) 0%, #FFB74D 100%); color: var(--white); padding: 25px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: none; flex-shrink: 0;">
+                <h3 style="margin: 0; font-size: 1.5em; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <i class="bi bi-star-fill" style="font-size: 1.3em;"></i> تقييم العملية
+                </h3>
+                <button onclick="this.closest('.modal').remove()" class="btn-close" style="background: rgba(255,255,255,0.2); border: none; color: var(--white); font-size: 2em; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; line-height: 1;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='rotate(90deg)';" onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='rotate(0deg)';">&times;</button>
             </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 20px; color: var(--text-light); text-align: center;">كيف تقيم هذه العملية؟</p>
-                <div id="ratingStarsContainer" style="display: flex; justify-content: center; gap: 15px; font-size: 50px; margin: 30px 0;">
+            <div class="modal-body" style="padding: 40px 30px; text-align: center; overflow-y: auto; flex: 1; min-height: 0;">
+                <div style="margin-bottom: 10px;">
+                    <i class="bi bi-emoji-smile" style="font-size: 3em; color: var(--warning-color); margin-bottom: 15px; display: block; animation: bounce 2s infinite;"></i>
+                    <h4 style="margin: 0 0 10px 0; color: var(--text-dark); font-size: 1.3em; font-weight: 600;">
+                        كيف تقيم هذه العملية؟
+                    </h4>
+                    <p style="margin: 0; color: var(--text-light); font-size: 0.95em;">
+                        شاركنا رأيك لمساعدتنا على التحسين
+                    </p>
+                </div>
+                
+                <div id="ratingStarsContainer" style="display: flex; justify-content: center; gap: 10px; font-size: 45px; margin: 35px 0; padding: 20px 0;">
                     ${[1, 2, 3, 4, 5].map(star => `
-                        <i class="bi bi-star" 
-                           data-rating="${star}" 
-                           onclick="selectRatingStarPOS(this, ${star}, '${customerId}', '${saleId}')"
-                           style="cursor: pointer; color: var(--border-color); transition: all 0.2s;"
-                           onmouseover="highlightRatingStarsPOS(this, ${star})"
-                           onmouseout="resetRatingStarsPOS(this)"></i>
+                        <div style="position: relative; display: inline-block;">
+                            <i class="bi bi-star" 
+                               data-rating="${star}" 
+                               onclick="selectRatingStarPOS(this, ${star}, '${customerId}', '${saleId}')"
+                               style="cursor: pointer; color: var(--border-color); transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));"
+                               onmouseover="highlightRatingStarsPOS(this, ${star})"
+                               onmouseout="resetRatingStarsPOS(this)"></i>
+                        </div>
                     `).join('')}
                 </div>
-                <p style="text-align: center; color: var(--text-light); font-size: 14px;">
-                    اختر من <strong>1</strong> إلى <strong>5</strong> نجوم
-                </p>
+                
+                <div id="ratingFeedback" style="margin-top: 15px; min-height: 30px;">
+                    <p style="text-align: center; color: var(--text-light); font-size: 14px; margin: 0; transition: all 0.3s ease;">
+                        اختر من <strong style="color: var(--warning-color);">1</strong> إلى <strong style="color: var(--warning-color);">5</strong> نجوم
+                    </p>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button onclick="skipRating('${customerId}', '${saleId}')" class="btn btn-secondary">تخطي</button>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: center; padding: 20px 30px; border-top: 1px solid var(--border-color); background: var(--light-bg); flex-shrink: 0;">
+                <button onclick="skipRating('${customerId}', '${saleId}')" class="btn btn-secondary" style="background: var(--text-light); color: var(--white); border: none; padding: 12px 30px; font-weight: 600; border-radius: 10px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='#555'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 102, 102, 0.3)';" onmouseout="this.style.background='var(--text-light)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <i class="bi bi-arrow-left"></i> تخطي
+                </button>
             </div>
         </div>
+        <style>
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px) scale(0.95);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+            
+            @keyframes bounce {
+                0%, 100% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-10px);
+                }
+            }
+            
+            @keyframes starPulse {
+                0%, 100% {
+                    transform: scale(1);
+                }
+                50% {
+                    transform: scale(1.2);
+                }
+            }
+            
+            #ratingStarsContainer i[data-rating] {
+                position: relative;
+            }
+            
+            #ratingStarsContainer i[data-rating]:hover {
+                transform: scale(1.3) rotate(15deg) !important;
+            }
+            
+            #ratingStarsContainer i[data-rating].bi-star-fill {
+                animation: starPulse 0.5s ease;
+            }
+            
+            @media (max-width: 480px) {
+                .modal-content {
+                    max-width: 95% !important;
+                    margin: 20px;
+                    max-height: 85vh !important;
+                }
+                
+                #ratingStarsContainer {
+                    font-size: 35px !important;
+                    gap: 8px !important;
+                }
+                
+                .modal-body {
+                    padding: 30px 20px !important;
+                }
+            }
+        </style>
     `;
     
     document.body.appendChild(modal);
@@ -1836,50 +2497,100 @@ function showRatingModal(customerId, saleId) {
 
 // تحديد نجمة التقييم في POS
 function selectRatingStarPOS(element, rating, customerId, saleId) {
-    const container = element.parentElement;
+    const container = element.parentElement.parentElement;
     const stars = container.querySelectorAll('[data-rating]');
+    const feedbackDiv = document.getElementById('ratingFeedback');
     
-    stars.forEach((star) => {
+    // Update feedback text based on rating
+    const feedbackTexts = {
+        1: '<p style="color: var(--danger-color); font-weight: 600; margin: 0;">رديء جداً 😞</p>',
+        2: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">رديء 😐</p>',
+        3: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">متوسط 🙂</p>',
+        4: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">جيد جداً 😊</p>',
+        5: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">ممتاز 😍</p>'
+    };
+    
+    if (feedbackDiv) {
+        feedbackDiv.innerHTML = feedbackTexts[rating] || '';
+    }
+    
+    stars.forEach((star, index) => {
         const starRating = parseInt(star.dataset.rating);
         if (starRating <= rating) {
             star.className = 'bi bi-star-fill';
-            star.style.color = 'var(--warning-color)';
+            star.style.color = rating <= 2 ? 'var(--danger-color)' : rating <= 3 ? 'var(--warning-color)' : 'var(--success-color)';
+            star.style.filter = `drop-shadow(0 4px 8px ${rating <= 2 ? 'rgba(244, 67, 54, 0.4)' : rating <= 3 ? 'rgba(255, 165, 0, 0.4)' : 'rgba(76, 175, 80, 0.4)'})`;
+            star.style.transform = 'scale(1.2)';
+            
+            // Add animation delay for each star
+            setTimeout(() => {
+                star.style.transform = 'scale(1.1)';
+            }, 100 * (index + 1));
         } else {
             star.className = 'bi bi-star';
             star.style.color = 'var(--border-color)';
+            star.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
+            star.style.transform = 'scale(1)';
         }
         star.style.pointerEvents = 'none'; // منع النقر بعد الاختيار
+        star.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
     });
     
-    // حفظ التقييم
-    saveRatingPOS(customerId, saleId, rating, container);
+    // حفظ التقييم بعد تأخير بسيط للسماح بالرسوم المتحركة
+    setTimeout(() => {
+        saveRatingPOS(customerId, saleId, rating, container);
+    }, 300);
 }
 
 // تمييز النجوم عند المرور بالماوس في POS
 function highlightRatingStarsPOS(element, rating) {
-    const container = element.parentElement;
+    const container = element.parentElement.parentElement;
     const stars = container.querySelectorAll('[data-rating]');
+    const feedbackDiv = document.getElementById('ratingFeedback');
+    
+    // Show preview feedback
+    const feedbackTexts = {
+        1: '<p style="color: var(--danger-color); font-weight: 600; margin: 0;">رديء جداً 😞</p>',
+        2: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">رديء 😐</p>',
+        3: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">متوسط 🙂</p>',
+        4: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">جيد جداً 😊</p>',
+        5: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">ممتاز 😍</p>'
+    };
+    
+    if (feedbackDiv && !container.querySelector('.bi-star-fill')) {
+        feedbackDiv.innerHTML = feedbackTexts[rating] || '<p style="text-align: center; color: var(--text-light); font-size: 14px; margin: 0;">اختر من <strong style="color: var(--warning-color);">1</strong> إلى <strong style="color: var(--warning-color);">5</strong> نجوم</p>';
+    }
     
     stars.forEach((star) => {
         const starRating = parseInt(star.dataset.rating);
         if (starRating <= rating && star.className !== 'bi bi-star-fill') {
-            star.style.color = 'var(--warning-color)';
-            star.style.transform = 'scale(1.15)';
+            star.style.color = rating <= 2 ? 'var(--danger-color)' : rating <= 3 ? 'var(--warning-color)' : 'var(--success-color)';
+            star.style.transform = 'scale(1.25)';
+            star.style.filter = `drop-shadow(0 4px 8px ${rating <= 2 ? 'rgba(244, 67, 54, 0.3)' : rating <= 3 ? 'rgba(255, 165, 0, 0.3)' : 'rgba(76, 175, 80, 0.3)'})`;
         }
     });
 }
 
 // إعادة تعيين النجوم في POS
 function resetRatingStarsPOS(element) {
-    const container = element.parentElement;
+    const container = element.parentElement.parentElement;
     const stars = container.querySelectorAll('[data-rating]');
+    const feedbackDiv = document.getElementById('ratingFeedback');
+    const hasSelectedStars = container.querySelector('.bi-star-fill');
     
-    stars.forEach((star) => {
-        if (star.className !== 'bi bi-star-fill') {
-            star.style.color = 'var(--border-color)';
-            star.style.transform = 'scale(1)';
+    if (!hasSelectedStars) {
+        stars.forEach((star) => {
+            if (star.className !== 'bi bi-star-fill') {
+                star.style.color = 'var(--border-color)';
+                star.style.transform = 'scale(1)';
+                star.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
+            }
+        });
+        
+        if (feedbackDiv) {
+            feedbackDiv.innerHTML = '<p style="text-align: center; color: var(--text-light); font-size: 14px; margin: 0;">اختر من <strong style="color: var(--warning-color);">1</strong> إلى <strong style="color: var(--warning-color);">5</strong> نجوم</p>';
         }
-    });
+    }
 }
 
 // حفظ التقييم في POS
@@ -1888,16 +2599,28 @@ async function saveRatingPOS(customerId, saleId, rating, starsContainer) {
         const result = await API.saveCustomerRating(customerId, saleId, rating);
         
         if (result && result.success) {
+            // Show success animation
+            const feedbackDiv = document.getElementById('ratingFeedback');
+            if (feedbackDiv) {
+                feedbackDiv.innerHTML = '<p style="color: var(--success-color); font-weight: 600; margin: 0; animation: fadeIn 0.3s ease;"><i class="bi bi-check-circle"></i> شكراً لك! تم حفظ التقييم بنجاح</p>';
+            }
+            
             showMessage('تم حفظ التقييم بنجاح', 'success');
-            // إغلاق modal بعد ثانية
+            
+            // إغلاق modal بعد ثانية ونصف للسماح برؤية رسالة النجاح
             setTimeout(() => {
                 const modal = starsContainer.closest('.modal');
                 if (modal) {
-                    modal.remove();
+                    modal.style.opacity = '0';
+                    modal.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        modal.remove();
+                    }, 300);
                 }
-            }, 1000);
+            }, 1500);
         } else {
-            showMessage(result?.message || 'فشل حفظ التقييم', 'error');
+            const errorMsg = result?.message || 'خطأ غير معروف';
+            showMessage(`❌ فشل حفظ التقييم: ${errorMsg}.`, 'error');
             // إعادة تفعيل النجوم في حالة الخطأ
             const stars = starsContainer.querySelectorAll('[data-rating]');
             stars.forEach(star => {
@@ -1906,7 +2629,8 @@ async function saveRatingPOS(customerId, saleId, rating, starsContainer) {
         }
     } catch (error) {
         console.error('خطأ في حفظ التقييم:', error);
-        showMessage('حدث خطأ أثناء حفظ التقييم', 'error');
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        showMessage(`❌ فشل حفظ التقييم: ${errorMessage}.`, 'error');
         // إعادة تفعيل النجوم في حالة الخطأ
         const stars = starsContainer.querySelectorAll('[data-rating]');
         stars.forEach(star => {
@@ -1917,9 +2641,18 @@ async function saveRatingPOS(customerId, saleId, rating, starsContainer) {
 
 // تخطي التقييم
 function skipRating(customerId, saleId) {
-    const modal = document.querySelector('.modal');
-    if (modal && modal.querySelector('#ratingStarsContainer')) {
-        modal.remove();
+    // البحث عن modal التقييم المحدد
+    const ratingModal = document.querySelector('.modal[data-rating-modal]');
+    if (ratingModal) {
+        ratingModal.remove();
+    } else {
+        // إذا لم يتم العثور على modal محدد، البحث عن أي modal يحتوي على ratingStarsContainer
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (modal.querySelector('#ratingStarsContainer')) {
+                modal.remove();
+            }
+        });
     }
 }
 
@@ -1935,3 +2668,426 @@ window.selectRatingStarPOS = selectRatingStarPOS;
 window.highlightRatingStarsPOS = highlightRatingStarsPOS;
 window.resetRatingStarsPOS = resetRatingStarsPOS;
 window.skipRating = skipRating;
+window.updatePaymentAmount = updatePaymentAmount;
+window.setFullPayment = setFullPayment;
+window.setPartialPayment = setPartialPayment;
+
+// POS Barcode Scanner
+let posScannerOpen = false;
+let posQRCodeScannerInstance = null;
+
+// Open Barcode Scanner for POS
+async function openPOSBarcodeScanner() {
+    if (posScannerOpen) {
+        showMessage('قارئ QR Code مفتوح بالفعل', 'info');
+        return;
+    }
+    
+    const existingModal = document.getElementById('posBarcodeScannerModal');
+    if (existingModal) {
+        showMessage('قارئ QR Code مفتوح بالفعل', 'info');
+        return;
+    }
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showMessage('❌ الكاميرا غير متوفرة في هذا المتصفح. يرجى استخدام متصفح يدعم الكاميرا (Chrome, Firefox, Safari).', 'error');
+        return;
+    }
+    
+    // Load html5-qrcode library
+    if (typeof Html5Qrcode === 'undefined') {
+        if (typeof window.loadHtml5Qrcode === 'function') {
+            try {
+                await window.loadHtml5Qrcode();
+            } catch (error) {
+                console.error('Error loading html5-qrcode:', error);
+                const errorMessage = error?.message || 'خطأ غير معروف';
+                showMessage(`❌ فشل تحميل مكتبة قراءة QR Code: ${errorMessage}. يرجى التحقق من الاتصال بالإنترنت.`, 'error');
+                return;
+            }
+        } else {
+            showMessage('❌ مكتبة قراءة QR Code غير متاحة. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
+            return;
+        }
+    }
+    
+    posScannerOpen = true;
+    
+    const modal = document.createElement('div');
+    modal.id = 'posBarcodeScannerModal';
+    modal.className = 'modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 20000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 90%; max-width: 600px; width: 100%; max-height: 90vh; background: var(--white); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: modalSlideIn 0.3s ease; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: var(--white); padding: 25px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: none; flex-shrink: 0;">
+                <h2 style="margin: 0; font-size: 1.5em; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <i class="bi bi-qr-code-scan" style="font-size: 1.3em;"></i> قراءة QR Code للمنتج
+                </h2>
+                <button onclick="closePOSBarcodeScanner()" class="btn-close" style="background: rgba(255,255,255,0.2); border: none; color: var(--white); font-size: 2em; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; line-height: 1;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='rotate(90deg)';" onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='rotate(0deg)';">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 30px; text-align: center; overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch;">
+                <div id="pos-barcode-scanner-container">
+                    <div id="pos-qr-reader" style="width: 100%; min-height: 350px; border-radius: 15px; overflow: hidden; background: var(--light-bg); position: relative; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+                        <div id="pos-scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; color: var(--text-dark);">
+                            <i class="bi bi-camera" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block; animation: pulse 2s infinite;"></i>
+                            <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">جاري تحميل قارئ QR Code...</p>
+                            <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا</p>
+                        </div>
+                        <div id="pos-scanner-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;">
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; border: 3px solid var(--primary-color); border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5), 0 0 30px rgba(33, 150, 243, 0.5);"></div>
+                            <div style="position: absolute; top: calc(50% - 125px); left: calc(50% - 125px); width: 250px; height: 250px;">
+                                <div style="position: absolute; top: 0; left: 0; width: 30px; height: 30px; border-top: 4px solid var(--primary-color); border-right: 4px solid var(--primary-color); border-radius: 5px 20px 0 0;"></div>
+                                <div style="position: absolute; top: 0; right: 0; width: 30px; height: 30px; border-top: 4px solid var(--primary-color); border-left: 4px solid var(--primary-color); border-radius: 20px 5px 0 0;"></div>
+                                <div style="position: absolute; bottom: 0; left: 0; width: 30px; height: 30px; border-bottom: 4px solid var(--primary-color); border-right: 4px solid var(--primary-color); border-radius: 0 0 20px 5px;"></div>
+                                <div style="position: absolute; bottom: 0; right: 0; width: 30px; height: 30px; border-bottom: 4px solid var(--primary-color); border-left: 4px solid var(--primary-color); border-radius: 0 0 5px 20px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="pos-scanner-result" style="margin-top: 25px; display: none; animation: slideDown 0.4s ease;">
+                        <div style="padding: 25px; border-radius: 15px; background: linear-gradient(135deg, var(--success-color) 0%, #66BB6A 100%); color: var(--white); border: none; box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                                <i class="bi bi-check-circle-fill" style="font-size: 2em;"></i>
+                                <h4 style="margin: 0; font-size: 1.3em; font-weight: 700;">تم العثور على المنتج!</h4>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 12px; backdrop-filter: blur(10px);">
+                                <p id="pos-scanned-product-name" style="margin: 0; font-size: 1.1em; font-weight: 600;"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="pos-scanner-error" style="margin-top: 25px; display: none; animation: slideDown 0.4s ease;">
+                        <div style="padding: 25px; border-radius: 15px; background: linear-gradient(135deg, var(--danger-color) 0%, #e57373 100%); color: var(--white); border: none; box-shadow: 0 8px 25px rgba(244, 67, 54, 0.4);">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                                <i class="bi bi-exclamation-triangle-fill" style="font-size: 2em;"></i>
+                                <h4 style="margin: 0; font-size: 1.3em; font-weight: 700;">المنتج غير موجود</h4>
+                            </div>
+                            <p id="pos-scanner-error-message" style="margin: 0; line-height: 1.8; opacity: 0.95;"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: center; padding: 20px 30px; border-top: 1px solid var(--border-color); background: var(--light-bg); flex-shrink: 0;">
+                <button onclick="closePOSBarcodeScanner()" class="btn btn-secondary" style="background: var(--text-light); color: var(--white); border: none; padding: 12px 24px; font-weight: 600; border-radius: 10px; transition: all 0.3s ease;" onmouseover="this.style.background='#555'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--text-light)'; this.style.transform='translateY(0)';">إغلاق</button>
+            </div>
+        </div>
+        <style>
+            @keyframes modalSlideIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+            
+            @keyframes slideDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+            
+            #pos-qr-reader video {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border-radius: 15px;
+            }
+            
+            #pos-qr-reader canvas {
+                display: none;
+            }
+            
+            /* Scrollbar styling for modal body */
+            #posBarcodeScannerModal .modal-body::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            #posBarcodeScannerModal .modal-body::-webkit-scrollbar-track {
+                background: var(--light-bg);
+                border-radius: 4px;
+            }
+            
+            #posBarcodeScannerModal .modal-body::-webkit-scrollbar-thumb {
+                background: var(--border-color);
+                border-radius: 4px;
+            }
+            
+            #posBarcodeScannerModal .modal-body::-webkit-scrollbar-thumb:hover {
+                background: var(--text-light);
+            }
+            
+            /* Firefox scrollbar */
+            #posBarcodeScannerModal .modal-body {
+                scrollbar-width: thin;
+                scrollbar-color: var(--border-color) var(--light-bg);
+            }
+            
+            @media (max-width: 768px) {
+                #posBarcodeScannerModal .modal-content {
+                    max-width: 95% !important;
+                    max-height: 95vh !important;
+                    margin: 10px;
+                }
+                
+                #posBarcodeScannerModal .modal-body {
+                    padding: 20px !important;
+                }
+                
+                #posBarcodeScannerModal .modal-header {
+                    padding: 20px !important;
+                }
+                
+                #posBarcodeScannerModal .modal-header h2 {
+                    font-size: 1.2em !important;
+                }
+                
+                #posBarcodeScannerModal .modal-footer {
+                    padding: 15px 20px !important;
+                    flex-wrap: wrap;
+                }
+            }
+        </style>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    setTimeout(() => {
+        const closeBtn = modal.querySelector('.btn-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closePOSBarcodeScanner();
+            });
+        }
+        initializePOSQRCodeScanner();
+    }, 300);
+}
+
+// Initialize POS QR Code Scanner
+async function initializePOSQRCodeScanner() {
+    const qrReader = document.getElementById('pos-qr-reader');
+    const loadingDiv = document.getElementById('pos-scanner-loading');
+    const errorDiv = document.getElementById('pos-scanner-error');
+    const resultDiv = document.getElementById('pos-scanner-result');
+    
+    if (!qrReader) return;
+    
+    // Hide error and result initially
+    if (errorDiv) errorDiv.style.display = 'none';
+    if (resultDiv) resultDiv.style.display = 'none';
+    
+    // Check if Html5Qrcode is loaded
+    if (typeof Html5Qrcode === 'undefined') {
+        if (loadingDiv) {
+            loadingDiv.innerHTML = '<i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i><p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">خطأ: مكتبة QR Code غير متاحة</p>';
+        }
+        return;
+    }
+    
+    try {
+        // Create scanner instance
+        posQRCodeScannerInstance = new Html5Qrcode("pos-qr-reader");
+        
+        // Configuration for QR code scanning
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            disableFlip: false
+        };
+        
+        // Add supportedScanTypes if available (newer versions)
+        if (typeof Html5QrcodeScanType !== 'undefined') {
+            config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
+        }
+        
+        // Start scanning
+        await posQRCodeScannerInstance.start(
+            { facingMode: "environment" }, // Use back camera
+            config,
+            (decodedText, decodedResult) => {
+                // Success callback
+                handlePOSQRCodeScanned(decodedText);
+            },
+            (errorMessage) => {
+                // Error callback (ignore continuous errors while scanning)
+                // Only show errors for actual failures, not during normal scanning
+            }
+        );
+        
+        // Hide loading indicator once scanner starts
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('Error initializing QR code scanner:', error);
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        
+        if (loadingDiv) {
+            loadingDiv.innerHTML = `
+                <i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i>
+                <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">خطأ في بدء الكاميرا</p>
+                <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">${error.message || 'يرجى التحقق من أذونات الكاميرا'}</p>
+            `;
+        }
+        
+        if (errorDiv) {
+            const errorMessage = document.getElementById('pos-scanner-error-message');
+            if (errorMessage) {
+                errorMessage.textContent = error?.message || '❌ فشل في الوصول إلى الكاميرا. يرجى التحقق من الأذونات والمحاولة مرة أخرى.';
+            }
+            errorDiv.style.display = 'block';
+        }
+    }
+}
+
+// Handle scanned QR code in POS
+async function handlePOSQRCodeScanned(decodedText) {
+    // Stop scanning immediately after successful scan
+    if (posQRCodeScannerInstance) {
+        try {
+            await posQRCodeScannerInstance.stop();
+        } catch (err) {
+            // Ignore errors if scanner is already stopped or not running
+            const errorMsg = err?.message || err?.toString() || '';
+            if (!errorMsg.includes('not running') && !errorMsg.includes('not paused') && !errorMsg.includes('Cannot stop')) {
+                console.error('Error stopping scanner:', err);
+            }
+        }
+    }
+    
+    const resultDiv = document.getElementById('pos-scanner-result');
+    const errorDiv = document.getElementById('pos-scanner-error');
+    const productNameSpan = document.getElementById('pos-scanned-product-name');
+    
+    if (errorDiv) errorDiv.style.display = 'none';
+    
+    let product = null;
+    let sparePartId = null;
+    
+    // Try to parse QR code as JSON (inventory card format)
+    try {
+        const qrData = JSON.parse(decodedText);
+        if (qrData.type === 'SPARE_PART' && qrData.id) {
+            sparePartId = qrData.id;
+            // Find product by ID
+            product = allProducts.find(p => p.id === sparePartId && p.type === 'spare_part');
+        }
+    } catch (e) {
+        // If not JSON, try to find by ID directly (fallback)
+        product = allProducts.find(p => p.id === decodedText && p.type === 'spare_part');
+    }
+    
+    // If not found, try finding by barcode
+    if (!product) {
+        product = allProducts.find(p => {
+            const productBarcode = p.barcode || p.code || p.id?.toString();
+            return productBarcode && productBarcode.toString() === decodedText.toString();
+        });
+    }
+    
+    if (!product) {
+        if (errorDiv) {
+            const errorMessage = document.getElementById('pos-scanner-error-message');
+            if (errorMessage) {
+                errorMessage.textContent = `❌ المنتج غير موجود في قائمة المنتجات. يرجى التحقق من QR Code والمحاولة مرة أخرى.`;
+            }
+            errorDiv.style.display = 'block';
+        }
+        
+        // Restart scanner after 2 seconds
+        setTimeout(() => {
+            if (posQRCodeScannerInstance && typeof Html5Qrcode !== 'undefined') {
+                try {
+                    initializePOSQRCodeScanner();
+                    if (errorDiv) errorDiv.style.display = 'none';
+                } catch (e) {
+                    console.error('Error restarting scanner:', e);
+                }
+            }
+        }, 2000);
+        return;
+    }
+    
+    // Play success sound immediately when product is found
+    playSuccessSound();
+    
+    if (resultDiv && productNameSpan) {
+        productNameSpan.textContent = product.name || 'منتج';
+        resultDiv.style.display = 'block';
+    }
+    
+    setTimeout(() => {
+        closePOSBarcodeScanner();
+    }, 500);
+    
+    // Add product to cart
+    if (product.type === 'spare_part' && product.items && product.items.length > 0) {
+        openSparePartItemsModal(product);
+    } else {
+        addToCart(product); // صوت النجاح سيتم تشغيله تلقائياً في addToCart
+    }
+}
+
+// Close POS QR Code Scanner
+async function closePOSBarcodeScanner() {
+    try {
+        if (posQRCodeScannerInstance) {
+            try {
+                await posQRCodeScannerInstance.stop();
+            } catch (err) {
+                // Ignore errors if scanner is already stopped or not running
+                const errorMsg = err?.message || err?.toString() || '';
+                if (!errorMsg.includes('not running') && !errorMsg.includes('not paused') && !errorMsg.includes('Cannot stop')) {
+                    console.error('Error stopping QR scanner:', err);
+                }
+            }
+            try {
+                await posQRCodeScannerInstance.clear();
+            } catch (err) {
+                // Ignore clearing errors if scanner is already stopped
+                const errorMsg = err?.message || err?.toString() || '';
+                if (!errorMsg.includes('not running') && !errorMsg.includes('Cannot stop')) {
+                    console.error('Error clearing QR scanner:', err);
+                }
+            }
+            posQRCodeScannerInstance = null;
+        }
+    } catch (e) {
+        // Ignore general errors if scanner is already stopped
+        const errorMsg = e?.message || e?.toString() || '';
+        if (!errorMsg.includes('not running') && !errorMsg.includes('not paused') && !errorMsg.includes('Cannot stop')) {
+            console.error('Error stopping scanner:', e);
+        }
+        posQRCodeScannerInstance = null;
+    }
+    
+    const modal = document.getElementById('posBarcodeScannerModal');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+            modal.remove();
+            posQRCodeScannerInstance = null;
+        }, 300);
+    }
+    
+    posScannerOpen = false;
+}
+
+// Make functions globally available
+window.openPOSBarcodeScanner = openPOSBarcodeScanner;
+window.closePOSBarcodeScanner = closePOSBarcodeScanner;

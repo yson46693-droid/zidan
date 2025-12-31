@@ -53,7 +53,7 @@ if (!dbTableExists('users')) {
         `username` varchar(100) NOT NULL,
         `password` varchar(255) NOT NULL,
         `name` varchar(255) NOT NULL,
-        `role` enum('admin','manager','employee') NOT NULL DEFAULT 'employee',
+        `role` enum('admin','manager','employee','technician') NOT NULL,
         `webauthn_enabled` tinyint(1) DEFAULT 0,
         `created_at` datetime NOT NULL,
         `updated_at` datetime DEFAULT NULL,

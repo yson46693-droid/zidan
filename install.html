@@ -660,29 +660,49 @@
         const registerServiceWorker = async () => {
             if ('serviceWorker' in navigator) {
                 try {
-                    // تحديد المسار الأساسي تلقائياً
+                    // ✅ تحديد المسار الأساسي - Service Worker دائماً في الجذر
                     const getBasePath = () => {
                         try {
                             const pathname = window.location.pathname;
-                            const match = pathname.match(/^(\/[^\/]+)/);
-                            if (match && match[1] !== '/') {
-                                return match[1];
+                            // ✅ الحل: إذا كان المسار يحتوي على .html، نستخدم الجذر
+                            // لأن Service Worker دائماً في الجذر وليس في مجلد الصفحة
+                            if (pathname.includes('.html')) {
+                                return ''; // استخدام الجذر
                             }
-                            return '';
+                            // فقط إذا كان المسار مثل /zidan15/ نستخدمه
+                            const match = pathname.match(/^\/([^\/]+)\//);
+                            if (match && match[1] && !match[1].includes('.')) {
+                                return '/' + match[1];
+                            }
+                            return ''; // استخدام الجذر دائماً
                         } catch (e) {
-                            return '';
+                            return ''; // في حالة الخطأ، نستخدم الجذر
                         }
                     };
                     const basePath = getBasePath();
-                    const swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
                     // ✅ إصلاح: scope يجب أن ينتهي بـ / دائماً
                     const scope = basePath ? `${basePath}/` : '/';
                     
-                    const registration = await navigator.serviceWorker.register(swUrl, {
-                        scope: scope,
-                        updateViaCache: 'none'
-                    });
-                    console.log('✅ Service Worker registered in Install:', registration.scope);
+                    // ✅ محاولة استخدام sw.js.php أولاً، ثم sw.js كبديل
+                    let swUrl = basePath ? `${basePath}/sw.js.php` : '/sw.js.php';
+                    let registration;
+                    
+                    try {
+                        registration = await navigator.serviceWorker.register(swUrl, {
+                            scope: scope,
+                            updateViaCache: 'none'
+                        });
+                        console.log('✅ Service Worker registered in Install (sw.js.php):', registration.scope);
+                    } catch (phpError) {
+                        // ✅ Fallback: استخدام sw.js مباشرة
+                        console.warn('⚠️ sw.js.php failed, trying sw.js as fallback:', phpError.message);
+                        swUrl = basePath ? `${basePath}/sw.js` : '/sw.js';
+                        registration = await navigator.serviceWorker.register(swUrl, {
+                            scope: scope,
+                            updateViaCache: 'none'
+                        });
+                        console.log('✅ Service Worker registered in Install (sw.js fallback):', registration.scope);
+                    }
                 } catch (error) {
                     console.warn('Service Worker registration failed:', error.message || error);
                 }

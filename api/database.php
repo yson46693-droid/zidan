@@ -4,13 +4,14 @@
  * قم بتعديل هذه الإعدادات حسب بيئة الاستضافة الخاصة بك
  */
 
-// إعدادات قاعدة البيانات
-define('DB_HOST', 'localhost:3306');
-define('DB_USER', 'osama74');
+// إعدادات قاعدة البيانات - Live Server
 define('DB_PORT', '3306');
-define('DB_PASS', 'QEvhhbM52d1?kgt#');
-define('DB_NAME', 'zidan_db_v1');
+define('DB_NAME', '1');
+define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
+define('DB_HOST', '127.0.0.1');
+define('DB_USER', 'root');
+// define('DB_PASS', '');
 
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
 $lastDbError = null;
@@ -43,7 +44,10 @@ function getDBConnection() {
             // ملاحظة: connect_timeout يتم تعيينه عبر ini_set('default_socket_timeout') قبل الاتصال
             if (method_exists($connection, 'options')) {
                 @$connection->options(MYSQLI_OPT_READ_TIMEOUT, 10);
-                @$connection->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
+                // MYSQLI_OPT_WRITE_TIMEOUT متاح فقط في PHP 7.2.13+
+                if (defined('MYSQLI_OPT_WRITE_TIMEOUT')) {
+                    @$connection->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
+                }
             }
             
             // تعيين الترميز
@@ -84,8 +88,56 @@ function dbSelect($query, $params = []) {
     $stmt = $conn->prepare($query);
     if (!$stmt) {
         $lastDbError = $conn->error;
-        error_log('خطأ في إعداد الاستعلام: ' . $conn->error . ' | الاستعلام: ' . substr($query, 0, 200));
-        return false;
+        $error = $conn->error;
+        error_log('خطأ في إعداد الاستعلام: ' . $error . ' | الاستعلام: ' . substr($query, 0, 200));
+        
+        // ✅ إذا كان الخطأ متعلق بجدول غير موجود أو عمود مفقود، محاولة إصلاح قاعدة البيانات تلقائياً
+        if (strpos($error, "doesn't exist") !== false || 
+            strpos($error, 'Table') !== false || 
+            strpos($error, "Unknown column") !== false ||
+            strpos($error, "Unknown column") !== false) {
+            error_log("⚠️ تم اكتشاف مشكلة في قاعدة البيانات: $error - محاولة إصلاح قاعدة البيانات تلقائياً");
+            try {
+                if (file_exists(__DIR__ . '/setup.php')) {
+                    require_once __DIR__ . '/setup.php';
+                    $setupResult = setupDatabase();
+                    if ($setupResult['success']) {
+                        $messages = [];
+                        if (!empty($setupResult['tables_created'])) {
+                            $messages[] = "تم إنشاء الجداول: " . implode(', ', $setupResult['tables_created']);
+                        }
+                        if (!empty($setupResult['migrations_applied'])) {
+                            $messages[] = "تم تطبيق التحديثات: " . implode(', ', $setupResult['migrations_applied']);
+                        }
+                        if (!empty($messages)) {
+                            error_log("✅ " . implode(' | ', $messages));
+                        } else {
+                            error_log("✅ تم التحقق من قاعدة البيانات - جميع الجداول والأعمدة موجودة");
+                        }
+                        // إعادة المحاولة بعد إصلاح قاعدة البيانات
+                        $stmt = $conn->prepare($query);
+                        if (!$stmt) {
+                            error_log("❌ فشل إعداد الاستعلام بعد إصلاح قاعدة البيانات: " . $conn->error);
+                            return false;
+                        }
+                    } else {
+                        error_log("❌ فشل إصلاح قاعدة البيانات: " . ($setupResult['message'] ?? 'خطأ غير معروف'));
+                        return false;
+                    }
+                } else {
+                    error_log("❌ ملف setup.php غير موجود");
+                    return false;
+                }
+            } catch (Exception $e) {
+                error_log('❌ خطأ في إصلاح قاعدة البيانات تلقائياً: ' . $e->getMessage());
+                return false;
+            } catch (Error $e) {
+                error_log('❌ خطأ قاتل في إصلاح قاعدة البيانات تلقائياً: ' . $e->getMessage());
+                return false;
+            }
+        } else {
+            return false;
+        }
     }
     
     if (!empty($params)) {
@@ -274,7 +326,10 @@ function createDatabaseIfNotExists() {
         // تعيين timeout للقراءة والكتابة (10 ثواني)
         if (method_exists($conn, 'options')) {
             @$conn->options(MYSQLI_OPT_READ_TIMEOUT, 10);
-            @$conn->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
+            // MYSQLI_OPT_WRITE_TIMEOUT متاح فقط في PHP 7.2.13+
+            if (defined('MYSQLI_OPT_WRITE_TIMEOUT')) {
+                @$conn->options(MYSQLI_OPT_WRITE_TIMEOUT, 10);
+            }
         }
         
         $sql = "CREATE DATABASE IF NOT EXISTS " . DB_NAME . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";

@@ -5,7 +5,8 @@
  */
 
 require_once __DIR__ . '/database.php';
-require_once __DIR__ . '/config.php';
+// لا نستدعي config.php هنا لتجنب الاعتماد الدائري
+// سيتم استدعاؤه فقط عند الحاجة في نهاية الملف
 
 /**
  * إنشاء جميع الجداول تلقائياً
@@ -165,6 +166,25 @@ function setupDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
+        'treasury_transactions' => "
+            CREATE TABLE IF NOT EXISTS `treasury_transactions` (
+              `id` varchar(50) NOT NULL,
+              `branch_id` varchar(50) NOT NULL,
+              `transaction_type` enum('expense','repair_cost','repair_profit','loss_operation','sales_revenue','sales_cost','withdrawal') NOT NULL,
+              `amount` decimal(10,2) NOT NULL,
+              `description` text DEFAULT NULL,
+              `reference_id` varchar(50) DEFAULT NULL,
+              `reference_type` varchar(50) DEFAULT NULL,
+              `created_at` datetime NOT NULL,
+              `created_by` varchar(50) DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_branch_id` (`branch_id`),
+              KEY `idx_transaction_type` (`transaction_type`),
+              KEY `idx_created_at` (`created_at`),
+              KEY `idx_reference` (`reference_id`, `reference_type`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
         'loss_operations' => "
             CREATE TABLE IF NOT EXISTS `loss_operations` (
               `id` varchar(50) NOT NULL,
@@ -201,7 +221,8 @@ function setupDatabase() {
               `remaining_amount` decimal(10,2) DEFAULT 0.00,
               `delivery_date` date DEFAULT NULL,
               `device_image` text DEFAULT NULL,
-              `status` enum('pending','in_progress','ready','delivered','cancelled') NOT NULL DEFAULT 'pending',
+              `status` enum('received','under_inspection','awaiting_customer_approval','in_progress','ready_for_delivery','delivered','cancelled','lost') NOT NULL DEFAULT 'received',
+              `branch_id` varchar(50) DEFAULT NULL,
               `notes` text DEFAULT NULL,
               `created_at` datetime NOT NULL,
               `updated_at` datetime DEFAULT NULL,
@@ -212,6 +233,7 @@ function setupDatabase() {
               KEY `idx_customer_id` (`customer_id`),
               KEY `idx_status` (`status`),
               KEY `idx_created_at` (`created_at`),
+              KEY `idx_branch_id` (`branch_id`),
               CONSTRAINT `repairs_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
@@ -249,13 +271,29 @@ function setupDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
+        'branches' => "
+            CREATE TABLE IF NOT EXISTS `branches` (
+              `id` varchar(50) NOT NULL,
+              `name` varchar(255) NOT NULL,
+              `code` varchar(50) NOT NULL,
+              `has_pos` tinyint(1) DEFAULT 0,
+              `is_active` tinyint(1) DEFAULT 1,
+              `created_at` datetime NOT NULL,
+              `updated_at` datetime DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              UNIQUE KEY `code` (`code`),
+              KEY `idx_name` (`name`),
+              KEY `idx_is_active` (`is_active`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
         'users' => "
             CREATE TABLE IF NOT EXISTS `users` (
               `id` varchar(50) NOT NULL,
               `username` varchar(100) NOT NULL,
               `password` varchar(255) NOT NULL,
               `name` varchar(255) NOT NULL,
-              `role` enum('admin','manager','employee') NOT NULL DEFAULT 'employee',
+              `role` enum('admin','manager','employee','technician') NOT NULL,
               `webauthn_enabled` tinyint(1) DEFAULT 0,
               `created_at` datetime NOT NULL,
               `updated_at` datetime DEFAULT NULL,
@@ -322,6 +360,56 @@ function setupDatabase() {
               KEY `idx_item_type` (`item_type`),
               KEY `idx_item_id` (`item_id`),
               CONSTRAINT `sale_items_ibfk_1` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'product_returns' => "
+            CREATE TABLE IF NOT EXISTS `product_returns` (
+              `id` varchar(50) NOT NULL,
+              `return_number` varchar(50) NOT NULL,
+              `sale_id` varchar(50) NOT NULL,
+              `sale_number` varchar(50) NOT NULL,
+              `customer_id` varchar(50) DEFAULT NULL,
+              `customer_name` varchar(255) DEFAULT NULL,
+              `total_returned_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+              `status` enum('completed','cancelled') NOT NULL DEFAULT 'completed',
+              `notes` text DEFAULT NULL,
+              `created_at` datetime NOT NULL,
+              `created_by` varchar(50) DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              UNIQUE KEY `return_number` (`return_number`),
+              KEY `idx_sale_id` (`sale_id`),
+              KEY `idx_sale_number` (`sale_number`),
+              KEY `idx_customer_id` (`customer_id`),
+              KEY `idx_created_at` (`created_at`),
+              KEY `idx_created_by` (`created_by`),
+              CONSTRAINT `product_returns_ibfk_1` FOREIGN KEY (`sale_id`) REFERENCES `sales` (`id`) ON DELETE CASCADE,
+              CONSTRAINT `product_returns_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'product_return_items' => "
+            CREATE TABLE IF NOT EXISTS `product_return_items` (
+              `id` varchar(50) NOT NULL,
+              `return_id` varchar(50) NOT NULL,
+              `sale_item_id` varchar(50) NOT NULL,
+              `item_type` enum('spare_part','accessory','phone','inventory') NOT NULL,
+              `item_id` varchar(50) NOT NULL,
+              `item_name` varchar(255) NOT NULL,
+              `original_quantity` int(11) NOT NULL DEFAULT 1,
+              `returned_quantity` int(11) NOT NULL DEFAULT 1,
+              `unit_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+              `total_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+              `is_damaged` tinyint(1) NOT NULL DEFAULT 0,
+              `created_at` datetime NOT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_return_id` (`return_id`),
+              KEY `idx_sale_item_id` (`sale_item_id`),
+              KEY `idx_item_type` (`item_type`),
+              KEY `idx_item_id` (`item_id`),
+              KEY `idx_is_damaged` (`is_damaged`),
+              CONSTRAINT `product_return_items_ibfk_1` FOREIGN KEY (`return_id`) REFERENCES `product_returns` (`id`) ON DELETE CASCADE,
+              CONSTRAINT `product_return_items_ibfk_2` FOREIGN KEY (`sale_item_id`) REFERENCES `sale_items` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ",
         
@@ -424,6 +512,59 @@ function setupDatabase() {
               KEY `idx_is_read` (`is_read`),
               KEY `idx_created_at` (`created_at`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'salary_deductions' => "
+            CREATE TABLE IF NOT EXISTS `salary_deductions` (
+              `id` varchar(50) NOT NULL,
+              `user_id` varchar(50) NOT NULL,
+              `amount` decimal(10,2) NOT NULL,
+              `type` enum('withdrawal','deduction') NOT NULL DEFAULT 'withdrawal',
+              `description` text DEFAULT NULL,
+              `month_year` date NOT NULL,
+              `created_at` datetime NOT NULL,
+              `updated_at` datetime DEFAULT NULL,
+              `created_by` varchar(50) DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_user_id` (`user_id`),
+              KEY `idx_month_year` (`month_year`),
+              KEY `idx_type` (`type`),
+              KEY `idx_created_at` (`created_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'repair_ratings' => "
+            CREATE TABLE IF NOT EXISTS `repair_ratings` (
+              `id` varchar(50) NOT NULL,
+              `repair_id` varchar(50) DEFAULT NULL,
+              `repair_number` varchar(50) NOT NULL,
+              `repair_rating` tinyint(1) NOT NULL DEFAULT 5,
+              `technician_rating` tinyint(1) NOT NULL DEFAULT 5,
+              `comment` text DEFAULT NULL,
+              `created_at` datetime NOT NULL,
+              `updated_at` datetime DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_repair_id` (`repair_id`),
+              KEY `idx_repair_number` (`repair_number`),
+              KEY `idx_created_at` (`created_at`),
+              CONSTRAINT `repair_ratings_ibfk_1` FOREIGN KEY (`repair_id`) REFERENCES `repairs` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ",
+        
+        'technician_manual_ratings' => "
+            CREATE TABLE IF NOT EXISTS `technician_manual_ratings` (
+              `id` varchar(50) NOT NULL,
+              `technician_id` varchar(50) NOT NULL,
+              `rating` tinyint(1) NOT NULL,
+              `note` text DEFAULT NULL,
+              `created_by` varchar(50) NOT NULL,
+              `created_at` datetime NOT NULL,
+              `updated_at` datetime DEFAULT NULL,
+              PRIMARY KEY (`id`),
+              KEY `idx_technician_id` (`technician_id`),
+              KEY `idx_created_at` (`created_at`),
+              CONSTRAINT `technician_manual_ratings_ibfk_1` FOREIGN KEY (`technician_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         "
     ];
     
@@ -432,6 +573,7 @@ function setupDatabase() {
     
     // إنشاء الجداول بالترتيب الصحيح (مع مراعاة العلاقات)
     $tableOrder = [
+        'branches',
         'users',
         'customers',
         'settings',
@@ -443,16 +585,22 @@ function setupDatabase() {
         'accessories',
         'phones',
         'repairs',
+        'repair_ratings',
+        'technician_manual_ratings',
         'loss_operations',
+        'treasury_transactions',
         'sales',
         'sale_items',
+        'product_returns',
+        'product_return_items',
         'customer_ratings',
         'webauthn_credentials',
         'chat_rooms',
         'chat_participants',
         'chat_messages',
         'chat_reactions',
-        'notifications'
+        'notifications',
+        'salary_deductions'
     ];
     
     foreach ($tableOrder as $tableName) {
@@ -582,10 +730,127 @@ function applyDatabaseMigrations($conn) {
             }
         }
         $stmt->close();
+        
+        // التحقق من وجود branch_id في جدول users
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'branch_id'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkBranchId = $stmt->get_result();
+        if ($checkBranchId) {
+            $result = $checkBranchId->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `users` ADD COLUMN `branch_id` varchar(50) DEFAULT NULL AFTER `role`");
+                // إضافة فهرس للعمود
+                $conn->query("ALTER TABLE `users` ADD KEY `idx_branch_id` (`branch_id`)");
+                $migrationsApplied[] = 'users.branch_id';
+            }
+        }
+        $stmt->close();
+        
+        // التحقق من وجود avatar في جدول users
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'avatar'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkAvatar = $stmt->get_result();
+        if ($checkAvatar) {
+            $result = $checkAvatar->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `users` ADD COLUMN `avatar` text DEFAULT NULL AFTER `name`");
+                $migrationsApplied[] = 'users.avatar';
+            }
+        }
+        $stmt->close();
+        
+        // التحقق من وجود salary في جدول users
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'salary'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkSalary = $stmt->get_result();
+        if ($checkSalary) {
+            $result = $checkSalary->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `users` ADD COLUMN `salary` decimal(10,2) DEFAULT 0.00 AFTER `branch_id`");
+                $migrationsApplied[] = 'users.salary';
+            }
+        }
+        $stmt->close();
+    }
+    
+    // التحقق من وجود branch_id في جدول expenses
+    if (dbTableExists('expenses')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'expenses' AND COLUMN_NAME = 'branch_id'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkBranchId = $stmt->get_result();
+        if ($checkBranchId) {
+            $result = $checkBranchId->fetch_assoc();
+            if ($result['count'] == 0) {
+                try {
+                    $conn->query("ALTER TABLE `expenses` ADD COLUMN `branch_id` varchar(50) DEFAULT NULL AFTER `expense_date`");
+                    // إضافة فهرس للعمود
+                    $conn->query("ALTER TABLE `expenses` ADD KEY `idx_branch_id` (`branch_id`)");
+                    $migrationsApplied[] = 'expenses.branch_id';
+                    error_log("✅ تم إضافة عمود branch_id إلى جدول expenses");
+                } catch (Exception $e) {
+                    error_log("❌ خطأ في إضافة عمود expenses.branch_id: " . $e->getMessage());
+                }
+            }
+        }
+        $stmt->close();
+    }
+    
+    // التحقق من وجود battery_percent في جدول phones
+    if (dbTableExists('phones')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'phones' AND COLUMN_NAME = 'battery_percent'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkBatteryPercent = $stmt->get_result();
+        if ($checkBatteryPercent) {
+            $result = $checkBatteryPercent->fetch_assoc();
+            if ($result['count'] == 0) {
+                try {
+                    $conn->query("ALTER TABLE `phones` ADD COLUMN `battery_percent` int(11) DEFAULT NULL AFTER `battery`");
+                    $migrationsApplied[] = 'phones.battery_percent';
+                    error_log("✅ تم إضافة عمود battery_percent إلى جدول phones");
+                } catch (Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate column') === false && 
+                        strpos($e->getMessage(), 'Unknown column') === false) {
+                        error_log("❌ خطأ في إضافة عمود phones.battery_percent: " . $e->getMessage());
+                    }
+                }
+            }
+        }
+        $stmt->close();
     }
     
     // إضافة عمود notes إلى customers إذا لم يكن موجوداً
     if (dbTableExists('customers')) {
+        // دالة مساعدة لتحديد العمود المرجعي بشكل آمن
+        $getAfterColumn = function($preferredColumns, $fallback = 'phone') use ($conn, $dbname) {
+            foreach ($preferredColumns as $col) {
+                $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'customers' AND COLUMN_NAME = ?");
+                $stmt->bind_param('ss', $dbname, $col);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $row = $result->fetch_assoc();
+                $stmt->close();
+                if ($row && $row['count'] > 0) {
+                    return $col;
+                }
+            }
+            // التحقق من العمود الافتراضي
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'customers' AND COLUMN_NAME = ?");
+            $stmt->bind_param('ss', $dbname, $fallback);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $stmt->close();
+            if ($row && $row['count'] > 0) {
+                return $fallback;
+            }
+            return null; // استخدام FIRST
+        };
+        
         $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'notes'");
         $stmt->bind_param('s', $dbname);
         $stmt->execute();
@@ -593,8 +858,68 @@ function applyDatabaseMigrations($conn) {
         if ($checkNotes) {
             $result = $checkNotes->fetch_assoc();
             if ($result['count'] == 0) {
-                $conn->query("ALTER TABLE `customers` ADD COLUMN `notes` text DEFAULT NULL AFTER `shop_name`");
-                $migrationsApplied[] = 'customers.notes';
+                $afterCol = $getAfterColumn(['shop_name', 'customer_type', 'phone'], 'address');
+                $sql = $afterCol ? 
+                    "ALTER TABLE `customers` ADD COLUMN `notes` text DEFAULT NULL AFTER `{$afterCol}`" :
+                    "ALTER TABLE `customers` ADD COLUMN `notes` text DEFAULT NULL FIRST";
+                try {
+                    $conn->query($sql);
+                    $migrationsApplied[] = 'customers.notes';
+                } catch (Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate column') === false && 
+                        strpos($e->getMessage(), 'Unknown column') === false) {
+                        error_log("خطأ في إضافة عمود customers.notes: " . $e->getMessage());
+                    }
+                }
+            }
+        }
+        $stmt->close();
+        
+        // التحقق من وجود branch_id في جدول customers
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'branch_id'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkBranchId = $stmt->get_result();
+        if ($checkBranchId) {
+            $result = $checkBranchId->fetch_assoc();
+            if ($result['count'] == 0) {
+                $afterCol = $getAfterColumn(['shop_name', 'customer_type', 'phone'], 'address');
+                $sql = $afterCol ? 
+                    "ALTER TABLE `customers` ADD COLUMN `branch_id` varchar(50) DEFAULT NULL AFTER `{$afterCol}`" :
+                    "ALTER TABLE `customers` ADD COLUMN `branch_id` varchar(50) DEFAULT NULL FIRST";
+                try {
+                    $conn->query($sql);
+                    // إضافة فهرس للعمود
+                    try {
+                        $conn->query("ALTER TABLE `customers` ADD KEY `idx_branch_id` (`branch_id`)");
+                    } catch (Exception $e) {
+                        // الفهرس موجود بالفعل
+                    }
+                    $migrationsApplied[] = 'customers.branch_id';
+                } catch (Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate column') === false && 
+                        strpos($e->getMessage(), 'Unknown column') === false) {
+                        error_log("خطأ في إضافة عمود customers.branch_id: " . $e->getMessage());
+                    }
+                }
+            }
+        }
+        $stmt->close();
+    }
+    
+    // التحقق من وجود branch_id في جدول repairs
+    if (dbTableExists('repairs')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'repairs' AND COLUMN_NAME = 'branch_id'");
+        $stmt->bind_param('s', $dbname);
+        $stmt->execute();
+        $checkBranchId = $stmt->get_result();
+        if ($checkBranchId) {
+            $result = $checkBranchId->fetch_assoc();
+            if ($result['count'] == 0) {
+                $conn->query("ALTER TABLE `repairs` ADD COLUMN `branch_id` varchar(50) DEFAULT NULL AFTER `status`");
+                // إضافة فهرس للعمود
+                $conn->query("ALTER TABLE `repairs` ADD KEY `idx_branch_id` (`branch_id`)");
+                $migrationsApplied[] = 'repairs.branch_id';
             }
         }
         $stmt->close();
@@ -642,6 +967,49 @@ function insertDefaultData($conn) {
         }
     }
     
+    // التحقق من وجود جدول branches وإضافة الفروع الافتراضية
+    if (dbTableExists('branches')) {
+        try {
+            // إضافة فرع الهانوفيل
+            $checkHanovil = dbSelectOne("SELECT id FROM branches WHERE code = ? LIMIT 1", ['HANOVIL']);
+            if ($checkHanovil === false || $checkHanovil === null) {
+                $hanovilId = uniqid('branch_', true);
+                $result = dbExecute(
+                    "INSERT INTO branches (id, name, code, has_pos, is_active, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                    [$hanovilId, 'الهانوفيل', 'HANOVIL', 1, 1]
+                );
+                if ($result === false) {
+                    error_log('خطأ في إضافة فرع الهانوفيل');
+                } else {
+                    error_log('✅ تم إضافة فرع الهانوفيل بنجاح');
+                }
+            } else {
+                error_log('ℹ️ فرع الهانوفيل موجود بالفعل');
+            }
+            
+            // إضافة فرع البيطاش
+            $checkBitash = dbSelectOne("SELECT id FROM branches WHERE code = ? LIMIT 1", ['BITASH']);
+            if ($checkBitash === false || $checkBitash === null) {
+                $bitashId = uniqid('branch_', true);
+                $result = dbExecute(
+                    "INSERT INTO branches (id, name, code, has_pos, is_active, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                    [$bitashId, 'البيطاش', 'BITASH', 1, 1]
+                );
+                if ($result === false) {
+                    error_log('خطأ في إضافة فرع البيطاش');
+                } else {
+                    error_log('✅ تم إضافة فرع البيطاش بنجاح');
+                }
+            } else {
+                error_log('ℹ️ فرع البيطاش موجود بالفعل');
+            }
+        } catch (Exception $e) {
+            error_log('خطأ في إضافة الفروع الافتراضية: ' . $e->getMessage());
+        }
+    } else {
+        error_log('⚠️ جدول branches غير موجود - سيتم إنشاؤه لاحقاً');
+    }
+    
     // التحقق من وجود جدول users
     if (dbTableExists('users')) {
         $check = $conn->query("SELECT id FROM users WHERE username = '1' LIMIT 1");
@@ -655,12 +1023,61 @@ function insertDefaultData($conn) {
 }
 
 /**
- * التحقق من إعداد قاعدة البيانات (للاستدعاء من API)
+ * التحقق من إعداد قاعدة البيانات (للاستدعاء من API أو فتح الملف مباشرة)
+ * ✅ إصلاح: التحقق من أن الملف تم فتحه مباشرة وليس من ملف آخر
  */
-if (php_sapi_name() !== 'cli' && isset($_GET['action']) && $_GET['action'] === 'setup') {
-    $result = setupDatabase();
-    response($result['success'], $result['message'], $result);
-    exit;
+if (php_sapi_name() !== 'cli') {
+    // ✅ التحقق من أن الملف تم فتحه مباشرة (basename من SCRIPT_NAME)
+    $scriptName = basename($_SERVER['SCRIPT_NAME'] ?? '');
+    $isDirectAccess = ($scriptName === 'setup.php');
+    
+    // إذا تم فتح الملف مباشرة أو مع ?action=setup
+    if ($isDirectAccess && (!isset($_GET['action']) || $_GET['action'] === 'setup')) {
+        // تعيين علامة لتجنب الاعتماد الدائري مع config.php
+        if (!defined('SETUP_RUNNING')) {
+            define('SETUP_RUNNING', true);
+        }
+        
+        // تفعيل عرض الأخطاء للتصحيح
+        error_reporting(E_ALL);
+        ini_set('display_errors', 0); // لا نعرض الأخطاء مباشرة، سنعرضها في JSON
+        ini_set('log_errors', 1);
+        
+        try {
+            $result = setupDatabase();
+            
+            // إرجاع النتيجة كـ JSON
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'tables_created' => $result['tables_created'] ?? [],
+                'migrations_applied' => $result['migrations_applied'] ?? [],
+                'errors' => $result['errors'] ?? []
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } catch (Exception $e) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'خطأ في إعداد قاعدة البيانات: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } catch (Error $e) {
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'خطأ قاتل في إعداد قاعدة البيانات: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        }
+        exit;
+    }
 }
 
 ?>
