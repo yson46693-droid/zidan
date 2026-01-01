@@ -26,6 +26,10 @@
     # ✅ CRITICAL: السماح بـ sw.js.php بالمرور مباشرة إلى PHP بدون إعادة توجيه
     RewriteCond %{REQUEST_URI} sw\.js\.php$ [NC]
     RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L]
+    
+    # ✅ السماح بجميع الطلبات إلى مجلد api/ - يجب أن يكون بعد sw.js
+    RewriteCond %{REQUEST_URI} ^/?api/ [NC]
+    RewriteRule ^ - [L]
 </IfModule>
 
 # ✅ قاعدة خاصة لـ sw.js.php - ضمان عدم إعادة التوجيه
@@ -238,25 +242,6 @@ AddDefaultCharset UTF-8
 
 # منع عرض محتويات المجلدات
 Options -Indexes
-
-# ✅ إعدادات خاصة لـ Service Worker - يجب أن تكون قبل أي قواعد Rewrite
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    
-    # ✅ السماح بـ sw.js مباشرة - لا إعادة توجيه أو معالجة
-    # (تم نقل هذه القاعدة إلى البداية - أعلاه)
-    # هذه القاعدة هنا كنسخة احتياطية
-    RewriteCond %{REQUEST_URI} sw\.js$ [NC]
-    RewriteRule ^(.*)$ - [L,T=application/javascript]
-    
-    # ✅ السماح بـ manifest.json مباشرة
-    RewriteCond %{REQUEST_URI} manifest\.json$ [NC]
-    RewriteRule ^(.*)$ - [L]
-    
-    # ✅ السماح بجميع الطلبات إلى مجلد api/ - قواعد بسيطة ومتوافقة مع Shared Hosting
-    RewriteCond %{REQUEST_URI} ^/?api/ [NC]
-    RewriteRule ^ - [L]
-</IfModule>
 
 # ============================================
 # ✅ قواعد API - محسّنة لـ Shared Hosting
