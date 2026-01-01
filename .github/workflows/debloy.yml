@@ -20,16 +20,14 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: 213.239.220.209
-          username: osama74
-          password: Jzsta059%!NVteng
+          username: zidan
+          password: 5?snq146Y
 
           protocol: ftp
           port: 21
           security: loose
           timeout: 120000
           log-level: standard
-
-          server-dir: /httpdocs/z/
 
 
           # مهم: لا يحذف ملفات السيرفر 
