@@ -162,6 +162,22 @@ if (file_exists(__DIR__ . '/init-database.php')) {
 
 // إعدادات الجلسة (قبل بدء الجلسة)
 if (session_status() === PHP_SESSION_NONE) {
+    // ✅ حل مشكلة open_basedir restriction في Shared Hosting
+    // تحديد مسار حفظ الجلسات إلى /tmp (مسموح في open_basedir)
+    $sessionPath = '/tmp';
+    if (is_dir($sessionPath) && is_writable($sessionPath)) {
+        ini_set('session.save_path', $sessionPath);
+    } else {
+        // بديل: استخدام مجلد داخل الموقع (إذا كان /tmp لا يعمل)
+        $alternativePath = __DIR__ . '/../sessions';
+        if (!is_dir($alternativePath)) {
+            @mkdir($alternativePath, 0755, true);
+        }
+        if (is_dir($alternativePath) && is_writable($alternativePath)) {
+            ini_set('session.save_path', $alternativePath);
+        }
+    }
+    
     // تكوين ملفات تعريف الارتباط للجلسة للعمل مع CORS
     $cookieParams = session_get_cookie_params();
     
