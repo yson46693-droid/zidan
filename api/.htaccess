@@ -1,12 +1,18 @@
 # ============================================
-# إعدادات مجلد API - نسخة محسّنة لجميع الملفات
+# إعدادات مجلد API - محسّنة لـ LiteSpeed/Shared Hosting
 # ============================================
+
+# ✅ قواعد LiteSpeed - يجب أن تكون في البداية
+<IfModule LiteSpeed>
+    Require all granted
+    Options +FollowSymLinks
+</IfModule>
 
 # تفعيل PHP
 AddType application/x-httpd-php .php
 AddHandler application/x-httpd-php .php
 
-# السماح بجميع الطلبات في هذا المجلد (يجب أن يكون أولاً)
+# السماح بجميع الطلبات في هذا المجلد
 <IfModule mod_authz_core.c>
     Require all granted
 </IfModule>
@@ -15,7 +21,7 @@ AddHandler application/x-httpd-php .php
     Allow from all
 </IfModule>
 
-# قاعدة عامة: السماح بجميع ملفات PHP في هذا المجلد
+# قاعدة عامة: السماح بجميع ملفات PHP
 <FilesMatch "\.php$">
     <IfModule mod_authz_core.c>
         Require all granted
@@ -26,7 +32,7 @@ AddHandler application/x-httpd-php .php
     </IfModule>
 </FilesMatch>
 
-# قاعدة خاصة لـ auth.php - السماح بجميع الطلبات
+# قاعدة خاصة لـ auth.php
 <Files "auth.php">
     <IfModule mod_authz_core.c>
         Require all granted
@@ -35,47 +41,42 @@ AddHandler application/x-httpd-php .php
         Order allow,deny
         Allow from all
     </IfModule>
-    Options +FollowSymLinks
 </Files>
 
-# السماح بتنفيذ PHP في جميع الملفات
+# السماح بتنفيذ PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# منع عرض محتويات المجلد (الأمان)
+# منع عرض محتويات المجلد
 Options -Indexes
-
-# السماح بـ FollowSymLinks
 Options +FollowSymLinks
 
-# السماح بجميع طرق HTTP (GET, POST, PUT, DELETE, OPTIONS, PATCH)
+# ✅ قواعد خاصة لـ LiteSpeed Web Server
+<IfModule LiteSpeed>
+    Require all granted
+    <FilesMatch "\.php$">
+        SetHandler lsapi
+        Require all granted
+    </FilesMatch>
+    Options +FollowSymLinks
+    Options -Indexes
+</IfModule>
+
+# السماح بجميع طرق HTTP
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
-    # السماح بجميع طرق HTTP - يجب أن يكون قبل أي قواعد أخرى
     RewriteCond %{REQUEST_METHOD} ^(GET|POST|PUT|DELETE|OPTIONS|PATCH|HEAD)$
     RewriteRule ^ - [L]
-    
-    # معالجة طلبات OPTIONS (preflight)
     RewriteCond %{REQUEST_METHOD} OPTIONS
     RewriteRule ^ - [R=200,L]
 </IfModule>
 
-# ✅ CORS Headers - محسّنة لـ Shared Hosting
+# CORS Headers
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
     Header set Access-Control-Allow-Credentials "true"
     Header set Access-Control-Max-Age "3600"
-</IfModule>
-
-# ✅ قواعد خاصة لـ LiteSpeed Web Server
-<IfModule LiteSpeed>
-    <FilesMatch "\.php$">
-        SetHandler lsapi
-        Require all granted
-    </FilesMatch>
-    Options +FollowSymLinks
 </IfModule>

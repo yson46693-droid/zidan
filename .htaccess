@@ -261,27 +261,8 @@ Options -Indexes
 # ============================================
 # ✅ قواعد API - محسّنة لـ Shared Hosting
 # ============================================
-
-# ✅ السماح بجميع ملفات PHP في مجلد api/ (بدون DirectoryMatch الذي لا يعمل في shared hosting)
-<FilesMatch "^api/.*\.php$">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-</FilesMatch>
-
-# ✅ CORS Headers لملفات API
-<IfModule mod_headers.c>
-    <FilesMatch "^api/.*\.php$">
-        Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
-        Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
-        Header set Access-Control-Allow-Credentials "true"
-    </FilesMatch>
-</IfModule>
+# ملاحظة: قواعد الوصول إلى API موجودة في api/.htaccess
+# هنا نستخدم فقط Rewrite rules للسماح بالمرور إلى مجلد api/
 
 # معالجة الأخطاء - عدم إعادة توجيه ملفات JS و JSON إلى HTML
 # ErrorDocument 404 /index.html (تم التعليق لمنع مشاكل Service Worker)
