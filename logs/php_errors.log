@@ -1,2 +1,44 @@
 [31-Dec-2025 17:41:47 Africa/Cairo] 🔐 Auth Request: {"method":"GET","origin":"none","host":"localhost:8000","ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/143.0.0.0 Safari\/537.36","https":"not_set","request_uri":"\/api\/auth.php","content_type":"not_set"}
 [31-Dec-2025 17:41:47 Africa/Cairo] 🔐 Auth Request: {"method":"GET","origin":"none","host":"localhost:8000","ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Cursor\/2.3.15 Chrome\/138.0.7204.251 Electron\/37.7.0 Safari\/537.36","https":"not_set","request_uri":"\/api\/auth.php","content_type":"application\/json"}
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔐 Auth Request: {"method":"GET","origin":"none","host":"localhost:8000","ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/143.0.0.0 Safari\/537.36","https":"not_set","request_uri":"\/api\/auth.php","content_type":"not_set"}
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔐 Auth Request: {"method":"GET","origin":"none","host":"localhost:8000","ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/143.0.0.0 Safari\/537.36","https":"not_set","request_uri":"\/api\/auth.php","content_type":"not_set"}
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
+[31-Dec-2025 17:52:14 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي عمليات الفرع branch_694e1f2e92b0c2.18292723: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع branch_694e1f2e92b0c2.18292723: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] لا توجد عمليات مسلمة (delivered) للفرع branch_694e1f2e92b0c2.18292723
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة (2025-12-01 - 2025-12-31): 0 عمليات، إجمالي الربح: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ [Branch Treasury] أرباح عمليات الصيانة للفرع branch_694e1f2e92b0c2.18292723: 0 (من 2025-12-01 إلى 2025-12-31) - عدد العمليات: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي عمليات الفرع branch_694e1f2e92b0c2.18292723: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع branch_694e1f2e92b0c2.18292723: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] لا توجد عمليات مسلمة (delivered) للفرع branch_694e1f2e92b0c2.18292723
+[31-Dec-2025 17:52:14 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة (2025-12-01 - 2025-12-31): 0 عمليات، إجمالي الربح: 0
+[31-Dec-2025 17:52:14 Africa/Cairo] ✅ [Branch Treasury] أرباح عمليات الصيانة للفرع branch_694e1f2e92b0c2.18292723: 0 (من 2025-12-01 إلى 2025-12-31) - عدد العمليات: 0
+[31-Dec-2025 17:52:15 Africa/Cairo] ✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم
+[31-Dec-2025 17:52:15 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: 0
+[31-Dec-2025 17:52:15 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي عمليات الفرع branch_694e1f2e92b0c2.18292723: 0
+[31-Dec-2025 17:52:15 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: 0
+[31-Dec-2025 17:52:15 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع branch_694e1f2e92b0c2.18292723: 0
+[31-Dec-2025 17:52:15 Africa/Cairo] 🔍 [Branch Treasury Debug] لا توجد عمليات مسلمة (delivered) للفرع branch_694e1f2e92b0c2.18292723
+[31-Dec-2025 17:52:15 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة (2025-12-01 - 2025-12-31): 0 عمليات، إجمالي الربح: 0
+[31-Dec-2025 17:52:15 Africa/Cairo] ✅ [Branch Treasury] أرباح عمليات الصيانة للفرع branch_694e1f2e92b0c2.18292723: 0 (من 2025-12-01 إلى 2025-12-31) - عدد العمليات: 0
+[31-Dec-2025 17:52:27 Africa/Cairo] 🔐 Auth Request: {"method":"GET","origin":"none","host":"localhost:8000","ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/143.0.0.0 Safari\/537.36","https":"not_set","request_uri":"\/api\/auth.php","content_type":"not_set"}
+[31-Dec-2025 18:18:47 Africa/Cairo] 🔐 Auth Request: {"method":"POST","origin":"http:\/\/localhost:3000","host":"localhost:8000","ip":"::1","user_agent":"Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Cursor\/2.3.15 Chrome\/138.0.7204.251 Electron\/37.7.0 Safari\/537.36","https":"not_set","request_uri":"\/api\/auth.php","content_type":"application\/json"}
+[31-Dec-2025 18:18:47 Africa/Cairo] تسجيل الدخول - اسم المستخدم: 
+[31-Dec-2025 18:18:47 Africa/Cairo] خطأ: اسم المستخدم أو كلمة المرور فارغة

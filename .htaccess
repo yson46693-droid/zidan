@@ -253,82 +253,33 @@ Options -Indexes
     RewriteCond %{REQUEST_URI} manifest\.json$ [NC]
     RewriteRule ^(.*)$ - [L]
     
-    # السماح بجميع الطلبات إلى مجلد api/ (بما في ذلك POST)
-    RewriteCond %{REQUEST_URI} ^/.*api/.*$
-    RewriteRule ^(.*)$ - [L]
-    
-    # السماح بشكل صريح بطلبات POST إلى API
-    RewriteCond %{REQUEST_METHOD} ^(POST|PUT|DELETE|OPTIONS|PATCH)$
-    RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
-    RewriteRule ^(.*)$ - [L]
+    # ✅ السماح بجميع الطلبات إلى مجلد api/ - قواعد بسيطة ومتوافقة مع Shared Hosting
+    RewriteCond %{REQUEST_URI} ^/?api/ [NC]
+    RewriteRule ^ - [L]
 </IfModule>
 
-# قواعد خاصة لـ LiteSpeed Web Server - السماح بالوصول إلى API
-<IfModule LiteSpeed>
-    <DirectoryMatch "^/.*api/">
-        Options +ExecCGI
-        Options +FollowSymLinks
-        AllowOverride All
+# ============================================
+# ✅ قواعد API - محسّنة لـ Shared Hosting
+# ============================================
+
+# ✅ السماح بجميع ملفات PHP في مجلد api/ (بدون DirectoryMatch الذي لا يعمل في shared hosting)
+<FilesMatch "^api/.*\.php$">
+    <IfModule mod_authz_core.c>
         Require all granted
-    </DirectoryMatch>
-    # السماح بتنفيذ PHP في مجلد api
-    <FilesMatch "^api/.*\.php$">
-        SetHandler lsapi
-        Require all granted
-    </FilesMatch>
-    # السماح بملفات PHP في مسارات API الفرعية (مثل /z/api/auth.php)
-    <FilesMatch "^.*api/.*\.php$">
-        SetHandler lsapi
-        Require all granted
-    </FilesMatch>
-    # قاعدة خاصة لملف auth.php و test-auth.php في أي مسار
-    <FilesMatch "^.*api/(auth|test-auth)\.php$">
-        SetHandler lsapi
-        Require all granted
-    </FilesMatch>
-    # السماح بطلبات POST بشكل صريح
-    <IfModule mod_rewrite.c>
-        RewriteEngine On
-        # السماح بطلبات POST إلى API
-        RewriteCond %{REQUEST_METHOD} POST
-        RewriteCond %{REQUEST_URI} ^/.*api/.*\.php$
-        RewriteRule ^(.*)$ - [L,E=no-gzip:1]
     </IfModule>
-</IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
 
-# قواعد Apache للسماح بالوصول إلى API من أي مجلد فرعي
-<IfModule mod_authz_core.c>
-    <DirectoryMatch "^/.*api/">
-        Require all granted
-        Options +ExecCGI
-        Options +FollowSymLinks
-    </DirectoryMatch>
-    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
-    <FilesMatch "^.*api/.*\.php$">
-        Require all granted
-    </FilesMatch>
-    # السماح بشكل خاص بملف auth.php و test-auth.php
-    <FilesMatch "^.*api/(auth|test-auth)\.php$">
-        Require all granted
-    </FilesMatch>
-</IfModule>
-
-<IfModule !mod_authz_core.c>
-    <DirectoryMatch "^/.*api/">
-        Order allow,deny
-        Allow from all
-        Options +ExecCGI
-        Options +FollowSymLinks
-    </DirectoryMatch>
-    # السماح بملفات PHP في مجلد API (بما في ذلك POST)
-    <FilesMatch "^.*api/.*\.php$">
-        Order allow,deny
-        Allow from all
-    </FilesMatch>
-    # السماح بشكل خاص بملف auth.php
-    <FilesMatch "^.*api/auth\.php$">
-        Order allow,deny
-        Allow from all
+# ✅ CORS Headers لملفات API
+<IfModule mod_headers.c>
+    <FilesMatch "^api/.*\.php$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+        Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override"
+        Header set Access-Control-Allow-Credentials "true"
     </FilesMatch>
 </IfModule>
 

@@ -19,24 +19,14 @@ date_default_timezone_set('Africa/Cairo');
 // تحسين CORS للاستضافات المجانية
 // السماح بالأصل المحدد في الطلب (للسماح بملفات تعريف الارتباط)
 $allowedOrigins = [
-    'https://alaa-zidan.free.nf',
-    'http://alaa-zidan.free.nf',
-    'https://www.alaa-zidan.free.nf',
-    'http://www.alaa-zidan.free.nf',
-    'https://my-store.free.nf',
-    'http://my-store.free.nf',
-    'https://www.my-store.free.nf',
-    'http://www.my-store.free.nf',
     'https://www.egsystem.top',
     'http://www.egsystem.top',
     'https://egsystem.top',
     'http://egsystem.top',
-    // ✅ إضافة الدومين الجديد zidan.egsystem.top
     'https://zidan.egsystem.top',
     'http://zidan.egsystem.top',
     'https://www.zidan.egsystem.top',
     'http://www.zidan.egsystem.top',
-    // إضافة localhost للاختبار المحلي
     'http://localhost',
     'https://localhost',
     'http://127.0.0.1',
@@ -402,7 +392,7 @@ function checkAuth() {
 // التحقق من الصلاحيات
 function checkPermission($requiredRole) {
     $session = checkAuth();
-    $roles = ['admin' => 3, 'manager' => 2, 'employee' => 1];
+    $roles = ['admin' => 3, 'manager' => 2, 'technician' => 1.5, 'employee' => 1];
     
     $userRole = $session['role'];
     if ($roles[$userRole] < $roles[$requiredRole]) {
@@ -489,7 +479,7 @@ function initializeSystem() {
         error_log('خطأ في تهيئة النظام: ' . $e->getMessage() . ' في ' . $e->getFile() . ' على السطر ' . $e->getLine());
     } catch (Error $e) {
         // معالجة الأخطاء القاتلة (PHP 7+)
-        error_log('خطأ قاتل في تهيئة النظام: ' . $e->getMessage() . ' في ' . $e->getFile() . ' على السطر ' . $e->getLine());
+        error_log('خطأ  في تهيئة النظام: ' . $e->getMessage() . ' في ' . $e->getFile() . ' على السطر ' . $e->getLine());
     }
 }
 
@@ -515,7 +505,7 @@ if (!isset($_SESSION['system_initialized'])) {
         error_log('خطأ في تهيئة النظام: ' . $e->getMessage());
         // لا نوقف التنفيذ، فقط نسجل الخطأ
     } catch (Error $e) {
-        error_log('خطأ قاتل في تهيئة النظام: ' . $e->getMessage());
+        error_log('خطأ  في تهيئة النظام: ' . $e->getMessage());
         // لا نوقف التنفيذ، فقط نسجل الخطأ
     }
 }
