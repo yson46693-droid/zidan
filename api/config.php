@@ -164,17 +164,38 @@ if (file_exists(__DIR__ . '/init-database.php')) {
 if (session_status() === PHP_SESSION_NONE) {
     // ✅ حل مشكلة open_basedir restriction في Shared Hosting
     // تحديد مسار حفظ الجلسات إلى /tmp (مسموح في open_basedir)
+    // يجب تعيين هذا قبل أي محاولة لاستخدام الجلسات
+    
+    // ✅ تعطيل wsdlcache لتجنب مشكلة open_basedir
+    // wsdlcache يحاول الوصول إلى /var/lib/php/wsdlcache (غير مسموح)
+    ini_set('soap.wsdl_cache_enabled', '0');
+    ini_set('soap.wsdl_cache_dir', '/tmp');
+    ini_set('soap.wsdl_cache_ttl', '0');
+    ini_set('soap.wsdl_cache_limit', '0');
+    
+    // محاولة استخدام /tmp أولاً (مسموح في open_basedir)
     $sessionPath = '/tmp';
     if (is_dir($sessionPath) && is_writable($sessionPath)) {
         ini_set('session.save_path', $sessionPath);
+        error_log("✅ تم تعيين session.save_path إلى: " . $sessionPath);
     } else {
-        // بديل: استخدام مجلد داخل الموقع (إذا كان /tmp لا يعمل)
+        // بديل: استخدام مجلد داخل الموقع (ضمن WEBSPACEROOT)
         $alternativePath = __DIR__ . '/../sessions';
         if (!is_dir($alternativePath)) {
             @mkdir($alternativePath, 0755, true);
         }
         if (is_dir($alternativePath) && is_writable($alternativePath)) {
             ini_set('session.save_path', $alternativePath);
+            error_log("✅ تم تعيين session.save_path إلى: " . $alternativePath);
+        } else {
+            // إذا فشل كل شيء، استخدام المسار الحالي للمجلد المؤقت
+            $fallbackPath = sys_get_temp_dir();
+            if (is_dir($fallbackPath) && is_writable($fallbackPath)) {
+                ini_set('session.save_path', $fallbackPath);
+                error_log("✅ تم تعيين session.save_path إلى: " . $fallbackPath);
+            } else {
+                error_log("⚠️ تحذير: فشل تعيين session.save_path - سيتم استخدام المسار الافتراضي");
+            }
         }
     }
     

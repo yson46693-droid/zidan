@@ -244,6 +244,23 @@ AddDefaultCharset UTF-8
 Options -Indexes
 
 # ============================================
+# ✅ إعدادات PHP للجلسات - حل مشكلة open_basedir
+# ============================================
+# ملاحظة: هذه الإعدادات تعمل فقط إذا كان mod_php مفعّل
+# في معظم الاستضافات المشتركة الحديثة (PHP-FPM/CGI)، يتم تطبيق الإعدادات من config.php
+# إذا لم تعمل هذه الإعدادات، لا تقلق - config.php سيتعامل معها
+<IfModule mod_php.c>
+    # تعيين مسار حفظ الجلسات إلى /tmp (مسموح في open_basedir)
+    php_value session.save_path "/tmp"
+    
+    # تعطيل wsdlcache لتجنب مشكلة open_basedir
+    php_value soap.wsdl_cache_enabled "0"
+    php_value soap.wsdl_cache_dir "/tmp"
+    php_value soap.wsdl_cache_ttl "0"
+    php_value soap.wsdl_cache_limit "0"
+</IfModule>
+
+# ============================================
 # ✅ قواعد API - محسّنة لـ Shared Hosting
 # ============================================
 # ملاحظة: قواعد الوصول إلى API موجودة في api/.htaccess
