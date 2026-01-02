@@ -1,100 +1,105 @@
 # ============================================
-# ✅ إصلاح مشاكل LiteSpeed + PHP (403 Forbidden & open_basedir)
+# ✅ إعدادات أساسية - Basic Settings
 # ============================================
 
-# ✅ إصلاح DirectoryIndex - يجب أن يكون أول شيء
+# ✅ CRITICAL: السماح بـ index.html أولاً (قبل أي شيء آخر)
 DirectoryIndex index.html index.php index.htm
 
 # ✅ السماح بعرض الملفات
 Options -Indexes +FollowSymLinks
 
-# ✅ إصلاح ErrorDocument 403 - إنشاء صفحة خطأ بسيطة
-ErrorDocument 403 /403.html
+# ============================================
+# ✅ CRITICAL: السماح بصفحة تسجيل الدخول - MUST BE FIRST
+# ============================================
 
-# ✅ CRITICAL: قاعدة صريحة للسماح بـ index.html (ملف تسجيل الدخول)
+# ✅ السماح بـ index.html بشكل صريح (قبل أي قواعد أخرى)
 <Files "index.html">
-    Order allow,deny
-    Allow from all
-    Require all granted
     <IfModule mod_authz_core.c>
         Require all granted
     </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
 </Files>
 
-# ✅ CRITICAL: قاعدة صريحة للسماح بـ index.php (إذا كان موجوداً)
+# ✅ السماح بـ index.php بشكل صريح
 <Files "index.php">
-    Order allow,deny
-    Allow from all
-    Require all granted
     <IfModule mod_authz_core.c>
         Require all granted
     </IfModule>
-</Files>
-
-# ✅ السماح بجميع الملفات (قبل أي قواعد أخرى)
-<FilesMatch ".*">
-    Order allow,deny
-    Allow from all
-</FilesMatch>
-
-# ✅ قاعدة خاصة لـ index.html و index.php (إضافية)
-<FilesMatch "^(index\.html|index\.php)$">
-    Order allow,deny
-    Allow from all
-    Require all granted
-</FilesMatch>
-
-# ✅ قاعدة خاصة لـ test-session.php وملفات الاختبار الأخرى
-<FilesMatch "^(test-|check-|debug-).*\.php$">
-    Order allow,deny
-    Allow from all
-    <IfModule mod_php.c>
-        php_flag display_errors On
-    </IfModule>
-</FilesMatch>
-
-# ✅ قاعدة خاصة لـ test-session.php (ملف الاختبار) - صريحة
-<Files "test-session.php">
-    Order allow,deny
-    Allow from all
-    Require all granted
-    <IfModule mod_php.c>
-        php_flag display_errors On
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
     </IfModule>
 </Files>
 
-# ✅ منع إعادة توجيه الملفات الموجودة (قبل قواعد sw.js)
+# ============================================
+# ✅ السماح بجميع الملفات الموجودة - بدون RewriteEngine
+# ============================================
+
+# ✅ السماح بجميع ملفات HTML, CSS, JS, JSON
+<FilesMatch "\.(html|htm|css|js|json|xml|txt)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# ✅ السماح بجميع الصور
+<FilesMatch "\.(jpg|jpeg|png|gif|svg|ico|webp|avif)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# ✅ السماح بجميع الخطوط
+<FilesMatch "\.(woff|woff2|ttf|eot|otf)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# ✅ السماح بجميع ملفات PHP في مجلد api/
+<Directory "api">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Directory>
+
+# ✅ RewriteEngine - فقط إذا كان متاحاً (للطلبات الخاصة)
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # ✅ CRITICAL: السماح بـ index.html مباشرة (ملف تسجيل الدخول)
-    RewriteCond %{REQUEST_URI} ^/?index\.html?$ [NC]
-    RewriteRule . - [L]
-    
-    # ✅ CRITICAL: السماح بـ index.php مباشرة (إذا كان موجوداً)
-    RewriteCond %{REQUEST_URI} ^/?index\.php$ [NC]
-    RewriteRule . - [L]
-    
-    # ✅ CRITICAL: السماح بـ test-session.php مباشرة (قبل أي قواعد أخرى)
-    RewriteCond %{REQUEST_URI} ^/test-session\.php$ [NC]
-    RewriteRule . - [L]
-    
-    # ✅ السماح بجميع الملفات الموجودة فعلياً
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule . - [L]
-    
-    # ✅ السماح بجميع المجلدات الموجودة فعلياً
+    # ✅ CRITICAL: السماح بـ index.html مباشرة (قبل أي قواعد أخرى)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule . - [L]
+    
+    # ✅ السماح بجميع الطلبات إلى مجلد api/
+    RewriteCond %{REQUEST_URI} ^/?api/ [NC]
+    RewriteRule ^ - [L]
 </IfModule>
 
 # ============================================
-# ✅ Service Worker (sw.js) - CRITICAL - MUST BE AFTER FILES RULES
+# ✅ Service Worker (sw.js) - CRITICAL
 # ============================================
-# هذه القواعد يجب أن تكون بعد قواعد الملفات
-# لمنع إعادة توجيه sw.js إلى HTML
 
-# ✅ قاعدة عامة لـ sw.js في أي مسار (root أو subdirectory)
 <FilesMatch "sw\.js$">
     <IfModule mod_headers.c>
         Header set Content-Type "application/javascript; charset=utf-8"
@@ -103,70 +108,77 @@ ErrorDocument 403 /403.html
         Header set Expires "0"
         Header set Service-Worker-Allowed "/"
     </IfModule>
-</FilesMatch>
-
-# ✅ منع sw.js من المعالجة كـ HTML - Rewrite Engine
-<IfModule mod_rewrite.c>
-    # ✅ CRITICAL: منع sw.js من إعادة التوجيه أو المعالجة كـ HTML
-    RewriteCond %{REQUEST_URI} sw\.js$ [NC]
-    RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L,T=application/javascript]
-    
-    # ✅ CRITICAL: السماح بـ sw.js.php بالمرور مباشرة إلى PHP بدون إعادة توجيه
-    RewriteCond %{REQUEST_URI} sw\.js\.php$ [NC]
-    RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L]
-    
-    # ✅ السماح بجميع الطلبات إلى مجلد api/ - يجب أن يكون بعد sw.js
-    RewriteCond %{REQUEST_URI} ^/?api/ [NC]
-    RewriteRule ^ - [L]
-</IfModule>
-
-# ✅ قاعدة خاصة لـ sw.js.php - ضمان عدم إعادة التوجيه
-<FilesMatch "sw\.js\.php$">
-    <IfModule mod_headers.c>
-        # ملاحظة: PHP سيضبط Content-Type في sw.js.php نفسه
-        # هذه القاعدة تضمن فقط Service-Worker-Allowed header
-        Header set Service-Worker-Allowed "/"
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
     </IfModule>
 </FilesMatch>
 
-# ============================================
-# 🚀 تحسينات الأداء - Performance Optimizations
-# ============================================
-
-# تفعيل HTTP/2 و HTTP/3 (إذا كان مدعوماً من الخادم)
-<IfModule mod_headers.c>
-    # ✅ تحسين: HTTP/2 Server Push لجميع ملفات JS و CSS الحرجة لتقليل عدد الطلبات
-    # يتم تطبيق هذا فقط على صفحات HTML
-    <FilesMatch "\.(html|htm)$">
-        # CSS Files - Critical
-        Header always set Link "</css/style.css>; rel=preload; as=style"
-        Header always set Link "</css/loading-overlay.css>; rel=preload; as=style"
-        Header always set Link "</css/dark-mode.css>; rel=preload; as=style"
-        Header always set Link "</css/security.css>; rel=preload; as=style"
-        
-        # JS Files - Critical (يتم تحميلها بـ defer)
-        Header always set Link "</js/version.js>; rel=preload; as=script"
-        Header always set Link "</js/api.js>; rel=preload; as=script"
-        Header always set Link "</js/utils.js>; rel=preload; as=script"
-        Header always set Link "</js/loading-overlay.js>; rel=preload; as=script"
-        Header always set Link "</js/auth.js>; rel=preload; as=script"
-        Header always set Link "</js/indexeddb-cache.js>; rel=preload; as=script"
-        Header always set Link "</js/global-notifications.js>; rel=preload; as=script"
-        Header always set Link "</js/api-batch.js>; rel=preload; as=script"
-        Header always set Link "</js/message-polling-manager.js>; rel=preload; as=script"
-    </FilesMatch>
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_URI} sw\.js$ [NC]
+    RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L,T=application/javascript]
     
-    # تحسين الأمان والأداء
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "SAMEORIGIN"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    RewriteCond %{REQUEST_URI} sw\.js\.php$ [NC]
+    RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L]
 </IfModule>
 
 # ============================================
-# 📦 ضغط الملفات - Compression (Gzip/Brotli)
+# ✅ السماح بجميع ملفات HTML, CSS, JS (مكرر للتأكيد)
 # ============================================
+
+# ============================================
+# ✅ MIME Types
+# ============================================
+
+<IfModule mod_mime.c>
+    AddType text/html .html
+    AddType text/css .css
+    AddType application/javascript .js
+    AddType text/javascript .js
+    AddType application/json .json
+    AddType application/manifest+json .webmanifest
+    AddType application/manifest+json manifest.json
+    AddType image/webp .webp
+    AddType image/avif .avif
+</IfModule>
+
+AddDefaultCharset UTF-8
+
+# ============================================
+# ✅ Headers للأمان والأداء
+# ============================================
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # HTML - لا تخزين
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    
+    # CSS و JavaScript - تخزين لمدة شهر
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "max-age=2592000, public, stale-while-revalidate=86400"
+    </FilesMatch>
+    
+    # الصور والخطوط - تخزين لمدة سنة
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "max-age=31536000, public, immutable"
+    </FilesMatch>
+</IfModule>
+
+# ============================================
+# ✅ ضغط الملفات - Compression
+# ============================================
+
 <IfModule mod_deflate.c>
-    # ضغط ملفات HTML, CSS, JavaScript, Text, XML, JSON
     AddOutputFilterByType DEFLATE text/html
     AddOutputFilterByType DEFLATE text/css
     AddOutputFilterByType DEFLATE text/javascript
@@ -175,166 +187,17 @@ ErrorDocument 403 /403.html
     AddOutputFilterByType DEFLATE text/xml
     AddOutputFilterByType DEFLATE application/xml
     AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE application/rss+xml
-    AddOutputFilterByType DEFLATE application/atom+xml
     AddOutputFilterByType DEFLATE image/svg+xml
     
-    # منع ضغط الصور المضغوطة مسبقاً
     SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|ico)$ no-gzip dont-vary
     SetEnvIfNoCase Request_URI \.(?:exe|t?gz|zip|bz2|sit|rar)$ no-gzip dont-vary
 </IfModule>
 
 # ============================================
-# 💾 التخزين المؤقت - Browser Caching
+# ✅ CORS
 # ============================================
-<IfModule mod_expires.c>
-    ExpiresActive On
-    
-    # الصور - تخزين لمدة سنة
-    ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/jpg "access plus 1 year"
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/gif "access plus 1 year"
-    ExpiresByType image/webp "access plus 1 year"
-    ExpiresByType image/svg+xml "access plus 1 year"
-    ExpiresByType image/x-icon "access plus 1 year"
-    
-    # CSS و JavaScript - تخزين لمدة شهر
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType text/javascript "access plus 1 month"
-    
-    # الخطوط - تخزين لمدة سنة
-    ExpiresByType font/woff "access plus 1 year"
-    ExpiresByType font/woff2 "access plus 1 year"
-    ExpiresByType application/font-woff "access plus 1 year"
-    ExpiresByType application/font-woff2 "access plus 1 year"
-    
-    # HTML - لا تخزين (يتم تحديثه باستمرار)
-    ExpiresByType text/html "access plus 0 seconds"
-    
-    # JSON - تخزين لمدة ساعة
-    ExpiresByType application/json "access plus 1 hour"
-</IfModule>
 
-# Cache-Control Headers (بديل لـ Expires)
 <IfModule mod_headers.c>
-    # الصور والخطوط - تخزين لمدة سنة
-    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$">
-        Header set Cache-Control "max-age=31536000, public, immutable"
-    </FilesMatch>
-    
-    # ✅ تحسين: CSS و JavaScript - تخزين لمدة شهر مع versioning
-    <FilesMatch "\.(css|js)$">
-        # استخدام stale-while-revalidate لتحسين الأداء
-        Header set Cache-Control "max-age=2592000, public, stale-while-revalidate=86400"
-    </FilesMatch>
-    
-    # HTML - لا تخزين
-    <FilesMatch "\.(html|htm)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
-</IfModule>
-
-# ============================================
-# 📄 إعدادات InfinityFree - حل مشكلة 404
-# ============================================
-
-# ✅ CRITICAL: السماح بملفات HTML (خاصة index.html)
-<FilesMatch "\.html$">
-    Order allow,deny
-    Allow from all
-    Require all granted
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-</FilesMatch>
-
-# ✅ CRITICAL: قاعدة إضافية صريحة لـ index.html
-<Files "index.html">
-    Order allow,deny
-    Allow from all
-    Require all granted
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-</Files>
-
-# ضمان تقديم ملفات HTML بشكل صحيح
-AddType text/html .html
-AddDefaultCharset UTF-8
-
-# السماح بملفات CSS و JS
-<FilesMatch "\.(css|js)$">
-    Order allow,deny
-    Allow from all
-</FilesMatch>
-
-# ضمان تقديم ملفات CSS بشكل صحيح
-<IfModule mod_mime.c>
-    AddType text/css .css
-    # ✅ MIME types لـ JavaScript - يجب أن يكون application/javascript دائماً
-    AddType application/javascript .js
-    AddType text/javascript .js
-    # ✅ MIME types لـ Service Worker و Manifest - ضروري للعمل الصحيح
-    AddType application/manifest+json .webmanifest
-    AddType application/manifest+json manifest.json
-    AddType application/json .json
-    # تحسين MIME types للصور
-    AddType image/webp .webp
-    AddType image/avif .avif
-</IfModule>
-
-# ✅ قاعدة إضافية لضمان أن ملفات .js لا يتم تقديمها كـ HTML أبداً
-# استثناء sw.js لأنه تم التعامل معه في البداية
-<FilesMatch "\.js$">
-    <IfModule mod_headers.c>
-        # إجبار Content-Type على application/javascript
-        Header set Content-Type "application/javascript; charset=utf-8"
-    </IfModule>
-</FilesMatch>
-
-# ✅ قاعدة إضافية لـ sw.js باستخدام FilesMatch (يعمل مع subdirectories)
-<FilesMatch "sw\.js$">
-    <IfModule mod_headers.c>
-        # إجبار Content-Type على application/javascript
-        Header set Content-Type "application/javascript; charset=utf-8"
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-        Header set Service-Worker-Allowed "/"
-    </IfModule>
-</FilesMatch>
-
-# إعدادات خاصة لـ Service Worker (sw.js)
-<Files "sw.js">
-    <IfModule mod_headers.c>
-        Header set Content-Type "application/javascript; charset=utf-8"
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-        # ✅ السماح بـ Service Worker scope لأي مسار فرعي
-        Header set Service-Worker-Allowed "/"
-    </IfModule>
-</Files>
-
-# إعدادات خاصة لـ Manifest (manifest.json)
-<Files "manifest.json">
-    <IfModule mod_headers.c>
-        Header set Content-Type "application/manifest+json; charset=utf-8"
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </IfModule>
-</Files>
-
-# ============================================
-# 🌐 إعدادات CORS الأساسية
-# ============================================
-<IfModule mod_headers.c>
-    # السماح بملفات HTML و CSS و JS
     <FilesMatch "\.(html|css|js)$">
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
@@ -342,54 +205,24 @@ AddDefaultCharset UTF-8
     </FilesMatch>
 </IfModule>
 
-# منع عرض محتويات المجلدات
-Options -Indexes
-
 # ============================================
 # ✅ إعدادات PHP للجلسات - حل مشكلة open_basedir
 # ============================================
-# ملاحظة: هذه الإعدادات تعمل فقط إذا كان mod_php مفعّل
-# في معظم الاستضافات المشتركة الحديثة (PHP-FPM/CGI)، يتم تطبيق الإعدادات من config.php
-# إذا لم تعمل هذه الإعدادات، لا تقلق - config.php سيتعامل معها
 
-# ✅ محاولة لـ LiteSpeed (يعمل مع PHP-FPM أيضاً)
 <IfModule mod_php.c>
-    # تعيين مسار حفظ الجلسات إلى /tmp (مسموح في open_basedir)
     php_value session.save_path "/tmp"
-    
-    # تعطيل wsdlcache لتجنب مشكلة open_basedir
     php_value soap.wsdl_cache_enabled "0"
     php_value soap.wsdl_cache_dir "/tmp"
     php_value soap.wsdl_cache_ttl "0"
     php_value soap.wsdl_cache_limit "0"
+    php_value auto_prepend_file ".auto_prepend.php"
 </IfModule>
 
-# ✅ محاولة إضافية لـ LiteSpeed PHP-FPM (إذا كان mod_php غير متاح)
 <IfModule lsapi_module>
-    # تعيين مسار حفظ الجلسات إلى /tmp
     php_value session.save_path "/tmp"
-    
-    # تعطيل wsdlcache
     php_value soap.wsdl_cache_enabled "0"
     php_value soap.wsdl_cache_dir "/tmp"
     php_value soap.wsdl_cache_ttl "0"
     php_value soap.wsdl_cache_limit "0"
-    
-    # ✅ محاولة استخدام auto_prepend_file (إذا كان متاحاً)
     php_value auto_prepend_file ".auto_prepend.php"
 </IfModule>
-
-# ✅ محاولة استخدام auto_prepend_file لجميع أنواع PHP
-<IfModule mod_php.c>
-    php_value auto_prepend_file ".auto_prepend.php"
-</IfModule>
-
-# ============================================
-# ✅ قواعد API - محسّنة لـ Shared Hosting
-# ============================================
-# ملاحظة: قواعد الوصول إلى API موجودة في api/.htaccess
-# هنا نستخدم فقط Rewrite rules للسماح بالمرور إلى مجلد api/
-
-# معالجة الأخطاء - عدم إعادة توجيه ملفات JS و JSON إلى HTML
-# ErrorDocument 404 /index.html (تم التعليق لمنع مشاكل Service Worker)
-

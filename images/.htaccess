@@ -1,28 +1,23 @@
-# حماية مجلد الصور
-<Files "*.jpg">
-    Order Allow,Deny
-    Allow from all
-</Files>
+# ✅ السماح بالوصول لجميع أنواع الصور
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|avif)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
 
-<Files "*.jpeg">
-    Order Allow,Deny
-    Allow from all
-</Files>
-
-<Files "*.png">
-    Order Allow,Deny
-    Allow from all
-</Files>
-
-<Files "*.gif">
-    Order Allow,Deny
-    Allow from all
-</Files>
-
-# منع الوصول المباشر للملفات الأخرى
-<FilesMatch "^(?!.*\.(jpg|jpeg|png|gif)$).*$">
-    Order Allow,Deny
-    Deny from all
+# ✅ السماح بالوصول لملفات أخرى قد تكون موجودة (مثل .txt, .json)
+<FilesMatch "\.(txt|json|log)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Allow from all
+    </IfModule>
 </FilesMatch>
 
 # منع عرض محتويات المجلد
@@ -31,6 +26,6 @@ Options -Indexes
 # إضافة headers للأمان
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options nosniff
-    Header always set X-Frame-Options DENY
+    Header always set X-Frame-Options SAMEORIGIN
     Header always set X-XSS-Protection "1; mode=block"
 </IfModule>

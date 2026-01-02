@@ -1,16 +1,19 @@
-# حماية مجلد النسخ الاحتياطية
-<Files "*">
-    Order Allow,Deny
-    Deny from all
-</Files>
+# ✅ السماح بالوصول لملفات الصور في مجلد النسخ الاحتياطية
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|svg)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
 
-# منع الوصول المباشر
+# منع عرض محتويات المجلد
 Options -Indexes
 
 # إضافة headers للأمان
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options nosniff
-    Header always set X-Frame-Options DENY
-    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Frame-Options SAMEORIGIN
 </IfModule>
-

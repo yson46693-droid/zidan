@@ -13,10 +13,23 @@ if (!file_exists(INVOICES_DIR)) {
     mkdir(INVOICES_DIR, 0755, true);
 }
 
-// حماية المجلد بملف .htaccess
+// حماية المجلد بملف .htaccess - السماح بملفات HTML فقط
 $htaccessFile = INVOICES_DIR . '.htaccess';
 if (!file_exists($htaccessFile)) {
-    file_put_contents($htaccessFile, "Options -Indexes\nDeny from all\n");
+    $htaccessContent = "Options -Indexes\n";
+    $htaccessContent .= "# السماح بالوصول إلى ملفات HTML فقط (Apache 2.4+)\n";
+    $htaccessContent .= "<IfModule mod_authz_core.c>\n";
+    $htaccessContent .= "    <FilesMatch \"\\.html$\">\n";
+    $htaccessContent .= "        Require all granted\n";
+    $htaccessContent .= "    </FilesMatch>\n";
+    $htaccessContent .= "</IfModule>\n";
+    $htaccessContent .= "# السماح بالوصول إلى ملفات HTML (Apache 2.2)\n";
+    $htaccessContent .= "<IfModule !mod_authz_core.c>\n";
+    $htaccessContent .= "    <FilesMatch \"\\.html$\">\n";
+    $htaccessContent .= "        Allow from all\n";
+    $htaccessContent .= "    </FilesMatch>\n";
+    $htaccessContent .= "</IfModule>\n";
+    file_put_contents($htaccessFile, $htaccessContent);
 }
 
 /**
