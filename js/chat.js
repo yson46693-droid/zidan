@@ -2666,38 +2666,62 @@ async function startAudioRecording(e) {
             return;
         }
         
-        // ✅ التحقق من وجود RecordRTC
-        if (typeof RecordRTC === 'undefined') {
-            showMessage('مكتبة التسجيل غير متوفرة - يرجى تحديث الصفحة', 'error');
-            console.error('RecordRTC library not loaded');
-            return;
-        }
-        
         // طلب صلاحيات الميكروفون
         audioStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            } 
+            audio: true
         });
         
-        // ✅ تحديد نوع الملف بناءً على النظام
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const mimeType = isIOS ? 'audio/wav' : 'audio/webm';
+        // ✅ استخدام MediaRecorder API الأصلي (يعمل بشكل موثوق على Android/Desktop)
+        if (typeof MediaRecorder === 'undefined') {
+            throw new Error('MediaRecorder API غير مدعوم في هذا المتصفح');
+        }
         
-        // ✅ إنشاء RecordRTC
-        recordRTC = new RecordRTC(audioStream, {
-            type: 'audio',
+        // ✅ تحديد نوع MIME مدعوم
+        let mimeType = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+            mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+            mimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+        }
+        
+        const mediaRecorder = new MediaRecorder(audioStream, { mimeType: mimeType });
+        const audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        // ✅ استخدام wrapper object لتوافق مع كود stopAudioRecording
+        recordRTC = {
+            isMediaRecorder: true,
+            mediaRecorder: mediaRecorder,
+            audioChunks: audioChunks,
+            stream: audioStream,
             mimeType: mimeType,
-            recorderType: isIOS ? RecordRTC.StereoAudioRecorder : RecordRTC.MediaStreamRecorder,
-            numberOfAudioChannels: 1,
-            desiredSampRate: 16000, // جودة مناسبة للرسائل الصوتية
-            bufferSize: 4096,
-            timeSlice: 1000 // كل ثانية
-        });
+            startRecording: () => {
+                mediaRecorder.start(1000);
+            },
+            stopRecording: (callback) => {
+                mediaRecorder.onstop = () => {
+                    if (audioChunks.length > 0) {
+                        recordRTC.audioBlob = new Blob(audioChunks, { type: mimeType });
+                    }
+                    callback();
+                };
+                mediaRecorder.stop();
+            },
+            getBlob: () => recordRTC.audioBlob,
+            destroy: () => {
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                }
+            }
+        };
         
-        // ✅ بدء التسجيل
         recordRTC.startRecording();
         isRecording = true;
         recordingStartTime = Date.now();
@@ -2800,7 +2824,24 @@ function stopAudioRecording(e) {
                 try {
                     const audioData = reader.result;
                     // ✅ تحديد اسم الملف بناءً على نوع MIME
-                    const fileName = audioBlob.type.includes('webm') ? 'audio.webm' : 'audio.wav';
+                    let fileName = 'audio.webm';
+                    if (recordRTC.mimeType) {
+                        if (recordRTC.mimeType.includes('webm')) {
+                            fileName = 'audio.webm';
+                        } else if (recordRTC.mimeType.includes('mp4') || recordRTC.mimeType.includes('m4a')) {
+                            fileName = 'audio.m4a';
+                        } else if (recordRTC.mimeType.includes('wav')) {
+                            fileName = 'audio.wav';
+                        }
+                    } else if (audioBlob.type) {
+                        if (audioBlob.type.includes('webm')) {
+                            fileName = 'audio.webm';
+                        } else if (audioBlob.type.includes('mp4') || audioBlob.type.includes('m4a')) {
+                            fileName = 'audio.m4a';
+                        } else if (audioBlob.type.includes('wav')) {
+                            fileName = 'audio.wav';
+                        }
+                    }
                     await sendAudioMessage(audioData, fileName);
                 } catch (sendError) {
                     console.error('خطأ في إرسال الرسالة الصوتية:', sendError);
