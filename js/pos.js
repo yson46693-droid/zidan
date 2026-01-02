@@ -3284,14 +3284,33 @@ async function initializePOSQRCodeScanner() {
             height: qrReader.offsetHeight
         });
         
-        // Try to get available cameras first - إجبار استخدام الكاميرا الخلفية دائماً
+        // ✅ التحقق من صلاحية الكاميرا قبل البدء (لتجنب طلب الصلاحية مرة أخرى)
+        if (typeof window.checkCameraPermission === 'function') {
+            const permissionState = await window.checkCameraPermission();
+            if (permissionState === 'denied') {
+                if (loadingDiv) {
+                    loadingDiv.innerHTML = `
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">تم رفض صلاحية الكاميرا</p>
+                        <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا في إعدادات المتصفح</p>
+                    `;
+                }
+                return;
+            }
+        }
+        
+        // ✅ إجبار استخدام الكاميرا الخلفية دائماً - استخدام facingMode: "environment" مباشرة أولاً
+        // هذا يضمن استخدام الكاميرا الخلفية على جميع الأجهزة
+        let cameraConfig = { facingMode: "environment" };
         let cameraId = null;
+        
+        // محاولة الحصول على قائمة الكاميرات للعثور على الكاميرا الخلفية بشكل دقيق
         try {
             const cameras = await Html5Qrcode.getCameras();
             console.log('📷 [POS Scanner] الكاميرات المتاحة:', cameras.length);
             
             if (cameras && cameras.length > 0) {
-                // البحث عن الكاميرا الخلفية أولاً - تحسين البحث
+                // البحث عن الكاميرا الخلفية - تحسين البحث
                 const backCamera = cameras.find(cam => {
                     const label = (cam.label || '').toLowerCase();
                     // البحث عن كلمات مفتاحية للكاميرا الخلفية
@@ -3302,28 +3321,30 @@ async function initializePOSQRCodeScanner() {
                            label.includes('خلفية') ||
                            label.includes('back camera') ||
                            label.includes('rear camera') ||
+                           label.includes('camera2') || // Android camera2 API
+                           label.includes('camera 1') || // عادة الكاميرا الخلفية
                            (cam.facingMode && cam.facingMode === 'environment');
                 });
                 
                 if (backCamera) {
                     cameraId = backCamera.id;
-                    console.log('📷 [POS Scanner] تم العثور على الكاميرا الخلفية:', cameraId);
+                    cameraConfig = cameraId; // استخدام ID الكاميرا مباشرة
+                    console.log('📷 [POS Scanner] تم العثور على الكاميرا الخلفية:', cameraId, backCamera.label);
                     // حفظ الكاميرا الخلفية
                     localStorage.setItem('pos_last_camera_id', cameraId);
                 } else {
-                    // إذا لم نجد كاميرا خلفية، جرب آخر كاميرا (عادة ما تكون الخلفية)
-                    cameraId = cameras[cameras.length - 1].id;
-                    console.log('📷 [POS Scanner] استخدام آخر كاميرا متاحة:', cameraId);
-                    localStorage.setItem('pos_last_camera_id', cameraId);
+                    // إذا لم نجد كاميرا خلفية بوضوح، استخدم آخر كاميرا (عادة ما تكون الخلفية)
+                    // لكن الأفضل استخدام facingMode: "environment" مباشرة
+                    console.log('📷 [POS Scanner] لم يتم العثور على كاميرا خلفية بوضوح، استخدام facingMode: environment');
+                    cameraConfig = { facingMode: "environment" };
                 }
             }
         } catch (camError) {
-            console.warn('⚠️ [POS Scanner] لا يمكن الحصول على قائمة الكاميرات:', camError);
+            console.warn('⚠️ [POS Scanner] لا يمكن الحصول على قائمة الكاميرات، استخدام facingMode: environment:', camError);
+            // في حالة الخطأ، استخدم facingMode: "environment" مباشرة
+            cameraConfig = { facingMode: "environment" };
         }
         
-        // Start scanning - إجبار استخدام الكاميرا الخلفية (environment) دائماً
-        // إذا لم نجد cameraId، استخدم facingMode: "environment" مباشرة
-        const cameraConfig = cameraId ? cameraId : { facingMode: "environment" };
         console.log('🎥 [POS Scanner] إعدادات الكاميرا (إجبار الخلفية):', cameraConfig);
         
         await posQRCodeScannerInstance.start(
@@ -3352,46 +3373,9 @@ async function initializePOSQRCodeScanner() {
         console.error('❌ [POS Scanner] خطأ في تهيئة الماسح:', error);
         const errorMessage = error?.message || 'خطأ غير معروف';
         
-        // محاولة إضافية للكاميرا الخلفية - تجربة جميع الكاميرات المتاحة للعثور على الخلفية
-        console.log('🔄 [POS Scanner] محاولة إضافية للعثور على الكاميرا الخلفية...');
+        // محاولة إضافية للكاميرا الخلفية - استخدام facingMode: "environment" مباشرة
+        console.log('🔄 [POS Scanner] محاولة استخدام facingMode: environment مباشرة...');
         try {
-            const cameras = await Html5Qrcode.getCameras();
-            if (cameras && cameras.length > 0) {
-                // تجربة جميع الكاميرات للعثور على الخلفية
-                for (let i = cameras.length - 1; i >= 0; i--) {
-                    const cam = cameras[i];
-                    const label = (cam.label || '').toLowerCase();
-                    
-                    // تخطي الكاميرا الأمامية
-                    if (label.includes('front') || label.includes('user') || label.includes('أمامي') || label.includes('أمامية')) {
-                        continue;
-                    }
-                    
-                    try {
-                        await posQRCodeScannerInstance.start(
-                            cam.id,
-                            config,
-                            (decodedText, decodedResult) => {
-                                console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
-                                handlePOSQRCodeScanned(decodedText);
-                            },
-                            (errorMessage) => {
-                                // Ignore scanning errors
-                            }
-                        );
-                        if (loadingDiv) loadingDiv.style.display = 'none';
-                        console.log('✅ [POS Scanner] تم بدء الماسح بالكاميرا:', cam.id);
-                        localStorage.setItem('pos_last_camera_id', cam.id);
-                        return;
-                    } catch (camError) {
-                        console.log(`⚠️ [POS Scanner] فشلت الكاميرا ${cam.id}, جرب التالية...`);
-                        continue;
-                    }
-                }
-            }
-            
-            // إذا فشل كل شيء، جرب facingMode: "environment" مباشرة
-            console.log('🔄 [POS Scanner] محاولة استخدام facingMode: environment مباشرة...');
             await posQRCodeScannerInstance.start(
                 { facingMode: "environment" },
                 config,
@@ -3407,7 +3391,54 @@ async function initializePOSQRCodeScanner() {
             console.log('✅ [POS Scanner] تم بدء الماسح بـ facingMode: environment');
             return;
         } catch (fallbackError) {
-            console.error('❌ [POS Scanner] فشلت جميع محاولات الكاميرا الخلفية:', fallbackError);
+            console.error('❌ [POS Scanner] فشلت محاولة facingMode: environment:', fallbackError);
+            
+            // محاولة أخيرة - تجربة جميع الكاميرات المتاحة للعثور على الخلفية
+            console.log('🔄 [POS Scanner] محاولة أخيرة - البحث في جميع الكاميرات...');
+            try {
+                const cameras = await Html5Qrcode.getCameras();
+                if (cameras && cameras.length > 0) {
+                    // تجربة جميع الكاميرات للعثور على الخلفية (من الأخير للأول)
+                    for (let i = cameras.length - 1; i >= 0; i--) {
+                        const cam = cameras[i];
+                        const label = (cam.label || '').toLowerCase();
+                        
+                        // تخطي الكاميرا الأمامية بشكل صارم
+                        if (label.includes('front') || 
+                            label.includes('user') || 
+                            label.includes('facing') && label.includes('user') ||
+                            label.includes('أمامي') || 
+                            label.includes('أمامية') ||
+                            label.includes('selfie')) {
+                            console.log(`⏭️ [POS Scanner] تخطي الكاميرا الأمامية: ${cam.label}`);
+                            continue;
+                        }
+                        
+                        try {
+                            await posQRCodeScannerInstance.start(
+                                cam.id,
+                                config,
+                                (decodedText, decodedResult) => {
+                                    console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
+                                    handlePOSQRCodeScanned(decodedText);
+                                },
+                                (errorMessage) => {
+                                    // Ignore scanning errors
+                                }
+                            );
+                            if (loadingDiv) loadingDiv.style.display = 'none';
+                            console.log('✅ [POS Scanner] تم بدء الماسح بالكاميرا:', cam.id, cam.label);
+                            localStorage.setItem('pos_last_camera_id', cam.id);
+                            return;
+                        } catch (camError) {
+                            console.log(`⚠️ [POS Scanner] فشلت الكاميرا ${cam.id}, جرب التالية...`);
+                            continue;
+                        }
+                    }
+                }
+            } catch (finalError) {
+                console.error('❌ [POS Scanner] فشلت جميع محاولات الكاميرا:', finalError);
+            }
         }
         
         if (loadingDiv) {

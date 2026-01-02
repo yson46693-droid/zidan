@@ -2644,19 +2644,54 @@ async function openCamera() {
             return;
         }
 
-        // التحقق من إذن الكاميرا
-        if (navigator.permissions) {
-            try {
-                const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-                cameraPermissionGranted = permissionStatus.state === 'granted';
+        // ✅ استخدام النظام المركزي للصلاحيات - التحقق من الصلاحية قبل طلبها
+        let stream = null;
+        
+        if (typeof window.getCameraStream === 'function') {
+            // استخدام الدالة المركزية للتحقق من الصلاحية والحصول على stream
+            stream = await window.getCameraStream({ 
+                video: { 
+                    facingMode: 'environment', // الكاميرا الخلفية
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
+            
+            if (!stream) {
+                // فشل الحصول على stream - التحقق من السبب
+                const permissionState = await (window.checkCameraPermission ? window.checkCameraPermission() : Promise.resolve(null));
                 
-                if (permissionStatus.state === 'denied') {
+                if (permissionState === 'denied') {
                     showMessage('تم رفض إذن الكاميرا. يرجى السماح بالوصول للكاميرا في إعدادات المتصفح.', 'error');
-                    return;
+                } else {
+                    showMessage('فشل الوصول إلى الكاميرا. يرجى التحقق من الصلاحيات', 'error');
                 }
-            } catch (e) {
-                console.log('لا يمكن التحقق من إذن الكاميرا:', e);
+                return;
             }
+        } else {
+            // Fallback: إذا لم يكن النظام المركزي متاحاً، استخدام الطريقة القديمة
+            // التحقق من إذن الكاميرا
+            if (navigator.permissions) {
+                try {
+                    const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+                    cameraPermissionGranted = permissionStatus.state === 'granted';
+                    
+                    if (permissionStatus.state === 'denied') {
+                        showMessage('تم رفض إذن الكاميرا. يرجى السماح بالوصول للكاميرا في إعدادات المتصفح.', 'error');
+                        return;
+                    }
+                } catch (e) {
+                    console.log('لا يمكن التحقق من إذن الكاميرا:', e);
+                }
+            }
+            
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment', // الكاميرا الخلفية
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
         }
 
         // إخفاء النموذج مؤقتاً وعرض الكاميرا
@@ -2675,15 +2710,6 @@ async function openCamera() {
                 </div>
             </div>
         `;
-
-        // الحصول على stream من الكاميرا
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                facingMode: 'environment', // الكاميرا الخلفية
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            } 
-        });
 
         // حفظ حالة الإذن
         cameraPermissionGranted = true;

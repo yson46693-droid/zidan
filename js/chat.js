@@ -2666,38 +2666,40 @@ async function startAudioRecording(e) {
             return;
         }
         
-        // ✅ التحقق من حالة صلاحية المايكروفون أولاً لتجنب طلب الصلاحية مرة أخرى
-        if (navigator.permissions) {
-            try {
-                const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+        // ✅ استخدام النظام المركزي للصلاحيات - التحقق من الصلاحية قبل طلبها
+        if (typeof window.getMicrophoneStream === 'function') {
+            // استخدام الدالة المركزية للتحقق من الصلاحية والحصول على stream
+            audioStream = await window.getMicrophoneStream({ audio: true });
+            
+            if (!audioStream) {
+                // فشل الحصول على stream - التحقق من السبب
+                const permissionState = await (window.checkMicrophonePermission ? window.checkMicrophonePermission() : Promise.resolve(null));
                 
-                // إذا كانت الصلاحية ممنوحة بالفعل، لن يظهر prompt عند استدعاء getUserMedia
-                if (permissionStatus.state === 'granted') {
-                    console.log('✅ صلاحية المايكروفون ممنوحة بالفعل - لن يظهر prompt');
-                }
-                
-                // إذا كانت الصلاحية مرفوضة، إظهار رسالة خطأ وعدم المتابعة
-                if (permissionStatus.state === 'denied') {
+                if (permissionState === 'denied') {
                     showMessage('تم رفض الصلاحية - يرجى السماح بالوصول إلى الميكروفون في إعدادات المتصفح', 'error');
-                    return;
+                } else {
+                    showMessage('فشل الوصول إلى الميكروفون. يرجى التحقق من الصلاحيات', 'error');
                 }
-                
-                // إذا كانت في حالة 'prompt'، سيظهر prompt عند استدعاء getUserMedia
-                // هذا طبيعي وسيحدث مرة واحدة فقط
-            } catch (e) {
-                // بعض المتصفحات لا تدعم 'microphone' في permissions.query
-                // أو قد لا تكون الصلاحية مدعومة في هذا المتصفح
-                // سنتابع مع getUserMedia مباشرة
-                console.log('⚠️ لا يمكن التحقق من صلاحية المايكروفون - سيتم المتابعة:', e);
+                return;
             }
+        } else {
+            // Fallback: إذا لم يكن النظام المركزي متاحاً، استخدام الطريقة القديمة
+            // التحقق من حالة صلاحية المايكروفون أولاً
+            if (navigator.permissions) {
+                try {
+                    const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                    
+                    if (permissionStatus.state === 'denied') {
+                        showMessage('تم رفض الصلاحية - يرجى السماح بالوصول إلى الميكروفون في إعدادات المتصفح', 'error');
+                        return;
+                    }
+                } catch (e) {
+                    console.log('⚠️ لا يمكن التحقق من صلاحية المايكروفون:', e);
+                }
+            }
+            
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
-        
-        // ✅ طلب صلاحيات الميكروفون
-        // ملاحظة: إذا كانت الصلاحية ممنوحة بالفعل، لن يظهر prompt في معظم المتصفحات
-        // إذا كانت في حالة 'prompt'، سيظهر prompt مرة واحدة فقط
-        audioStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: true
-        });
         
         // ✅ استخدام MediaRecorder API الأصلي (يعمل بشكل موثوق على Android/Desktop)
         if (typeof MediaRecorder === 'undefined') {

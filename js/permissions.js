@@ -329,6 +329,156 @@ function initPermissions() {
     }
 }
 
+/**
+ * التحقق من حالة صلاحية المايكروفون (بدون طلب الصلاحية)
+ * @returns {Promise<'granted'|'denied'|'prompt'|null>} حالة الصلاحية
+ */
+async function checkMicrophonePermission() {
+    try {
+        if (!navigator.permissions) {
+            return null; // لا يمكن التحقق
+        }
+        
+        try {
+            const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+            return permissionStatus.state;
+        } catch (e) {
+            // بعض المتصفحات لا تدعم 'microphone' في permissions.query
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ خطأ في التحقق من صلاحية المايكروفون:', error);
+        return null;
+    }
+}
+
+/**
+ * التحقق من حالة صلاحية الكاميرا (بدون طلب الصلاحية)
+ * @returns {Promise<'granted'|'denied'|'prompt'|null>} حالة الصلاحية
+ */
+async function checkCameraPermission() {
+    try {
+        if (!navigator.permissions) {
+            return null; // لا يمكن التحقق
+        }
+        
+        try {
+            const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+            return permissionStatus.state;
+        } catch (e) {
+            // بعض المتصفحات لا تدعم 'camera' في permissions.query
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ خطأ في التحقق من صلاحية الكاميرا:', error);
+        return null;
+    }
+}
+
+/**
+ * الحصول على stream من المايكروفون (مع التحقق من الصلاحية أولاً)
+ * @param {Object} constraints - قيود getUserMedia
+ * @returns {Promise<MediaStream|null>} stream أو null إذا فشل
+ */
+async function getMicrophoneStream(constraints = { audio: true }) {
+    try {
+        // التحقق من دعم getUserMedia
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.error('❌ getUserMedia غير مدعوم');
+            return null;
+        }
+        
+        // التحقق من حالة الصلاحية أولاً
+        const permissionState = await checkMicrophonePermission();
+        
+        if (permissionState === 'granted') {
+            // الصلاحية ممنوحة بالفعل - لن يظهر prompt
+            console.log('✅ صلاحية المايكروفون ممنوحة - استخدام مباشر');
+            return await navigator.mediaDevices.getUserMedia(constraints);
+        }
+        
+        if (permissionState === 'denied') {
+            // الصلاحية مرفوضة
+            console.warn('⚠️ صلاحية المايكروفون مرفوضة');
+            return null;
+        }
+        
+        // إذا كانت 'prompt' أو null، طلب الصلاحية (سيظهر prompt مرة واحدة فقط)
+        return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+        console.error('❌ خطأ في الحصول على stream المايكروفون:', error);
+        return null;
+    }
+}
+
+/**
+ * الحصول على stream من الكاميرا (مع التحقق من الصلاحية أولاً)
+ * @param {Object} constraints - قيود getUserMedia
+ * @returns {Promise<MediaStream|null>} stream أو null إذا فشل
+ */
+async function getCameraStream(constraints = { video: true }) {
+    try {
+        // التحقق من دعم getUserMedia
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.error('❌ getUserMedia غير مدعوم');
+            return null;
+        }
+        
+        // التحقق من حالة الصلاحية أولاً
+        const permissionState = await checkCameraPermission();
+        
+        if (permissionState === 'granted') {
+            // الصلاحية ممنوحة بالفعل - لن يظهر prompt
+            console.log('✅ صلاحية الكاميرا ممنوحة - استخدام مباشر');
+            return await navigator.mediaDevices.getUserMedia(constraints);
+        }
+        
+        if (permissionState === 'denied') {
+            // الصلاحية مرفوضة
+            console.warn('⚠️ صلاحية الكاميرا مرفوضة');
+            return null;
+        }
+        
+        // إذا كانت 'prompt' أو null، طلب الصلاحية (سيظهر prompt مرة واحدة فقط)
+        return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+        console.error('❌ خطأ في الحصول على stream الكاميرا:', error);
+        return null;
+    }
+}
+
+/**
+ * التحقق من صلاحية الإشعارات وطلبها إذا لزم الأمر
+ * @returns {Promise<'granted'|'denied'|'default'>} حالة الصلاحية
+ */
+async function checkNotificationPermission() {
+    try {
+        if (!('Notification' in window)) {
+            console.warn('⚠️ الإشعارات غير مدعومة في هذا المتصفح');
+            return 'denied';
+        }
+        
+        const permission = Notification.permission;
+        
+        if (permission === 'granted') {
+            console.log('✅ صلاحية الإشعارات ممنوحة بالفعل');
+            return 'granted';
+        }
+        
+        if (permission === 'denied') {
+            console.warn('⚠️ صلاحية الإشعارات مرفوضة');
+            return 'denied';
+        }
+        
+        // إذا كانت 'default'، طلب الصلاحية
+        const result = await Notification.requestPermission();
+        return result;
+    } catch (error) {
+        console.error('❌ خطأ في التحقق من صلاحية الإشعارات:', error);
+        return 'denied';
+    }
+}
+
 // تصدير الدوال للاستخدام العام
 if (typeof window !== 'undefined') {
     window.requestMicrophonePermission = requestMicrophonePermission;
@@ -336,6 +486,13 @@ if (typeof window !== 'undefined') {
     window.requestFilePermission = requestFilePermission;
     window.checkPopupPermission = checkPopupPermission;
     window.requestAllPermissions = requestAllPermissions;
+    
+    // ✅ دوال مساعدة للتحقق من الصلاحيات قبل طلبها
+    window.checkMicrophonePermission = checkMicrophonePermission;
+    window.checkCameraPermission = checkCameraPermission;
+    window.getMicrophoneStream = getMicrophoneStream;
+    window.getCameraStream = getCameraStream;
+    window.checkNotificationPermission = checkNotificationPermission;
 }
 
 // تهيئة طلب الصلاحيات عند تحميل الملف

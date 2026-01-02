@@ -1432,6 +1432,22 @@ async function initializeQRCodeScannerForReturns() {
             config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
         }
         
+        // ✅ التحقق من صلاحية الكاميرا قبل البدء (لتجنب طلب الصلاحية مرة أخرى)
+        if (typeof window.checkCameraPermission === 'function') {
+            const permissionState = await window.checkCameraPermission();
+            if (permissionState === 'denied') {
+                const loadingDiv = document.getElementById('scanner-loading');
+                if (loadingDiv) {
+                    loadingDiv.innerHTML = `
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">تم رفض صلاحية الكاميرا</p>
+                        <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا في إعدادات المتصفح</p>
+                    `;
+                }
+                return;
+            }
+        }
+        
         // Start scanning
         await qrCodeScannerInstance.start(
             { facingMode: "environment" }, // Use back camera
