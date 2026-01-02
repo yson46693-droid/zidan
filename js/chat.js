@@ -17,8 +17,8 @@ let usersActivity = {};
 let allUsers = []; // قائمة جميع المستخدمين للـ mention
 let mentionMenuVisible = false;
 let mentionStartPosition = -1;
-let mediaRecorder = null;
-let audioChunks = [];
+let recordRTC = null; // ✅ RecordRTC instance for cross-platform audio recording
+let audioStream = null; // ✅ Audio stream for cleanup
 let isRecording = false;
 let recordingTimer = null;
 let recordingStartTime = null;
@@ -2640,7 +2640,7 @@ function openCamera() {
     }
 }
 
-// تسجيل صوتي
+// تسجيل صوتي - باستخدام RecordRTC لدعم جميع الأجهزة (iOS, Android, Desktop)
 async function startAudioRecording(e) {
     if (e) {
         e.preventDefault();
@@ -2652,159 +2652,57 @@ async function startAudioRecording(e) {
     }
     
     try {
-        // ✅ التحقق من دعم MediaRecorder API
+        // ✅ التحقق من دعم getUserMedia
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            if (isIOS) {
-                showMessage('التسجيل الصوتي غير مدعوم على أجهزة iOS - يرجى استخدام جهاز Android أو الكمبيوتر', 'error');
-            } else {
-                showMessage('التسجيل الصوتي غير مدعوم في هذا المتصفح - يرجى استخدام متصفح حديث', 'error');
-            }
+            showMessage('التسجيل الصوتي غير مدعوم في هذا المتصفح - يرجى استخدام متصفح حديث', 'error');
             return;
         }
         
-        if (typeof MediaRecorder === 'undefined') {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            if (isIOS) {
-                showMessage('التسجيل الصوتي غير مدعوم على أجهزة iOS Safari - يرجى استخدام جهاز Android أو الكمبيوتر', 'error');
-            } else {
-                showMessage('التسجيل الصوتي غير مدعوم في هذا المتصفح - يرجى استخدام متصفح حديث', 'error');
-            }
+        // ✅ التحقق من وجود RecordRTC
+        if (typeof RecordRTC === 'undefined') {
+            showMessage('مكتبة التسجيل غير متوفرة - يرجى تحديث الصفحة', 'error');
+            console.error('RecordRTC library not loaded');
             return;
         }
         
         // طلب صلاحيات الميكروفون
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
         
-        // ✅ تحديد نوع MIME مدعوم
-        let mimeType = 'audio/webm';
+        // ✅ تحديد نوع الملف بناءً على النظام
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const mimeType = isIOS ? 'audio/wav' : 'audio/webm';
         
-        if (isIOS) {
-            // iOS لا يدعم MediaRecorder أصلاً، لكن إذا كان مدعوماً (Safari 14.1+)
-            if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                mimeType = 'audio/mp4';
-            } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-                mimeType = 'audio/aac';
-            }
-        } else {
-            // للمتصفحات الأخرى، نختار أفضل نوع مدعوم
-            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                mimeType = 'audio/webm;codecs=opus';
-            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-                mimeType = 'audio/webm';
-            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                mimeType = 'audio/mp4';
-            }
+        // ✅ إنشاء RecordRTC
+        recordRTC = new RecordRTC(audioStream, {
+            type: 'audio',
+            mimeType: mimeType,
+            recorderType: isIOS ? RecordRTC.StereoAudioRecorder : RecordRTC.MediaStreamRecorder,
+            numberOfAudioChannels: 1,
+            desiredSampRate: 16000, // جودة مناسبة للرسائل الصوتية
+            bufferSize: 4096,
+            timeSlice: 1000 // كل ثانية
+        });
+        
+        // ✅ بدء التسجيل
+        recordRTC.startRecording();
+        isRecording = true;
+        recordingStartTime = Date.now();
+        
+        // تحديث واجهة الزر
+        const audioBtn = document.getElementById('audioBtn');
+        if (audioBtn) {
+            audioBtn.classList.add('recording');
+            audioBtn.setAttribute('aria-label', 'إيقاف التسجيل');
         }
         
-        // إعداد MediaRecorder مع نوع MIME محدد
-        const options = { mimeType: mimeType };
-        
-        try {
-            mediaRecorder = new MediaRecorder(stream, options);
-        } catch (err) {
-            // إذا فشل مع نوع MIME محدد، نجرب بدون تحديد
-            console.warn('فشل إنشاء MediaRecorder بنوع MIME محدد، محاولة بدون تحديد:', err);
-            mediaRecorder = new MediaRecorder(stream);
-            mimeType = mediaRecorder.mimeType || 'audio/webm';
-        }
-        
-        audioChunks = [];
-        
-        // ✅ معالجة أخطاء MediaRecorder (استخدام addEventListener للتوافق)
-        const handleRecorderError = (event) => {
-            console.error('خطأ في MediaRecorder:', event.error || event);
-            showMessage('حدث خطأ في التسجيل الصوتي - يرجى المحاولة مرة أخرى', 'error');
-            isRecording = false;
-            stopRecordingTimer();
-            
-            // إيقاف جميع التراكات
-            if (stream && stream.getTracks) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            
-            const audioBtn = document.getElementById('audioBtn');
-            if (audioBtn) {
-                audioBtn.classList.remove('recording');
-            }
-        };
-        
-        // استخدام addEventListener للتوافق مع جميع المتصفحات
-        if (mediaRecorder.addEventListener) {
-            mediaRecorder.addEventListener('error', handleRecorderError);
-        } else if (mediaRecorder.onerror !== undefined) {
-            mediaRecorder.onerror = handleRecorderError;
-        }
-        
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data && event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
-        };
-        
-        mediaRecorder.onstop = async () => {
-            // إيقاف جميع التراكات
-            stream.getTracks().forEach(track => track.stop());
-            
-            if (audioChunks.length === 0) {
-                showMessage('فشل التسجيل الصوتي - لم يتم تسجيل أي بيانات', 'error');
-                return;
-            }
-            
-            try {
-                // تحويل إلى Blob ثم Base64
-                const audioBlob = new Blob(audioChunks, { type: mimeType });
-                const reader = new FileReader();
-                
-                reader.onload = async () => {
-                    try {
-                        const audioData = reader.result;
-                        await sendAudioMessage(audioData);
-                    } catch (sendError) {
-                        console.error('خطأ في إرسال الرسالة الصوتية:', sendError);
-                        showMessage('حدث خطأ في إرسال الرسالة الصوتية', 'error');
-                    }
-                };
-                
-                reader.onerror = (error) => {
-                    console.error('خطأ في قراءة التسجيل الصوتي:', error);
-                    showMessage('حدث خطأ في قراءة التسجيل الصوتي', 'error');
-                };
-                
-                reader.readAsDataURL(audioBlob);
-            } catch (blobError) {
-                console.error('خطأ في إنشاء Blob:', blobError);
-                showMessage('حدث خطأ في معالجة التسجيل الصوتي', 'error');
-            }
-        };
-        
-        // بدء التسجيل مع timeslice للحصول على بيانات بشكل دوري
-        try {
-            mediaRecorder.start(1000); // كل ثانية
-            isRecording = true;
-            recordingStartTime = Date.now();
-            
-            // تحديث واجهة الزر
-            const audioBtn = document.getElementById('audioBtn');
-            if (audioBtn) {
-                audioBtn.classList.add('recording');
-                audioBtn.setAttribute('aria-label', 'إيقاف التسجيل');
-            }
-            
-            // بدء عداد الوقت
-            startRecordingTimer();
-        } catch (startError) {
-            console.error('خطأ في بدء التسجيل:', startError);
-            showMessage('فشل بدء التسجيل الصوتي - يرجى المحاولة مرة أخرى', 'error');
-            isRecording = false;
-            stream.getTracks().forEach(track => track.stop());
-            
-            const audioBtn = document.getElementById('audioBtn');
-            if (audioBtn) {
-                audioBtn.classList.remove('recording');
-            }
-        }
+        // بدء عداد الوقت
+        startRecordingTimer();
         
     } catch (error) {
         console.error('خطأ في بدء التسجيل الصوتي:', error);
@@ -2820,14 +2718,15 @@ async function startAudioRecording(e) {
             errorMessage = 'الميكروفون مستخدم من قبل تطبيق آخر - يرجى إغلاق التطبيقات الأخرى';
         } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
             errorMessage = 'الميكروفون لا يدعم المواصفات المطلوبة';
-        } else {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            if (isIOS) {
-                errorMessage = 'التسجيل الصوتي غير مدعوم على أجهزة iOS Safari - يرجى استخدام جهاز Android أو الكمبيوتر';
-            }
         }
         
         showMessage(errorMessage, 'error');
+        
+        // تنظيف
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            audioStream = null;
+        }
         
         const audioBtn = document.getElementById('audioBtn');
         if (audioBtn) {
@@ -2836,20 +2735,15 @@ async function startAudioRecording(e) {
     }
 }
 
-// إيقاف التسجيل الصوتي
+// إيقاف التسجيل الصوتي - باستخدام RecordRTC
 function stopAudioRecording(e) {
     if (e) {
         e.preventDefault();
         e.stopPropagation();
     }
     
-    if (!isRecording || !mediaRecorder) {
+    if (!isRecording || !recordRTC) {
         return;
-    }
-    
-    // إيقاف التسجيل
-    if (mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
     }
     
     isRecording = false;
@@ -2863,6 +2757,87 @@ function stopAudioRecording(e) {
         audioBtn.classList.remove('recording');
         audioBtn.setAttribute('aria-label', 'تسجيل صوتي');
     }
+    
+    // ✅ إيقاف التسجيل والحصول على البيانات
+    recordRTC.stopRecording(() => {
+        try {
+            // ✅ الحصول على Blob
+            const audioBlob = recordRTC.getBlob();
+            
+            if (!audioBlob || audioBlob.size === 0) {
+                showMessage('فشل التسجيل الصوتي - لم يتم تسجيل أي بيانات', 'error');
+                
+                // تنظيف
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                    audioStream = null;
+                }
+                if (recordRTC) {
+                    recordRTC.destroy();
+                    recordRTC = null;
+                }
+                return;
+            }
+            
+            // ✅ إيقاف التراكات
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+                audioStream = null;
+            }
+            
+            // ✅ تحويل إلى Base64
+            const reader = new FileReader();
+            
+            reader.onload = async () => {
+                try {
+                    const audioData = reader.result;
+                    // ✅ تحديد اسم الملف بناءً على نوع MIME
+                    const fileName = audioBlob.type.includes('webm') ? 'audio.webm' : 'audio.wav';
+                    await sendAudioMessage(audioData, fileName);
+                } catch (sendError) {
+                    console.error('خطأ في إرسال الرسالة الصوتية:', sendError);
+                    showMessage('حدث خطأ في إرسال الرسالة الصوتية', 'error');
+                } finally {
+                    // ✅ تنظيف
+                    if (recordRTC) {
+                        recordRTC.destroy();
+                        recordRTC = null;
+                    }
+                }
+            };
+            
+            reader.onerror = (error) => {
+                console.error('خطأ في قراءة التسجيل الصوتي:', error);
+                showMessage('حدث خطأ في قراءة التسجيل الصوتي', 'error');
+                
+                // تنظيف
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                    audioStream = null;
+                }
+                if (recordRTC) {
+                    recordRTC.destroy();
+                    recordRTC = null;
+                }
+            };
+            
+            reader.readAsDataURL(audioBlob);
+            
+        } catch (error) {
+            console.error('خطأ في معالجة التسجيل الصوتي:', error);
+            showMessage('حدث خطأ في معالجة التسجيل الصوتي', 'error');
+            
+            // تنظيف
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+                audioStream = null;
+            }
+            if (recordRTC) {
+                recordRTC.destroy();
+                recordRTC = null;
+            }
+        }
+    });
 }
 
 // بدء عداد التسجيل
