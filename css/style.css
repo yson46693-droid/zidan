@@ -4313,69 +4313,54 @@ body {
     
     /* تحسين الـ navbar للهواتف الصغيرة */
     .mobile-navbar {
-        padding: 5px 0;
+        padding: 8px 0;
     }
     
     .mobile-nav-container {
-        gap: 1px;
-        padding: 0 2px;
+        gap: 2px;
+        padding: 0 4px;
         justify-content: flex-start;
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     .mobile-nav-item {
-        min-width: 45px;
-        max-width: 60px;
-        padding: 5px 2px;
-        flex-shrink: 0;
-        flex-grow: 0;
+        min-width: 55px;
+        max-width: 75px;
+        padding: 6px 4px;
+        flex: 0 0 auto;
     }
     
     .mobile-nav-item i {
-        font-size: 1em;
-        margin-bottom: 1px;
+        font-size: 1.2em;
+        margin-bottom: 2px;
     }
     
     .mobile-nav-item span {
-        font-size: 0.6em;
-        line-height: 1;
+        font-size: 0.65em;
+        line-height: 1.1;
     }
     
     /* على الشاشات الصغيرة جداً - تقليل حجم الأزرار أكثر */
     @media (max-width: 360px) {
         .mobile-nav-item {
-            min-width: 42px;
-            max-width: 50px;
-            padding: 6px 1px;
+            min-width: 48px;
+            max-width: 65px;
+            padding: 6px 3px;
         }
         
         .mobile-nav-item i {
-            font-size: 0.95em;
-            margin-bottom: 1px;
+            font-size: 1.1em;
+            margin-bottom: 2px;
         }
         
         .mobile-nav-item span {
-            font-size: 0.55em;
-        }
-    }
-    
-    /* على الشاشات الصغيرة جداً - تقليل حجم الأزرار أكثر */
-    @media (max-width: 360px) {
-        .mobile-nav-item {
-            min-width: 42px;
-            max-width: 50px;
-            padding: 6px 1px;
-        }
-        
-        .mobile-nav-item i {
-            font-size: 0.95em;
-            margin-bottom: 1px;
-        }
-        
-        .mobile-nav-item span {
-            font-size: 0.55em;
+            font-size: 0.6em;
+            line-height: 1.1;
         }
     }
     
@@ -4410,8 +4395,8 @@ body {
         align-items: center;
         justify-content: space-between;
         width: 100%;
-        padding: 8px 0;
-        margin-top: 5px;
+        padding: 10px 0;
+        margin-top: 10px;
         border-top: 1px solid var(--border-color);
         gap: 10px;
     }
@@ -4458,9 +4443,10 @@ body {
     
     /* تصغير الأزرار في header-actions للهواتف */
     .top-bar {
-        flex-wrap: nowrap;
+        flex-direction: column;
+        align-items: stretch;
         padding: 10px 12px !important;
-        overflow: hidden;
+        overflow: visible;
         box-sizing: border-box;
     }
     
@@ -4468,7 +4454,7 @@ body {
         font-size: 1.1em;
         margin: 0;
         width: 100%;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
         padding: 8px 12px;
         border: 2px solid var(--primary-color);
         border-radius: 8px;
@@ -4714,17 +4700,18 @@ body {
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
     z-index: 1000;
-    padding: 6px 0;
+    padding: 8px 0;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .mobile-nav-container {
     display: flex;
     justify-content: flex-start;
     align-items: center;
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
@@ -4733,6 +4720,7 @@ body {
     -ms-overflow-style: none; /* IE and Edge */
     gap: 2px;
     padding: 0 4px;
+    box-sizing: border-box;
 }
 
 /* إخفاء شريط التمرير في mobile-nav-container */
@@ -4746,16 +4734,16 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 6px 3px;
+    padding: 6px 4px;
     text-decoration: none;
     color: var(--text-light);
     transition: all 0.3s ease;
-    min-width: 50px;
-    max-width: 70px;
+    min-width: 55px;
+    max-width: 75px;
     flex: 0 0 auto;
     border-radius: 8px;
     position: relative;
-    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .mobile-nav-item i {

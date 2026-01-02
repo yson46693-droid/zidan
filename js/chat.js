@@ -751,6 +751,14 @@ function createMessageElement(message) {
             const audioContainer = document.createElement('div');
             audioContainer.className = 'audio-message-container';
             
+            // ✅ مؤشر "جاري الإرسال" للرسائل الصوتية (شبه مخفي)
+            if (message.isSending) {
+                const sendingIndicator = document.createElement('div');
+                sendingIndicator.className = 'audio-sending-indicator';
+                sendingIndicator.innerHTML = '<span class="audio-sending-text">جاري الإرسال...</span>';
+                audioContainer.appendChild(sendingIndicator);
+            }
+            
             // إنشاء مشغل الصوت
             const audioPlayer = document.createElement('audio');
             audioPlayer.controls = false;

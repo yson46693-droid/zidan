@@ -1540,6 +1540,62 @@ body {
     margin: 5px 0;
     min-width: 200px;
     max-width: 300px;
+    position: relative;
+}
+
+/* ✅ مؤشر "جاري الإرسال" للرسائل الصوتية (شبه مخفي) */
+.audio-sending-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    border-radius: 12px;
+    padding: 4px 10px;
+    z-index: 10;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.user-message .audio-sending-indicator {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.message:not(.user-message) .audio-sending-indicator {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.audio-sending-text {
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    opacity: 0.9;
+}
+
+.user-message .audio-sending-text {
+    color: var(--primary-color);
+}
+
+.message:not(.user-message) .audio-sending-text {
+    color: var(--white);
+}
+
+.audio-sending-text::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    flex-shrink: 0;
 }
 
 .audio-player-wrapper {
