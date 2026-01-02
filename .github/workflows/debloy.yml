@@ -37,6 +37,16 @@ jobs:
 
           exclude: |
             **/icons/**
+            **/sessions/**
+            **/data/**
+            **/logs/**
+            **/backups/**
+            **/temp/**
+            **/tmp/**
+            **/.DS_Store
+            **/Thumbs.db
+            .gitignore
+            .editorconfig
             **/.git*
             **/.git*/**
             **/.github/**
