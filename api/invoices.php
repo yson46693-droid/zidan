@@ -230,7 +230,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     // معالجة اللوجو - نفس الطريقة في JavaScript
     $defaultLogoPath = '../vertopal.com_photo_5922357566287580087_y.png';
     $fallbackLogoPath1 = '../photo_5922357566287580087_y.jpg';
-    $fallbackLogoPath2 = '../icons/icon-192x192.png';
+    $fallbackLogoPath2 = '../ico/icon-192x192.png';
     
     $logoHtml = '';
     if (!empty($shopLogo) && trim($shopLogo) !== '') {

@@ -2013,7 +2013,7 @@ async function showInvoice(saleData) {
     // مسارات اللوجو الاحتياطية (نسبية من المجلد الرئيسي)
     const defaultLogoPath = 'vertopal.com_photo_5922357566287580087_y.png';  // اللوجو PNG في المجلد الرئيسي
     const fallbackLogoPath1 = 'photo_5922357566287580087_y.jpg';             // اللوجو JPG القديم
-    const fallbackLogoPath2 = 'icons/icon-192x192.png';                      // أيقونة من مجلد الأيقونات
+    const fallbackLogoPath2 = 'ico/icon-192x192.png';                      // أيقونة من مجلد الأيقونات
     
     // دالة لإنشاء HTML للوجو مع معالجة الأخطاء (حجم أكبر)
     const createLogoHtml = (src, alt = 'ALAA ZIDAN Logo') => {

@@ -5,7 +5,7 @@
  */
 
 // تحديد مجلد الأيقونات
-$iconsDir = __DIR__ . '/../icons/';
+$iconsDir = __DIR__ . '/../ico/';
 $allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp'];
 
 // الحصول على اسم الملف من المعامل

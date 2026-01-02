@@ -425,8 +425,8 @@ class GlobalNotificationManager {
         const body = `${senderName}: ${messageBody}\n${timeText}`;
         
         // استخدام مسارات نسبية للأيقونات
-        let icon = '/icons/icon-192x192.png';
-        let badge = '/icons/icon-72x72.png';
+        let icon = '/ico/icon-192x192.png';
+        let badge = '/ico/icon-72x72.png';
         
         // التحقق من المسار الحالي
         const basePath = window.location.pathname.includes('/zidan/') ? '/zidan' : '';

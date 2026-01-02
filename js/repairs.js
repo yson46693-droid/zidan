@@ -3911,7 +3911,7 @@ async function printRepairReceipt(id) {
     let logoHtml = '';
     const defaultLogoPath = 'vertopal.com_photo_5922357566287580087_y.png';
     const fallbackLogoPath1 = 'photo_5922357566287580087_y.jpg';
-    const fallbackLogoPath2 = 'icons/icon-192x192.png';
+    const fallbackLogoPath2 = 'ico/icon-192x192.png';
     
     const createLogoHtml = (src, alt = 'شعار المحل') => {
         return `<img src="${src}" alt="${alt}" class="invoice-logo" style="max-width: 500px; max-height: 500px; display: block; margin: 0 auto;" onerror="this.onerror=null; this.src='${defaultLogoPath}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath1}'; this.onerror=function(){this.onerror=null; this.src='${fallbackLogoPath2}'; this.onerror=function(){this.style.display='none';};};};">`;

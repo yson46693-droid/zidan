@@ -426,7 +426,7 @@ self.addEventListener('fetch', event => {
     // ✅ تحسين: معالجة الصور بشكل منفصل مع caching أفضل
     const isImage = request.url.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i) ||
                     request.url.includes('/images/') ||
-                    request.url.includes('/icons/');
+                    request.url.includes('/ico/');
     
     // ✅ تحسين: معالجة الصور مع Cache First strategy
     if (isImage) {

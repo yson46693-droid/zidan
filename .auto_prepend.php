@@ -3,7 +3,7 @@
  * ✅ ملف Auto-prepend لفرض إعدادات PHP قبل تحميل أي ملف آخر
  * 
  * هذا الملف يتم تحميله تلقائياً قبل أي ملف PHP آخر
- * لضمان تطبيق إعدادات session.save_path و soap.wsdl_cache_enabled
+ * لضمان تطبيق إعدادات soap.wsdl_cache_enabled
  * 
  * ملاحظة: قد لا يعمل في جميع الاستضافات، لكنه حل إضافي قوي
  */
@@ -41,16 +41,9 @@ if (function_exists('ini_alter')) {
     @ini_alter('soap.wsdl_cache_enabled', '0');
 }
 
-// ✅ تعيين session.save_path إلى /tmp - قبل بدء أي جلسة
-if (session_status() === PHP_SESSION_NONE) {
-    $sessionPath = '/tmp';
-    if (is_dir($sessionPath) && is_writable($sessionPath)) {
-        @ini_set('session.save_path', $sessionPath);
-        if (function_exists('session_save_path')) {
-            session_save_path($sessionPath);
-        }
-    }
-}
+// ✅ ملاحظة: لا نحدد session.save_path هنا
+// لأن api/config.php يستخدم CookieSessionHandler المخصص
+// الذي يحفظ الجلسات في cookies على جهاز المستخدم
 
 // ✅ استعادة error_reporting إلى القيمة الأصلية (بعد تطبيق الإعدادات)
 error_reporting(E_ALL);

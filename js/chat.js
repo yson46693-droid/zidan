@@ -1147,7 +1147,7 @@ function showBrowserNotification(message) {
         const notification = new Notification(message.username || 'مستخدم', {
             body: message.message,
             icon: '/vertopal.com_photo_5922357566287580087_y.png',
-            badge: '/icons/icon-72x72.png',
+            badge: '/ico/icon-72x72.png',
             dir: 'rtl',
             lang: 'ar',
             tag: message.id,
