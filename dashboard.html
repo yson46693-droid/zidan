@@ -5816,7 +5816,7 @@
             try {
                 // محاولة الحصول على معلومات المستخدم من API
                 if (typeof API !== 'undefined' && typeof API.request === 'function') {
-                    const response = await API.request('api/profile.php', 'GET');
+                    const response = await API.request('profile.php', 'GET');
                     if (response && response.success && response.user) {
                         const user = response.user;
                         return user.role === 'admin' || user.is_owner === true || user.is_owner === 'true';
