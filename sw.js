@@ -142,9 +142,9 @@ const optionalFiles = [
     buildPath('/js/pwa-validator.js'),
     buildPath('/js/pwa-diagnostics.js'),
     // Images
-    buildPath('/vertopal.com_photo_5922357566287580087_y.png'),
-    buildPath('/icons/icon-512x512.png')
-    // ملاحظة: الأيقونات لا يتم حفظها في cache لأنها قد تتغير - سيتم جلبها من الشبكة دائماً
+    buildPath('/vertopal.com_photo_5922357566287580087_y.png')
+    // ملاحظة: تم إزالة الأيقونات من cache لأنها ليست ضرورية ويمكن أن تسبب مشاكل
+    // الأيقونات ستُجلب مباشرة من manifest.json عند الحاجة
 ];
 
 // متغير لتتبع العمليات المعلقة
