@@ -140,7 +140,7 @@ async function loadPhoneBrands() {
 
 // دالة لتحديث واجهة الماركات بعد تحميلها
 function updatePhoneBrandsUI() {
-    // تحديث select الماركة في النموذج إذا كان موجوداً
+    // تحديث select الماركة في نموذج الهاتف إذا كان موجوداً
     const phoneBrandSelect = document.getElementById('phoneBrand');
     if (phoneBrandSelect) {
         const currentValue = phoneBrandSelect.value;
@@ -150,6 +150,19 @@ function updatePhoneBrandsUI() {
         // استعادة القيمة السابقة إذا كانت موجودة
         if (currentValue) {
             phoneBrandSelect.value = currentValue;
+        }
+    }
+    
+    // تحديث select الماركة في نموذج قطع الغيار إذا كان موجوداً
+    const sparePartBrandSelect = document.getElementById('sparePartBrand');
+    if (sparePartBrandSelect) {
+        const currentValue = sparePartBrandSelect.value;
+        sparePartBrandSelect.innerHTML = phoneBrands.map(brand => 
+            `<option value="${brand.name}">${brand.name}</option>`
+        ).join('');
+        // استعادة القيمة السابقة إذا كانت موجودة
+        if (currentValue) {
+            sparePartBrandSelect.value = currentValue;
         }
     }
     
@@ -505,7 +518,13 @@ function filterSparePartsByBrand(brand, element) {
     filterSpareParts();
 }
 
-function showAddSparePartModal() {
+async function showAddSparePartModal() {
+    // التأكد من تحميل الماركات قبل فتح النموذج
+    if (phoneBrands.length === 0) {
+        await loadPhoneBrands();
+        updatePhoneBrandsUI();
+    }
+    
     document.getElementById('sparePartModalTitle').textContent = 'إضافة قطعة غيار';
     document.getElementById('sparePartForm').reset();
     document.getElementById('sparePartId').value = '';
@@ -514,7 +533,7 @@ function showAddSparePartModal() {
     document.getElementById('sparePartModal').style.display = 'flex';
 }
 
-function editSparePart(id) {
+async function editSparePart(id) {
     // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
     try {
         const user = getCurrentUser();
@@ -526,6 +545,12 @@ function editSparePart(id) {
         console.error('خطأ في التحقق من الصلاحيات:', error);
         showMessage('خطأ في التحقق من الصلاحيات', 'error');
         return;
+    }
+    
+    // التأكد من تحميل الماركات قبل فتح النموذج
+    if (phoneBrands.length === 0) {
+        await loadPhoneBrands();
+        updatePhoneBrandsUI();
     }
     
     const part = allSpareParts.find(p => p.id === id);
@@ -1636,7 +1661,7 @@ async function deletePhone(id) {
 // النماذج المنبثقة
 // ============================================
 
-function showAddInventoryModal() {
+async function showAddInventoryModal() {
     // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
     try {
         const user = getCurrentUser();
@@ -1651,11 +1676,11 @@ function showAddInventoryModal() {
     }
     
     if (currentInventoryTab === 'spare_parts') {
-        showAddSparePartModal();
+        await showAddSparePartModal();
     } else if (currentInventoryTab === 'accessories') {
         showAddAccessoryModal();
     } else if (currentInventoryTab === 'phones') {
-        showAddPhoneModal();
+        await showAddPhoneModal();
     }
 }
 
