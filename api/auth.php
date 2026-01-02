@@ -1,8 +1,10 @@
 <?php
-// ✅ CRITICAL: تنظيف output buffer قبل أي شيء
+// ✅ CRITICAL: تنظيف output buffer قبل أي شيء تماماً
 while (ob_get_level() > 0) {
-    ob_end_clean();
+    @ob_end_clean();
 }
+@ob_end_flush();
+@ob_end_clean();
 
 // ✅ CRITICAL: بدء معالجة الأخطاء قبل أي شيء
 error_reporting(E_ALL);
@@ -229,6 +231,9 @@ if ($method === 'POST') {
                 $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
                 
                 error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username . " - branch_id: " . ($user['branch_id'] ?? 'null'));
+                
+                // ✅ CRITICAL: إغلاق الجلسة قبل إرسال الاستجابة لتجنب مشاكل headers
+                session_write_close();
                 
                 // إرجاع الاستجابة مباشرة - response() ستقوم بـ exit تلقائياً
                 response(true, 'تم تسجيل الدخول بنجاح', [

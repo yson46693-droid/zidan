@@ -229,6 +229,14 @@ class CookieSessionHandler implements SessionHandlerInterface {
     }
     
     public function write($session_id, $session_data) {
+        // ✅ CRITICAL: التحقق من أن headers لم يتم إرسالها بعد
+        if (headers_sent()) {
+            // إذا تم إرسال headers بالفعل، لا يمكن إرسال cookies
+            // هذا يحدث عادة عند استدعاء session_write_close() بعد response()
+            error_log('Warning: Cannot set session cookie - headers already sent');
+            return true; // نعيد true لتجنب خطأ
+        }
+        
         $isSecure = false;
         if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
             $isSecure = true;
@@ -254,7 +262,7 @@ class CookieSessionHandler implements SessionHandlerInterface {
             $samesite = $isSecure ? 'None' : 'Lax';
             foreach ($chunks as $index => $chunk) {
                 if (PHP_VERSION_ID >= 70300) {
-                    setcookie($this->cookieName . '_' . $index, $chunk, [
+                    @setcookie($this->cookieName . '_' . $index, $chunk, [
                         'expires' => time() + $this->lifetime,
                         'path' => '/',
                         'domain' => '',
@@ -263,11 +271,11 @@ class CookieSessionHandler implements SessionHandlerInterface {
                         'samesite' => $samesite
                     ]);
                 } else {
-                    setcookie($this->cookieName . '_' . $index, $chunk, time() + $this->lifetime, '/', '', $isSecure, true);
+                    @setcookie($this->cookieName . '_' . $index, $chunk, time() + $this->lifetime, '/', '', $isSecure, true);
                 }
             }
             if (PHP_VERSION_ID >= 70300) {
-                setcookie($this->cookieName . '_count', count($chunks), [
+                @setcookie($this->cookieName . '_count', count($chunks), [
                     'expires' => time() + $this->lifetime,
                     'path' => '/',
                     'domain' => '',
@@ -276,12 +284,12 @@ class CookieSessionHandler implements SessionHandlerInterface {
                     'samesite' => $samesite
                 ]);
             } else {
-                setcookie($this->cookieName . '_count', count($chunks), time() + $this->lifetime, '/', '', $isSecure, true);
+                @setcookie($this->cookieName . '_count', count($chunks), time() + $this->lifetime, '/', '', $isSecure, true);
             }
         } else {
             $samesite = $isSecure ? 'None' : 'Lax';
             if (PHP_VERSION_ID >= 70300) {
-                setcookie($this->cookieName, $encoded, [
+                @setcookie($this->cookieName, $encoded, [
                     'expires' => time() + $this->lifetime,
                     'path' => '/',
                     'domain' => '',
@@ -290,7 +298,7 @@ class CookieSessionHandler implements SessionHandlerInterface {
                     'samesite' => $samesite
                 ]);
             } else {
-                setcookie($this->cookieName, $encoded, time() + $this->lifetime, '/', '', $isSecure, true);
+                @setcookie($this->cookieName, $encoded, time() + $this->lifetime, '/', '', $isSecure, true);
             }
         }
         
@@ -426,18 +434,25 @@ function writeJSON($file, $data) {
 }
 
 function response($success, $message = '', $data = null, $code = 200) {
-    // تنظيف أي output سابق
+    // ✅ CRITICAL: تنظيف أي output سابق تماماً
     while (ob_get_level() > 0) {
         ob_end_clean();
     }
     
-    // التأكد من أن headers لم يتم إرسالها بعد
-    if (!headers_sent()) {
+    // ✅ CRITICAL: إيقاف output buffering تماماً
+    @ob_end_flush();
+    @ob_end_clean();
+    
+    // ✅ CRITICAL: التأكد من أن headers لم يتم إرسالها بعد
+    if (!headers_sent($file, $line)) {
         http_response_code($code);
-        header('Content-Type: application/json; charset=utf-8');
-        header('Cache-Control: no-cache, no-store, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
+        header('Content-Type: application/json; charset=utf-8', true);
+        header('Cache-Control: no-cache, no-store, must-revalidate', true);
+        header('Pragma: no-cache', true);
+        header('Expires: 0', true);
+    } else {
+        // ✅ إذا تم إرسال headers بالفعل، تسجيل الخطأ
+        error_log("Warning: Headers already sent in $file on line $line");
     }
     
     $response = [
@@ -466,14 +481,20 @@ function response($success, $message = '', $data = null, $code = 200) {
         ], JSON_UNESCAPED_UNICODE);
     }
     
-    // إرسال الاستجابة وإنهاء السكريبت
+    // ✅ CRITICAL: إرسال الاستجابة بدون أي output إضافي
+    // استخدام output buffering لضمان عدم وجود output إضافي
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
     echo $jsonOutput;
     
-    // إنهاء السكريبت فوراً
+    // ✅ CRITICAL: إنهاء السكريبت فوراً قبل أي شيء آخر
     if (function_exists('fastcgi_finish_request')) {
         fastcgi_finish_request();
     }
     
+    // ✅ CRITICAL: إنهاء فوري - لا شيء بعد هذا
     exit(0);
 }
 
