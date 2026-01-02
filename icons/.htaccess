@@ -2,21 +2,29 @@
 # ✅ إعدادات مجلد icons - CRITICAL
 # ============================================
 
-# ✅ CRITICAL: السماح بالوصول لجميع ملفات الأيقونات
-# دعم Apache 2.2 و 2.4
+# ✅ CRITICAL: السماح بالوصول لجميع الملفات
 <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
-    # Apache 2.4+
     <IfModule mod_authz_core.c>
         Require all granted
     </IfModule>
-    # Apache 2.2 (fallback)
     <IfModule !mod_authz_core.c>
         Order Allow,Deny
         Allow from all
     </IfModule>
 </FilesMatch>
 
-# ✅ CRITICAL: إعداد MIME types الصحيحة
+# ✅ CRITICAL: السماح بالوصول لجميع الملفات (قاعدة عامة)
+<FilesMatch ".*">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# ✅ CRITICAL: MIME types
 <IfModule mod_mime.c>
     AddType image/png .png
     AddType image/jpeg .jpg .jpeg
@@ -26,22 +34,13 @@
     AddType image/webp .webp
 </IfModule>
 
-# ✅ CRITICAL: إعداد Cache-Control للأيقونات
+# ✅ CRITICAL: Headers
 <IfModule mod_headers.c>
     <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
         Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
     </FilesMatch>
 </IfModule>
 
-# ✅ CRITICAL: السماح بالوصول للملفات مع query parameters
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    # السماح بالوصول للملفات الموجودة
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^ - [L]
-</IfModule>
-
-# ✅ CRITICAL: تعطيل Directory Listing
+# ✅ CRITICAL: تعطيل Directory Listing فقط
 Options -Indexes +FollowSymLinks
