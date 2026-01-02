@@ -1,4 +1,22 @@
 <?php
+// ✅ CRITICAL: قمع تحذيرات open_basedir المتعلقة بـ wsdlcache في بداية الملف
+// هذه التحذيرات تظهر حتى لو كان wsdlcache معطّل لأن PHP extension يحاول الوصول إلى المجلد
+$originalErrorReporting = error_reporting();
+error_reporting(E_ALL & ~E_WARNING);
+$originalErrorHandler = set_error_handler(function($errno, $errstr, $errfile, $errline) use (&$originalErrorHandler) {
+    // قمع تحذيرات open_basedir المتعلقة بـ wsdlcache
+    if (strpos($errstr, 'open_basedir restriction') !== false && 
+        strpos($errstr, 'wsdlcache') !== false) {
+        // تجاهل هذا التحذير - لا يؤثر على عمل التطبيق
+        return true;
+    }
+    // تمرير باقي الأخطاء إلى المعالج الأصلي
+    if ($originalErrorHandler) {
+        return call_user_func($originalErrorHandler, $errno, $errstr, $errfile, $errline);
+    }
+    return false;
+}, E_WARNING);
+
 // ✅ CRITICAL: تحميل إعدادات PHP قبل أي شيء آخر
 // هذا يضمن تطبيق session.save_path و soap.wsdl_cache_enabled قبل بدء الجلسة
 $autoPrependFile = __DIR__ . '/../.auto_prepend.php';
@@ -21,6 +39,9 @@ if (file_exists($autoPrependFile)) {
         }
     }
 }
+
+// ✅ استعادة error_reporting إلى القيمة الأصلية (بعد تطبيق الإعدادات)
+error_reporting($originalErrorReporting);
 
 // تنظيف output buffer قبل أي شيء
 if (ob_get_level()) {
