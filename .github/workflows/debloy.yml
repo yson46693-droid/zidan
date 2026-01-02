@@ -67,6 +67,33 @@ jobs:
             .gitignore
             .editorconfig
 
+      - name: Upload Icons Directory Explicitly
+        run: |
+          echo "📤 رفع مجلد icons بشكل صريح..."
+          # تثبيت lftp
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
+          
+          # إنشاء ملف script لـ lftp لتجنب مشاكل escape
+          cat > /tmp/lftp_upload.sh << 'EOF'
+          set ftp:ssl-allow no
+          set ftp:passive-mode yes
+          set ftp:list-options -a
+          open -u alaazidan,KGw~1blLgk1hz*d1 ftp://213.239.220.209:21
+          cd /httpdocs/
+          mkdir -p icons
+          cd icons
+          lcd icons
+          mput *.png
+          put .htaccess
+          ls -la
+          quit
+          EOF
+          
+          # تنفيذ script
+          lftp -f /tmp/lftp_upload.sh
+          echo "✅ تم رفع ملفات الأيقونات و .htaccess"
+
       - name: Verify Icons Upload
         run: |
           echo "🔍 التحقق من رفع ملفات الأيقونات..."
