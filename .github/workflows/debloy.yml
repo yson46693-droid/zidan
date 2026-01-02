@@ -36,6 +36,7 @@ jobs:
           dangerous-clean-slate: false
 
           exclude: |
+            **/icons/**
             **/.git*
             **/.git*/**
             **/.github/**
