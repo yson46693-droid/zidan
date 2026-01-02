@@ -217,19 +217,17 @@ AddDefaultCharset UTF-8
 # ============================================
 
 <IfModule mod_php.c>
-    php_value session.save_path "/tmp"
     php_value soap.wsdl_cache_enabled "0"
-    php_value soap.wsdl_cache_dir "/tmp"
     php_value soap.wsdl_cache_ttl "0"
     php_value soap.wsdl_cache_limit "0"
     php_value auto_prepend_file ".auto_prepend.php"
+    # ✅ تم إزالة session.save_path - يتم تعيينه من config.php
 </IfModule>
 
 <IfModule lsapi_module>
-    php_value session.save_path "/tmp"
     php_value soap.wsdl_cache_enabled "0"
-    php_value soap.wsdl_cache_dir "/tmp"
     php_value soap.wsdl_cache_ttl "0"
     php_value soap.wsdl_cache_limit "0"
     php_value auto_prepend_file ".auto_prepend.php"
+    # ✅ تم إزالة session.save_path - يتم تعيينه من config.php
 </IfModule>

@@ -25,12 +25,15 @@ if (file_exists($autoPrependFile)) {
 } else {
     // ✅ تطبيق الإعدادات مباشرة إذا لم يكن الملف موجوداً
     @ini_set('soap.wsdl_cache_enabled', '0');
-    @ini_set('soap.wsdl_cache_dir', '/tmp');
     @ini_set('soap.wsdl_cache_ttl', '0');
     @ini_set('soap.wsdl_cache_limit', '0');
     
+    // ✅ استخدام مجلد sessions داخل الموقع بدلاً من /tmp
     if (session_status() === PHP_SESSION_NONE) {
-        $sessionPath = '/tmp';
+        $sessionPath = __DIR__ . '/../sessions';
+        if (!is_dir($sessionPath)) {
+            @mkdir($sessionPath, 0755, true);
+        }
         if (is_dir($sessionPath) && is_writable($sessionPath)) {
             @ini_set('session.save_path', $sessionPath);
             if (function_exists('session_save_path')) {
@@ -191,14 +194,13 @@ require_once __DIR__ . '/database.php';
 // إعدادات الجلسة (قبل بدء الجلسة)
 if (session_status() === PHP_SESSION_NONE) {
     // ✅ حل مشكلة open_basedir restriction في Shared Hosting
-    // تحديد مسار حفظ الجلسات إلى /tmp (مسموح في open_basedir)
+    // تحديد مسار حفظ الجلسات إلى مجلد sessions داخل الموقع (ضمن WEBSPACEROOT)
     // يجب تعيين هذا قبل أي محاولة لاستخدام الجلسات
     
     // ✅ تعطيل wsdlcache لتجنب مشكلة open_basedir - يجب أن يكون أول شيء
     // wsdlcache يحاول الوصول إلى /var/lib/php/wsdlcache (غير مسموح)
     // محاولة متعددة لضمان التعطيل
     @ini_set('soap.wsdl_cache_enabled', '0');
-    @ini_set('soap.wsdl_cache_dir', '/tmp');
     @ini_set('soap.wsdl_cache_ttl', '0');
     @ini_set('soap.wsdl_cache_limit', '0');
     
@@ -219,10 +221,21 @@ if (session_status() === PHP_SESSION_NONE) {
         error_log("✅ تم تعطيل soap.wsdl_cache_enabled بنجاح");
     }
     
-    // ✅ محاولة استخدام /tmp أولاً (مسموح في open_basedir)
-    $sessionPath = '/tmp';
+    // ✅ CRITICAL: استخدام مجلد داخل الموقع مباشرة (ضمن WEBSPACEROOT)
+    // هذا يحل مشكلة open_basedir في الاستضافات المشتركة
+    $sessionPath = __DIR__ . '/../sessions';
     
-    // التحقق من أن /tmp موجود وقابل للكتابة
+    // إنشاء المجلد إذا لم يكن موجوداً
+    if (!is_dir($sessionPath)) {
+        @mkdir($sessionPath, 0755, true);
+        // إنشاء ملف .htaccess لحماية المجلد
+        $htaccessFile = $sessionPath . '/.htaccess';
+        if (!file_exists($htaccessFile)) {
+            @file_put_contents($htaccessFile, "Deny from all\n");
+        }
+    }
+    
+    // التحقق من أن المجلد موجود وقابل للكتابة
     if (is_dir($sessionPath) && is_writable($sessionPath)) {
         // ✅ محاولة متعددة لضمان التعيين
         @ini_set('session.save_path', $sessionPath);
@@ -239,36 +252,29 @@ if (session_status() === PHP_SESSION_NONE) {
         
         // ✅ التحقق من أن التعيين نجح
         $actualPath = ini_get('session.save_path');
-        if ($actualPath === $sessionPath || strpos($actualPath, '/tmp') !== false) {
+        if ($actualPath === $sessionPath || strpos($actualPath, 'sessions') !== false) {
             error_log("✅ تم تعيين session.save_path إلى: " . $sessionPath);
         } else {
-            error_log("⚠️ تحذير: session.save_path لم يتم تعيينه إلى /tmp (القيمة الحالية: " . $actualPath . ")");
-            // محاولة إضافية باستخدام putenv
-            if (function_exists('putenv')) {
-                @putenv('TMPDIR=/tmp');
-            }
+            error_log("⚠️ تحذير: session.save_path لم يتم تعيينه (القيمة الحالية: " . $actualPath . ")");
         }
     } else {
-        // بديل: استخدام مجلد داخل الموقع (ضمن WEBSPACEROOT)
-        $alternativePath = __DIR__ . '/../sessions';
-        if (!is_dir($alternativePath)) {
-            @mkdir($alternativePath, 0755, true);
-        }
-        if (is_dir($alternativePath) && is_writable($alternativePath)) {
-            @ini_set('session.save_path', $alternativePath);
+        // إذا فشل، محاولة استخدام /tmp كبديل (إذا كان متاحاً)
+        $fallbackPath = '/tmp';
+        if (is_dir($fallbackPath) && is_writable($fallbackPath)) {
+            @ini_set('session.save_path', $fallbackPath);
             if (function_exists('session_save_path')) {
-                session_save_path($alternativePath);
+                session_save_path($fallbackPath);
             }
-            error_log("✅ تم تعيين session.save_path إلى: " . $alternativePath);
+            error_log("✅ تم تعيين session.save_path إلى: " . $fallbackPath . " (بديل)");
         } else {
-            // إذا فشل كل شيء، استخدام المسار الحالي للمجلد المؤقت
-            $fallbackPath = sys_get_temp_dir();
-            if (is_dir($fallbackPath) && is_writable($fallbackPath)) {
-                @ini_set('session.save_path', $fallbackPath);
+            // آخر محاولة: استخدام sys_get_temp_dir()
+            $lastResortPath = sys_get_temp_dir();
+            if (is_dir($lastResortPath) && is_writable($lastResortPath)) {
+                @ini_set('session.save_path', $lastResortPath);
                 if (function_exists('session_save_path')) {
-                    session_save_path($fallbackPath);
+                    session_save_path($lastResortPath);
                 }
-                error_log("✅ تم تعيين session.save_path إلى: " . $fallbackPath);
+                error_log("✅ تم تعيين session.save_path إلى: " . $lastResortPath . " (حل أخير)");
             } else {
                 error_log("⚠️ تحذير: فشل تعيين session.save_path - سيتم استخدام المسار الافتراضي");
             }
