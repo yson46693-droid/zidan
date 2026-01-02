@@ -16,7 +16,7 @@ header('Cache-Control: no-cache');
 header('Connection: keep-alive');
 header('X-Accel-Buffering: no'); // تعطيل buffering في Nginx
 
-// السماح بـ CORS
+// إعدادات HTTP Headers
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowedOrigins = [
     'https://alaa-zidan.free.nf',

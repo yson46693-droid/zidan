@@ -1918,7 +1918,7 @@ function printInvoiceDirectly(saleData) {
                     }, 500);
                 }
             } catch (e) {
-                // إذا كان هناك خطأ في الوصول للنافذة (CORS أو إغلاقها)
+                // إذا كان هناك خطأ في الوصول للنافذة
                 clearInterval(checkLoad);
                 console.debug('لا يمكن الوصول للنافذة:', e);
             }

@@ -75,8 +75,7 @@ const API = {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            credentials: 'include', // إرسال ملفات تعريف الارتباط مع جميع الطلبات (للمزامنة مع CORS credentials)
-            mode: 'cors',
+            credentials: 'include', // إرسال ملفات تعريف الارتباط مع جميع الطلبات
             cache: 'no-cache',
             redirect: 'follow' // متابعة التوجيهات تلقائياً
         };
@@ -314,8 +313,6 @@ const API = {
             let errorMessage = 'خطأ في الاتصال بالخادم';
             if (error.name === 'SyntaxError') {
                 errorMessage = 'خطأ في تحليل الاستجابة من الخادم. قد يكون الخادم يعيد HTML بدلاً من JSON.';
-            } else if (error.message && error.message.includes('CORS')) {
-                errorMessage = 'خطأ CORS. تحقق من إعدادات الخادم.';
             } else {
                 errorMessage = `خطأ: ${error.message || 'خطأ غير معروف'}`;
             }

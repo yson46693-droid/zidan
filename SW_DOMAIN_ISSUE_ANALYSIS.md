@@ -95,17 +95,8 @@ const scope = basePath ? `${basePath}/` : '/';
 
 ---
 
-### 7️⃣ ⚠️ CORS/CSP Issues (مشكلة محتملة)
-**المشكلة:**
-Content Security Policy (CSP) أو CORS قد تمنع Service Worker
 
-**التحقق:**
-- افتح Console وتحقق من أخطاء CORS أو CSP
-- ابحث عن رسائل مثل: "Refused to register a service worker" أو "CSP violation"
-
----
-
-### 8️⃣ ⚠️ Compression Issues (مشكلة محتملة)
+### 7️⃣ ⚠️ Compression Issues (مشكلة محتملة)
 **المشكلة:**
 Service Worker **لا يجب** أن يكون مضغوط (compressed)
 
@@ -123,7 +114,7 @@ RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L,T=application/javascript]
 
 ---
 
-### 9️⃣ ⚠️ PHP Output Issues (مشكلة محتملة)
+### 8️⃣ ⚠️ PHP Output Issues (مشكلة محتملة)
 **المشكلة:**
 إذا كان Service Worker يُخدم من `sw.js.php`، أي output قبل Service Worker code سيكسر Service Worker
 
@@ -246,7 +237,6 @@ if ('serviceWorker' in navigator) {
 | 3 | Cache قديم | ⚠️ متوسطة | Clear Site Data |
 | 4 | Compression | ⚠️ منخفضة | تحقق من LiteSpeed settings |
 | 5 | PHP Output | ⚠️ منخفضة | تحقق من sw.js.php output |
-| 6 | CORS/CSP | ⚠️ منخفضة | تحقق من Console errors |
 
 ---
 

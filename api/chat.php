@@ -4,7 +4,7 @@ while (ob_get_level() > 0) {
     ob_end_clean();
 }
 
-// تحميل ملف الإعدادات الذي يتعامل مع CORS و OPTIONS
+// تحميل ملف الإعدادات
 try {
     require_once __DIR__ . '/config.php';
 } catch (Exception $e) {

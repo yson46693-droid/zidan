@@ -501,7 +501,7 @@ function loadImageAsDataUrl(imagePath) {
                 resolve(dataUrl);
             } catch (error) {
                 console.error('خطأ في تحويل الصورة إلى base64:', error);
-                // في حالة الفشل (مثل مشكلة CORS)، نرجع المسار الأصلي
+                // في حالة الفشل، نرجع المسار الأصلي
                 resolve(imagePath);
             }
         };

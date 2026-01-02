@@ -162,7 +162,7 @@ class SplashScreenManager {
                         missingCSS.push('style.css (sheet not loaded)');
                     }
                 } catch (e) {
-                    // قد يكون CORS error، لكن نعتبره محمّل إذا media = 'all'
+                    // نعتبره محمّل إذا media = 'all'
                 }
             } else {
                 allLoaded = false;
@@ -188,7 +188,7 @@ class SplashScreenManager {
                         missingCSS.push('bootstrap-icons.css (sheet not loaded)');
                     }
                 } catch (e) {
-                    // قد يكون CORS error، لكن نعتبره محمّل إذا media = 'all'
+                    // نعتبره محمّل إذا media = 'all'
                 }
             } else {
                 allLoaded = false;

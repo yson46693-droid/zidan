@@ -12,7 +12,7 @@ require_once __DIR__ . '/../includes/audit_log.php';
 requireLogin();
 
 header('Content-Type: application/json; charset=utf-8');
-// CORS headers
+// HTTP Headers
 header('Access-Control-Allow-Origin: ' . (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '*'));
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');

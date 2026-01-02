@@ -3181,7 +3181,7 @@ function generateQRCodeFallback(data, size = 200) {
     }
 }
 
-// ✅ دالة لتحويل URL الصورة إلى base64 data URL (لتجنب مشاكل CORS)
+// ✅ دالة لتحويل URL الصورة إلى base64 data URL
 async function convertImageUrlToDataUrl(imageUrl) {
     try {
         // إذا كان بالفعل data URL، نرجعه كما هو
@@ -3196,7 +3196,7 @@ async function convertImageUrlToDataUrl(imageUrl) {
                 reject(new Error('انتهت مهلة تحميل الصورة'));
             }, 10000); // 10 ثواني timeout
             
-            img.crossOrigin = 'anonymous'; // محاولة تجنب CORS
+            img.crossOrigin = 'anonymous';
             
             img.onload = function() {
                 clearTimeout(timeout);
@@ -3213,7 +3213,7 @@ async function convertImageUrlToDataUrl(imageUrl) {
                     resolve(dataUrl);
                 } catch (error) {
                     console.warn('خطأ في تحويل الصورة إلى base64، سيتم استخدام URL الأصلي:', error);
-                    // في حالة الفشل (مثل مشكلة CORS)، نرجع URL الأصلي
+                    // في حالة الفشل، نرجع URL الأصلي
                     resolve(imageUrl);
                 }
             };
@@ -4790,7 +4790,7 @@ async function generateBarcodeLabel(repairId) {
 // ✅ دالة جديدة لإنشاء ملصق محسّن مع QR Code وبيانات العملية
 async function generateQRCodeLabel(repair, qrCodeImage) {
     try {
-        // ✅ تحويل QR Code URL إلى data URL لتجنب مشاكل CORS
+        // ✅ تحويل QR Code URL إلى data URL
         let qrCodeDataUrl = qrCodeImage;
         if (!qrCodeImage.startsWith('data:')) {
             try {
@@ -4862,7 +4862,7 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
             
             // محاولة تحميل الصورة
             if (qrCodeDataUrl.startsWith('data:') || qrCodeDataUrl.startsWith('http://') || qrCodeDataUrl.startsWith('https://')) {
-                qrImg.crossOrigin = 'anonymous'; // محاولة تجنب CORS
+                qrImg.crossOrigin = 'anonymous';
                 qrImg.src = qrCodeDataUrl;
             } else {
                 reject(new Error('مسار QR Code غير صحيح'));

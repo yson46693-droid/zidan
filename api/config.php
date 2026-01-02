@@ -45,7 +45,7 @@ header('Content-Type: application/json; charset=utf-8');
 // تعيين التوقيت لمصر - الإسكندرية
 date_default_timezone_set('Africa/Cairo');
 
-// تحسين CORS للاستضافات المجانية
+// إعدادات HTTP Headers
 // السماح بالأصل المحدد في الطلب (للسماح بملفات تعريف الارتباط)
 $allowedOrigins = [
     'https://www.egsystem.top',

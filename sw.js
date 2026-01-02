@@ -307,7 +307,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const { request } = event;
     
-    // ✅ تجاهل ملفات CDN الخارجية (مثل Bootstrap Icons) لتجنب مشاكل CORS
+    // ✅ تجاهل ملفات CDN الخارجية (مثل Bootstrap Icons)
     // نترك المتصفح يتعامل معها بشكل طبيعي
     try {
         const requestUrl = new URL(request.url);
@@ -468,7 +468,6 @@ self.addEventListener('fetch', event => {
         const isLocalFile = requestUrl.origin === self.location.origin;
         
         // ✅ Network First مع Cache Fallback للملفات الديناميكية
-        // لا نضيف headers مخصصة للملفات الخارجية (CDN) لتجنب مشاكل CORS
         const fetchOptions = isLocalFile ? {
             cache: 'no-store',
             headers: {
@@ -479,7 +478,6 @@ self.addEventListener('fetch', event => {
         } : {
             // ✅ للملفات الخارجية (CDN)، نستخدم fetch عادي بدون headers مخصصة
             cache: 'default',
-            mode: 'cors',
             credentials: 'omit'
         };
         
