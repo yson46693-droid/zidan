@@ -1,7 +1,15 @@
 # ✅ السماح بالوصول لجميع ملفات الأيقونات
+# دعم Apache 2.2 و 2.4
 <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
-    Order Allow,Deny
-    Allow from all
+    # Apache 2.4+
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    # Apache 2.2 (fallback)
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Allow from all
+    </IfModule>
 </FilesMatch>
 
 # ✅ إعداد MIME types الصحيحة
@@ -15,8 +23,9 @@ AddType image/webp .webp
 # ✅ السماح بالوصول للملفات مع query parameters
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # السماح بالوصول للملفات الموجودة
     RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^(.*)$ $1 [L]
+    RewriteRule ^ - [L]
 </IfModule>
 
 # ✅ إعداد Cache-Control للأيقونات
