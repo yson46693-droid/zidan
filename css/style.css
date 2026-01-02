@@ -795,6 +795,14 @@ body {
     padding: 30px;
 }
 
+/* ضمان أن جميع الأقسام لها مساحة سفلية كافية على الهاتف */
+@media (max-width: 767.98px) {
+    .section,
+    .content {
+        padding-bottom: 30px;
+    }
+}
+
 /* الأقسام */
 .section {
     display: none !important;
@@ -4281,7 +4289,8 @@ body {
     /* المحتوى الرئيسي */
     .main-content {
         margin-right: 0 !important;
-        padding: 20px 15px 110px !important; /* مساحة من الأسفل للـ navbar */
+        padding: 20px 15px 120px !important; /* مساحة من الأسفل للـ navbar - زيادة من 110px إلى 120px */
+        padding-bottom: max(120px, calc(120px + env(safe-area-inset-bottom, 0px))) !important;
         width: 100% !important;
         min-height: 100vh;
         position: relative;
@@ -4367,7 +4376,8 @@ body {
     /* المحتوى الرئيسي */
     .main-content {
         margin-right: 0 !important;
-        padding: 15px 10px 110px !important;
+        padding: 15px 10px 120px !important; /* زيادة من 110px إلى 120px */
+        padding-bottom: max(120px, calc(120px + env(safe-area-inset-bottom, 0px))) !important;
         width: 100% !important;
     }
     
@@ -4701,10 +4711,12 @@ body {
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
     z-index: 1000;
     padding: 14px 0;
+    padding-bottom: max(14px, calc(14px + env(safe-area-inset-bottom, 0px)));
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
     overflow: visible;
+    min-height: 86px; /* ضمان ارتفاع ثابت */
 }
 
 .mobile-nav-container {
@@ -4852,7 +4864,8 @@ body {
     /* المحتوى الرئيسي */
     .main-content {
         margin-right: 0;
-        padding: 20px 15px 110px; /* مساحة من الأسفل للـ navbar */
+        padding: 20px 15px 120px; /* مساحة من الأسفل للـ navbar - زيادة من 110px إلى 120px */
+        padding-bottom: max(120px, calc(120px + env(safe-area-inset-bottom, 0px)));
         width: 100%;
         min-height: 100vh;
         position: relative;
@@ -9512,6 +9525,13 @@ body > .nav-link,
     
     .branch-switcher label {
         font-size: 0.9em;
+    }
+    
+    /* إضافة مساحة سفلية إضافية لأقسام الخزنة */
+    #branch-treasury-section,
+    #treasury-deposits-section,
+    #treasury-withdrawals-section {
+        padding-bottom: 30px;
     }
 }
 

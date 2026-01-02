@@ -307,6 +307,15 @@ function loadProductReturnsSection() {
                     width: 80px !important;
                     margin: 0 auto;
                 }
+                
+                /* إضافة مساحة سفلية إضافية لمنع اختفاء المحتوى */
+                .product-returns-container {
+                    padding-bottom: 30px !important;
+                }
+                
+                #returnsTablesSection {
+                    padding-bottom: 30px !important;
+                }
             }
             
             @media (max-width: 480px) {

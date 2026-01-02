@@ -3795,6 +3795,7 @@
         position: relative;
         width: 100%;
         gap: 10px;
+        flex-wrap: nowrap;
     }
 
     .pos-header h1 {
@@ -3802,6 +3803,7 @@
         flex: 1;
         text-align: center;
         margin: 0;
+        order: 2;
     }
 
     .btn-header-icon {
@@ -3820,6 +3822,7 @@
         min-width: 44px;
         min-height: 44px;
         flex-shrink: 0;
+        order: 3;
     }
 
     .btn-header-icon:hover {
@@ -3843,6 +3846,7 @@
         min-height: 44px;
         flex-shrink: 0;
         white-space: nowrap;
+        order: 1;
     }
 
     .btn-back:hover {
@@ -4150,7 +4154,8 @@
 
     /* Add padding to body to prevent content from being hidden behind bottom bar */
     .pos-container {
-        padding-bottom: 70px;
+        padding-bottom: 90px; /* زيادة من 70px إلى 90px */
+        padding-bottom: max(90px, calc(90px + env(safe-area-inset-bottom, 0px)));
     }
 
     /* Payment Modal Mobile Styles */
