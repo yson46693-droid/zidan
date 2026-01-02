@@ -77,48 +77,123 @@ jobs:
             exit 1
           fi
           
+          # عرض جميع الملفات في مجلد icons
+          echo "📋 قائمة الملفات في مجلد icons:"
+          ls -lah icons/
+          
           if [ ! -f "icons/.htaccess" ]; then
             echo "⚠️ ملف .htaccess غير موجود في مجلد icons/"
+          else
+            echo "✅ ملف .htaccess موجود"
           fi
           
           icon_files=$(find icons -name "*.png" | wc -l)
           echo "📋 عدد ملفات الأيقونات: $icon_files"
           
+          if [ "$icon_files" -eq 0 ]; then
+            echo "❌ لا توجد ملفات أيقونات!"
+            exit 1
+          fi
+          
           # تثبيت lftp
           sudo apt-get update -qq
           sudo apt-get install -y lftp
           
-          # إنشاء ملف script لـ lftp
+          # إنشاء ملف script لـ lftp مع معالجة أخطاء أفضل
           cat > /tmp/lftp_upload.sh << 'EOF'
           set ftp:ssl-allow no
           set ftp:passive-mode yes
           set ftp:list-options -a
           set ftp:use-feat no
-          set net:timeout 30
-          set net:max-retries 3
+          set net:timeout 60
+          set net:max-retries 5
+          set xfer:clobber yes
+          set cmd:fail-exit yes
           open -u alaazidan,KGw~1blLgk1hz*d1 ftp://213.239.220.209:21
           cd /httpdocs/
+          echo "📁 التحقق من وجود مجلد icons..."
           mkdir -p icons
           cd icons
+          echo "📂 المجلد الحالي على السيرفر:"
+          pwd
           lcd icons
+          echo "📂 المجلد المحلي:"
+          !pwd
+          echo "📤 رفع ملفات PNG..."
           mput *.png
+          echo "📤 رفع ملف .htaccess..."
           put .htaccess
-          ls -la
+          echo "📋 قائمة الملفات على السيرفر بعد الرفع:"
+          ls -lah
           quit
           EOF
           
           # تنفيذ script مع معالجة الأخطاء
-          if lftp -f /tmp/lftp_upload.sh; then
+          echo "🚀 بدء رفع الملفات..."
+          if lftp -f /tmp/lftp_upload.sh 2>&1; then
             echo "✅ تم رفع ملفات الأيقونات و .htaccess بنجاح"
           else
             echo "❌ فشل رفع ملفات الأيقونات"
-            exit 1
+            echo "🔍 محاولة رفع الملفات واحداً تلو الآخر..."
+            
+            # محاولة رفع الملفات واحداً تلو الآخر
+            for file in icons/*.png; do
+              if [ -f "$file" ]; then
+                echo "📤 رفع: $file"
+                lftp -c "
+                  set ftp:ssl-allow no
+                  set ftp:passive-mode yes
+                  open -u alaazidan,KGw~1blLgk1hz*d1 ftp://213.239.220.209:21
+                  cd /httpdocs/icons/
+                  put $file
+                  quit
+                " || echo "⚠️ فشل رفع: $file"
+              fi
+            done
+            
+            # رفع .htaccess
+            if [ -f "icons/.htaccess" ]; then
+              echo "📤 رفع: icons/.htaccess"
+              lftp -c "
+                set ftp:ssl-allow no
+                set ftp:passive-mode yes
+                open -u alaazidan,KGw~1blLgk1hz*d1 ftp://213.239.220.209:21
+                cd /httpdocs/icons/
+                put icons/.htaccess
+                quit
+              " || echo "⚠️ فشل رفع: icons/.htaccess"
+            fi
           fi
 
-      - name: Verify Icons Upload
+      - name: Verify Icons Upload on Server
         run: |
-          echo "🔍 التحقق من رفع ملفات الأيقونات..."
-          echo "⚠️ يرجى التحقق يدوياً من وجود مجلد icons/ على السيرفر في /httpdocs/icons/"
+          echo "🔍 التحقق من رفع ملفات الأيقونات على السيرفر..."
+          
+          # تثبيت lftp إذا لم يكن مثبتاً
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
+          
+          # التحقق من وجود الملفات على السيرفر
+          lftp -c "
+            set ftp:ssl-allow no
+            set ftp:passive-mode yes
+            open -u alaazidan,KGw~1blLgk1hz*d1 ftp://213.239.220.209:21
+            cd /httpdocs/icons/
+            echo '📋 قائمة الملفات على السيرفر:'
+            ls -lah
+            echo ''
+            echo '🔍 التحقق من وجود الملفات المطلوبة:'
+            !for file in icon-72x72.png icon-96x96.png icon-128x128.png icon-144x144.png icon-152x152.png icon-192x192.png icon-384x384.png icon-512x512.png .htaccess; do
+              if [ -f \"\$file\" ]; then
+                echo \"✅ \$file موجود\"
+              else
+                echo \"❌ \$file غير موجود\"
+              fi
+            done
+            quit
+          " || echo "⚠️ فشل الاتصال بالسيرفر للتحقق"
+          
+          echo ""
           echo "📋 يجب أن يحتوي المجلد على الملفات التالية:"
           echo "   - icon-72x72.png"
           echo "   - icon-96x96.png"
@@ -128,3 +203,4 @@ jobs:
           echo "   - icon-192x192.png"
           echo "   - icon-384x384.png"
           echo "   - icon-512x512.png"
+          echo "   - .htaccess"
