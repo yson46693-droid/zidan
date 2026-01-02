@@ -2666,7 +2666,35 @@ async function startAudioRecording(e) {
             return;
         }
         
-        // طلب صلاحيات الميكروفون
+        // ✅ التحقق من حالة صلاحية المايكروفون أولاً لتجنب طلب الصلاحية مرة أخرى
+        if (navigator.permissions) {
+            try {
+                const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                
+                // إذا كانت الصلاحية ممنوحة بالفعل، لن يظهر prompt عند استدعاء getUserMedia
+                if (permissionStatus.state === 'granted') {
+                    console.log('✅ صلاحية المايكروفون ممنوحة بالفعل - لن يظهر prompt');
+                }
+                
+                // إذا كانت الصلاحية مرفوضة، إظهار رسالة خطأ وعدم المتابعة
+                if (permissionStatus.state === 'denied') {
+                    showMessage('تم رفض الصلاحية - يرجى السماح بالوصول إلى الميكروفون في إعدادات المتصفح', 'error');
+                    return;
+                }
+                
+                // إذا كانت في حالة 'prompt'، سيظهر prompt عند استدعاء getUserMedia
+                // هذا طبيعي وسيحدث مرة واحدة فقط
+            } catch (e) {
+                // بعض المتصفحات لا تدعم 'microphone' في permissions.query
+                // أو قد لا تكون الصلاحية مدعومة في هذا المتصفح
+                // سنتابع مع getUserMedia مباشرة
+                console.log('⚠️ لا يمكن التحقق من صلاحية المايكروفون - سيتم المتابعة:', e);
+            }
+        }
+        
+        // ✅ طلب صلاحيات الميكروفون
+        // ملاحظة: إذا كانت الصلاحية ممنوحة بالفعل، لن يظهر prompt في معظم المتصفحات
+        // إذا كانت في حالة 'prompt'، سيظهر prompt مرة واحدة فقط
         audioStream = await navigator.mediaDevices.getUserMedia({ 
             audio: true
         });
