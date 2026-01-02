@@ -6,6 +6,22 @@
  * ⚠️ احذف هذا الملف بعد التحقق من الإعدادات
  */
 
+// ✅ CRITICAL: تطبيق إعدادات PHP قبل أي شيء آخر
+@ini_set('soap.wsdl_cache_enabled', '0');
+@ini_set('soap.wsdl_cache_dir', '/tmp');
+@ini_set('soap.wsdl_cache_ttl', '0');
+@ini_set('soap.wsdl_cache_limit', '0');
+
+if (session_status() === PHP_SESSION_NONE) {
+    $sessionPath = '/tmp';
+    if (is_dir($sessionPath) && is_writable($sessionPath)) {
+        @ini_set('session.save_path', $sessionPath);
+        if (function_exists('session_save_path')) {
+            session_save_path($sessionPath);
+        }
+    }
+}
+
 // تنظيف output buffer
 if (ob_get_level()) {
     ob_end_clean();

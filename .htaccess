@@ -308,6 +308,14 @@ Options -Indexes
     php_value soap.wsdl_cache_dir "/tmp"
     php_value soap.wsdl_cache_ttl "0"
     php_value soap.wsdl_cache_limit "0"
+    
+    # ✅ محاولة استخدام auto_prepend_file (إذا كان متاحاً)
+    php_value auto_prepend_file ".auto_prepend.php"
+</IfModule>
+
+# ✅ محاولة استخدام auto_prepend_file لجميع أنواع PHP
+<IfModule mod_php.c>
+    php_value auto_prepend_file ".auto_prepend.php"
 </IfModule>
 
 # ============================================

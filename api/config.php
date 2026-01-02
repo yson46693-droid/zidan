@@ -1,4 +1,27 @@
 <?php
+// ✅ CRITICAL: تحميل إعدادات PHP قبل أي شيء آخر
+// هذا يضمن تطبيق session.save_path و soap.wsdl_cache_enabled قبل بدء الجلسة
+$autoPrependFile = __DIR__ . '/../.auto_prepend.php';
+if (file_exists($autoPrependFile)) {
+    require_once $autoPrependFile;
+} else {
+    // ✅ تطبيق الإعدادات مباشرة إذا لم يكن الملف موجوداً
+    @ini_set('soap.wsdl_cache_enabled', '0');
+    @ini_set('soap.wsdl_cache_dir', '/tmp');
+    @ini_set('soap.wsdl_cache_ttl', '0');
+    @ini_set('soap.wsdl_cache_limit', '0');
+    
+    if (session_status() === PHP_SESSION_NONE) {
+        $sessionPath = '/tmp';
+        if (is_dir($sessionPath) && is_writable($sessionPath)) {
+            @ini_set('session.save_path', $sessionPath);
+            if (function_exists('session_save_path')) {
+                session_save_path($sessionPath);
+            }
+        }
+    }
+}
+
 // تنظيف output buffer قبل أي شيء
 if (ob_get_level()) {
     ob_end_clean();
