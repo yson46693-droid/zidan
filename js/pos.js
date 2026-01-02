@@ -387,6 +387,49 @@ function setupEventListeners() {
         });
     }
     
+    // More Categories Button (Three Dots)
+    const moreCategoriesBtn = document.getElementById('moreCategoriesBtn');
+    if (moreCategoriesBtn) {
+        moreCategoriesBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Toggle visibility of all category tabs
+            const categoryTabs = document.querySelectorAll('.pos-tab');
+            const tabsContainer = document.querySelector('.pos-tabs');
+            
+            if (!tabsContainer) return;
+            
+            // Check if tabs are already expanded
+            const isExpanded = tabsContainer.classList.contains('tabs-expanded');
+            
+            if (isExpanded) {
+                // Collapse: Hide all tabs except first 3 (All, Spare Parts, Accessories)
+                tabsContainer.classList.remove('tabs-expanded');
+                categoryTabs.forEach((tab, index) => {
+                    if (index > 2) { // Hide tabs after index 2 (phones and beyond)
+                        tab.style.display = 'none';
+                    } else {
+                        tab.style.display = '';
+                    }
+                });
+            } else {
+                // Expand: Show all tabs
+                tabsContainer.classList.add('tabs-expanded');
+                categoryTabs.forEach(tab => {
+                    tab.style.display = '';
+                });
+            }
+        });
+        
+        // Also handle touch events for mobile
+        moreCategoriesBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            moreCategoriesBtn.click();
+        });
+    }
+    
     // Close Payment Modal - Left Button
     const closePaymentModalLeft = document.getElementById('closePaymentModalLeft');
     if (closePaymentModalLeft) {

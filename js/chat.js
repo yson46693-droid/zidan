@@ -176,6 +176,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         currentUser = user;
                         // التحقق من صلاحيات المستخدم بعد تحديثه
                         checkAndShowDeleteButton();
+                        checkAndShowDeleteChatButton();
+                        checkAndShowDeleteChatButton();
                     } else {
                         window.location.href = 'index.html';
                         return;
@@ -190,6 +192,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // التحقق من صلاحيات المستخدم قبل تهيئة الشات
         checkAndShowDeleteButton();
+        checkAndShowDeleteChatButton();
+        checkAndShowDeleteChatButton();
         
         // الآن يمكن تهيئة الشات
         await initializeChat();
@@ -256,6 +260,15 @@ async function initializeChat() {
         
         // إعداد listener لاستقبال الرسائل من الصفحة الرئيسية (عند فتح الشات في iframe)
         setupMessageListener();
+        
+        // التحقق من صلاحيات المستخدم وإظهار/إخفاء زر حذف الشات
+        checkAndShowDeleteChatButton();
+        
+        // إعداد listener لتحديث الأزرار عند تغيير حجم النافذة
+        setupMobileButtonsVisibility();
+        
+        // تحديث إظهار/إخفاء أزرار الموبايل
+        updateMobileButtonsVisibility();
         
         showLoading(false);
     } catch (error) {
@@ -334,14 +347,16 @@ async function refreshMessages() {
         refreshBtn.disabled = true;
         refreshBtn.classList.add('refreshing');
         
-        // استدعاء loadMessages لتحديث الرسائل فقط
-        await loadMessages();
+        // استدعاء loadMessages مع forceRefresh لتحديث الرسائل
+        await loadMessages(true);
         
         // تحديث حالة النشاط أيضاً
         await updateUsersActivity();
         
         // إعادة التحقق من صلاحيات المستخدم وإظهار/إخفاء زر الحذف
         checkAndShowDeleteButton();
+        checkAndShowDeleteChatButton();
+        updateMobileButtonsVisibility();
         
         // إظهار رسالة نجاح خفيفة
         const originalTitle = refreshBtn.title;
@@ -364,6 +379,202 @@ async function refreshMessages() {
             refreshBtn.disabled = false;
             refreshBtn.classList.remove('refreshing');
         }
+    }
+}
+
+// معالجة زر الرجوع
+function handleBackButton(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+        // ✅ إيقاف جميع polling systems قبل المغادرة
+        cleanup();
+        
+        // ✅ التحقق من أننا على الموبايل (ليس داخل iframe)
+        const isInIframe = window.self !== window.top;
+        if (isInIframe) {
+            // إذا كنا داخل iframe، نرسل رسالة للصفحة الرئيسية
+            if (window.parent) {
+                window.parent.postMessage({ type: 'closeChat' }, '*');
+            }
+            return;
+        }
+        
+        // ✅ استخدام window.location.replace للرجوع
+        const referrer = document.referrer;
+        if (referrer && referrer.includes('dashboard.html')) {
+            window.location.href = 'dashboard.html';
+        } else if (referrer && referrer.includes('index.html')) {
+            window.location.href = 'index.html';
+        } else {
+            // إذا لم يكن هناك referrer، نذهب إلى dashboard
+            window.location.href = 'dashboard.html';
+        }
+    } catch (error) {
+        console.error('خطأ في معالجة زر الرجوع:', error);
+        // في حالة الخطأ، نذهب إلى dashboard
+        window.location.href = 'dashboard.html';
+    }
+}
+
+// معالجة زر حذف الشات (للمالك فقط)
+async function handleDeleteChat(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+        // التحقق من أن المستخدم هو مالك
+        let isOwner = false;
+        
+        if (currentUser) {
+            if (currentUser.role === 'admin') {
+                isOwner = true;
+            } else if (currentUser.is_owner === true || currentUser.is_owner === 'true') {
+                isOwner = true;
+            }
+        }
+        
+        if (!isOwner) {
+            try {
+                const savedUser = localStorage.getItem('currentUser');
+                if (savedUser) {
+                    const user = JSON.parse(savedUser);
+                    if (user && (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true')) {
+                        isOwner = true;
+                    }
+                }
+            } catch (e) {
+                console.error('خطأ في قراءة بيانات المستخدم:', e);
+            }
+        }
+        
+        if (!isOwner) {
+            showMessage('هذه الميزة متاحة للمالك فقط', 'error');
+            return;
+        }
+        
+        // تأكيد الحذف
+        if (!confirm('⚠️ تحذير: هل أنت متأكد من حذف جميع رسائل الشات؟\n\nهذا الإجراء لا يمكن التراجع عنه!')) {
+            return;
+        }
+        
+        // تأكيد إضافي
+        if (!confirm('هل أنت متأكد تماماً؟ سيتم حذف جميع الرسائل بشكل نهائي!')) {
+            return;
+        }
+        
+        showLoading(true);
+        
+        // حذف جميع الرسائل (من تاريخ قديم جداً إلى الآن)
+        const now = new Date();
+        const oldDate = new Date(0); // تاريخ قديم جداً
+        
+        const fromDate = oldDate.toISOString().slice(0, 16);
+        const toDate = now.toISOString().slice(0, 16);
+        
+        const result = await API.request('delete_messages.php', 'POST', {
+            from_date: fromDate,
+            to_date: toDate
+        });
+        
+        showLoading(false);
+        
+        if (result && result.success) {
+            showMessage('تم حذف جميع رسائل الشات بنجاح', 'success');
+            
+            // إعادة تحميل الرسائل
+            await loadMessages(true);
+        } else {
+            showMessage(result.message || 'حدث خطأ في حذف الرسائل', 'error');
+        }
+    } catch (error) {
+        showLoading(false);
+        console.error('خطأ في حذف الشات:', error);
+        showMessage('حدث خطأ في حذف الشات', 'error');
+    }
+}
+
+// إعداد listener لتحديث الأزرار عند تغيير حجم النافذة
+function setupMobileButtonsVisibility() {
+    // التحقق من حجم الشاشة عند تحميل الصفحة
+    updateMobileButtonsVisibility();
+    
+    // إضافة listener لتحديث الأزرار عند تغيير حجم النافذة
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            updateMobileButtonsVisibility();
+        }, 100);
+    });
+}
+
+// تحديث إظهار/إخفاء أزرار الموبايل
+function updateMobileButtonsVisibility() {
+    const mobileHeaderButtons = document.getElementById('mobileHeaderButtons');
+    if (!mobileHeaderButtons) return;
+    
+    // التحقق من أننا على الموبايل (ليس داخل iframe)
+    const isInIframe = window.self !== window.top;
+    if (isInIframe) {
+        mobileHeaderButtons.style.display = 'none';
+        return;
+    }
+    
+    // التحقق من حجم الشاشة
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        mobileHeaderButtons.style.display = 'flex';
+    } else {
+        mobileHeaderButtons.style.display = 'none';
+    }
+}
+
+// التحقق من صلاحيات المستخدم وإظهار/إخفاء زر حذف الشات
+function checkAndShowDeleteChatButton() {
+    const deleteChatBtn = document.getElementById('deleteChatBtn');
+    if (!deleteChatBtn) return;
+    
+    // التحقق من أننا على الموبايل (ليس داخل iframe)
+    const isInIframe = window.self !== window.top;
+    if (isInIframe) {
+        deleteChatBtn.style.display = 'none';
+        return;
+    }
+    
+    // التحقق من أن المستخدم هو مالك
+    let isOwner = false;
+    
+    if (currentUser) {
+        if (currentUser.role === 'admin') {
+            isOwner = true;
+        } else if (currentUser.is_owner === true || currentUser.is_owner === 'true') {
+            isOwner = true;
+        }
+    }
+    
+    if (!isOwner) {
+        try {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                if (user && (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true')) {
+                    isOwner = true;
+                }
+            }
+        } catch (e) {
+            console.error('خطأ في قراءة بيانات المستخدم:', e);
+        }
+    }
+    
+    // إظهار أو إخفاء الزر بناءً على النتيجة
+    if (isOwner) {
+        deleteChatBtn.style.display = 'flex';
+        console.log('✅ زر حذف الشات معروض للمالك');
+    } else {
+        deleteChatBtn.style.display = 'none';
+        console.log('🔒 زر حذف الشات مخفي - المستخدم ليس مالكاً');
     }
 }
 
@@ -531,6 +742,8 @@ function createMessageElement(message) {
             const audioPlayer = document.createElement('audio');
             audioPlayer.controls = false;
             audioPlayer.preload = 'metadata';
+            // ✅ إضافة crossOrigin للملفات الصوتية لدعم CORS على الهاتف
+            audioPlayer.crossOrigin = 'anonymous';
             
             // تحديد المسار
             if (filePath) {
@@ -539,7 +752,9 @@ function createMessageElement(message) {
                     audioPlayer.src = filePath;
                 } else {
                     // إذا كان مسار ملف
-                    audioPlayer.src = filePath.startsWith('/') ? filePath : '/' + filePath;
+                    const audioPath = filePath.startsWith('/') ? filePath : '/' + filePath;
+                    // ✅ إضافة timestamp لمنع cache issues على الهاتف
+                    audioPlayer.src = audioPath + (audioPath.includes('?') ? '&' : '?') + 't=' + Date.now();
                 }
             }
             
@@ -597,19 +812,72 @@ function createMessageElement(message) {
                 updateWaveform();
             });
             
+            // معالجة أخطاء تحميل الصوت
+            audioPlayer.addEventListener('error', (e) => {
+                console.error('خطأ في تحميل الملف الصوتي:', e);
+                const error = audioPlayer.error;
+                let errorMessage = 'فشل في تشغيل الملف الصوتي';
+                
+                if (error) {
+                    switch (error.code) {
+                        case error.MEDIA_ERR_ABORTED:
+                            errorMessage = 'تم إلغاء تحميل الملف الصوتي';
+                            break;
+                        case error.MEDIA_ERR_NETWORK:
+                            errorMessage = 'خطأ في الشبكة - يرجى التحقق من الاتصال';
+                            break;
+                        case error.MEDIA_ERR_DECODE:
+                            errorMessage = 'خطأ في فك تشفير الملف الصوتي';
+                            break;
+                        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                            errorMessage = 'نوع الملف الصوتي غير مدعوم';
+                            break;
+                    }
+                }
+                
+                // إظهار رسالة خطأ للمستخدم
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'audio-error';
+                errorDiv.textContent = errorMessage;
+                audioContainer.appendChild(errorDiv);
+                
+                // إخفاء زر التشغيل عند وجود خطأ
+                playPauseBtn.style.display = 'none';
+            });
+            
             // التحكم في التشغيل/الإيقاف
-            playPauseBtn.addEventListener('click', (e) => {
+            playPauseBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
+                
                 if (audioPlayer.paused) {
-                    audioPlayer.play().then(() => {
+                    try {
+                        // التحقق من وجود خطأ قبل المحاولة
+                        if (audioPlayer.error) {
+                            showMessage('فشل في تشغيل الملف الصوتي - يرجى المحاولة مرة أخرى', 'error');
+                            return;
+                        }
+                        
+                        // محاولة تشغيل الصوت
+                        await audioPlayer.play();
                         playPauseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
                         playPauseBtn.setAttribute('aria-label', 'إيقاف');
                         audioWrapper.classList.add('playing');
                         updateWaveform();
-                    }).catch(err => {
+                    } catch (err) {
                         console.error('خطأ في تشغيل الصوت:', err);
-                        showMessage('فشل تشغيل الصوت', 'error');
-                    });
+                        
+                        // محاولة إعادة تحميل الملف إذا فشل التشغيل
+                        if (audioPlayer.src && !audioPlayer.src.startsWith('data:')) {
+                            const originalSrc = audioPlayer.src;
+                            audioPlayer.src = '';
+                            setTimeout(() => {
+                                audioPlayer.src = originalSrc + '?t=' + Date.now();
+                                audioPlayer.load();
+                            }, 100);
+                        }
+                        
+                        showMessage('فشل في تشغيل الملف الصوتي - يرجى المحاولة مرة أخرى', 'error');
+                    }
                 } else {
                     audioPlayer.pause();
                     playPauseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
@@ -769,13 +1037,25 @@ function setupEventListeners() {
         deleteMessagesBtn.addEventListener('click', showDeleteMessagesModal);
     }
     
-    // زر تحديث الرسائل
+    // زر تحديث الرسائل (في header الموبايل)
     const refreshMessagesBtn = document.getElementById('refreshMessagesBtn');
     if (refreshMessagesBtn) {
         refreshMessagesBtn.addEventListener('click', refreshMessages);
     }
     
-    // زر الرجوع
+    // زر الرجوع (في header الموبايل)
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+        backBtn.addEventListener('click', handleBackButton);
+    }
+    
+    // زر حذف الشات (في header الموبايل - للمالك فقط)
+    const deleteChatBtn = document.getElementById('deleteChatBtn');
+    if (deleteChatBtn) {
+        deleteChatBtn.addEventListener('click', handleDeleteChat);
+    }
+    
+    // زر الرجوع (القديم - للتوافق)
     const backToDashboardBtn = document.getElementById('backToDashboardBtn');
     if (backToDashboardBtn) {
         backToDashboardBtn.addEventListener('click', (e) => {

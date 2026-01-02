@@ -4,7 +4,7 @@
 // رقم الإصدار - يجب تحديثه يدوياً عند إجراء تغييرات على Service Worker
 // Version number - must be updated manually when making changes to Service Worker
 // 🔧 الحل: استخدام رقم إصدار ثابت بدلاً من Date.now() لمنع reload loop
-const APP_VERSION = '2.0.1'; // رقم ثابت - تحديثه يدوياً عند الحاجة فقط
+const APP_VERSION = '2.0.2'; // رقم ثابت - تحديثه يدوياً عند الحاجة فقط
 
 // اسم الـ cache - يجب أن يكون ثابت لنفس الإصدار
 // 🔧 الحل: استخدام رقم إصدار ثابت في اسم الـ cache أيضاً
@@ -350,6 +350,11 @@ self.addEventListener('fetch', event => {
                 }
             })
                 .then(response => {
+                    // ✅ استثناء 206 Partial Content responses من caching
+                    if (response.status === 206) {
+                        return response;
+                    }
+                    
                     // إذا كانت الاستجابة ناجحة (200-299) و GET request، نحفظها في cache
                     if (request.method === 'GET' && response.ok && response.status >= 200 && response.status < 300) {
                         // نسخ الاستجابة قبل حفظها
@@ -423,6 +428,19 @@ self.addEventListener('fetch', event => {
                          request.url.endsWith('.html') ||
                          request.url.includes('/ico/');
     
+    // ✅ استثناء الملفات الصوتية من caching - تدعم Range requests (206) غير مدعومة في Cache API
+    const isAudio = request.url.match(/\.(webm|mp3|ogg|wav|m4a|aac|flac)$/i) ||
+                    request.url.includes('/chat/audio/') ||
+                    request.url.includes('/audio/');
+    
+    // ✅ السماح للملفات الصوتية بالمرور مباشرة بدون intercept - تدعم Range requests
+    if (isAudio) {
+        // نترك المتصفح يتعامل مع الملفات الصوتية بشكل طبيعي
+        // هذا يمنع محاولة حفظ 206 Partial Content responses في cache
+        event.respondWith(fetch(request));
+        return;
+    }
+    
     // ✅ تحسين: معالجة الصور بشكل منفصل مع caching أفضل
     const isImage = request.url.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i) ||
                     request.url.includes('/images/') ||
@@ -440,6 +458,11 @@ self.addEventListener('fetch', event => {
                     
                     // إذا لم يكن في cache، نجلب من الشبكة
                     return fetch(request).then(response => {
+                        // ✅ استثناء 206 Partial Content responses من caching
+                        if (response.status === 206) {
+                            return response;
+                        }
+                        
                         // إذا كانت الاستجابة ناجحة، نحفظها في cache
                         if (response.ok && response.status === 200) {
                             const responseToCache = response.clone();
@@ -484,6 +507,11 @@ self.addEventListener('fetch', event => {
         event.respondWith(
             fetch(request, fetchOptions)
                 .then(response => {
+                    // ✅ استثناء 206 Partial Content responses من caching
+                    if (response.status === 206) {
+                        return response;
+                    }
+                    
                     // إذا كانت الاستجابة ناجحة، نحفظها في cache للاستخدام offline
                     if (response.ok && response.status === 200) {
                         const responseToCache = response.clone();
@@ -537,6 +565,13 @@ self.addEventListener('fetch', event => {
                     
                     // محاولة جلب من الشبكة
                     return fetch(request).then(response => {
+                        // ✅ استثناء 206 Partial Content responses من caching (للملفات الصوتية/الفيديو)
+                        // Cache API لا يدعم حفظ 206 responses
+                        if (response.status === 206) {
+                            // نعيد الاستجابة مباشرة بدون محاولة حفظها في cache
+                            return response;
+                        }
+                        
                         // إذا كانت الاستجابة ناجحة (200-299)، نحفظها في cache
                         if (response.ok && response.status >= 200 && response.status < 300) {
                             // نسخ الاستجابة قبل حفظها (Response يمكن قراءتها مرة واحدة فقط)

@@ -115,6 +115,54 @@ body {
     z-index: 100;
 }
 
+/* أزرار الموبايل في header */
+.mobile-header-buttons {
+    display: none; /* مخفية افتراضياً */
+    align-items: center;
+    gap: 10px;
+    margin-right: auto;
+}
+
+/* إخفاء الأزرار على الشاشات الكبيرة (عند فتح الشات داخل iframe) */
+@media (min-width: 769px) {
+    .mobile-header-buttons {
+        display: none !important;
+    }
+}
+
+/* زر حذف الشات */
+.delete-chat-btn {
+    background: var(--danger-color);
+    border: none;
+    color: var(--white);
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+}
+
+.delete-chat-btn:hover {
+    background: #D32F2F;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.delete-chat-btn:active {
+    transform: scale(0.95);
+}
+
+.delete-chat-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
 .chat-title {
     font-size: 24px;
     font-weight: 700;
@@ -923,6 +971,11 @@ body {
         font-size: 20px;
     }
     
+    /* إظهار أزرار الموبايل على الشاشات الصغيرة */
+    .mobile-header-buttons {
+        display: flex;
+    }
+    
     /* تحسين زر الرجوع على الشاشات المتوسطة */
     .back-btn {
         padding: 10px 14px;
@@ -937,15 +990,26 @@ body {
     
     /* تحسين زر التحديث على الشاشات المتوسطة */
     .refresh-messages-btn {
-        width: 36px;
-        height: 36px;
-        padding: 6px;
-        margin-left: 8px;
+        width: 40px;
+        height: 40px;
+        padding: 8px;
     }
     
     .refresh-messages-btn svg {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
+    }
+    
+    /* تحسين زر حذف الشات على الشاشات المتوسطة */
+    .delete-chat-btn {
+        width: 40px;
+        height: 40px;
+        padding: 10px;
+    }
+    
+    .delete-chat-btn svg {
+        width: 20px;
+        height: 20px;
     }
     
     .chat-input-container {
@@ -985,17 +1049,22 @@ body {
         font-size: 14px;
     }
     
+    /* إظهار أزرار الموبايل على الشاشات الصغيرة */
+    .mobile-header-buttons {
+        display: flex;
+        gap: 8px;
+    }
+    
     /* تحسين زر التحديث على الشاشات الصغيرة */
     .refresh-messages-btn {
-        width: 36px;
-        height: 36px;
-        padding: 6px;
-        margin-left: 6px;
+        width: 40px;
+        height: 40px;
+        padding: 8px;
     }
     
     .refresh-messages-btn svg {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
     }
     
     /* تحسين زر الرجوع على الشاشات الصغيرة جداً */
@@ -1009,6 +1078,18 @@ body {
     .back-btn svg {
         width: 24px;
         height: 24px;
+    }
+    
+    /* تحسين زر حذف الشات على الشاشات الصغيرة */
+    .delete-chat-btn {
+        width: 40px;
+        height: 40px;
+        padding: 10px;
+    }
+    
+    .delete-chat-btn svg {
+        width: 20px;
+        height: 20px;
     }
 }
 
