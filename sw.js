@@ -262,7 +262,7 @@ self.addEventListener('activate', event => {
                 return cache.keys().then(keys => {
                     const iconKeys = keys.filter(request => {
                         const url = request.url || '';
-                        return url.includes('/icons/') || url.includes('icon-');
+                        return url.includes('/ico/') || url.includes('icon-');
                     });
                     
                     if (iconKeys.length > 0) {
@@ -421,7 +421,7 @@ self.addEventListener('fetch', event => {
                          request.url.endsWith('.css') ||
                          request.url.endsWith('.js') ||
                          request.url.endsWith('.html') ||
-                         request.url.includes('/icons/');
+                         request.url.includes('/ico/');
     
     // ✅ تحسين: معالجة الصور بشكل منفصل مع caching أفضل
     const isImage = request.url.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i) ||
@@ -644,7 +644,7 @@ self.addEventListener('push', event => {
     const title = data.title || data.username || 'إشعار جديد';
     const body = data.body || data.message || 'لديك إشعار جديد';
     const icon = data.icon || '/vertopal.com_photo_5922357566287580087_y.png';
-    const badge = '/icons/icon-72x72.png';
+    const badge = '/ico/icon-72x72.png';
     
     const options = {
         body: body,

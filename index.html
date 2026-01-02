@@ -14,7 +14,7 @@
     
     <!-- Windows Meta Tags -->
     <meta name="msapplication-TileColor" content="#2196F3">
-    <meta name="msapplication-TileImage" content="icons/icon-144x144.png?v=2.0.1">
+    <meta name="msapplication-TileImage" content="ico/icon-144x144.png">
     <meta name="msapplication-navbutton-color" content="#2196F3">
     <meta name="msapplication-starturl" content="/index.html">
     <meta name="msapplication-tooltip" content="ALAA ZIDAN - APP">
@@ -29,7 +29,7 @@
     <!-- Open Graph (للمتصفحات القديمة) -->
     <meta property="og:title" content="ALAA ZIDAN - APP">
     <meta property="og:type" content="website">
-    <meta property="og:image" content="icons/icon-512x512.png?v=2.0.1">
+    <meta property="og:image" content="ico/icon-512x512.png">
     
     <title>تسجيل الدخول - نظام إدارة سلسلة فروع م/ علاء زيدان  </title>
     
@@ -37,9 +37,9 @@
     <link rel="manifest" href="manifest.json">
     
     <!-- 🔧 تحسين الأداء: تقليل عدد الأيقونات (3 فقط بدلاً من 10+) -->
-    <link rel="icon" type="image/png" href="icons/icon-192x192.png?v=2.0.1">
-    <link rel="shortcut icon" href="icons/icon-192x192.png?v=2.0.1">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png?v=2.0.1">
+    <link rel="icon" type="image/png" href="ico/icon-192x192.png">
+    <link rel="shortcut icon" href="ico/icon-192x192.png">
+    <link rel="apple-touch-icon" href="ico/icon-192x192.png">
     
     <!-- ✅ تحسين: نقل preconnect للـ Google Fonts في البداية لتحسين الأداء -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -164,8 +164,8 @@
     
     <!-- ✅ تحسين: Critical CSS - non-blocking using media trick -->
     <!-- Removed preload - media="print" conversion pattern causes warnings -->
-    <link rel="stylesheet" href="css/style.css?v=2.0.1" media="print" onload="this.media='all';this.onload=null">
-    <noscript><link rel="stylesheet" href="css/style.css?v=2.0.1"></noscript>
+    <link rel="stylesheet" href="css/style.css" media="print" onload="this.media='all';this.onload=null">
+    <noscript><link rel="stylesheet" href="css/style.css"></noscript>
     
     <!-- Dark Mode CSS -->
     <link rel="stylesheet" href="css/dark-mode.css">
@@ -178,7 +178,7 @@
     
     <!-- ✅ تحسين: Preload critical image - LCP optimization (بعد CSS) -->
     <!-- Note: Only preload resources that are used immediately (within 3 seconds) -->
-    <link rel="preload" href="icons/icon-512x512.png?v=2.0.1" as="image" type="image/png" fetchpriority="high" crossorigin="anonymous">
+    <link rel="preload" href="ico/icon-512x512.png" as="image" type="image/png" fetchpriority="high" crossorigin="anonymous">
     
     <!-- ✅ تحسين: Removed preload for deferred JS files - they won't be used immediately -->
     <!-- JS files are loaded with defer, so preloading them doesn't help and causes warnings -->
@@ -239,7 +239,7 @@
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
             <div class="splash-logo">
-                <img src="icons/icon-512x512.png?v=2.0.1" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" crossorigin="anonymous" onload="this.style.opacity='1'" onerror="this.style.display='none'">
+                <img src="ico/icon-512x512.png" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" crossorigin="anonymous" onload="this.style.opacity='1'" onerror="this.style.display='none'">
             </div>
             <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
             <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>
@@ -497,9 +497,9 @@
             // ✅ تحسين: تحميل CSS غير الحرجة و Bootstrap Icons بعد تحميل الصفحة
             const loadNonCriticalCSS = () => {
                 const cssFiles = [
-                    'css/loading-overlay.css?v=2.0.1',
-                    'css/splash-screen.css?v=2.0.1',
-                    'css/security.css?v=2.0.1',
+                    'css/loading-overlay.css',
+                    'css/splash-screen.css',
+                    'css/security.css',
                     'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css'
                 ];
                 
