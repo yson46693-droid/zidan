@@ -48,7 +48,38 @@
 - تعطيل `soap.wsdl_cache_enabled`
 - استخدام مجلد بديل داخل الموقع إذا فشل `/tmp`
 
-#### الطريقة الثانية: تعديل open_basedir في LiteSpeed (إذا كان لديك صلاحيات root)
+#### الطريقة الثانية: تعديل session.save_path و soap.wsdl_cache_enabled في LiteSpeed (إذا كان لديك صلاحيات root)
+
+**ملاحظة:** هذه الطريقة تتطلب صلاحيات إدارية على الخادم.
+
+**في لوحة تحكم LiteSpeed (WebAdmin Console):**
+
+1. اذهب إلى **Virtual Hosts** → اختر **alaazidan.store**
+2. اذهب إلى **Script Handler** أو **PHP Settings**
+3. ابحث عن **PHP Settings** أو **php.ini Settings**
+4. أضف الإعدادات التالية:
+   ```
+   session.save_path = /tmp
+   soap.wsdl_cache_enabled = 0
+   soap.wsdl_cache_dir = /tmp
+   soap.wsdl_cache_ttl = 0
+   soap.wsdl_cache_limit = 0
+   ```
+
+**أو عبر ملف الإعدادات:**
+
+```bash
+# ملف الإعدادات: /usr/local/lsws/conf/vhosts/alaazidan.store/vhost.conf
+# أو: /var/www/vhosts/alaazidan.store/conf/vhost.conf
+
+php_admin_value session.save_path "/tmp"
+php_admin_value soap.wsdl_cache_enabled "0"
+php_admin_value soap.wsdl_cache_dir "/tmp"
+php_admin_value soap.wsdl_cache_ttl "0"
+php_admin_value soap.wsdl_cache_limit "0"
+```
+
+#### الطريقة الثالثة: تعديل open_basedir في LiteSpeed (إذا كان لديك صلاحيات root)
 
 **ملاحظة:** هذه الطريقة تتطلب صلاحيات إدارية على الخادم.
 
@@ -503,12 +534,24 @@ if (file_put_contents($testFile, 'test') !== false) {
 
 ## ✅ الخلاصة
 
-1. ✅ **session.save_path** → تم إصلاحه في `api/config.php` (يستخدم `/tmp`)
-2. ✅ **soap.wsdl_cache** → تم تعطيله في `api/config.php`
+1. ✅ **session.save_path** → تم إصلاحه في `api/config.php` (يستخدم `/tmp` + `session_save_path()`)
+2. ✅ **soap.wsdl_cache** → تم تعطيله في `api/config.php` (مع محاولات متعددة)
 3. ⚠️ **open_basedir** → يحتاج تعديل في LiteSpeed (إذا كان لديك صلاحيات)
-4. ✅ **ErrorDocument 403** → إنشاء ملف `403.html` أو إزالة السطر
+4. ✅ **ErrorDocument 403** → إنشاء ملف `403.html`
 5. ✅ **404 Not Found** → إضافة قواعد في `.htaccess`
 6. ✅ **الصلاحيات** → استخدام `chmod` كما هو موضح أعلاه
+7. ✅ **.user.ini** → تم إنشاء ملف `.user.ini` كحل إضافي
+8. ✅ **.htaccess** → تم تحديث `.htaccess` لدعم LiteSpeed PHP-FPM
+
+## ⚠️ إذا استمرت المشاكل
+
+إذا استمرت مشكلة `session.save_path` أو `soap.wsdl_cache_enabled` بعد تطبيق جميع الحلول:
+
+1. **اتصل بالدعم الفني** لطلب تعديل إعدادات LiteSpeed Virtual Host
+2. **أو** اطلب تعديل `php.ini` على مستوى النظام
+3. **أو** استخدم حل بديل: إنشاء مجلد `sessions` داخل الموقع (موجود في `api/config.php` كحل بديل)
+
+**ملاحظة:** في بعض الاستضافات المشتركة، قد لا تتمكن من تعديل هذه الإعدادات مباشرة. في هذه الحالة، استخدم الحل البديل (مجلد `sessions` داخل الموقع).
 
 ---
 

@@ -285,11 +285,25 @@ Options -Indexes
 # ملاحظة: هذه الإعدادات تعمل فقط إذا كان mod_php مفعّل
 # في معظم الاستضافات المشتركة الحديثة (PHP-FPM/CGI)، يتم تطبيق الإعدادات من config.php
 # إذا لم تعمل هذه الإعدادات، لا تقلق - config.php سيتعامل معها
+
+# ✅ محاولة لـ LiteSpeed (يعمل مع PHP-FPM أيضاً)
 <IfModule mod_php.c>
     # تعيين مسار حفظ الجلسات إلى /tmp (مسموح في open_basedir)
     php_value session.save_path "/tmp"
     
     # تعطيل wsdlcache لتجنب مشكلة open_basedir
+    php_value soap.wsdl_cache_enabled "0"
+    php_value soap.wsdl_cache_dir "/tmp"
+    php_value soap.wsdl_cache_ttl "0"
+    php_value soap.wsdl_cache_limit "0"
+</IfModule>
+
+# ✅ محاولة إضافية لـ LiteSpeed PHP-FPM (إذا كان mod_php غير متاح)
+<IfModule lsapi_module>
+    # تعيين مسار حفظ الجلسات إلى /tmp
+    php_value session.save_path "/tmp"
+    
+    # تعطيل wsdlcache
     php_value soap.wsdl_cache_enabled "0"
     php_value soap.wsdl_cache_dir "/tmp"
     php_value soap.wsdl_cache_ttl "0"
