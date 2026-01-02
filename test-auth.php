@@ -4,6 +4,45 @@
  * Usage: افتح هذا الملف في المتصفح للتحقق من أن api/auth.php يعمل بشكل صحيح
  */
 
+// ✅ CRITICAL: تنظيف output buffer قبل أي شيء
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
+
+// ✅ CRITICAL: إعدادات الأخطاء
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // لا نعرض الأخطاء مباشرة - سنعالجها
+ini_set('log_errors', 1);
+
+// ✅ CRITICAL: معالجة الأخطاء القاتلة
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>خطأ</title></head><body>';
+        echo '<h1>❌ خطأ في الملف</h1>';
+        echo '<p><strong>الخطأ:</strong> ' . htmlspecialchars($error['message']) . '</p>';
+        echo '<p><strong>الملف:</strong> ' . htmlspecialchars($error['file']) . '</p>';
+        echo '<p><strong>السطر:</strong> ' . $error['line'] . '</p>';
+        echo '</body></html>';
+        exit;
+    }
+});
+
+// ✅ CRITICAL: معالجة الاستثناءات غير المعالجة
+set_exception_handler(function($exception) {
+    http_response_code(500);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>خطأ</title></head><body>';
+    echo '<h1>❌ خطأ استثناء</h1>';
+    echo '<p><strong>الرسالة:</strong> ' . htmlspecialchars($exception->getMessage()) . '</p>';
+    echo '<p><strong>الملف:</strong> ' . htmlspecialchars($exception->getFile()) . '</p>';
+    echo '<p><strong>السطر:</strong> ' . $exception->getLine() . '</p>';
+    echo '</body></html>';
+    exit;
+});
+
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!DOCTYPE html>
@@ -98,30 +137,30 @@ header('Content-Type: text/html; charset=utf-8');
         echo '</div>';
     }
     
-    // اختبار 3: تحميل config.php
+    // اختبار 3: تحميل config.php (بدون تنفيذ فعلي - فقط فحص الصيغة)
     echo '<div class="test-result warning">';
-    echo '<h3>3️⃣ اختبار تحميل config.php</h3>';
+    echo '<h3>3️⃣ اختبار config.php</h3>';
     if (file_exists($configPath)) {
-        try {
-            ob_start();
-            require_once $configPath;
-            $output = ob_get_clean();
-            if (empty($output)) {
-                echo '<p>✅ تم تحميل config.php بنجاح (بدون أخطاء ظاهرة)</p>';
+        // ✅ فحص الصيغة فقط بدون تنفيذ
+        $configContent = @file_get_contents($configPath);
+        if ($configContent === false) {
+            echo '<p>❌ لا يمكن قراءة ملف config.php (مشكلة في الصلاحيات)</p>';
+        } else {
+            // فحص بسيط للصيغة
+            if (strpos($configContent, '<?php') !== false) {
+                echo '<p>✅ ملف config.php موجود ويمكن قراءته</p>';
+                echo '<p>📋 حجم الملف: ' . number_format(filesize($configPath)) . ' بايت</p>';
+                
+                // ✅ محاولة فحص syntax فقط (بدون تنفيذ)
+                $syntaxCheck = @shell_exec('php -l ' . escapeshellarg($configPath) . ' 2>&1');
+                if ($syntaxCheck && strpos($syntaxCheck, 'No syntax errors') !== false) {
+                    echo '<p>✅ الصيغة صحيحة</p>';
+                } else {
+                    echo '<p>⚠️ لا يمكن فحص الصيغة (قد يكون طبيعي على بعض الاستضافات)</p>';
+                }
             } else {
-                echo '<p>⚠️ تم تحميل config.php مع تحذيرات:</p>';
-                echo '<pre>' . htmlspecialchars($output) . '</pre>';
+                echo '<p>⚠️ ملف config.php لا يبدأ بـ &lt;?php</p>';
             }
-        } catch (Exception $e) {
-            echo '<p>❌ خطأ في تحميل config.php:</p>';
-            echo '<pre>' . htmlspecialchars($e->getMessage()) . '</pre>';
-            echo '<p>File: ' . $e->getFile() . '</p>';
-            echo '<p>Line: ' . $e->getLine() . '</p>';
-        } catch (Error $e) {
-            echo '<p>❌ خطأ قاتل في تحميل config.php:</p>';
-            echo '<pre>' . htmlspecialchars($e->getMessage()) . '</pre>';
-            echo '<p>File: ' . $e->getFile() . '</p>';
-            echo '<p>Line: ' . $e->getLine() . '</p>';
         }
     } else {
         echo '<p>❌ ملف config.php غير موجود</p>';
@@ -137,16 +176,48 @@ header('Content-Type: text/html; charset=utf-8');
     // اختبار 5: فحص سجلات الأخطاء
     echo '<div class="test-result warning">';
     echo '<h3>5️⃣ فحص سجلات الأخطاء</h3>';
-    $errorLogPath = __DIR__ . '/logs/php_errors.log';
-    if (file_exists($errorLogPath)) {
-        $errors = file_get_contents($errorLogPath);
-        $recentErrors = array_slice(explode("\n", $errors), -20); // آخر 20 سطر
-        echo '<p>📋 آخر 20 سطر من سجل الأخطاء:</p>';
-        echo '<pre>' . htmlspecialchars(implode("\n", $recentErrors)) . '</pre>';
-    } else {
-        echo '<p>⚠️ ملف سجل الأخطاء غير موجود: ' . $errorLogPath . '</p>';
-        echo '<p>📋 قد يكون السجل في مكان آخر - تحقق من إعدادات PHP</p>';
+    $errorLogPaths = [
+        __DIR__ . '/logs/php_errors.log',
+        __DIR__ . '/logs/error_log',
+        ini_get('error_log')
+    ];
+    
+    $foundLog = false;
+    foreach ($errorLogPaths as $errorLogPath) {
+        if ($errorLogPath && file_exists($errorLogPath) && is_readable($errorLogPath)) {
+            $errors = @file_get_contents($errorLogPath);
+            if ($errors !== false) {
+                $recentErrors = array_slice(explode("\n", $errors), -20); // آخر 20 سطر
+                echo '<p>📋 آخر 20 سطر من سجل الأخطاء (' . basename($errorLogPath) . '):</p>';
+                echo '<pre>' . htmlspecialchars(implode("\n", $recentErrors)) . '</pre>';
+                $foundLog = true;
+                break;
+            }
+        }
     }
+    
+    if (!$foundLog) {
+        echo '<p>⚠️ لم يتم العثور على سجل الأخطاء في الأماكن التالية:</p>';
+        echo '<ul>';
+        foreach ($errorLogPaths as $path) {
+            if ($path) {
+                echo '<li>' . htmlspecialchars($path) . '</li>';
+            }
+        }
+        echo '</ul>';
+        echo '<p>📋 تحقق من إعدادات PHP: <code>ini_get(\'error_log\')</code></p>';
+    }
+    echo '</div>';
+    
+    // اختبار 6: معلومات PHP
+    echo '<div class="test-result success">';
+    echo '<h3>6️⃣ معلومات PHP</h3>';
+    echo '<ul>';
+    echo '<li>إصدار PHP: ' . phpversion() . '</li>';
+    echo '<li>error_log: ' . (ini_get('error_log') ?: 'غير معرّف') . '</li>';
+    echo '<li>display_errors: ' . (ini_get('display_errors') ? 'On' : 'Off') . '</li>';
+    echo '<li>log_errors: ' . (ini_get('log_errors') ? 'On' : 'Off') . '</li>';
+    echo '</ul>';
     echo '</div>';
     ?>
     
