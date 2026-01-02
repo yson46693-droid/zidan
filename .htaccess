@@ -1,7 +1,45 @@
 # ============================================
-# ✅ Service Worker (sw.js) - CRITICAL - MUST BE FIRST
+# ✅ إصلاح مشاكل LiteSpeed + PHP (403 Forbidden & open_basedir)
 # ============================================
-# هذه القواعد يجب أن تكون في البداية قبل أي قواعد أخرى
+
+# ✅ إصلاح DirectoryIndex - يجب أن يكون أول شيء
+DirectoryIndex index.html index.php index.htm
+
+# ✅ السماح بعرض الملفات
+Options -Indexes +FollowSymLinks
+
+# ✅ إصلاح ErrorDocument 403 - إنشاء صفحة خطأ بسيطة
+ErrorDocument 403 /403.html
+
+# ✅ السماح بجميع الملفات (قبل أي قواعد أخرى)
+<FilesMatch ".*">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# ✅ قاعدة خاصة لـ index.html و index.php
+<FilesMatch "^(index\.html|index\.php)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# ✅ منع إعادة توجيه الملفات الموجودة (قبل قواعد sw.js)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # ✅ السماح بجميع الملفات الموجودة فعلياً
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule . - [L]
+    
+    # ✅ السماح بجميع المجلدات الموجودة فعلياً
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule . - [L]
+</IfModule>
+
+# ============================================
+# ✅ Service Worker (sw.js) - CRITICAL - MUST BE AFTER FILES RULES
+# ============================================
+# هذه القواعد يجب أن تكون بعد قواعد الملفات
 # لمنع إعادة توجيه sw.js إلى HTML
 
 # ✅ قاعدة عامة لـ sw.js في أي مسار (root أو subdirectory)
@@ -17,9 +55,7 @@
 
 # ✅ منع sw.js من المعالجة كـ HTML - Rewrite Engine
 <IfModule mod_rewrite.c>
-    RewriteEngine On
     # ✅ CRITICAL: منع sw.js من إعادة التوجيه أو المعالجة كـ HTML
-    # يجب أن يكون هذا أول قاعدة Rewrite
     RewriteCond %{REQUEST_URI} sw\.js$ [NC]
     RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L,T=application/javascript]
     
