@@ -17,19 +17,12 @@ $originalErrorHandler = set_error_handler(function($errno, $errstr, $errfile, $e
     return false;
 }, E_WARNING);
 
-// ✅ CRITICAL: تحميل إعدادات PHP قبل أي شيء آخر
-// هذا يضمن تطبيق session.save_path و soap.wsdl_cache_enabled قبل بدء الجلسة
+// ✅ تحميل إعدادات PHP قبل أي شيء آخر
 $autoPrependFile = __DIR__ . '/../.auto_prepend.php';
 if (file_exists($autoPrependFile)) {
     require_once $autoPrependFile;
 } else {
-    // ✅ تطبيق الإعدادات مباشرة إذا لم يكن الملف موجوداً
     @ini_set('soap.wsdl_cache_enabled', '0');
-    @ini_set('soap.wsdl_cache_ttl', '0');
-    @ini_set('soap.wsdl_cache_limit', '0');
-    
-    // ✅ ملاحظة: الجلسات يتم تخزينها في cookies على جهاز المستخدم
-    // لا حاجة لإعدادات session.save_path
 }
 
 // ✅ استعادة error_reporting إلى القيمة الأصلية (بعد تطبيق الإعدادات)
@@ -328,18 +321,15 @@ class CookieSessionHandler implements SessionHandlerInterface {
     }
 }
 
-// إعدادات الجلسة (قبل بدء الجلسة)
+// إعدادات الجلسة
 if (session_status() === PHP_SESSION_NONE) {
-    // ✅ تعطيل wsdlcache لتجنب مشكلة open_basedir
     @ini_set('soap.wsdl_cache_enabled', '0');
-    @ini_set('soap.wsdl_cache_ttl', '0');
-    @ini_set('soap.wsdl_cache_limit', '0');
     
-    // ✅ استخدام معالج الجلسات المخصص (cookies)
+    // استخدام معالج الجلسات المخصص (cookies)
     $handler = new CookieSessionHandler();
     session_set_save_handler($handler, true);
     
-    // ✅ تحسين اكتشاف HTTPS - يعمل مع جميع أنواع الاستضافات
+    // اكتشاف HTTPS
     $isSecure = false;
     if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
         $isSecure = true;
@@ -347,17 +337,14 @@ if (session_status() === PHP_SESSION_NONE) {
         $isSecure = true;
     } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
         $isSecure = true;
-    } elseif (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') {
-        $isSecure = true;
     } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
         $isSecure = true;
     }
     
-    // تكوين ملفات تعريف الارتباط للجلسة
     session_set_cookie_params([
-        'lifetime' => 86400, // 24 ساعة
+        'lifetime' => 86400,
         'path' => '/',
-        'domain' => '', // فارغ للسماح بأي domain
+        'domain' => '',
         'secure' => $isSecure,
         'httponly' => true,
         'samesite' => $isSecure ? 'None' : 'Lax'

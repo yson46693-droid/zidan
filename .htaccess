@@ -1,15 +1,14 @@
 # ============================================
-# ✅ إعدادات أساسية - Basic Settings
+# ✅ إعدادات أساسية
 # ============================================
 
-# ✅ CRITICAL: السماح بـ index.html أولاً (قبل أي شيء آخر)
 DirectoryIndex index.html index.php index.htm
-
-# ✅ السماح بعرض الملفات
 Options -Indexes +FollowSymLinks
 
-# ✅ CRITICAL: قاعدة عامة للسماح بجميع الملفات (في البداية)
-# هذه القاعدة تضمن السماح بالوصول لجميع الملفات ما لم يتم منعها صراحة
+# ============================================
+# ✅ السماح بجميع الملفات
+# ============================================
+
 <FilesMatch ".*">
     <IfModule mod_authz_core.c>
         Require all granted
@@ -21,86 +20,16 @@ Options -Indexes +FollowSymLinks
 </FilesMatch>
 
 # ============================================
-# ✅ CRITICAL: السماح بصفحة تسجيل الدخول - MUST BE FIRST
+# ✅ RewriteEngine
 # ============================================
 
-# ✅ السماح بـ index.html بشكل صريح (قبل أي قواعد أخرى)
-<Files "index.html">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-</Files>
-
-# ✅ السماح بـ index.php بشكل صريح
-<Files "index.php">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-</Files>
-
-# ============================================
-# ✅ السماح بجميع الملفات الموجودة - بدون RewriteEngine
-# ============================================
-
-# ✅ السماح بجميع ملفات HTML, CSS, JS, JSON
-<FilesMatch "\.(html|htm|css|js|json|xml|txt)$">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-</FilesMatch>
-
-# ✅ السماح بجميع الصور
-<FilesMatch "\.(jpg|jpeg|png|gif|svg|ico|webp|avif)$">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-</FilesMatch>
-
-# ✅ السماح بجميع الخطوط
-<FilesMatch "\.(woff|woff2|ttf|eot|otf)$">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-</FilesMatch>
-
-# ✅ السماح بجميع ملفات PHP في مجلد api/ (يتم التعامل معها عبر FilesMatch)
-
-# ✅ RewriteEngine - فقط إذا كان متاحاً (للطلبات الخاصة)
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # ✅ CRITICAL: السماح بالوصول للملفات والمجلدات الموجودة
+    # السماح بالوصول للملفات والمجلدات الموجودة
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule . - [L]
-    
-    # ✅ السماح بالوصول للصفحة الرئيسية
-    RewriteCond %{REQUEST_URI} ^/?$ [NC]
-    RewriteRule . index.html [L]
-    
-    # ✅ السماح بجميع الطلبات إلى مجلد api/
-    RewriteCond %{REQUEST_URI} ^/?api/ [NC]
-    RewriteRule ^ - [L]
 </IfModule>
 
 # ============================================
@@ -131,10 +60,6 @@ Options -Indexes +FollowSymLinks
     RewriteCond %{REQUEST_URI} sw\.js\.php$ [NC]
     RewriteRule . - [E=no-gzip:1,E=dont-vary:1,L]
 </IfModule>
-
-# ============================================
-# ✅ السماح بجميع ملفات HTML, CSS, JS (مكرر للتأكيد)
-# ============================================
 
 # ============================================
 # ✅ MIME Types
@@ -213,21 +138,15 @@ AddDefaultCharset UTF-8
 </IfModule>
 
 # ============================================
-# ✅ إعدادات PHP للجلسات - حل مشكلة open_basedir
+# ✅ إعدادات PHP
 # ============================================
 
 <IfModule mod_php.c>
     php_value soap.wsdl_cache_enabled "0"
-    php_value soap.wsdl_cache_ttl "0"
-    php_value soap.wsdl_cache_limit "0"
     php_value auto_prepend_file ".auto_prepend.php"
-    # ✅ تم إزالة session.save_path - يتم تعيينه من config.php
 </IfModule>
 
 <IfModule lsapi_module>
     php_value soap.wsdl_cache_enabled "0"
-    php_value soap.wsdl_cache_ttl "0"
-    php_value soap.wsdl_cache_limit "0"
     php_value auto_prepend_file ".auto_prepend.php"
-    # ✅ تم إزالة session.save_path - يتم تعيينه من config.php
 </IfModule>
