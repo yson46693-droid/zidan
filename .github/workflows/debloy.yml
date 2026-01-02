@@ -26,6 +26,9 @@ jobs:
           icon_count=$(find icons -name "*.png" | wc -l)
           echo "✅ تم العثور على $icon_count ملف أيقونة"
           ls -la icons/
+          echo ""
+          echo "📋 قائمة الملفات في مجلد icons:"
+          find icons -type f -name "*.png" | sort
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -64,3 +67,16 @@ jobs:
             .gitignore
             .editorconfig
 
+      - name: Verify Icons Upload
+        run: |
+          echo "🔍 التحقق من رفع ملفات الأيقونات..."
+          echo "⚠️ يرجى التحقق يدوياً من وجود مجلد icons/ على السيرفر في /httpdocs/icons/"
+          echo "📋 يجب أن يحتوي المجلد على الملفات التالية:"
+          echo "   - icon-72x72.png"
+          echo "   - icon-96x96.png"
+          echo "   - icon-128x128.png"
+          echo "   - icon-144x144.png"
+          echo "   - icon-152x152.png"
+          echo "   - icon-192x192.png"
+          echo "   - icon-384x384.png"
+          echo "   - icon-512x512.png"

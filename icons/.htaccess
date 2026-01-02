@@ -1,0 +1,27 @@
+# ✅ السماح بالوصول لجميع ملفات الأيقونات
+<FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# ✅ إعداد MIME types الصحيحة
+AddType image/png .png
+AddType image/jpeg .jpg .jpeg
+AddType image/gif .gif
+AddType image/svg+xml .svg
+AddType image/x-icon .ico
+AddType image/webp .webp
+
+# ✅ السماح بالوصول للملفات مع query parameters
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(.*)$ $1 [L]
+</IfModule>
+
+# ✅ إعداد Cache-Control للأيقونات
+<IfModule mod_headers.c>
+    <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
