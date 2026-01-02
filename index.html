@@ -178,7 +178,7 @@
     
     <!-- ✅ تحسين: Preload critical image - LCP optimization (بعد CSS) -->
     <!-- Note: Only preload resources that are used immediately (within 3 seconds) -->
-    <link rel="preload" href="icon-512x512.png" as="image" type="image/png" fetchpriority="high" crossorigin="anonymous">
+    <link rel="preload" href="icons/icon-512x512.png?v=2.0.1" as="image" type="image/png" fetchpriority="high" crossorigin="anonymous">
     
     <!-- ✅ تحسين: Removed preload for deferred JS files - they won't be used immediately -->
     <!-- JS files are loaded with defer, so preloading them doesn't help and causes warnings -->
@@ -239,7 +239,7 @@
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
             <div class="splash-logo">
-                <img src="icon-512x512.png" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" crossorigin="anonymous" onload="this.style.opacity='1'" onerror="this.style.display='none'">
+                <img src="icons/icon-512x512.png?v=2.0.1" alt="Logo" class="splash-logo-img" width="150" height="150" fetchpriority="high" decoding="async" loading="eager" crossorigin="anonymous" onload="this.style.opacity='1'" onerror="this.style.display='none'">
             </div>
             <h1 class="splash-title">نظام إدارة محل الصيانة</h1>
             <p class="splash-subtitle">نظام شامل لإدارة محلات صيانة الهواتف</p>

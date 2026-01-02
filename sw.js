@@ -143,7 +143,7 @@ const optionalFiles = [
     buildPath('/js/pwa-diagnostics.js'),
     // Images
     buildPath('/vertopal.com_photo_5922357566287580087_y.png'),
-    buildPath('/icon-512x512.png')
+    buildPath('/icons/icon-512x512.png')
     // ملاحظة: الأيقونات لا يتم حفظها في cache لأنها قد تتغير - سيتم جلبها من الشبكة دائماً
 ];
 
