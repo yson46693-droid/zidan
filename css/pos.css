@@ -2061,20 +2061,20 @@
     .pos-modal {
         padding: 0 !important;
         align-items: flex-start;
-        padding-top: 10px;
+        padding-top: 5px;
     }
     
     .pos-modal-content,
     .pos-invoice-content {
-        width: 95% !important;
-        max-width: 95% !important;
+        width: 98% !important;
+        max-width: 98% !important;
         margin: 0 auto;
-        max-height: 90vh;
+        max-height: 95vh;
         border-radius: 12px;
     }
     
     .pos-modal-header {
-        padding: 0.75rem 1rem;
+        padding: 0.6rem 0.8rem;
         flex-shrink: 0;
     }
     
@@ -2084,16 +2084,17 @@
     
     .pos-modal-body,
     .pos-invoice-body {
-        padding: 1rem;
+        padding: 0.8rem;
         overflow-y: auto;
-        max-height: calc(90vh - 120px);
+        overflow-x: auto;
+        max-height: calc(95vh - 120px);
         flex: 1;
         min-height: 0;
         -webkit-overflow-scrolling: touch;
     }
     
     .pos-modal-footer {
-        padding: 0.75rem 1rem;
+        padding: 0.6rem 0.8rem;
         flex-shrink: 0;
         flex-wrap: wrap;
         gap: 10px;
@@ -2105,8 +2106,32 @@
     }
     
     .invoice-wrapper {
-        padding: 15px;
+        padding: 12px;
         font-size: 15px;
+    }
+    
+    /* تحسين عرض الجداول داخل النماذج على الموبايل */
+    .pos-modal-body table,
+    .pos-invoice-body table,
+    .pos-modal-body .data-table,
+    .pos-invoice-body .data-table {
+        width: 100%;
+        font-size: 0.85em;
+        table-layout: auto;
+    }
+    
+    .pos-modal-body table th,
+    .pos-modal-body table td,
+    .pos-invoice-body table th,
+    .pos-invoice-body table td,
+    .pos-modal-body .data-table th,
+    .pos-modal-body .data-table td,
+    .pos-invoice-body .data-table th,
+    .pos-invoice-body .data-table td {
+        padding: 8px 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 
@@ -2127,7 +2152,7 @@
     }
     
     .pos-modal-header {
-        padding: 0.75rem;
+        padding: 0.6rem;
     }
     
     .pos-modal-header h3 {
@@ -2136,18 +2161,46 @@
     
     .pos-modal-body,
     .pos-invoice-body {
-        padding: 0.75rem;
+        padding: 0.6rem;
+        overflow-y: auto;
+        overflow-x: auto;
         max-height: calc(100vh - 110px);
     }
     
     .pos-modal-footer {
-        padding: 0.75rem;
+        padding: 0.6rem;
         flex-direction: column;
     }
     
     .pos-modal-footer .btn {
         width: 100%;
         min-width: 100%;
+    }
+    
+    /* تحسين عرض الجداول داخل النماذج على الشاشات الصغيرة */
+    .pos-modal-body table,
+    .pos-invoice-body table,
+    .pos-modal-body .data-table,
+    .pos-invoice-body .data-table {
+        width: 100%;
+        font-size: 0.8em;
+        table-layout: auto;
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .pos-modal-body table th,
+    .pos-modal-body table td,
+    .pos-invoice-body table th,
+    .pos-invoice-body table td,
+    .pos-modal-body .data-table th,
+    .pos-modal-body .data-table td,
+    .pos-invoice-body .data-table th,
+    .pos-invoice-body .data-table td {
+        padding: 6px 4px;
+        white-space: nowrap;
+        min-width: 60px;
     }
 }
 

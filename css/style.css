@@ -4869,14 +4869,14 @@ body {
     .modal {
         padding: 0 !important;
         align-items: flex-start;
-        padding-top: 10px;
+        padding-top: 5px;
     }
     
     .modal-content {
-        width: 95% !important;
-        max-width: 95% !important;
+        width: 98% !important;
+        max-width: 98% !important;
         margin: 0 auto;
-        max-height: 90vh;
+        max-height: 95vh;
         border-radius: 12px;
         overflow: hidden;
         box-shadow: 0 10px 30px rgba(0,0,0,0.2);
@@ -4885,15 +4885,15 @@ body {
     }
     
     .modal-content.modal-sm {
-        max-width: 95% !important;
+        max-width: 98% !important;
     }
     
     .modal-content.modal-lg {
-        max-width: 95% !important;
+        max-width: 98% !important;
     }
     
     .modal-header {
-        padding: 0.75rem 1rem;
+        padding: 0.6rem 0.8rem;
         flex-shrink: 0;
         flex-direction: row;
         align-items: center;
@@ -4907,18 +4907,20 @@ body {
     }
     
     .modal form {
-        padding: 1rem;
+        padding: 0.8rem;
         overflow-y: auto;
-        max-height: calc(90vh - 120px);
+        overflow-x: auto;
+        max-height: calc(95vh - 120px);
         flex: 1;
         min-height: 0;
         -webkit-overflow-scrolling: touch;
     }
     
     .modal-body {
-        padding: 1rem;
+        padding: 0.8rem;
         overflow-y: auto;
-        max-height: calc(90vh - 120px);
+        overflow-x: auto;
+        max-height: calc(95vh - 120px);
         flex: 1;
         min-height: 0;
         -webkit-overflow-scrolling: touch;
@@ -4926,7 +4928,7 @@ body {
     
     .modal-footer,
     .modal form > .modal-footer {
-        padding: 0.75rem 1rem;
+        padding: 0.6rem 0.8rem;
         flex-direction: column;
         gap: 10px;
         flex-shrink: 0;
@@ -4936,6 +4938,30 @@ body {
     .modal form > .modal-footer .btn {
         width: 100%;
         justify-content: center;
+    }
+    
+    /* تحسين عرض الجداول داخل النماذج على الموبايل */
+    .modal-body table,
+    .modal form table,
+    .modal-body .data-table,
+    .modal form .data-table {
+        width: 100%;
+        font-size: 0.85em;
+        table-layout: auto;
+    }
+    
+    .modal-body table th,
+    .modal-body table td,
+    .modal form table th,
+    .modal form table td,
+    .modal-body .data-table th,
+    .modal-body .data-table td,
+    .modal form .data-table th,
+    .modal form .data-table td {
+        padding: 8px 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 
@@ -4966,7 +4992,7 @@ body {
     }
 
     .modal-header {
-        padding: 0.75rem;
+        padding: 0.6rem;
         flex-shrink: 0;
     }
 
@@ -4976,8 +5002,9 @@ body {
     }
 
     .modal form {
-        padding: 0.75rem;
+        padding: 0.6rem;
         overflow-y: auto;
+        overflow-x: auto;
         max-height: calc(100vh - 110px);
         flex: 1;
         min-height: 0;
@@ -4985,8 +5012,9 @@ body {
     }
 
     .modal-body {
-        padding: 0.75rem;
+        padding: 0.6rem;
         overflow-y: auto;
+        overflow-x: auto;
         max-height: calc(100vh - 110px);
         flex: 1;
         min-height: 0;
@@ -4995,8 +5023,34 @@ body {
 
     .modal-footer,
     .modal form > .modal-footer {
-        padding: 0.75rem;
+        padding: 0.6rem;
         flex-shrink: 0;
+    }
+    
+    /* تحسين عرض الجداول داخل النماذج على الشاشات الصغيرة */
+    .modal-body table,
+    .modal form table,
+    .modal-body .data-table,
+    .modal form .data-table {
+        width: 100%;
+        font-size: 0.8em;
+        table-layout: auto;
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .modal-body table th,
+    .modal-body table td,
+    .modal form table th,
+    .modal form table td,
+    .modal-body .data-table th,
+    .modal-body .data-table td,
+    .modal form .data-table th,
+    .modal form .data-table td {
+        padding: 6px 4px;
+        white-space: nowrap;
+        min-width: 60px;
     }
 }
 
