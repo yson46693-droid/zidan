@@ -28,19 +28,8 @@ if (file_exists($autoPrependFile)) {
     @ini_set('soap.wsdl_cache_ttl', '0');
     @ini_set('soap.wsdl_cache_limit', '0');
     
-    // ✅ استخدام مجلد sessions داخل الموقع بدلاً من /tmp
-    if (session_status() === PHP_SESSION_NONE) {
-        $sessionPath = __DIR__ . '/../sessions';
-        if (!is_dir($sessionPath)) {
-            @mkdir($sessionPath, 0755, true);
-        }
-        if (is_dir($sessionPath) && is_writable($sessionPath)) {
-            @ini_set('session.save_path', $sessionPath);
-            if (function_exists('session_save_path')) {
-                session_save_path($sessionPath);
-            }
-        }
-    }
+    // ✅ ملاحظة: الجلسات يتم تخزينها في cookies على جهاز المستخدم
+    // لا حاجة لإعدادات session.save_path
 }
 
 // ✅ استعادة error_reporting إلى القيمة الأصلية (بعد تطبيق الإعدادات)
@@ -191,98 +180,164 @@ require_once __DIR__ . '/database.php';
 
 // ✅ تهيئة قاعدة البيانات - تم إزالة init-database.php (لم يعد مطلوباً)
 
+// ✅ معالج جلسات مخصص لتخزين البيانات في cookies على جهاز المستخدم
+class CookieSessionHandler implements SessionHandlerInterface {
+    private $cookieName = 'PHPSESSDATA';
+    private $lifetime = 86400; // 24 ساعة
+    
+    public function open($save_path, $name) {
+        return true;
+    }
+    
+    public function close() {
+        return true;
+    }
+    
+    public function read($session_id) {
+        // محاولة قراءة البيانات من cookie واحد
+        if (isset($_COOKIE[$this->cookieName])) {
+            $data = base64_decode($_COOKIE[$this->cookieName]);
+            if ($data !== false) {
+                $decoded = json_decode($data, true);
+                if ($decoded !== null && isset($decoded['data']) && isset($decoded['expires'])) {
+                    // التحقق من انتهاء الصلاحية
+                    if ($decoded['expires'] > time()) {
+                        return $decoded['data'];
+                    }
+                }
+            }
+        }
+        
+        // محاولة قراءة البيانات من cookies مقسمة
+        if (isset($_COOKIE[$this->cookieName . '_count'])) {
+            $count = (int)$_COOKIE[$this->cookieName . '_count'];
+            $chunks = [];
+            for ($i = 0; $i < $count; $i++) {
+                if (isset($_COOKIE[$this->cookieName . '_' . $i])) {
+                    $chunks[] = $_COOKIE[$this->cookieName . '_' . $i];
+                }
+            }
+            if (count($chunks) === $count) {
+                $encoded = implode('', $chunks);
+                $data = base64_decode($encoded);
+                if ($data !== false) {
+                    $decoded = json_decode($data, true);
+                    if ($decoded !== null && isset($decoded['data']) && isset($decoded['expires'])) {
+                        // التحقق من انتهاء الصلاحية
+                        if ($decoded['expires'] > time()) {
+                            return $decoded['data'];
+                        }
+                    }
+                }
+            }
+        }
+        
+        return '';
+    }
+    
+    public function write($session_id, $session_data) {
+        $isSecure = false;
+        if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+            $isSecure = true;
+        } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+            $isSecure = true;
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            $isSecure = true;
+        } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+            $isSecure = true;
+        }
+        
+        $data = [
+            'data' => $session_data,
+            'expires' => time() + $this->lifetime
+        ];
+        
+        $encoded = base64_encode(json_encode($data));
+        
+        // تقسيم البيانات إذا كانت كبيرة جداً (حد cookies هو 4096 بايت)
+        if (strlen($encoded) > 4000) {
+            // إذا كانت كبيرة جداً، نحفظها في عدة cookies
+            $chunks = str_split($encoded, 4000);
+            $samesite = $isSecure ? 'None' : 'Lax';
+            foreach ($chunks as $index => $chunk) {
+                if (PHP_VERSION_ID >= 70300) {
+                    setcookie($this->cookieName . '_' . $index, $chunk, [
+                        'expires' => time() + $this->lifetime,
+                        'path' => '/',
+                        'domain' => '',
+                        'secure' => $isSecure,
+                        'httponly' => true,
+                        'samesite' => $samesite
+                    ]);
+                } else {
+                    setcookie($this->cookieName . '_' . $index, $chunk, time() + $this->lifetime, '/', '', $isSecure, true);
+                }
+            }
+            if (PHP_VERSION_ID >= 70300) {
+                setcookie($this->cookieName . '_count', count($chunks), [
+                    'expires' => time() + $this->lifetime,
+                    'path' => '/',
+                    'domain' => '',
+                    'secure' => $isSecure,
+                    'httponly' => true,
+                    'samesite' => $samesite
+                ]);
+            } else {
+                setcookie($this->cookieName . '_count', count($chunks), time() + $this->lifetime, '/', '', $isSecure, true);
+            }
+        } else {
+            $samesite = $isSecure ? 'None' : 'Lax';
+            if (PHP_VERSION_ID >= 70300) {
+                setcookie($this->cookieName, $encoded, [
+                    'expires' => time() + $this->lifetime,
+                    'path' => '/',
+                    'domain' => '',
+                    'secure' => $isSecure,
+                    'httponly' => true,
+                    'samesite' => $samesite
+                ]);
+            } else {
+                setcookie($this->cookieName, $encoded, time() + $this->lifetime, '/', '', $isSecure, true);
+            }
+        }
+        
+        return true;
+    }
+    
+    public function destroy($session_id) {
+        // حذف جميع cookies المتعلقة بالجلسة
+        if (isset($_COOKIE[$this->cookieName])) {
+            setcookie($this->cookieName, '', time() - 3600, '/', '', false, true);
+        }
+        
+        // حذف cookies المقسمة إذا كانت موجودة
+        if (isset($_COOKIE[$this->cookieName . '_count'])) {
+            $count = (int)$_COOKIE[$this->cookieName . '_count'];
+            for ($i = 0; $i < $count; $i++) {
+                setcookie($this->cookieName . '_' . $i, '', time() - 3600, '/', '', false, true);
+            }
+            setcookie($this->cookieName . '_count', '', time() - 3600, '/', '', false, true);
+        }
+        
+        return true;
+    }
+    
+    public function gc($maxlifetime) {
+        // لا حاجة لتنظيف - cookies تنتهي تلقائياً
+        return true;
+    }
+}
+
 // إعدادات الجلسة (قبل بدء الجلسة)
 if (session_status() === PHP_SESSION_NONE) {
-    // ✅ حل مشكلة open_basedir restriction في Shared Hosting
-    // تحديد مسار حفظ الجلسات إلى مجلد sessions داخل الموقع (ضمن WEBSPACEROOT)
-    // يجب تعيين هذا قبل أي محاولة لاستخدام الجلسات
-    
-    // ✅ تعطيل wsdlcache لتجنب مشكلة open_basedir - يجب أن يكون أول شيء
-    // wsdlcache يحاول الوصول إلى /var/lib/php/wsdlcache (غير مسموح)
-    // محاولة متعددة لضمان التعطيل
+    // ✅ تعطيل wsdlcache لتجنب مشكلة open_basedir
     @ini_set('soap.wsdl_cache_enabled', '0');
     @ini_set('soap.wsdl_cache_ttl', '0');
     @ini_set('soap.wsdl_cache_limit', '0');
     
-    // ✅ محاولة إضافية باستخدام putenv (إذا كان متاحاً)
-    if (function_exists('putenv')) {
-        @putenv('SOAP_WSDL_CACHE_ENABLED=0');
-    }
-    
-    // ✅ التحقق من أن soap.wsdl_cache_enabled تم تعطيله
-    $wsdlCacheEnabled = ini_get('soap.wsdl_cache_enabled');
-    if ($wsdlCacheEnabled != '0' && $wsdlCacheEnabled !== '' && $wsdlCacheEnabled !== false) {
-        error_log("⚠️ تحذير: soap.wsdl_cache_enabled لم يتم تعطيله (القيمة الحالية: " . $wsdlCacheEnabled . ") - قد تحتاج إلى تعديل إعدادات LiteSpeed");
-        // محاولة إضافية باستخدام ini_alter (deprecated لكن قد يعمل)
-        if (function_exists('ini_alter')) {
-            @ini_alter('soap.wsdl_cache_enabled', '0');
-        }
-    } else {
-        error_log("✅ تم تعطيل soap.wsdl_cache_enabled بنجاح");
-    }
-    
-    // ✅ CRITICAL: استخدام مجلد داخل الموقع مباشرة (ضمن WEBSPACEROOT)
-    // هذا يحل مشكلة open_basedir في الاستضافات المشتركة
-    $sessionPath = __DIR__ . '/../sessions';
-    
-    // إنشاء المجلد إذا لم يكن موجوداً
-    if (!is_dir($sessionPath)) {
-        @mkdir($sessionPath, 0755, true);
-        // إنشاء ملف .htaccess لحماية المجلد
-        $htaccessFile = $sessionPath . '/.htaccess';
-        if (!file_exists($htaccessFile)) {
-            @file_put_contents($htaccessFile, "Deny from all\n");
-        }
-    }
-    
-    // التحقق من أن المجلد موجود وقابل للكتابة
-    if (is_dir($sessionPath) && is_writable($sessionPath)) {
-        // ✅ محاولة متعددة لضمان التعيين
-        @ini_set('session.save_path', $sessionPath);
-        
-        // ✅ محاولة استخدام session_save_path() مباشرة (أقوى)
-        if (function_exists('session_save_path')) {
-            $oldPath = session_save_path();
-            $newPath = session_save_path($sessionPath);
-            if ($newPath === $sessionPath || $newPath === false) {
-                // إذا فشل، حاول مرة أخرى
-                session_save_path($sessionPath);
-            }
-        }
-        
-        // ✅ التحقق من أن التعيين نجح
-        $actualPath = ini_get('session.save_path');
-        if ($actualPath === $sessionPath || strpos($actualPath, 'sessions') !== false) {
-            error_log("✅ تم تعيين session.save_path إلى: " . $sessionPath);
-        } else {
-            error_log("⚠️ تحذير: session.save_path لم يتم تعيينه (القيمة الحالية: " . $actualPath . ")");
-        }
-    } else {
-        // إذا فشل، محاولة استخدام /tmp كبديل (إذا كان متاحاً)
-        $fallbackPath = '/tmp';
-        if (is_dir($fallbackPath) && is_writable($fallbackPath)) {
-            @ini_set('session.save_path', $fallbackPath);
-            if (function_exists('session_save_path')) {
-                session_save_path($fallbackPath);
-            }
-            error_log("✅ تم تعيين session.save_path إلى: " . $fallbackPath . " (بديل)");
-        } else {
-            // آخر محاولة: استخدام sys_get_temp_dir()
-            $lastResortPath = sys_get_temp_dir();
-            if (is_dir($lastResortPath) && is_writable($lastResortPath)) {
-                @ini_set('session.save_path', $lastResortPath);
-                if (function_exists('session_save_path')) {
-                    session_save_path($lastResortPath);
-                }
-                error_log("✅ تم تعيين session.save_path إلى: " . $lastResortPath . " (حل أخير)");
-            } else {
-                error_log("⚠️ تحذير: فشل تعيين session.save_path - سيتم استخدام المسار الافتراضي");
-            }
-        }
-    }
-    
-    // تكوين ملفات تعريف الارتباط للجلسة للعمل مع CORS
-    $cookieParams = session_get_cookie_params();
+    // ✅ استخدام معالج الجلسات المخصص (cookies)
+    $handler = new CookieSessionHandler();
+    session_set_save_handler($handler, true);
     
     // ✅ تحسين اكتشاف HTTPS - يعمل مع جميع أنواع الاستضافات
     $isSecure = false;
@@ -298,16 +353,16 @@ if (session_status() === PHP_SESSION_NONE) {
         $isSecure = true;
     }
     
-    // إذا كان HTTPS متاحاً، استخدم SameSite=None للسماح بالطلبات عبر المواقع
-    // إذا لم يكن HTTPS، استخدم SameSite=Lax (أكثر أماناً)
+    // تكوين ملفات تعريف الارتباط للجلسة
     session_set_cookie_params([
-        'lifetime' => $cookieParams['lifetime'] ?: 86400, // 24 ساعة
+        'lifetime' => 86400, // 24 ساعة
         'path' => '/',
         'domain' => '', // فارغ للسماح بأي domain
         'secure' => $isSecure,
         'httponly' => true,
-        'samesite' => $isSecure ? 'None' : 'Lax' // None يتطلب Secure=true
+        'samesite' => $isSecure ? 'None' : 'Lax'
     ]);
+    
     session_start();
 }
 
