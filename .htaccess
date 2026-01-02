@@ -100,6 +100,12 @@ Options -Indexes +FollowSymLinks
 </IfModule>
 
 # ============================================
+# ✅ Icons Directory - CRITICAL
+# ============================================
+# ملاحظة: يتم التعامل مع إعدادات icons في icons/.htaccess
+# القواعد العامة في هذا الملف تسمح بالوصول لجميع الملفات
+
+# ============================================
 # ✅ MIME Types
 # ============================================
 
@@ -111,6 +117,11 @@ Options -Indexes +FollowSymLinks
     AddType application/json .json
     AddType application/manifest+json .webmanifest
     AddType application/manifest+json manifest.json
+    AddType image/png .png
+    AddType image/jpeg .jpg .jpeg
+    AddType image/gif .gif
+    AddType image/svg+xml .svg
+    AddType image/x-icon .ico
     AddType image/webp .webp
     AddType image/avif .avif
 </IfModule>
@@ -142,6 +153,8 @@ AddDefaultCharset UTF-8
     <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot)$">
         Header set Cache-Control "max-age=31536000, public, immutable"
     </FilesMatch>
+    
+    # ✅ CRITICAL: Headers لملفات icons (يتم التعامل معها في icons/.htaccess أيضاً)
 </IfModule>
 
 # ============================================
@@ -173,6 +186,8 @@ AddDefaultCharset UTF-8
         Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
         Header set Access-Control-Allow-Headers "Content-Type, X-Requested-With"
     </FilesMatch>
+    
+    # ✅ CRITICAL: CORS للأيقونات (يتم التعامل معها في icons/.htaccess)
 </IfModule>
 
 # ============================================

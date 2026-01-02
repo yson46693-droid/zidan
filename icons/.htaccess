@@ -1,4 +1,8 @@
-# ✅ السماح بالوصول لجميع ملفات الأيقونات
+# ============================================
+# ✅ إعدادات مجلد icons - CRITICAL
+# ============================================
+
+# ✅ CRITICAL: السماح بالوصول لجميع ملفات الأيقونات
 # دعم Apache 2.2 و 2.4
 <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
     # Apache 2.4+
@@ -12,15 +16,26 @@
     </IfModule>
 </FilesMatch>
 
-# ✅ إعداد MIME types الصحيحة
-AddType image/png .png
-AddType image/jpeg .jpg .jpeg
-AddType image/gif .gif
-AddType image/svg+xml .svg
-AddType image/x-icon .ico
-AddType image/webp .webp
+# ✅ CRITICAL: إعداد MIME types الصحيحة
+<IfModule mod_mime.c>
+    AddType image/png .png
+    AddType image/jpeg .jpg .jpeg
+    AddType image/gif .gif
+    AddType image/svg+xml .svg
+    AddType image/x-icon .ico
+    AddType image/webp .webp
+</IfModule>
 
-# ✅ السماح بالوصول للملفات مع query parameters
+# ✅ CRITICAL: إعداد Cache-Control للأيقونات
+<IfModule mod_headers.c>
+    <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+    </FilesMatch>
+</IfModule>
+
+# ✅ CRITICAL: السماح بالوصول للملفات مع query parameters
 <IfModule mod_rewrite.c>
     RewriteEngine On
     # السماح بالوصول للملفات الموجودة
@@ -28,9 +43,5 @@ AddType image/webp .webp
     RewriteRule ^ - [L]
 </IfModule>
 
-# ✅ إعداد Cache-Control للأيقونات
-<IfModule mod_headers.c>
-    <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
-        Header set Cache-Control "public, max-age=31536000, immutable"
-    </FilesMatch>
-</IfModule>
+# ✅ CRITICAL: تعطيل Directory Listing
+Options -Indexes +FollowSymLinks
