@@ -111,6 +111,8 @@ function renderProgressTimeline() {
         const currentStatus = repairTrackingData.status;
         const stages = repairTrackingData.stages || [];
         
+        console.log('🔄 [Progress] تحديث شريط التقدم - المراحل:', stages.length, 'الحالة:', currentStatus);
+        
         // ✅ حساب عرض الخط المكتمل
         let completedStagesCount = 0;
         let activeStageIndex = -1;
@@ -137,8 +139,16 @@ function renderProgressTimeline() {
             }
         }
         
-        // ✅ تحديث عرض الخط المكتمل
-        timeline.style.setProperty('--progress-width', `${Math.min(progressPercentage, 100)}%`);
+        // ✅ تحديث عرض الخط المكتمل - إجبار التحديث
+        const progressWidth = `${Math.min(progressPercentage, 100)}%`;
+        timeline.style.setProperty('--progress-width', progressWidth);
+        
+        // ✅ إجبار إعادة رسم العنصر
+        timeline.style.display = 'none';
+        timeline.offsetHeight; // Force reflow
+        timeline.style.display = '';
+        
+        console.log('✅ [Progress] تم تحديث النسبة المئوية:', progressWidth);
         
         // بناء HTML للمراحل
         let timelineHTML = '';
@@ -161,6 +171,10 @@ function renderProgressTimeline() {
         });
         
         timeline.innerHTML = timelineHTML;
+        
+        // ✅ إعادة تطبيق CSS variable بعد تحديث HTML
+        timeline.style.setProperty('--progress-width', progressWidth);
+        
     } catch (error) {
         console.error('❌ خطأ في عرض شريط التقدم:', error);
     }
@@ -1162,8 +1176,8 @@ function showExpiredMessage(expiryInfo) {
     }
 }
 
-// ✅ دالة لتحديث البيانات (تحدث البروجريس فقط)
-async function refreshTracking() {
+// ✅ دالة لتحديث الصفحة كاملة
+function refreshTracking() {
     try {
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
@@ -1171,44 +1185,13 @@ async function refreshTracking() {
             refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> جاري التحديث...';
         }
         
-        // محاولة جلب البيانات من API إذا كان متاحاً
-        const newData = await fetchRepairDataFromAPI(repairTrackingData.repairNumber);
-        if (newData) {
-            // تحديث البيانات فقط
-            if (newData.repairNumber) repairTrackingData.repairNumber = newData.repairNumber;
-            if (newData.status) repairTrackingData.status = newData.status;
-            if (newData.statusDescription) repairTrackingData.statusDescription = newData.statusDescription;
-            if (newData.estimatedDeliveryDate) repairTrackingData.estimatedDeliveryDate = newData.estimatedDeliveryDate;
-            if (newData.stages && Array.isArray(newData.stages)) repairTrackingData.stages = newData.stages;
-            
-            // تحديث جميع الأقسام
-            renderTrackingPage();
-            
-            console.log('✅ تم تحديث البيانات بنجاح');
-            
-            // إظهار رسالة النجاح
-            showTrackingMessage('تم تحديث البيانات بنجاح', 'success');
-        } else {
-            // إذا فشل جلب البيانات من API، استخدام البيانات المحلية
-            console.log('ℹ️ استخدام البيانات المحلية');
-            showTrackingMessage('لم يتم العثور على تحديثات جديدة', 'info');
-        }
-        
-        // استعادة زر التحديث
-        if (refreshBtn) {
-            refreshBtn.disabled = false;
-            refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> تحديث';
-        }
+        // تحديث الصفحة كاملة
+        window.location.reload();
     } catch (error) {
-        console.error('❌ خطأ في تحديث البيانات:', error);
+        console.error('❌ خطأ في تحديث الصفحة:', error);
         
-        const refreshBtn = document.getElementById('refreshBtn');
-        if (refreshBtn) {
-            refreshBtn.disabled = false;
-            refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> تحديث';
-        }
-        
-        showTrackingMessage('حدث خطأ أثناء تحديث البيانات. يرجى المحاولة مرة أخرى.', 'error');
+        // في حالة الخطأ، حاول التحديث مباشرة
+        window.location.reload();
     }
 }
 

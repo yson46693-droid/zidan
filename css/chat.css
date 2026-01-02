@@ -223,6 +223,42 @@ body {
     -webkit-overflow-scrolling: touch;
     padding-bottom: 10px;
     min-height: 0; /* مهم لـ flexbox */
+    position: relative;
+}
+
+/* علامة التحميل داخل الشات */
+.chat-loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 15px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+}
+
+.chat-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--light-bg);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.chat-loading-text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-dark);
+    font-weight: 500;
 }
 
 /* عند ظهور لوحة المفاتيح - تعديل منطقة الرسائل */
@@ -1404,6 +1440,160 @@ body {
     padding: 5px;
     background: rgba(244, 67, 54, 0.1);
     border-radius: 4px;
+}
+
+/* حاوية الرسائل الصوتية */
+.audio-message-container {
+    margin: 5px 0;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.audio-player-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 50px;
+}
+
+.user-message .audio-player-wrapper {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.message:not(.user-message) .audio-player-wrapper {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.audio-player-wrapper:hover {
+    opacity: 0.9;
+}
+
+.audio-player-wrapper.playing .waveform-bar {
+    animation: waveform-animate 1.2s ease-in-out infinite;
+}
+
+/* زر التشغيل/الإيقاف */
+.audio-play-pause-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    transition: all 0.2s ease;
+    border-radius: 50%;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+}
+
+.audio-play-pause-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.user-message .audio-play-pause-btn {
+    color: var(--white);
+}
+
+.message:not(.user-message) .audio-play-pause-btn {
+    color: var(--primary-color);
+}
+
+/* موجة الصوت */
+.audio-waveform {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    height: 30px;
+    min-width: 100px;
+}
+
+.waveform-bar {
+    flex: 1;
+    background: currentColor;
+    border-radius: 2px;
+    min-height: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.user-message .waveform-bar {
+    background: var(--white);
+}
+
+.message:not(.user-message) .audio-player-wrapper.playing .waveform-bar,
+.message:not(.user-message) .waveform-bar {
+    background: var(--primary-color);
+}
+
+.audio-player-wrapper.playing .waveform-bar {
+    opacity: 1;
+}
+
+@keyframes waveform-animate {
+    0%, 100% {
+        transform: scaleY(0.5);
+        opacity: 0.6;
+    }
+    50% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+}
+
+/* المدة */
+.audio-duration {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.8;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 40px;
+    text-align: left;
+}
+
+.user-message .audio-duration {
+    color: var(--white);
+}
+
+.message:not(.user-message) .audio-duration {
+    color: var(--text-dark);
+}
+
+/* إخفاء عنصر audio */
+.audio-player-wrapper audio {
+    display: none;
+}
+
+/* Responsive للرسائل الصوتية */
+@media (max-width: 576px) {
+    .audio-message-container {
+        max-width: 250px;
+    }
+    
+    .audio-player-wrapper {
+        padding: 8px 12px;
+        min-height: 45px;
+    }
+    
+    .audio-waveform {
+        min-width: 80px;
+        height: 25px;
+    }
+    
+    .audio-duration {
+        font-size: 11px;
+        min-width: 35px;
+    }
 }
 
 /* رسائل الصور */

@@ -338,7 +338,7 @@ class SyncManager {
         }
     }
 
-    // مزامنة المخزون
+    // مزامنة المخزن
     async syncInventory() {
         try {
             const result = await API.request('inventory.php', 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
@@ -353,10 +353,10 @@ class SyncManager {
             }
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log('[Sync] تم إلغاء مزامنة المخزون');
+                console.log('[Sync] تم إلغاء مزامنة المخزن');
                 return;
             }
-            console.error('[Sync] خطأ في مزامنة المخزون:', error);
+            console.error('[Sync] خطأ في مزامنة المخزن:', error);
         }
     }
 

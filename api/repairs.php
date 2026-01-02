@@ -580,9 +580,12 @@ if ($method === 'POST') {
     
     $repairId = generateId();
     $session = checkAuth();
-    $createdBy = $session['user_id'];
+    // ✅ استخدام created_by من البيانات المرسلة إذا كان موجوداً، وإلا استخدام المستخدم الحالي
+    $createdBy = $data['created_by'] ?? $session['user_id'];
     $userBranchId = $session['branch_id'] ?? null;
     $userRole = $session['role'];
+    
+    error_log("✅ [Repairs] POST - created_by من البيانات: " . ($data['created_by'] ?? 'null') . ", createdBy النهائي: $createdBy, user_id: " . $session['user_id']);
     
     // تحديد branch_id للعملية
     $repairBranchId = null;
@@ -640,6 +643,9 @@ if ($method === 'POST') {
     if ($result === false) {
         response(false, 'خطأ في إضافة عملية الصيانة', null, 500);
     }
+    
+    // ✅ لا يتم إضافة الدين عند إنشاء العملية - سيتم إضافته فقط عند تغيير الحالة إلى "جاهز للتسليم"
+    // (لأن العملية الجديدة عادة ما تكون بحالة 'received' وليس 'ready_for_delivery')
     
     $newRepair = dbSelectOne("SELECT * FROM repairs WHERE id = ?", [$repairId]);
     $newRepair['cost'] = $newRepair['customer_price']; // للتوافق
@@ -805,11 +811,13 @@ if ($method === 'PUT') {
     $currentRepair = null;
     
     // جلب البيانات الحالية من قاعدة البيانات
-    $currentRepair = dbSelectOne("SELECT customer_price, paid_amount, delivery_date, status FROM repairs WHERE id = ?", [$id]);
+    $currentRepair = dbSelectOne("SELECT customer_id, customer_price, paid_amount, remaining_amount, delivery_date, status FROM repairs WHERE id = ?", [$id]);
     
     if ($currentRepair) {
+        $currentCustomerId = $currentRepair['customer_id'] ?? null;
         $currentCustomerPrice = floatval($currentRepair['customer_price'] ?? 0);
         $currentPaidAmount = floatval($currentRepair['paid_amount'] ?? 0);
+        $currentRemainingAmount = floatval($currentRepair['remaining_amount'] ?? 0);
         $currentDeliveryDate = $currentRepair['delivery_date'] ?? null;
         $currentStatus = $currentRepair['status'] ?? '';
         
@@ -834,6 +842,35 @@ if ($method === 'PUT') {
             $data['remaining_amount'] = $calculatedRemainingAmount;
             $shouldUpdateRemainingAmount = true;
             error_log("✅ [Repairs API] تحديث remaining_amount تلقائياً: customer_price ({$newCustomerPrice}) - paid_amount ({$newPaidAmount}) = {$calculatedRemainingAmount}");
+        }
+        
+        // ✅ تحديث دين العميل للعملاء التجاريين فقط عند تغيير الحالة إلى "جاهز للتسليم"
+        $newStatus = isset($data['status']) ? $data['status'] : $currentStatus;
+        $newRemainingAmount = isset($data['remaining_amount']) ? floatval($data['remaining_amount']) : $currentRemainingAmount;
+        
+        // فقط عند تغيير الحالة إلى "جاهز للتسليم" يتم إضافة المبلغ المتبقي إلى الديون
+        if ($currentCustomerId && $newStatus === 'ready_for_delivery' && $currentStatus !== 'ready_for_delivery' && dbColumnExists('customers', 'total_debt')) {
+            // جلب نوع العميل والدين الحالي
+            $customer = dbSelectOne(
+                "SELECT customer_type, total_debt FROM customers WHERE id = ?",
+                [$currentCustomerId]
+            );
+            
+            if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial' && $newRemainingAmount > 0) {
+                $currentTotalDebt = floatval($customer['total_debt'] ?? 0);
+                $newTotalDebt = $currentTotalDebt + $newRemainingAmount;
+                
+                $updateDebtResult = dbExecute(
+                    "UPDATE customers SET total_debt = ? WHERE id = ?",
+                    [$newTotalDebt, $currentCustomerId]
+                );
+                
+                if ($updateDebtResult === false) {
+                    error_log('⚠️ فشل تحديث دين العميل بعد تغيير الحالة إلى "جاهز للتسليم"');
+                } else {
+                    error_log("✅ تم إضافة المبلغ المتبقي ({$newRemainingAmount}) إلى دين العميل عند تغيير الحالة إلى 'جاهز للتسليم': {$currentTotalDebt} + {$newRemainingAmount} = {$newTotalDebt}");
+                }
+            }
         }
         
         // ✅ إصلاح: عند تغيير الحالة إلى "delivered"، تعيين delivery_date تلقائياً إذا كان NULL

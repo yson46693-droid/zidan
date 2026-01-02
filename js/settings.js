@@ -1049,6 +1049,19 @@ async function showAddUserModal() {
         // إظهار النموذج
         userModal.style.display = 'flex';
 
+        // التحقق من وجود عنصر userBranch قبل تحميل الفروع
+        const branchSelect = document.getElementById('userBranch');
+        if (!branchSelect) {
+            console.error('❌ [showAddUserModal] العنصر userBranch غير موجود في DOM');
+            // محاولة انتظار قليلاً ثم إعادة المحاولة
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const branchSelectRetry = document.getElementById('userBranch');
+            if (!branchSelectRetry) {
+                showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+                return;
+            }
+        }
+
         // تحميل الفروع
         await loadUserBranches(true);
 
@@ -1839,38 +1852,12 @@ async function loadDatabaseInfo() {
 // دالة تحميل الفروع (خاصة بإعدادات المستخدمين)
 async function loadUserBranches(forceRefresh = false) {
     try {
-        // جلب الفروع
-        let result;
-        if (forceRefresh) {
-            const timestamp = Date.now();
-            result = await API.request(`branches.php?_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
-        } else {
-            result = await API.request('branches.php', 'GET');
-        }
+        console.log('🔄 [loadUserBranches] بدء تحميل الفروع...', { forceRefresh });
         
-        // التحقق من النتيجة
-        if (!result || !result.success || !result.data || !Array.isArray(result.data)) {
-            console.error('❌ فشل تحميل الفروع:', result);
-            const branchSelect = document.getElementById('userBranch');
-            if (branchSelect) {
-                branchSelect.innerHTML = '<option value="">لا توجد فروع متاحة</option>';
-            }
-            return;
-        }
-        
-        if (result.data.length === 0) {
-            console.warn('⚠️ لا توجد فروع في قاعدة البيانات');
-            const branchSelect = document.getElementById('userBranch');
-            if (branchSelect) {
-                branchSelect.innerHTML = '<option value="">لا توجد فروع متاحة</option>';
-            }
-            return;
-        }
-        
-        // انتظار وجود العنصر (بحد أقصى 2 ثانية)
+        // انتظار وجود العنصر أولاً (بحد أقصى 3 ثواني)
         let branchSelect = document.getElementById('userBranch');
         let retries = 0;
-        const maxRetries = 20;
+        const maxRetries = 30;
         const retryDelay = 100;
         
         while (!branchSelect && retries < maxRetries) {
@@ -1879,8 +1866,65 @@ async function loadUserBranches(forceRefresh = false) {
             retries++;
         }
         
-        if (!branchSelect || branchSelect.tagName.toLowerCase() !== 'select') {
-            console.error('❌ العنصر userBranch غير موجود أو غير صحيح');
+        if (!branchSelect) {
+            console.error('❌ [loadUserBranches] العنصر userBranch غير موجود بعد', maxRetries * retryDelay, 'ms');
+            return;
+        }
+        
+        if (branchSelect.tagName.toLowerCase() !== 'select') {
+            console.error('❌ [loadUserBranches] العنصر userBranch ليس select:', branchSelect.tagName);
+            return;
+        }
+        
+        console.log('✅ [loadUserBranches] تم العثور على العنصر userBranch');
+        
+        // جلب الفروع
+        let result;
+        try {
+            if (forceRefresh) {
+                const timestamp = Date.now();
+                console.log('🔄 [loadUserBranches] جلب الفروع مع forceRefresh...');
+                result = await API.request(`branches.php?_t=${timestamp}`, 'GET', null, { silent: false, skipCache: true });
+            } else {
+                console.log('🔄 [loadUserBranches] جلب الفروع من الكاش...');
+                result = await API.request('branches.php', 'GET');
+            }
+            
+            console.log('📥 [loadUserBranches] استجابة API:', result);
+        } catch (apiError) {
+            console.error('❌ [loadUserBranches] خطأ في استدعاء API:', apiError);
+            branchSelect.innerHTML = '<option value="">خطأ في تحميل الفروع</option>';
+            return;
+        }
+        
+        // التحقق من النتيجة
+        if (!result) {
+            console.error('❌ [loadUserBranches] لا توجد استجابة من API');
+            branchSelect.innerHTML = '<option value="">خطأ في تحميل الفروع</option>';
+            return;
+        }
+        
+        if (!result.success) {
+            console.error('❌ [loadUserBranches] فشل الطلب:', result.message || result.error);
+            branchSelect.innerHTML = '<option value="">خطأ في تحميل الفروع</option>';
+            return;
+        }
+        
+        if (!result.data) {
+            console.error('❌ [loadUserBranches] لا توجد بيانات في الاستجابة:', result);
+            branchSelect.innerHTML = '<option value="">لا توجد فروع متاحة</option>';
+            return;
+        }
+        
+        if (!Array.isArray(result.data)) {
+            console.error('❌ [loadUserBranches] البيانات ليست مصفوفة:', typeof result.data, result.data);
+            branchSelect.innerHTML = '<option value="">خطأ في تنسيق البيانات</option>';
+            return;
+        }
+        
+        if (result.data.length === 0) {
+            console.warn('⚠️ [loadUserBranches] لا توجد فروع في قاعدة البيانات');
+            branchSelect.innerHTML = '<option value="">لا توجد فروع متاحة</option>';
             return;
         }
         
@@ -1890,23 +1934,45 @@ async function loadUserBranches(forceRefresh = false) {
         // مسح القائمة وإضافة الخيارات الجديدة
         branchSelect.innerHTML = '<option value="">اختر الفرع...</option>';
         
-        result.data.forEach(branch => {
+        let addedCount = 0;
+        result.data.forEach((branch, index) => {
             if (branch && branch.id && branch.name) {
-                const option = document.createElement('option');
-                option.value = String(branch.id).trim();
-                option.textContent = String(branch.name).trim();
-                branchSelect.appendChild(option);
+                try {
+                    const option = document.createElement('option');
+                    option.value = String(branch.id).trim();
+                    option.textContent = String(branch.name).trim();
+                    branchSelect.appendChild(option);
+                    addedCount++;
+                } catch (optionError) {
+                    console.error(`❌ [loadUserBranches] خطأ في إضافة فرع ${index}:`, optionError, branch);
+                }
+            } else {
+                console.warn(`⚠️ [loadUserBranches] فرع غير صحيح في الفهرس ${index}:`, branch);
             }
         });
         
-        console.log(`✅ تم تحميل ${result.data.length} فرع في القائمة المنسدلة`);
+        console.log(`✅ [loadUserBranches] تم تحميل ${addedCount} من ${result.data.length} فرع في القائمة المنسدلة`);
+        
+        // التحقق من أن الفروع تمت إضافتها
+        if (addedCount === 0) {
+            console.error('❌ [loadUserBranches] لم يتم إضافة أي فرع!');
+            branchSelect.innerHTML = '<option value="">خطأ في تحميل الفروع</option>';
+            return;
+        }
         
         // استعادة القيمة إذا كانت موجودة وصحيحة
         if (currentValue && Array.from(branchSelect.options).some(opt => opt.value === currentValue)) {
             branchSelect.value = currentValue;
+            console.log('✅ [loadUserBranches] تم استعادة القيمة السابقة:', currentValue);
         }
     } catch (error) {
-        console.error('❌ خطأ في تحميل الفروع:', error);
+        console.error('❌ [loadUserBranches] خطأ عام في تحميل الفروع:', error);
+        console.error('❌ [loadUserBranches] تفاصيل الخطأ:', {
+            name: error?.name,
+            message: error?.message,
+            stack: error?.stack
+        });
+        
         const branchSelect = document.getElementById('userBranch');
         if (branchSelect) {
             branchSelect.innerHTML = '<option value="">خطأ في تحميل الفروع</option>';

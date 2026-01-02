@@ -413,7 +413,7 @@ body.dark-mode .data-table thead th {
     background: var(--primary-color);
 }
 
-/* صفوف المخزون المنخفض */
+/* صفوف المخزن المنخفض */
 body.dark-mode .data-table tbody tr.low-stock {
     background: rgba(255, 193, 7, 0.15);
     color: var(--text-dark);
@@ -1490,7 +1490,7 @@ body.dark-mode .camera-capture-btn svg {
 }
 
 /* ============================================
-   قواعد الوضع الليلي لنقاط البيع (POS)
+   قواعد الوضع الليلي لنقطة البيع (POS)
    ============================================ */
 
 /* حاوية POS الرئيسية */

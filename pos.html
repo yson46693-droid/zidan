@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="نظام نقاط البيع - ALAA ZIDAN - APP ">
+    <meta name="description" content="نظام نقطة البيع - ALAA ZIDAN - APP ">
     <meta name="theme-color" content="#2196F3">
     <meta name="mobile-web-app-capable" content="yes">
     
@@ -17,7 +17,7 @@
     <meta name="msapplication-TileImage" content="icons/icon-144x144.png?v=2.0.1">
     <meta name="msapplication-navbutton-color" content="#2196F3">
     <meta name="msapplication-starturl" content="/pos.html">
-    <meta name="msapplication-tooltip" content="نقاط البيع - ALAA ZIDAN">
+    <meta name="msapplication-tooltip" content="نقطة البيع - ALAA ZIDAN">
     <meta name="msapplication-window" content="width=1024;height=768">
     <meta name="msapplication-config" content="browserconfig.xml">
     
@@ -26,11 +26,11 @@
     <meta name="format-detection" content="telephone=no">
     
     <!-- Open Graph (للمتصفحات القديمة) -->
-    <meta property="og:title" content="نقاط البيع - ALAA ZIDAN">
+    <meta property="og:title" content="نقطة البيع - ALAA ZIDAN">
     <meta property="og:type" content="website">
     <meta property="og:image" content="icons/icon-512x512.png?v=2.0.1">
     
-    <title>نقاط البيع - POS</title>
+    <title>نقطة البيع - POS</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -71,7 +71,13 @@
         <!-- Header -->
         <header class="pos-header">
             <div class="pos-header-content">
-                <h1><i class="bi bi-cash-coin"></i> نقاط البيع</h1>
+                <button class="btn-header-icon" id="searchHeaderBtn" title="بحث">
+                    <i class="bi bi-search"></i>
+                </button>
+                <h1>نقطة البيع</h1>
+                <button class="btn-header-icon" id="qrHeaderBtn" title="QR Scanner">
+                    <i class="bi bi-qr-code-scan"></i>
+                </button>
                 <button class="btn-back" id="backBtn" style="text-decoration: none; border: none; cursor: pointer;">
                     <i class="bi bi-arrow-right"></i> العودة  
                 </button>
@@ -82,27 +88,52 @@
         <div class="pos-main">
             <!-- Left Side - Products -->
             <div class="pos-products-section">
+                <!-- QR Scanner Section (Mobile Only) -->
+                <div class="pos-qr-scanner-mobile" id="posQrScannerMobile">
+                    <div class="pos-qr-scanner-box-mobile" id="pos-qr-reader-mobile">
+                        <div id="pos-scanner-loading-mobile" class="pos-scanner-loading">
+                            <i class="bi bi-camera"></i>
+                            <p>جاري تحميل قارئ QR Code...</p>
+                            <p class="scanner-hint">يرجى السماح بالوصول إلى الكاميرا</p>
+                        </div>
+                        <div id="pos-scanner-error-mobile" class="pos-scanner-error" style="display: none;">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <p id="pos-scanner-error-message-mobile">خطأ في تحميل الكاميرا</p>
+                        </div>
+                        <div id="pos-scanner-overlay-mobile" class="pos-scanner-overlay">
+                            <div class="scanner-frame"></div>
+                            <div class="scanner-corners">
+                                <div class="corner corner-tl"></div>
+                                <div class="corner corner-tr"></div>
+                                <div class="corner corner-bl"></div>
+                                <div class="corner corner-br"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pos-qr-scanner-hint">
+                        <p>أفقى للإضافة مباشرة</p>
+                        <p class="scanner-hint-en">(Tap to focus)</p>
+                    </div>
+                </div>
+
                 <!-- Search Bar -->
                 <div class="pos-search-bar">
                     <input type="text" id="searchInput" placeholder="ابحث عن المنتجات..." autocomplete="off">
-                    <button class="btn-search btn-barcode-scanner" id="searchBtn" onclick="openPOSBarcodeScanner()" title="قراءة QR Code للمنتج">
-                        <i class="bi bi-qr-code-scan"></i> مسح QR Code
-                    </button>
                 </div>
 
                 <!-- Category Tabs -->
                 <div class="pos-tabs">
                     <button class="pos-tab active" data-category="all">
-                        <i class="bi bi-grid"></i> الكل
-                    </button>
-                    <button class="pos-tab" data-category="spare_parts">
-                        <i class="bi bi-tools"></i> قطع الغيار
+                        الكل
                     </button>
                     <button class="pos-tab" data-category="accessories">
-                        <i class="bi bi-headphones"></i> إكسسوارات
+                        اكسوار
                     </button>
                     <button class="pos-tab" data-category="phones">
-                        <i class="bi bi-phone"></i> هواتف
+                        عاثف
+                    </button>
+                    <button class="pos-tab-more" id="moreCategoriesBtn" title="المزيد">
+                        <i class="bi bi-three-dots"></i>
                     </button>
                 </div>
 
@@ -134,27 +165,72 @@
                 <!-- Cart Summary -->
                 <div class="pos-cart-summary">
                     <div class="summary-row">
-                        <span>المجموع الفرعي:</span>
-                        <span id="subtotal">0.00</span>
-                    </div>
-                    <div class="summary-row">
                         <label>
                             <span>الخصم:</span>
                             <input type="number" id="discountInput" value="0" min="0" step="0.01">
                         </label>
-                        <span id="discountDisplay">0.00</span>
-                    </div>
-                    <hr>
-                    <div class="summary-row total-row">
-                        <span>الإجمالي:</span>
-                        <span id="totalAmount">0.00</span>
+                        <div class="summary-values">
+                            <span class="summary-label">المجموع الفرعي:</span>
+                            <span id="subtotal" class="summary-value">0.00</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Pay Button -->
-                <button class="btn-pay" id="payBtn" disabled>
-                    <i class="bi bi-credit-card"></i> الدفع الآن
-                </button>
+                <!-- Pay Button with Total -->
+                <div class="pos-pay-section">
+                    <div class="total-display">
+                        <span class="total-label">الإجمالي:</span>
+                        <span id="totalAmount" class="total-value">0.00</span>
+                    </div>
+                    <button class="btn-pay" id="payBtn" disabled>
+                        <i class="bi bi-credit-card"></i> الدفع الآن
+                    </button>
+                </div>
+
+                <!-- QR Scanner Box -->
+                <div class="pos-qr-scanner-container" id="posQrScannerContainer">
+                    <div class="pos-qr-scanner-box" id="pos-qr-reader">
+                        <div id="pos-scanner-loading" class="pos-scanner-loading">
+                            <i class="bi bi-camera"></i>
+                            <p>جاري تحميل قارئ QR Code...</p>
+                            <p class="scanner-hint">يرجى السماح بالوصول إلى الكاميرا</p>
+                        </div>
+                        <div id="pos-scanner-error" class="pos-scanner-error" style="display: none;">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <p id="pos-scanner-error-message">خطأ في تحميل الكاميرا</p>
+                        </div>
+                        <div id="pos-scanner-overlay" class="pos-scanner-overlay">
+                            <div class="scanner-frame"></div>
+                            <div class="scanner-corners">
+                                <div class="corner corner-tl"></div>
+                                <div class="corner corner-tr"></div>
+                                <div class="corner corner-bl"></div>
+                                <div class="corner corner-br"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Action Bar (Mobile Only) -->
+        <div class="pos-bottom-action-bar" id="bottomActionBar">
+            <button class="btn-complete-sale" id="completeSaleBtn" disabled>
+                إتمام البيع
+            </button>
+            <div class="bottom-action-info">
+                <div class="bottom-total">
+                    <span id="bottomTotalAmount">0.00</span>
+                    <span class="bottom-currency">.ج.</span>
+                </div>
+                <div class="bottom-items-count">
+                    <span id="bottomItemsCount">0</span>
+                    <span>عناصر</span>
+                </div>
+                <div class="bottom-cart-icon">
+                    <i class="bi bi-cart"></i>
+                    <span class="cart-badge" id="bottomCartBadge">0</span>
+                </div>
             </div>
         </div>
     </div>
@@ -163,16 +239,31 @@
     <div class="pos-modal" id="paymentModal">
         <div class="pos-modal-content">
             <div class="pos-modal-header">
-                <h3>تأكيد الدفع</h3>
-                <button class="btn-close-modal" id="closePaymentModal">
+                <button class="btn-close-modal-left" id="closePaymentModalLeft">
                     <i class="bi bi-x"></i>
                 </button>
+                <h3>تأكيد البيع</h3>
+                <div style="width: 40px;"></div>
             </div>
             <div class="pos-modal-body">
-                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 10px; margin-bottom: 15px; color: #856404; font-size: 0.9em;">
-                    <i class="bi bi-info-circle"></i> بيانات العميل مطلوبة لإتمام عملية البيع
+                <!-- Items List -->
+                <div class="confirm-sale-items-section">
+                    <h4 class="confirm-sale-section-title">العناصر (<span id="confirmSaleItemsCount">0</span>)</h4>
+                    <div class="confirm-sale-items-list" id="confirmSaleItemsList">
+                        <!-- Items will be populated here -->
+                    </div>
                 </div>
-                
+
+                <!-- Discount Section -->
+                <div class="form-group confirm-sale-discount">
+                    <label>الخصم.</label>
+                    <div class="discount-input-wrapper">
+                        <i class="bi bi-receipt"></i>
+                        <input type="number" id="confirmSaleDiscountInput" value="0" min="0" step="0.01" placeholder="0.00">
+                        <span class="currency-label">.ج.</span>
+                    </div>
+                </div>
+
                 <!-- Customer Type Selection -->
                 <div class="form-group">
                     <label>نوع العميل <span style="color: var(--danger-color);">*</span>:</label>
@@ -201,7 +292,10 @@
                 <div id="newCustomerForm">
                     <div class="form-group">
                         <label>اسم العميل <span style="color: var(--danger-color);">*</span>:</label>
-                        <input type="text" id="customerNameInput" placeholder="اسم العميل" required autocomplete="name">
+                        <div class="input-with-icon">
+                            <i class="bi bi-person"></i>
+                            <input type="text" id="customerNameInput" placeholder="اسم العميل" required autocomplete="name">
+                        </div>
                     </div>
                     <div class="form-group" id="shopNameGroup" style="display: none;">
                         <label>اسم المحل <span style="color: var(--danger-color);">*</span>:</label>
@@ -209,26 +303,14 @@
                     </div>
                     <div class="form-group">
                         <label>رقم الهاتف <span style="color: var(--danger-color);">*</span>:</label>
-                        <input type="tel" id="customerPhoneInput" placeholder="رقم الهاتف (8 أرقام على الأقل)" required autocomplete="tel" pattern="[0-9]{8,}">
+                        <div class="input-with-icon">
+                            <i class="bi bi-telephone"></i>
+                            <input type="tel" id="customerPhoneInput" placeholder="رقم الهاتف" required autocomplete="tel" pattern="[0-9]{8,}">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>العنوان:</label>
                         <textarea id="customerAddressInput" rows="2" placeholder="العنوان (اختياري)"></textarea>
-                    </div>
-                </div>
-                <div class="payment-summary">
-                    <div class="summary-row">
-                        <span>المجموع الفرعي:</span>
-                        <span id="modalSubtotal">0.00</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>الخصم:</span>
-                        <span id="modalDiscount">0.00</span>
-                    </div>
-                    <hr>
-                    <div class="summary-row total-row">
-                        <span>الإجمالي:</span>
-                        <span id="modalTotal">0.00</span>
                     </div>
                 </div>
                 
@@ -240,11 +322,17 @@
                         <span>المتبقي: <strong id="remainingAmountDisplay">0.00</strong></span>
                     </div>
                 </div>
+
+                <!-- Total Section -->
+                <div class="confirm-sale-total">
+                    <span class="confirm-sale-total-label">الإجملي :</span>
+                    <span id="confirmSaleTotal" class="confirm-sale-total-value">0.00</span>
+                    <span class="currency-label">.ج.</span>
+                </div>
             </div>
             <div class="pos-modal-footer">
-                <button class="btn btn-secondary" id="cancelPaymentBtn">إلغاء</button>
-                <button class="btn btn-primary" id="confirmPaymentBtn">
-                    <i class="bi bi-check-circle"></i> تأكيد الدفع
+                <button class="btn btn-primary btn-confirm-pay" id="confirmPaymentBtn">
+                    تأكيد و دفع
                 </button>
             </div>
         </div>

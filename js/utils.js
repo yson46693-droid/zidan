@@ -34,7 +34,7 @@ function getServiceWorkerPath() {
 }
 
 /**
- * التحقق من صلاحيات تعديل المخزون
+ * التحقق من صلاحيات تعديل المخزن
  * @returns {boolean}
  */
 function canEditInventory() {
@@ -52,7 +52,7 @@ function canEditInventory() {
         // ✅ فقط المالك والمدير يمكنهم التعديل
         return user.role === 'admin' || user.role === 'manager';
     } catch (e) {
-        console.error('خطأ في التحقق من صلاحيات المخزون:', e);
+        console.error('خطأ في التحقق من صلاحيات المخزن:', e);
         return false;
     }
 }

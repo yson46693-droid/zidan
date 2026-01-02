@@ -17,6 +17,11 @@ let usersActivity = {};
 let allUsers = []; // قائمة جميع المستخدمين للـ mention
 let mentionMenuVisible = false;
 let mentionStartPosition = -1;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordingTimer = null;
+let recordingStartTime = null;
 
 // منع التكبير بالضغط مرتين
 (function() {
@@ -249,12 +254,28 @@ async function initializeChat() {
         // تحميل قائمة المستخدمين
         await loadUsers();
         
+        // إعداد listener لاستقبال الرسائل من الصفحة الرئيسية (عند فتح الشات في iframe)
+        setupMessageListener();
+        
         showLoading(false);
     } catch (error) {
         console.error('خطأ في تهيئة الشات:', error);
         showMessage('حدث خطأ في تحميل الشات', 'error');
         showLoading(false);
     }
+}
+
+// إعداد listener لاستقبال الرسائل من الصفحة الرئيسية
+function setupMessageListener() {
+    window.addEventListener('message', function(event) {
+        // التحقق من أن الرسالة من نفس المصدر (اختياري - يمكن إزالة هذا للسماح من أي مصدر)
+        // if (event.origin !== window.location.origin) return;
+        
+        if (event.data && event.data.type === 'openDeleteMessagesModal') {
+            console.log('📨 تم استقبال طلب فتح مودال حذف الرسائل من الصفحة الرئيسية');
+            showDeleteMessagesModal();
+        }
+    });
 }
 
 // تحميل الرسائل عند الدخول
@@ -351,7 +372,17 @@ function renderMessages() {
     const messagesContainer = document.getElementById('chatMessages');
     if (!messagesContainer) return;
     
-    messagesContainer.innerHTML = '';
+    // حفظ علامة التحميل إذا كانت موجودة
+    const loadingIndicator = document.getElementById('chatLoadingIndicator');
+    
+    // مسح الرسائل القديمة فقط (وليس علامة التحميل)
+    const existingMessages = messagesContainer.querySelectorAll('.message, .empty-messages');
+    existingMessages.forEach(msg => msg.remove());
+    
+    // إخفاء علامة التحميل بعد تحميل الرسائل
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+    }
     
     if (messages.length === 0) {
         messagesContainer.innerHTML = '<div class="empty-messages">لا توجد رسائل بعد</div>';
@@ -492,6 +523,109 @@ function createMessageElement(message) {
             }
             
             bubble.appendChild(imageContainer);
+        } else if (fileType === 'audio') {
+            const audioContainer = document.createElement('div');
+            audioContainer.className = 'audio-message-container';
+            
+            // إنشاء مشغل الصوت
+            const audioPlayer = document.createElement('audio');
+            audioPlayer.controls = false;
+            audioPlayer.preload = 'metadata';
+            
+            // تحديد المسار
+            if (filePath) {
+                // إذا كان المسار Base64 data URL
+                if (filePath.startsWith('data:audio')) {
+                    audioPlayer.src = filePath;
+                } else {
+                    // إذا كان مسار ملف
+                    audioPlayer.src = filePath.startsWith('/') ? filePath : '/' + filePath;
+                }
+            }
+            
+            // حاوية المشغل
+            const audioWrapper = document.createElement('div');
+            audioWrapper.className = 'audio-player-wrapper';
+            
+            // زر التشغيل/الإيقاف
+            const playPauseBtn = document.createElement('button');
+            playPauseBtn.className = 'audio-play-pause-btn';
+            playPauseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+            playPauseBtn.setAttribute('aria-label', 'تشغيل');
+            
+            // موجة الصوت
+            const waveform = document.createElement('div');
+            waveform.className = 'audio-waveform';
+            for (let i = 0; i < 40; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'waveform-bar';
+                bar.style.height = Math.random() * 60 + 20 + '%';
+                waveform.appendChild(bar);
+            }
+            
+            // المدة
+            const durationSpan = document.createElement('span');
+            durationSpan.className = 'audio-duration';
+            durationSpan.textContent = '0:00';
+            
+            // عند تحميل البيانات
+            audioPlayer.addEventListener('loadedmetadata', () => {
+                const duration = Math.floor(audioPlayer.duration);
+                const minutes = Math.floor(duration / 60);
+                const seconds = duration % 60;
+                durationSpan.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            });
+            
+            // تحديث حركة الموجة
+            const updateWaveform = () => {
+                const bars = waveform.querySelectorAll('.waveform-bar');
+                bars.forEach((bar, index) => {
+                    const delay = index * 0.1;
+                    if (audioWrapper.classList.contains('playing')) {
+                        bar.style.animation = `waveform-animate 1.2s ease-in-out ${delay}s infinite`;
+                    } else {
+                        bar.style.animation = 'none';
+                    }
+                });
+            };
+            
+            // عند انتهاء الصوت
+            audioPlayer.addEventListener('ended', () => {
+                playPauseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+                playPauseBtn.setAttribute('aria-label', 'تشغيل');
+                audioWrapper.classList.remove('playing');
+                updateWaveform();
+            });
+            
+            // التحكم في التشغيل/الإيقاف
+            playPauseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (audioPlayer.paused) {
+                    audioPlayer.play().then(() => {
+                        playPauseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+                        playPauseBtn.setAttribute('aria-label', 'إيقاف');
+                        audioWrapper.classList.add('playing');
+                        updateWaveform();
+                    }).catch(err => {
+                        console.error('خطأ في تشغيل الصوت:', err);
+                        showMessage('فشل تشغيل الصوت', 'error');
+                    });
+                } else {
+                    audioPlayer.pause();
+                    playPauseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+                    playPauseBtn.setAttribute('aria-label', 'تشغيل');
+                    audioWrapper.classList.remove('playing');
+                    updateWaveform();
+                }
+            });
+            
+            audioWrapper.appendChild(playPauseBtn);
+            audioWrapper.appendChild(waveform);
+            audioWrapper.appendChild(durationSpan);
+            audioWrapper.appendChild(audioPlayer);
+            
+            audioContainer.appendChild(audioWrapper);
+            bubble.appendChild(audioContainer);
         } else {
             const fileContainer = document.createElement('div');
             fileContainer.className = 'file-message';
@@ -610,6 +744,17 @@ function setupEventListeners() {
     const attachBtn = document.getElementById('attachBtn');
     if (attachBtn) {
         attachBtn.addEventListener('click', toggleAttachMenu);
+    }
+    
+    // زر التسجيل الصوتي
+    const audioBtn = document.getElementById('audioBtn');
+    if (audioBtn) {
+        audioBtn.addEventListener('mousedown', startAudioRecording);
+        audioBtn.addEventListener('mouseup', stopAudioRecording);
+        audioBtn.addEventListener('mouseleave', stopAudioRecording);
+        audioBtn.addEventListener('touchstart', startAudioRecording, { passive: false });
+        audioBtn.addEventListener('touchend', stopAudioRecording);
+        audioBtn.addEventListener('touchcancel', stopAudioRecording);
     }
     
     // أيقونة الإشعارات
@@ -1692,6 +1837,20 @@ function scrollToMessage(messageId) {
 }
 
 function showLoading(show) {
+    // التحقق من أن الصفحة تعمل داخل iframe (على الكمبيوتر)
+    const isInIframe = window.self !== window.top;
+    
+    // إذا كانت الصفحة داخل iframe، نعرض علامة التحميل داخل الشات
+    if (isInIframe) {
+        const chatLoadingIndicator = document.getElementById('chatLoadingIndicator');
+        if (chatLoadingIndicator) {
+            chatLoadingIndicator.style.display = show ? 'flex' : 'none';
+            console.log(show ? '📦 عرض علامة التحميل داخل الشات' : '✅ إخفاء علامة التحميل');
+        }
+        return;
+    }
+    
+    // إذا لم تكن داخل iframe (على الموبايل)، نعرض loading overlay الكامل
     const loadingOverlay = document.getElementById('loadingOverlay');
     if (loadingOverlay) {
         loadingOverlay.style.display = show ? 'flex' : 'none';
@@ -2069,6 +2228,219 @@ function openCamera() {
     } catch (error) {
         console.error('خطأ في فتح الكاميرا:', error);
         showMessage('حدث خطأ في فتح الكاميرا', 'error');
+    }
+}
+
+// تسجيل صوتي
+async function startAudioRecording(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    if (isRecording) {
+        return;
+    }
+    
+    try {
+        // طلب صلاحيات الميكروفون
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // إعداد MediaRecorder
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            // إيقاف جميع التراكات
+            stream.getTracks().forEach(track => track.stop());
+            
+            if (audioChunks.length === 0) {
+                showMessage('فشل التسجيل الصوتي', 'error');
+                return;
+            }
+            
+            // تحويل إلى Blob ثم Base64
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            
+            reader.onload = async () => {
+                const audioData = reader.result;
+                await sendAudioMessage(audioData);
+            };
+            
+            reader.onerror = () => {
+                showMessage('حدث خطأ في قراءة التسجيل الصوتي', 'error');
+            };
+            
+            reader.readAsDataURL(audioBlob);
+        };
+        
+        // بدء التسجيل
+        mediaRecorder.start();
+        isRecording = true;
+        recordingStartTime = Date.now();
+        
+        // تحديث واجهة الزر
+        const audioBtn = document.getElementById('audioBtn');
+        if (audioBtn) {
+            audioBtn.classList.add('recording');
+            audioBtn.setAttribute('aria-label', 'إيقاف التسجيل');
+        }
+        
+        // بدء عداد الوقت
+        startRecordingTimer();
+        
+    } catch (error) {
+        console.error('خطأ في بدء التسجيل الصوتي:', error);
+        showMessage('فشل الوصول إلى الميكروفون. يرجى التحقق من الصلاحيات', 'error');
+        isRecording = false;
+        
+        const audioBtn = document.getElementById('audioBtn');
+        if (audioBtn) {
+            audioBtn.classList.remove('recording');
+        }
+    }
+}
+
+// إيقاف التسجيل الصوتي
+function stopAudioRecording(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    if (!isRecording || !mediaRecorder) {
+        return;
+    }
+    
+    // إيقاف التسجيل
+    if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    
+    isRecording = false;
+    
+    // إيقاف العداد
+    stopRecordingTimer();
+    
+    // تحديث واجهة الزر
+    const audioBtn = document.getElementById('audioBtn');
+    if (audioBtn) {
+        audioBtn.classList.remove('recording');
+        audioBtn.setAttribute('aria-label', 'تسجيل صوتي');
+    }
+}
+
+// بدء عداد التسجيل
+function startRecordingTimer() {
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+    }
+    
+    recordingTimer = setInterval(() => {
+        if (isRecording && recordingStartTime) {
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // تحديث عنوان الزر أو إظهار مؤشر
+            const audioBtn = document.getElementById('audioBtn');
+            if (audioBtn) {
+                audioBtn.title = `تسجيل... ${timeText}`;
+            }
+        }
+    }, 1000);
+}
+
+// إيقاف عداد التسجيل
+function stopRecordingTimer() {
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+    
+    const audioBtn = document.getElementById('audioBtn');
+    if (audioBtn) {
+        audioBtn.title = 'تسجيل صوتي';
+    }
+}
+
+// إرسال رسالة صوتية
+async function sendAudioMessage(audioData) {
+    try {
+        showLoading(true);
+        
+        // إظهار الرسالة محلياً أولاً
+        const tempMessage = {
+            id: 'temp-' + Date.now(),
+            user_id: currentUser.id,
+            username: currentUser.name || currentUser.username,
+            message: '🎤 رسالة صوتية',
+            created_at: new Date().toISOString(),
+            isSending: true,
+            file_path: audioData,
+            file_type: 'audio',
+            file_name: 'audio.webm'
+        };
+        
+        messages.push(tempMessage);
+        renderMessages();
+        
+        // إرسال الرسالة للخادم
+        const result = await API.request('send_message.php', 'POST', {
+            message: '🎤 رسالة صوتية',
+            file_type: 'audio',
+            file_data: audioData,
+            file_name: 'audio.webm'
+        });
+        
+        showLoading(false);
+        
+        if (result && result.success) {
+            // استبدال الرسالة المؤقتة بالرسالة الحقيقية
+            const tempIndex = messages.findIndex(m => m.id === tempMessage.id);
+            if (tempIndex !== -1) {
+                messages[tempIndex] = result.data;
+                lastMessageId = result.data.id;
+                renderMessages();
+                
+                // ✅ إجبار إعادة تحميل الرسائل من الخادم
+                setTimeout(async () => {
+                    await loadMessages(true); // forceRefresh = true
+                }, 300);
+                
+                // إرسال حدث لإشعار النظام بوجود رسالة جديدة
+                window.dispatchEvent(new CustomEvent('messageSent'));
+                
+                // فحص فوري للرسائل الجديدة
+                if (longPollingActive) {
+                    setTimeout(() => checkForNewMessages(), 500);
+                }
+            }
+        } else {
+            // إزالة الرسالة المؤقتة في حالة الفشل
+            messages = messages.filter(m => m.id !== tempMessage.id);
+            renderMessages();
+            showMessage('فشل إرسال الرسالة الصوتية', 'error');
+        }
+    } catch (error) {
+        showLoading(false);
+        console.error('خطأ في إرسال الرسالة الصوتية:', error);
+        showMessage('حدث خطأ في إرسال الرسالة الصوتية', 'error');
+        
+        // إزالة الرسالة المؤقتة
+        const tempIndex = messages.findIndex(m => m.id && m.id.startsWith('temp-'));
+        if (tempIndex !== -1) {
+            messages.splice(tempIndex, 1);
+            renderMessages();
+        }
     }
 }
 

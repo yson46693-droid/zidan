@@ -80,6 +80,8 @@ try {
         // إذا كانت صورة وليس هناك نص، إضافة نص افتراضي
         if ($fileType === 'image' && empty($message)) {
             $message = '📷 صورة';
+        } elseif ($fileType === 'audio' && empty($message)) {
+            $message = '🎤 رسالة صوتية';
         } elseif ($fileType === 'file' && empty($message)) {
             $message = '📎 ملف: ' . ($fileName ?? 'ملف');
         }
@@ -312,6 +314,8 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
         $chatDir = __DIR__ . '/../chat/';
         if ($fileType === 'image') {
             $targetDir = $chatDir . 'images/';
+        } elseif ($fileType === 'audio') {
+            $targetDir = $chatDir . 'audio/';
         } else {
             $targetDir = $chatDir . 'files/';
         }
@@ -333,6 +337,8 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
         $extension = '';
         if ($fileType === 'image') {
             $extension = '.jpg';
+        } elseif ($fileType === 'audio') {
+            $extension = '.webm'; // تنسيق التسجيل الصوتي
         } elseif ($fileName) {
             $extension = '.' . pathinfo($fileName, PATHINFO_EXTENSION);
         } else {
@@ -348,7 +354,13 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
         }
         
         // إرجاع المسار النسبي
-        return 'chat/' . ($fileType === 'image' ? 'images/' : 'files/') . $filename;
+        if ($fileType === 'image') {
+            return 'chat/images/' . $filename;
+        } elseif ($fileType === 'audio') {
+            return 'chat/audio/' . $filename;
+        } else {
+            return 'chat/files/' . $filename;
+        }
         
     } catch (Exception $e) {
         error_log('خطأ في saveChatFile: ' . $e->getMessage());
@@ -357,51 +369,50 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
 }
 
 /**
- * إشعار جميع المستخدمين النشطين في الشات بوجود رسالة جديدة
+ * إشعار جميع المستخدمين في الشات بوجود رسالة جديدة
  * يتم استدعاؤه بعد إرسال رسالة جديدة مباشرة
- * يضيف إشعارات معلقة لكل مستخدم نشط - يتم فحصها من JavaScript
+ * يضيف إشعارات معلقة لكل مستخدم (حتى غير النشطين) - يتم فحصها من JavaScript
  */
 function notifyActiveChatUsers($messageId, $senderId) {
     try {
-        // التأكد من وجود جدول active_users
-        if (!ensureActiveUsersTable()) {
-            error_log('فشل في التأكد من وجود جدول active_users');
+        // إنشاء جدول للإشعارات المعلقة إذا لم يكن موجوداً
+        if (!ensureChatNotificationsTable()) {
+            error_log('فشل في التأكد من وجود جدول chat_pending_notifications');
             return;
         }
         
-        // الحصول على جميع المستخدمين النشطين في الشات (نشطون في آخر دقيقتين)
-        $activeUsers = dbSelect("
-            SELECT user_id 
-            FROM active_users 
-            WHERE is_online = 1 
-            AND user_id != ?
-            AND last_activity >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)
-            ORDER BY last_activity DESC
+        // الحصول على جميع المستخدمين (ما عدا المرسل)
+        $allUsers = dbSelect("
+            SELECT id 
+            FROM users 
+            WHERE id != ?
+            ORDER BY id DESC
         ", [$senderId]);
         
-        if (empty($activeUsers)) {
-            return; // لا يوجد مستخدمون نشطون
+        if (empty($allUsers)) {
+            error_log('⚠️ لا يوجد مستخدمون آخرون لإرسال الإشعارات لهم');
+            return;
         }
         
-        // إنشاء جدول للإشعارات المعلقة إذا لم يكن موجوداً
-        ensureChatNotificationsTable();
+        $notifiedCount = 0;
         
-        // إضافة إشعار لكل مستخدم نشط
-        foreach ($activeUsers as $user) {
+        // إضافة إشعار لكل مستخدم (حتى غير النشطين)
+        foreach ($allUsers as $user) {
             $notificationId = generateId();
             try {
                 dbExecute("
                     INSERT INTO chat_pending_notifications (id, user_id, message_id, created_at)
                     VALUES (?, ?, ?, NOW())
                     ON DUPLICATE KEY UPDATE created_at = NOW()
-                ", [$notificationId, $user['user_id'], $messageId]);
+                ", [$notificationId, $user['id'], $messageId]);
+                $notifiedCount++;
             } catch (Exception $e) {
                 // تجاهل الأخطاء في حالة التكرار
-                error_log('خطأ في إضافة إشعار للمستخدم ' . $user['user_id'] . ': ' . $e->getMessage());
+                error_log('خطأ في إضافة إشعار للمستخدم ' . $user['id'] . ': ' . $e->getMessage());
             }
         }
         
-        error_log("✅ تم إشعار " . count($activeUsers) . " مستخدم نشط برسالة جديدة: {$messageId}");
+        error_log("✅ تم إشعار {$notifiedCount} مستخدم برسالة جديدة: {$messageId}");
         
     } catch (Exception $e) {
         error_log('خطأ في notifyActiveChatUsers: ' . $e->getMessage());

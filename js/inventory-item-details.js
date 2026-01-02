@@ -14,56 +14,30 @@ async function showInventoryItemDetails(itemType, itemId) {
             }
             itemName = `${item.brand} ${item.model}`;
             
-            // بناء التفاصيل (بدون تكاليف)
+            // ✅ عرض تفاصيل القطع والأسعار بنفس طريقة previewSparePart (مع الأيقونات والعرض الشبكي) للجميع
             details = `
-                <div style="display: flex; flex-direction: column; gap: 20px;">
-                    <div class="detail-item" style="padding: 15px; background: var(--light-bg); border-radius: 8px;">
-                        <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em; display: block; margin-bottom: 8px;">الماركة</label>
-                        <div style="font-size: 1.1em; color: var(--text-dark); font-weight: 500;">${item.brand || 'غير محدد'}</div>
+                <div class="preview-modal-body" style="padding: 0;">
+                    <div class="preview-items-grid">
+                        ${(item.items || []).length > 0 ? (item.items || []).map(itemDetail => {
+                            const type = (typeof sparePartTypes !== 'undefined' && sparePartTypes) ? sparePartTypes.find(t => t.id === itemDetail.item_type) : null;
+                            const sellingPrice = parseFloat(itemDetail.selling_price || itemDetail.price || 0) || 0;
+                            const formatPrice = (typeof formatCurrency === 'function') ? formatCurrency(sellingPrice) : (typeof window.formatCurrency === 'function' ? window.formatCurrency(sellingPrice) : (sellingPrice.toFixed(2) + ' ج.م'));
+                            return `
+                                <div class="preview-item">
+                                    <div class="preview-item-icon"><i class="bi ${type ? type.icon : 'bi-circle'}"></i></div>
+                                    <div class="preview-item-name">${type ? type.name : (itemDetail.item_type || 'غير محدد')}</div>
+                                    <div class="preview-item-quantity">الكمية: ${itemDetail.quantity || 1}</div>
+                                    ${sellingPrice > 0 ? `<div class="preview-item-price" style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">السعر: ${formatPrice}</div>` : ''}
+                                    ${itemDetail.custom_value ? `<div class="preview-item-custom" style="margin-top: 5px; font-size: 0.85em; color: var(--text-light);">${itemDetail.custom_value}</div>` : ''}
+                                </div>
+                            `;
+                        }).join('') : `
+                            <div style="text-align: center; padding: 40px; color: var(--text-light);">
+                                <i class="bi bi-inbox" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+                                <div>لا توجد قطع متوفرة</div>
+                            </div>
+                        `}
                     </div>
-                    <div class="detail-item" style="padding: 15px; background: var(--light-bg); border-radius: 8px;">
-                        <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em; display: block; margin-bottom: 8px;">الموديل</label>
-                        <div style="font-size: 1.1em; color: var(--text-dark); font-weight: 500;">${item.model || 'غير محدد'}</div>
-                    </div>
-                    ${item.barcode ? `
-                    <div class="detail-item" style="padding: 15px; background: var(--light-bg); border-radius: 8px;">
-                        <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em; display: block; margin-bottom: 8px;">الباركود</label>
-                        <div style="font-size: 1.1em; color: var(--text-dark); font-weight: 500;">${item.barcode}</div>
-                    </div>
-                    ` : ''}
-                    <div class="detail-item" style="padding: 15px; background: var(--light-bg); border-radius: 8px;">
-                        <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em; display: block; margin-bottom: 8px;">الكمية المتوفرة</label>
-                        <div style="font-size: 1.5em; color: var(--primary-color); font-weight: bold;">
-                            ${(() => {
-                                const totalQuantity = (item.items || []).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
-                                return totalQuantity;
-                            })()}
-                        </div>
-                    </div>
-                    ${(item.items || []).length > 0 ? `
-                    <div class="detail-item" style="padding: 15px; background: var(--light-bg); border-radius: 8px;">
-                        <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em; display: block; margin-bottom: 12px;">تفاصيل القطع والأسعار</label>
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            ${item.items.map(itemDetail => {
-                                const typeName = sparePartTypes.find(t => t.id === itemDetail.item_type)?.name || itemDetail.item_type || 'غير محدد';
-                                const sellingPrice = itemDetail.selling_price || itemDetail.price || 0;
-                                return `
-                                    <div style="padding: 12px; background: var(--white); border-radius: 6px; border: 1px solid var(--border-color);">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div>
-                                                <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 4px;">${typeName}</div>
-                                                <div style="font-size: 0.9em; color: var(--text-light);">الكمية: ${itemDetail.quantity || 0}</div>
-                                            </div>
-                                            <div style="font-size: 1.2em; font-weight: bold; color: var(--success-color);">
-                                                ${sellingPrice.toFixed(2)} ج.م
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
                 </div>
             `;
         } else if (itemType === 'accessory') {
@@ -96,7 +70,7 @@ async function showInventoryItemDetails(itemType, itemId) {
                     <div class="detail-item" style="padding: 15px; background: var(--light-bg); border-radius: 8px;">
                         <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em; display: block; margin-bottom: 8px;">سعر البيع</label>
                         <div style="font-size: 1.5em; font-weight: bold; color: var(--success-color);">
-                            ${(item.selling_price || item.price || 0).toFixed(2)} ج.م
+                            ${(parseFloat(item.selling_price || item.price || 0) || 0).toFixed(2)} ج.م
                         </div>
                     </div>
                 </div>
@@ -139,7 +113,7 @@ async function showInventoryItemDetails(itemType, itemId) {
                     <div class="detail-item" style="padding: 15px; background: var(--light-bg); border-radius: 8px;">
                         <label style="font-weight: 600; color: var(--text-light); font-size: 0.9em; display: block; margin-bottom: 8px;">سعر البيع</label>
                         <div style="font-size: 1.5em; font-weight: bold; color: var(--success-color);">
-                            ${(item.selling_price || item.price || 0).toFixed(2)} ج.م
+                            ${(parseFloat(item.selling_price || item.price || 0) || 0).toFixed(2)} ج.م
                         </div>
                     </div>
                 </div>

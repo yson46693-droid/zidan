@@ -128,7 +128,7 @@ if (dbTableExists('sales')) {
 
 // التحقق من وجود الجداول وإنشاؤها إذا كانت مفقودة
 if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
-    require_once __DIR__ . '/setup.php';
+    // ✅ تم إزالة setup.php - إنشاء الجداول مباشرة
     try {
         $conn = getDBConnection();
         if ($conn) {
@@ -649,7 +649,7 @@ if ($method === 'POST') {
             throw new Exception('خطأ في إنشاء عملية البيع');
         }
         
-        // إضافة عناصر البيع وتحديث الكمية في المخزون
+        // إضافة عناصر البيع وتحديث الكمية في المخزن
         // حفظ بيانات الهواتف قبل خصم الكمية (النظام الجديد: من inventory)
         $phoneDataMap = [];
         foreach ($items as $item) {
@@ -785,7 +785,7 @@ if ($method === 'POST') {
                 }
             }
             
-            // تحديث الكمية في المخزون
+            // تحديث الكمية في المخزن
             if ($itemType === 'spare_part') {
                 // لقطع الغيار، يجب أن يكون هناك spare_part_item_id محدد لخصم الكمية من القطعة الفرعية
                 // استخدام spare_part_item_id الذي تم قراءته سابقاً
@@ -857,7 +857,7 @@ if ($method === 'POST') {
                 );
                 
                 if (!$phoneInventory) {
-                    throw new Exception("بطاقة الهاتف غير موجودة في المخزون: $originalItemId");
+                    throw new Exception("بطاقة الهاتف غير موجودة في المخزن: $originalItemId");
                 }
                 
                 $currentQuantity = intval($phoneInventory['quantity'] ?? 0);
@@ -873,7 +873,7 @@ if ($method === 'POST') {
                 );
                 
                 if ($updateResult === false) {
-                    throw new Exception("فشل تحديث كمية الهاتف في المخزون: $originalItemId");
+                    throw new Exception("فشل تحديث كمية الهاتف في المخزن: $originalItemId");
                 }
                 
                 // جلب بيانات الهاتف من جدول phones
@@ -890,7 +890,7 @@ if ($method === 'POST') {
                     $item['phone_data'] = $phoneData;
                 }
             } elseif ($itemType === 'inventory') {
-                // تحديث كمية المخزون القديم - التحقق من الكمية أولاً
+                // تحديث كمية المخزن القديم - التحقق من الكمية أولاً
                 $currentItem = dbSelectOne("SELECT quantity FROM inventory WHERE id = ?", [$originalItemId]);
                 if ($currentItem) {
                     $currentQuantity = intval($currentItem['quantity'] ?? 0);
@@ -901,13 +901,13 @@ if ($method === 'POST') {
                             [$newQuantity, $originalItemId]
                         );
                         if ($updateResult === false) {
-                            throw new Exception("فشل تحديث كمية المخزون: $originalItemId");
+                            throw new Exception("فشل تحديث كمية المخزن: $originalItemId");
                         }
                     } else {
                         throw new Exception("الكمية المتاحة غير كافية: $originalItemId (المتاح: $currentQuantity، المطلوب: $quantity)");
                     }
                 } else {
-                    throw new Exception("العنصر غير موجود في المخزون: $originalItemId");
+                    throw new Exception("العنصر غير موجود في المخزن: $originalItemId");
                 }
             }
         }

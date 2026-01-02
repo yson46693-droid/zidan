@@ -649,7 +649,7 @@ async function hideByPermission() {
             el.style.padding = '0';
         });
         
-        // للموظف: إخفاء جميع العناصر عدا (الصيانة، المخزون، نقاط البيع، الشات)
+        // للموظف: إخفاء جميع العناصر عدا (الصيانة، المخزن، نقطة البيع، الشات)
         // إخفاء لوحة التحكم من الشريط الجانبي والموبايل
         document.querySelectorAll('a[href="#dashboard"]').forEach(link => {
             link.style.display = 'none';
@@ -818,6 +818,8 @@ function displayUserInfo() {
     const userRoleElement = document.getElementById('userRole');
     const userSpecializationElement = document.getElementById('userSpecialization');
     const userSpecializationTextElement = document.getElementById('userSpecializationText');
+    const userBranchElement = document.getElementById('userBranch');
+    const userBranchTextElement = document.getElementById('userBranchText');
     
     if (userNameElement) {
         userNameElement.textContent = user.name;
@@ -838,6 +840,41 @@ function displayUserInfo() {
         }
     } else if (userSpecializationElement) {
         userSpecializationElement.style.display = 'none';
+    }
+    
+    // عرض الفرع للمستخدمين الذين ليسوا مالك (admin)
+    if (user.role !== 'admin' && userBranchElement && userBranchTextElement) {
+        let branchName = user.branch_name || user.branchName || '';
+        
+        // إذا لم يكن branch_name موجوداً، جلبها من API بشكل غير متزامن
+        if (!branchName && user.branch_id) {
+            // جلب branch_name بشكل غير متزامن بدون منع عرض باقي المعلومات
+            API.request('profile.php', 'GET').then(result => {
+                if (result && result.success && result.data && result.data.branch_name) {
+                    branchName = result.data.branch_name;
+                    if (userBranchTextElement) {
+                        userBranchTextElement.textContent = branchName;
+                    }
+                    if (userBranchElement) {
+                        userBranchElement.style.display = 'block';
+                    }
+                    // تحديث البيانات المحفوظة
+                    user.branch_name = branchName;
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                }
+            }).catch(error => {
+                console.warn('لم يتم جلب اسم الفرع:', error);
+            });
+        }
+        
+        if (branchName) {
+            userBranchTextElement.textContent = branchName;
+            userBranchElement.style.display = 'block';
+        } else {
+            userBranchElement.style.display = 'none';
+        }
+    } else if (userBranchElement) {
+        userBranchElement.style.display = 'none';
     }
     
     // تحديث معلومات المستخدم في الـ top-bar للهواتف

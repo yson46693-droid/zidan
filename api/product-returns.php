@@ -102,7 +102,7 @@ function extractItemTypeFromName($itemName) {
 }
 
 /**
- * إضافة منتج مرتجع إلى المخزون
+ * إضافة منتج مرتجع إلى المخزن
  * @param array $item - بيانات المنتج المرتجع
  * @param int $quantity - الكمية المراد إضافتها
  * @return bool
@@ -578,7 +578,7 @@ function addReturnedItemToInventory($item, $quantity) {
                 }
             }
         } elseif ($itemType === 'inventory') {
-            // البحث عن المنتج في المخزون
+            // البحث عن المنتج في المخزن
             $inventoryItem = dbSelectOne("SELECT id, quantity FROM inventory WHERE id = ?", [$itemId]);
             
             if ($inventoryItem) {
@@ -592,13 +592,13 @@ function addReturnedItemToInventory($item, $quantity) {
                 
                 if ($updateResult === false) {
                     global $lastDbError;
-                    error_log('❌ خطأ في تحديث كمية المخزون: ' . ($lastDbError ?? 'خطأ غير معروف') . ' | inventory_id: ' . $itemId);
+                    error_log('❌ خطأ في تحديث كمية المخزن: ' . ($lastDbError ?? 'خطأ غير معروف') . ' | inventory_id: ' . $itemId);
                     return false;
                 }
                 
-                error_log('✅ تم إضافة الكمية ' . $quantity . ' إلى المخزون: ' . $itemId . ' (الكمية الجديدة: ' . $newQuantity . ')');
+                error_log('✅ تم إضافة الكمية ' . $quantity . ' إلى المخزن: ' . $itemId . ' (الكمية الجديدة: ' . $newQuantity . ')');
             } else {
-                // إنشاء منتج جديد في المخزون
+                // إنشاء منتج جديد في المخزن
                 $insertResult = dbExecute(
                     "INSERT INTO inventory (id, name, quantity, purchase_price, selling_price, created_at) 
                      VALUES (?, ?, ?, ?, ?, NOW())",
@@ -607,11 +607,11 @@ function addReturnedItemToInventory($item, $quantity) {
                 
                 if ($insertResult === false) {
                     global $lastDbError;
-                    error_log('❌ خطأ في إنشاء منتج جديد في المخزون: ' . ($lastDbError ?? 'خطأ غير معروف') . ' | inventory_id: ' . $itemId);
+                    error_log('❌ خطأ في إنشاء منتج جديد في المخزن: ' . ($lastDbError ?? 'خطأ غير معروف') . ' | inventory_id: ' . $itemId);
                     return false;
                 }
                 
-                error_log('✅ تم إنشاء منتج جديد في المخزون: ' . $itemId . ' بكمية: ' . $quantity);
+                error_log('✅ تم إنشاء منتج جديد في المخزن: ' . $itemId . ' بكمية: ' . $quantity);
             }
         }
         

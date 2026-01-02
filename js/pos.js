@@ -58,10 +58,23 @@ async function initializePOS() {
         
         // Update cart display
         updateCartDisplay();
+        
+        // Initialize QR Scanner automatically - wait longer to ensure page is fully loaded
+        setTimeout(() => {
+            initializePOSQRCodeScannerAuto().catch(error => {
+                console.error('Failed to initialize QR scanner:', error);
+                // Retry after 2 seconds
+                setTimeout(() => {
+                    initializePOSQRCodeScannerAuto().catch(err => {
+                        console.error('Retry failed:', err);
+                    });
+                }, 2000);
+            });
+        }, 1500);
     } catch (error) {
         console.error('خطأ في تهيئة نظام POS:', error);
         const errorMessage = error?.message || 'خطأ غير معروف';
-        showMessage(`❌ فشل تحميل نظام نقاط البيع: ${errorMessage}. يرجى تحديث الصفحة والمحاولة مرة أخرى.`, 'error');
+        showMessage(`❌ فشل تحميل نظام نقطة البيع: ${errorMessage}. يرجى تحديث الصفحة والمحاولة مرة أخرى.`, 'error');
     }
 }
 
@@ -230,7 +243,7 @@ async function loadAllProducts() {
             // Process phones - النظام الجديد: إخفاء البطاقات بكمية 0
             if (phonesRes && phonesRes.success && phonesRes.data) {
                 phonesRes.data.forEach(phone => {
-                    // إخفاء البطاقات بكمية 0 من نقاط البيع
+                    // إخفاء البطاقات بكمية 0 من نقطة البيع
                     const quantity = parseInt(phone.quantity || 0);
                     if (quantity > 0) {
                         allProducts.push({
@@ -339,6 +352,46 @@ function setupEventListeners() {
             if (cart.length > 0) {
                 openPaymentModal();
             }
+        });
+    }
+    
+    // Bottom Action Bar - Complete Sale Button (Mobile)
+    const completeSaleBtn = document.getElementById('completeSaleBtn');
+    if (completeSaleBtn) {
+        completeSaleBtn.addEventListener('click', function() {
+            if (cart.length > 0) {
+                openPaymentModal();
+            }
+        });
+    }
+    
+    // Header Icons (Mobile)
+    const searchHeaderBtn = document.getElementById('searchHeaderBtn');
+    if (searchHeaderBtn) {
+        searchHeaderBtn.addEventListener('click', function() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.focus();
+            }
+        });
+    }
+    
+    const qrHeaderBtn = document.getElementById('qrHeaderBtn');
+    if (qrHeaderBtn) {
+        qrHeaderBtn.addEventListener('click', function() {
+            // Scroll to QR Scanner
+            const qrScanner = document.getElementById('posQrScannerMobile');
+            if (qrScanner) {
+                qrScanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    }
+    
+    // Close Payment Modal - Left Button
+    const closePaymentModalLeft = document.getElementById('closePaymentModalLeft');
+    if (closePaymentModalLeft) {
+        closePaymentModalLeft.addEventListener('click', function() {
+            closePaymentModalFunc();
         });
     }
     
@@ -638,6 +691,7 @@ function openSparePartItemsModal(product) {
     // قائمة أنواع قطع الغيار
     const sparePartTypes = {
         'screen': 'شاشة',
+        'touch': 'تاتش',
         'battery': 'بطارية',
         'rear_camera': 'كاميرا خلفية',
         'front_camera': 'كاميرا أمامية',
@@ -820,6 +874,7 @@ function addSparePartItemToCart(index) {
     // قائمة أنواع قطع الغيار
     const sparePartTypes = {
         'screen': 'شاشة',
+        'touch': 'تاتش',
         'battery': 'بطارية',
         'rear_camera': 'كاميرا خلفية',
         'front_camera': 'كاميرا أمامية',
@@ -1106,12 +1161,36 @@ function updateCartDisplay() {
     updateCartSummary();
 }
 
+// Update Bottom Action Bar (Mobile)
+function updateBottomActionBar(subtotal, discount, finalAmount) {
+    const bottomTotal = document.getElementById('bottomTotalAmount');
+    const bottomItemsCount = document.getElementById('bottomItemsCount');
+    const bottomCartBadge = document.getElementById('bottomCartBadge');
+    const completeSaleBtn = document.getElementById('completeSaleBtn');
+    
+    if (bottomTotal) {
+        bottomTotal.textContent = finalAmount.toFixed(2);
+    }
+    
+    if (bottomItemsCount) {
+        bottomItemsCount.textContent = cart.length;
+    }
+    
+    if (bottomCartBadge) {
+        bottomCartBadge.textContent = cart.length;
+        bottomCartBadge.style.display = cart.length > 0 ? 'flex' : 'none';
+    }
+    
+    if (completeSaleBtn) {
+        completeSaleBtn.disabled = cart.length === 0;
+    }
+}
+
 // Update Cart Summary
 function updateCartSummary() {
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
     
     const discountInput = document.getElementById('discountInput');
-    const discountDisplay = document.getElementById('discountDisplay');
     const subtotalDisplay = document.getElementById('subtotal');
     const totalDisplay = document.getElementById('totalAmount');
     
@@ -1119,12 +1198,11 @@ function updateCartSummary() {
     
     const finalAmount = subtotal - discount;
     
+    // Update Bottom Action Bar (Mobile)
+    updateBottomActionBar(subtotal, discount, finalAmount);
+    
     if (subtotalDisplay) {
         subtotalDisplay.textContent = formatPrice(subtotal);
-    }
-    
-    if (discountDisplay) {
-        discountDisplay.textContent = formatPrice(discount);
     }
     
     if (totalDisplay) {
@@ -1274,9 +1352,32 @@ function openPaymentModal() {
     // Update modal summary
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
     const discountInput = document.getElementById('discountInput');
+    const confirmSaleDiscountInput = document.getElementById('confirmSaleDiscountInput');
     const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
     const finalAmount = subtotal - discount;
     
+    // Update Confirm Sale Items List
+    updateConfirmSaleItemsList();
+    
+    // Update discount input in modal
+    if (confirmSaleDiscountInput) {
+        confirmSaleDiscountInput.value = discount.toFixed(2);
+        // Remove old event listeners and add new one
+        const newConfirmSaleDiscountInput = confirmSaleDiscountInput.cloneNode(true);
+        confirmSaleDiscountInput.parentNode.replaceChild(newConfirmSaleDiscountInput, confirmSaleDiscountInput);
+        
+        // Sync with main discount input
+        newConfirmSaleDiscountInput.addEventListener('input', function() {
+            const newDiscount = parseFloat(this.value) || 0;
+            if (discountInput) {
+                discountInput.value = newDiscount.toFixed(2);
+            }
+            updateConfirmSaleTotal();
+            updateCartSummary();
+        });
+    }
+    
+    // Update modal summary (old elements for compatibility)
     const modalSubtotal = document.getElementById('modalSubtotal');
     const modalDiscount = document.getElementById('modalDiscount');
     const modalTotal = document.getElementById('modalTotal');
@@ -1284,6 +1385,9 @@ function openPaymentModal() {
     if (modalSubtotal) modalSubtotal.textContent = formatPrice(subtotal);
     if (modalDiscount) modalDiscount.textContent = formatPrice(discount);
     if (modalTotal) modalTotal.textContent = formatPrice(Math.max(0, finalAmount));
+    
+    // Update Confirm Sale Total
+    updateConfirmSaleTotal();
     
     // Reset payment amount for commercial customers
     const paidAmountInput = document.getElementById('paidAmountInput');
@@ -1296,6 +1400,97 @@ function openPaymentModal() {
     // التأكد من إعادة تعيين display قبل إظهار modal
     paymentModal.style.display = '';
     paymentModal.classList.add('active');
+}
+
+// Update Confirm Sale Items List
+function updateConfirmSaleItemsList() {
+    const itemsList = document.getElementById('confirmSaleItemsList');
+    const itemsCount = document.getElementById('confirmSaleItemsCount');
+    
+    if (!itemsList) return;
+    
+    if (cart.length === 0) {
+        itemsList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد عناصر في السلة</div>';
+        if (itemsCount) itemsCount.textContent = '0';
+        return;
+    }
+    
+    if (itemsCount) itemsCount.textContent = cart.length;
+    
+    const fragment = document.createDocumentFragment();
+    
+    cart.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'confirm-sale-item';
+        
+        // Handle image
+        let imageSrc = item.image;
+        let isBase64 = false;
+        
+        if (item.image) {
+            if (item.image.startsWith('data:')) {
+                isBase64 = true;
+                imageSrc = item.image;
+            } else if (item.image.startsWith('/9j/') || item.image.startsWith('iVBORw0KGgo') || item.image.length > 100) {
+                isBase64 = true;
+                if (item.image.startsWith('/9j/')) {
+                    imageSrc = `data:image/jpeg;base64,${item.image}`;
+                } else if (item.image.startsWith('iVBORw0KGgo')) {
+                    imageSrc = `data:image/png;base64,${item.image}`;
+                } else {
+                    imageSrc = `data:image/jpeg;base64,${item.image}`;
+                }
+            }
+        }
+        
+        const imageHtml = item.image
+            ? `<img src="${imageSrc}" alt="${item.name}" class="confirm-sale-item-image">`
+            : `<div class="confirm-sale-item-image-placeholder"><i class="bi bi-image"></i></div>`;
+        
+        itemDiv.innerHTML = `
+            ${imageHtml}
+            <div class="confirm-sale-item-details">
+                <div class="confirm-sale-item-name">${item.name}</div>
+                <div class="confirm-sale-item-price">${formatPrice(item.totalPrice)}</div>
+            </div>
+            <button class="confirm-sale-item-remove" onclick="removeFromCart(${index}); updateConfirmSaleItemsList(); updateConfirmSaleTotal();" title="حذف">
+                <i class="bi bi-x"></i>
+            </button>
+        `;
+        
+        fragment.appendChild(itemDiv);
+    });
+    
+    itemsList.innerHTML = '';
+    itemsList.appendChild(fragment);
+}
+
+// Update Confirm Sale Total
+function updateConfirmSaleTotal() {
+    const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+    const discountInput = document.getElementById('confirmSaleDiscountInput');
+    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const finalAmount = Math.max(0, subtotal - discount);
+    
+    const confirmSaleTotal = document.getElementById('confirmSaleTotal');
+    if (confirmSaleTotal) {
+        confirmSaleTotal.textContent = finalAmount.toFixed(2);
+    }
+    
+    // Update main discount input
+    const mainDiscountInput = document.getElementById('discountInput');
+    if (mainDiscountInput && discountInput) {
+        mainDiscountInput.value = discount.toFixed(2);
+    }
+    
+    // Update payment amount max for commercial customers
+    const paidAmountInput = document.getElementById('paidAmountInput');
+    if (paidAmountInput) {
+        paidAmountInput.max = finalAmount;
+        if (currentCustomerType === 'commercial' && paidAmountInput.value) {
+            updatePaymentAmount();
+        }
+    }
 }
 
 // Close Payment Modal
@@ -1316,7 +1511,8 @@ function updatePaymentAmount() {
     
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
     const discountInput = document.getElementById('discountInput');
-    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const confirmSaleDiscountInput = document.getElementById('confirmSaleDiscountInput');
+    const discount = confirmSaleDiscountInput ? (parseFloat(confirmSaleDiscountInput.value) || 0) : (discountInput ? (parseFloat(discountInput.value) || 0) : 0);
     const finalAmount = subtotal - discount;
     
     const paidAmount = parseFloat(paidAmountInput.value) || 0;
@@ -1335,7 +1531,8 @@ function updatePaymentAmount() {
 function setFullPayment() {
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
     const discountInput = document.getElementById('discountInput');
-    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const confirmSaleDiscountInput = document.getElementById('confirmSaleDiscountInput');
+    const discount = confirmSaleDiscountInput ? (parseFloat(confirmSaleDiscountInput.value) || 0) : (discountInput ? (parseFloat(discountInput.value) || 0) : 0);
     const finalAmount = subtotal - discount;
     
     const paidAmountInput = document.getElementById('paidAmountInput');
@@ -1349,7 +1546,8 @@ function setFullPayment() {
 function setPartialPayment() {
     const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
     const discountInput = document.getElementById('discountInput');
-    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const confirmSaleDiscountInput = document.getElementById('confirmSaleDiscountInput');
+    const discount = confirmSaleDiscountInput ? (parseFloat(confirmSaleDiscountInput.value) || 0) : (discountInput ? (parseFloat(discountInput.value) || 0) : 0);
     const finalAmount = subtotal - discount;
     
     const paidAmountInput = document.getElementById('paidAmountInput');
@@ -1416,7 +1614,10 @@ async function processPayment() {
             return;
         }
         
-        const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+        // Get discount from confirm sale input or main input
+        const confirmSaleDiscountInput = document.getElementById('confirmSaleDiscountInput');
+        const discountValue = confirmSaleDiscountInput ? (parseFloat(confirmSaleDiscountInput.value) || 0) : (discountInput ? (parseFloat(discountInput.value) || 0) : 0);
+        const discount = discountValue;
         const finalAmount = subtotal - discount;
         
         // Get payment amounts (for commercial customers)
@@ -2675,6 +2876,7 @@ window.setPartialPayment = setPartialPayment;
 // POS Barcode Scanner
 let posScannerOpen = false;
 let posQRCodeScannerInstance = null;
+let posScannerLocked = false; // منع القراءات المتكررة
 
 // Open Barcode Scanner for POS
 async function openPOSBarcodeScanner() {
@@ -2875,18 +3077,93 @@ async function openPOSBarcodeScanner() {
     }, 300);
 }
 
+// Initialize POS QR Code Scanner automatically (for inline scanner)
+async function initializePOSQRCodeScannerAuto() {
+    // Check for mobile QR scanner first, then desktop
+    const qrReader = document.getElementById('pos-qr-reader-mobile') || document.getElementById('pos-qr-reader');
+    
+    if (!qrReader) {
+        console.warn('⚠️ [POS Scanner] QR Scanner container not found');
+        // Retry after 500ms
+        setTimeout(() => {
+            initializePOSQRCodeScannerAuto();
+        }, 500);
+        return;
+    }
+    
+    // Check if scanner is already initialized and running
+    if (posQRCodeScannerInstance) {
+        try {
+            // Try to get state to check if scanner is running
+            const state = posQRCodeScannerInstance.getState();
+            if (state === 2 || state === 'SCANNING') {
+                console.log('✅ [POS Scanner] Scanner already running');
+                return;
+            }
+        } catch (e) {
+            // Scanner exists but not running, reset it
+            console.log('🔄 [POS Scanner] Scanner exists but not running, resetting...');
+            posQRCodeScannerInstance = null;
+            posScannerOpen = false;
+        }
+    }
+    
+    // Check if html5-qrcode library is loaded
+    if (typeof Html5Qrcode === 'undefined') {
+        console.log('📚 [POS Scanner] Loading html5-qrcode library...');
+        // Load library first
+        if (typeof window.loadHtml5Qrcode === 'function') {
+            try {
+                await window.loadHtml5Qrcode();
+                // Wait a bit for library to fully initialize
+                await new Promise(resolve => setTimeout(resolve, 300));
+            } catch (error) {
+                console.error('❌ [POS Scanner] Error loading html5-qrcode:', error);
+                const loadingDiv = document.getElementById('pos-scanner-loading');
+                if (loadingDiv) {
+                    loadingDiv.innerHTML = `
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
+                        <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">فشل تحميل مكتبة QR Code</p>
+                        <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">يرجى تحديث الصفحة</p>
+                    `;
+                }
+                return;
+            }
+        } else {
+            console.error('❌ [POS Scanner] html5-qrcode library not available');
+            const loadingDiv = document.getElementById('pos-scanner-loading');
+            if (loadingDiv) {
+                loadingDiv.innerHTML = `
+                    <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
+                    <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">مكتبة QR Code غير متاحة</p>
+                    <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">يرجى تحديث الصفحة</p>
+                `;
+            }
+            return;
+        }
+    }
+    
+    console.log('🚀 [POS Scanner] Starting scanner initialization...');
+    posScannerOpen = true;
+    await initializePOSQRCodeScanner();
+}
+
 // Initialize POS QR Code Scanner
 async function initializePOSQRCodeScanner() {
-    const qrReader = document.getElementById('pos-qr-reader');
-    const loadingDiv = document.getElementById('pos-scanner-loading');
-    const errorDiv = document.getElementById('pos-scanner-error');
-    const resultDiv = document.getElementById('pos-scanner-result');
+    // Check for mobile scanner first, then desktop
+    const isMobile = window.innerWidth <= 767.98;
+    const qrReaderId = isMobile ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
+    const loadingDivId = isMobile ? 'pos-scanner-loading-mobile' : 'pos-scanner-loading';
+    const errorDivId = isMobile ? 'pos-scanner-error-mobile' : 'pos-scanner-error';
+    
+    const qrReader = document.getElementById(qrReaderId);
+    const loadingDiv = document.getElementById(loadingDivId);
+    const errorDiv = document.getElementById(errorDivId);
     
     if (!qrReader) return;
     
-    // Hide error and result initially
+    // Hide error initially
     if (errorDiv) errorDiv.style.display = 'none';
-    if (resultDiv) resultDiv.style.display = 'none';
     
     // Check if Html5Qrcode is loaded
     if (typeof Html5Qrcode === 'undefined') {
@@ -2897,33 +3174,126 @@ async function initializePOSQRCodeScanner() {
     }
     
     try {
-        // Create scanner instance
-        posQRCodeScannerInstance = new Html5Qrcode("pos-qr-reader");
+        // Check if already running - simple check
+        if (posQRCodeScannerInstance) {
+            try {
+                // Try to check state, if fails, scanner is not running
+                const state = posQRCodeScannerInstance.getState();
+                if (state === 2 || state === 'SCANNING') { // SCANNING state
+                    console.log('Scanner already running');
+                    if (loadingDiv) loadingDiv.style.display = 'none';
+                    return;
+                }
+            } catch (e) {
+                // Scanner not running, continue initialization
+            }
+        }
         
-        // Configuration for QR code scanning
+        // Create scanner instance (use mobile or desktop based on screen size)
+        const scannerId = isMobile ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
+        posQRCodeScannerInstance = new Html5Qrcode(scannerId);
+        
+        // Configuration for QR code scanning - إعدادات محسّنة للسرعة والأداء
+        const qrReaderElement = document.getElementById(scannerId);
+        const containerWidth = qrReaderElement ? qrReaderElement.offsetWidth : 400;
+        const containerHeight = qrReaderElement ? qrReaderElement.offsetHeight : 300;
+        
+        // حساب حجم qrbox بناءً على حجم الحاوية - حجم أكبر للتعرف الأسرع (95% للتعرف الأمثل)
+        const qrboxSize = Math.min(containerWidth * 0.95, containerHeight * 0.95, 350);
+        
+        // إعدادات محسّنة للسرعة القصوى - fps أعلى + دقة محسّنة + تحسينات متقدمة
         const config = {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            disableFlip: false
+            fps: 60, // زيادة إلى 60 fps للتعرف الأسرع (أقصى سرعة)
+            qrbox: { width: qrboxSize, height: qrboxSize },
+            aspectRatio: containerWidth / containerHeight,
+            disableFlip: false,
+            // إعدادات الكاميرا المحسّنة للسرعة والدقة القصوى
+            videoConstraints: {
+                width: { 
+                    ideal: Math.min(containerWidth * 2, 1280), // دقة أعلى للتعرف الأفضل
+                    max: 1920 // حد أقصى معقول
+                },
+                height: { 
+                    ideal: Math.min(containerHeight * 2, 720),
+                    max: 1080
+                },
+                frameRate: { ideal: 60, max: 60 }, // معدل إطارات ثابت 60 fps
+                focusMode: "continuous", // تركيز مستمر للتعرف الأسرع
+                exposureMode: "continuous",
+                whiteBalanceMode: "continuous" // توازن الأبيض المستمر
+            }
         };
+        
+        // تحديد أنواع QR codes المطلوبة فقط (تحسين الأداء) - إذا كان متوفراً
+        if (typeof Html5QrcodeSupportedFormats !== 'undefined' && Html5QrcodeSupportedFormats.QR_CODE) {
+            config.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
+        }
         
         // Add supportedScanTypes if available (newer versions)
         if (typeof Html5QrcodeScanType !== 'undefined') {
             config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
         }
         
-        // Start scanning
+        
+        console.log('🔍 [POS Scanner] بدء المسح مع الإعدادات:', config);
+        console.log('📐 [POS Scanner] حجم العنصر:', {
+            width: qrReader.offsetWidth,
+            height: qrReader.offsetHeight
+        });
+        
+        // Try to get available cameras first - مع استخدام الكاميرا المحفوظة لتسريع البدء
+        let cameraId = null;
+        try {
+            // محاولة استخدام الكاميرا المحفوظة سابقاً لتسريع البدء
+            const savedCameraId = localStorage.getItem('pos_last_camera_id');
+            const cameras = await Html5Qrcode.getCameras();
+            console.log('📷 [POS Scanner] الكاميرات المتاحة:', cameras.length);
+            
+            if (cameras && cameras.length > 0) {
+                // إذا كانت هناك كاميرا محفوظة وكانت متاحة، استخدمها
+                if (savedCameraId) {
+                    const savedCamera = cameras.find(cam => cam.id === savedCameraId);
+                    if (savedCamera) {
+                        cameraId = savedCameraId;
+                        console.log('📷 [POS Scanner] استخدام الكاميرا المحفوظة:', cameraId);
+                    }
+                }
+                
+                // إذا لم توجد كاميرا محفوظة، اختر الكاميرا الخلفية
+                if (!cameraId) {
+                    const backCamera = cameras.find(cam => {
+                        const label = (cam.label || '').toLowerCase();
+                        return label.includes('back') || label.includes('rear') || label.includes('environment');
+                    });
+                    cameraId = backCamera ? backCamera.id : cameras[cameras.length - 1].id;
+                    console.log('📷 [POS Scanner] استخدام الكاميرا:', cameraId, backCamera ? '(خلفية)' : '(متاحة)');
+                    
+                    // حفظ الكاميرا المختارة
+                    if (cameraId) {
+                        localStorage.setItem('pos_last_camera_id', cameraId);
+                    }
+                }
+            }
+        } catch (camError) {
+            console.warn('⚠️ [POS Scanner] لا يمكن الحصول على قائمة الكاميرات:', camError);
+        }
+        
+        // Start scanning - try with specific camera ID first, then fallback to facingMode
+        const cameraConfig = cameraId ? cameraId : { facingMode: "environment" };
+        console.log('🎥 [POS Scanner] إعدادات الكاميرا:', cameraConfig);
+        
         await posQRCodeScannerInstance.start(
-            { facingMode: "environment" }, // Use back camera
+            cameraConfig,
             config,
             (decodedText, decodedResult) => {
-                // Success callback
+                // Success callback - تم قراءة QR Code بنجاح
+                console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
+                
+                // معالجة QR Code المقروء - بدون إيقاف الماسح
                 handlePOSQRCodeScanned(decodedText);
             },
             (errorMessage) => {
-                // Error callback (ignore continuous errors while scanning)
-                // Only show errors for actual failures, not during normal scanning
+                // Error callback - تجاهل الأخطاء العادية أثناء المسح (طبيعي)
             }
         );
         
@@ -2932,71 +3302,193 @@ async function initializePOSQRCodeScanner() {
             loadingDiv.style.display = 'none';
         }
         
+        console.log('✅ [POS Scanner] تم بدء الماسح بنجاح');
+        
     } catch (error) {
-        console.error('Error initializing QR code scanner:', error);
+        console.error('❌ [POS Scanner] خطأ في تهيئة الماسح:', error);
         const errorMessage = error?.message || 'خطأ غير معروف';
+        
+        // Try fallback to user camera if environment camera failed
+        if (errorMessage.includes('environment') || errorMessage.includes('back')) {
+            console.log('🔄 [POS Scanner] محاولة استخدام الكاميرا الأمامية كبديل...');
+            try {
+                await posQRCodeScannerInstance.start(
+                    { facingMode: "user" },
+                    config,
+                    (decodedText, decodedResult) => {
+                        console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
+                        handlePOSQRCodeScanned(decodedText);
+                    },
+                    (errorMessage) => {
+                        // Ignore scanning errors
+                    }
+                );
+                if (loadingDiv) loadingDiv.style.display = 'none';
+                console.log('✅ [POS Scanner] تم بدء الماسح بالكاميرا الأمامية');
+                return;
+            } catch (fallbackError) {
+                console.error('❌ [POS Scanner] فشلت محاولة الكاميرا الأمامية:', fallbackError);
+            }
+        }
         
         if (loadingDiv) {
             loadingDiv.innerHTML = `
-                <i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i>
-                <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">خطأ في بدء الكاميرا</p>
-                <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">${error.message || 'يرجى التحقق من أذونات الكاميرا'}</p>
+                <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
+                <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">خطأ في بدء الكاميرا</p>
+                <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">يرجى التحقق من أذونات الكاميرا</p>
             `;
         }
         
         if (errorDiv) {
-            const errorMessage = document.getElementById('pos-scanner-error-message');
-            if (errorMessage) {
-                errorMessage.textContent = error?.message || '❌ فشل في الوصول إلى الكاميرا. يرجى التحقق من الأذونات والمحاولة مرة أخرى.';
-            }
             errorDiv.style.display = 'block';
+            const errorMessageEl = document.getElementById('pos-scanner-error-message');
+            if (errorMessageEl) {
+                errorMessageEl.textContent = '❌ فشل في الوصول إلى الكاميرا. يرجى التحقق من الأذونات والمحاولة مرة أخرى.';
+            }
         }
+        
+        // Reset instance on error
+        posQRCodeScannerInstance = null;
+        posScannerOpen = false;
     }
 }
 
 // Handle scanned QR code in POS
 async function handlePOSQRCodeScanned(decodedText) {
-    // Stop scanning immediately after successful scan
-    if (posQRCodeScannerInstance) {
-        try {
-            await posQRCodeScannerInstance.stop();
-        } catch (err) {
-            // Ignore errors if scanner is already stopped or not running
-            const errorMsg = err?.message || err?.toString() || '';
-            if (!errorMsg.includes('not running') && !errorMsg.includes('not paused') && !errorMsg.includes('Cannot stop')) {
-                console.error('Error stopping scanner:', err);
-            }
-        }
+    // منع القراءات المتكررة - إذا كان القارئ مقفل، تجاهل القراءة
+    if (posScannerLocked) {
+        console.log('⏳ [POS Scanner] القارئ مقفل مؤقتاً، تجاهل القراءة المتكررة');
+        return;
     }
     
-    const resultDiv = document.getElementById('pos-scanner-result');
+    // قفل القارئ لمدة 500ms لمنع القراءات المتكررة (تقليل الوقت للسرعة)
+    posScannerLocked = true;
+    
+    // إعادة فتح القارئ بعد 500ms (تقليل من 1000ms للسرعة)
+    setTimeout(() => {
+        posScannerLocked = false;
+        console.log('✅ [POS Scanner] تم إلغاء قفل القارئ - جاهز للقراءة التالية');
+    }, 500);
+    
+    // Don't stop scanning - keep camera running for continuous scanning
     const errorDiv = document.getElementById('pos-scanner-error');
-    const productNameSpan = document.getElementById('pos-scanned-product-name');
     
     if (errorDiv) errorDiv.style.display = 'none';
     
     let product = null;
-    let sparePartId = null;
+    let productId = null;
     
-    // Try to parse QR code as JSON (inventory card format)
+    console.log('🔍 [POS Scanner] قراءة QR Code:', decodedText);
+    
+    // Try to parse QR code as JSON (inventory card format for spare parts, phones, and accessories)
     try {
         const qrData = JSON.parse(decodedText);
-        if (qrData.type === 'SPARE_PART' && qrData.id) {
-            sparePartId = qrData.id;
-            // Find product by ID
-            product = allProducts.find(p => p.id === sparePartId && p.type === 'spare_part');
+        if (qrData.type && qrData.id) {
+            productId = qrData.id;
+            
+            // Find product by type and ID
+            if (qrData.type === 'SPARE_PART') {
+                product = allProducts.find(p => p.id === productId && p.type === 'spare_part');
+                if (product) {
+                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Spare Part):', product.name);
+                }
+            } else if (qrData.type === 'PHONE') {
+                product = allProducts.find(p => p.id === productId && p.type === 'phone');
+                if (product) {
+                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Phone):', product.name);
+                }
+            } else if (qrData.type === 'ACCESSORY') {
+                product = allProducts.find(p => p.id === productId && p.type === 'accessory');
+                if (product) {
+                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Accessory):', product.name);
+                }
+            }
         }
     } catch (e) {
-        // If not JSON, try to find by ID directly (fallback)
-        product = allProducts.find(p => p.id === decodedText && p.type === 'spare_part');
+        // Not JSON format - fallback to simple text search (for backward compatibility)
+        console.log('ℹ️ [POS Scanner] QR Code ليس بصيغة JSON (محاولة البحث بالنص البسيط)');
     }
     
-    // If not found, try finding by barcode
+    // If not found, try finding by barcode (for phones and accessories)
+    // This handles simple text QR codes used for phones and accessories
     if (!product) {
+        const decodedTextStr = decodedText.toString().trim();
+        console.log('🔍 [POS Scanner] البحث في جميع المنتجات عن:', decodedTextStr);
+        console.log('📦 [POS Scanner] إجمالي المنتجات المتاحة:', allProducts.length);
+        
+        // Log first few products for debugging
+        if (allProducts.length > 0) {
+            console.log('📋 [POS Scanner] أمثلة على المنتجات:', allProducts.slice(0, 3).map(p => ({
+                id: p.id,
+                name: p.name,
+                type: p.type,
+                barcode: p.barcode,
+                code: p.code
+            })));
+        }
+        
+        // Search in all product types: phones, accessories, spare_parts
         product = allProducts.find(p => {
-            const productBarcode = p.barcode || p.code || p.id?.toString();
-            return productBarcode && productBarcode.toString() === decodedText.toString();
+            // Try ID match first (exact match)
+            if (p.id && p.id.toString().trim() === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق ID:', p.id, '=', decodedTextStr);
+                return true;
+            }
+            
+            // Try barcode match (exact match)
+            const productBarcode = (p.barcode || '').toString().trim();
+            if (productBarcode && productBarcode === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق Barcode:', productBarcode, '=', decodedTextStr);
+                return true;
+            }
+            
+            // Try code match (exact match)
+            const productCode = (p.code || '').toString().trim();
+            if (productCode && productCode === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق Code:', productCode, '=', decodedTextStr);
+                return true;
+            }
+            
+            // Try ID as fallback (without trim, in case of formatting issues)
+            if (p.id && p.id.toString() === decodedText) {
+                console.log('✅ [POS Scanner] تطابق ID (بدون trim):', p.id);
+                return true;
+            }
+            
+            return false;
         });
+        
+        if (product) {
+            console.log('✅ [POS Scanner] تم العثور على المنتج (Barcode/ID):', product.name, 'Type:', product.type, 'ID:', product.id, 'Barcode:', product.barcode);
+        } else {
+            console.log('❌ [POS Scanner] لم يتم العثور على المنتج بعد البحث الأول');
+        }
+    }
+    
+    // If still not found, try partial match (in case of extra spaces or formatting)
+    if (!product) {
+        const decodedTextStr = decodedText.toString().trim();
+        console.log('🔍 [POS Scanner] محاولة البحث الجزئي عن:', decodedTextStr);
+        
+        product = allProducts.find(p => {
+            const productBarcode = (p.barcode || p.code || p.id?.toString() || '').toString().trim();
+            const normalizedBarcode = productBarcode.replace(/\s+/g, '').toLowerCase();
+            const normalizedDecoded = decodedTextStr.replace(/\s+/g, '').toLowerCase();
+            
+            if (productBarcode && normalizedBarcode === normalizedDecoded) {
+                console.log('✅ [POS Scanner] تطابق جزئي:', productBarcode, '=', decodedTextStr);
+                return true;
+            }
+            
+            return false;
+        });
+        
+        if (product) {
+            console.log('✅ [POS Scanner] تم العثور على المنتج (Partial Match):', product.name);
+        } else {
+            console.log('❌ [POS Scanner] لم يتم العثور على المنتج بعد البحث الجزئي');
+            console.log('💡 [POS Scanner] نصيحه: تحقق من أن QR Code يحتوي على نفس القيمة المخزنة في barcode أو code أو id');
+        }
     }
     
     if (!product) {
@@ -3025,24 +3517,20 @@ async function handlePOSQRCodeScanned(decodedText) {
     // Play success sound immediately when product is found
     playSuccessSound();
     
-    if (resultDiv && productNameSpan) {
-        productNameSpan.textContent = product.name || 'منتج';
-        resultDiv.style.display = 'block';
-    }
+    // Show success message
+    showMessage(`✅ تم إضافة "${product.name}" إلى السلة`, 'success');
     
-    setTimeout(() => {
-        closePOSBarcodeScanner();
-    }, 500);
-    
-    // Add product to cart
+    // Add product to cart - camera continues running
     if (product.type === 'spare_part' && product.items && product.items.length > 0) {
         openSparePartItemsModal(product);
     } else {
         addToCart(product); // صوت النجاح سيتم تشغيله تلقائياً في addToCart
     }
+    
+    // Continue scanning - don't stop camera
 }
 
-// Close POS QR Code Scanner
+// Close POS QR Code Scanner (only used when leaving page)
 async function closePOSBarcodeScanner() {
     try {
         if (posQRCodeScannerInstance) {
@@ -3087,6 +3575,19 @@ async function closePOSBarcodeScanner() {
     
     posScannerOpen = false;
 }
+
+// Close scanner when leaving page
+window.addEventListener('beforeunload', async function() {
+    await closePOSBarcodeScanner();
+});
+
+// Also close on visibility change (tab switching, etc.)
+document.addEventListener('visibilitychange', async function() {
+    if (document.hidden) {
+        // Page is hidden - don't close scanner to allow background scanning
+        // Only close when actually leaving the page
+    }
+});
 
 // Make functions globally available
 window.openPOSBarcodeScanner = openPOSBarcodeScanner;

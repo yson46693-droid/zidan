@@ -2423,10 +2423,12 @@ body {
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden;
     box-shadow: 0 5px 25px rgba(0,0,0,0.3);
     position: relative;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-content.modal-sm {
@@ -2439,6 +2441,7 @@ body {
     align-items: center;
     padding: 20px 25px;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 
 .modal-header h3 {
@@ -2460,6 +2463,34 @@ body {
 
 .modal form {
     padding: 25px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    max-height: calc(90vh - 140px);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--light-bg);
+}
+
+/* تحسين شريط التمرير لمتصفحات Webkit (Chrome, Safari, Edge) */
+.modal form::-webkit-scrollbar {
+    width: 10px;
+}
+
+.modal form::-webkit-scrollbar-track {
+    background: var(--light-bg);
+    border-radius: 10px;
+}
+
+.modal form::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 10px;
+    border: 2px solid var(--light-bg);
+}
+
+.modal form::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
 }
 
 .modal-footer {
@@ -2467,6 +2498,8 @@ body {
     gap: 10px;
     justify-content: flex-end;
     margin-top: 20px;
+    padding: 0 25px 25px 25px;
+    flex-shrink: 0;
 }
 
 /* الفلاتر */
@@ -6006,7 +6039,7 @@ body {
 }
 
 /* ============================================
-   تنسيقات المخزون الجديدة - بطاقات و Grid
+   تنسيقات المخزن الجديدة - بطاقات و Grid
    ============================================ */
 
 /* Grid Layout للمخزون */
@@ -6033,7 +6066,7 @@ body {
     }
 }
 
-/* بطاقات المخزون - حجم أصغر */
+/* بطاقات المخزن - حجم أصغر */
 .inventory-card {
     background: var(--white);
     border-radius: 12px;
@@ -6077,6 +6110,36 @@ body {
 }
 
 .inventory-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 10px;
+    color: white;
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+    overflow: hidden;
+    padding: 5px;
+}
+
+.brand-logo-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    max-width: 30px;
+    max-height: 30px;
+    /* إزالة الفلتر للسماح للشعارات الملونة بالظهور بشكل صحيح */
+}
+
+.inventory-card-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.inventory-card-icon-old {
     width: 40px;
     height: 40px;
     display: flex;
@@ -6304,7 +6367,7 @@ body {
     display: block;
 }
 
-/* تبويبات المخزون */
+/* تبويبات المخزن */
 .inventory-tabs {
     display: flex;
     gap: 10px;
@@ -6590,7 +6653,7 @@ body {
     font-size: 0.9em;
 }
 
-/* قسم المخزون */
+/* قسم المخزن */
 .inventory-section {
     display: none;
 }
@@ -6599,15 +6662,20 @@ body {
     display: block;
 }
 
-/* البحث في المخزون */
+/* البحث في المخزن */
 .inventory-search {
     padding: 15px 20px;
     background: var(--white);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .inventory-search input {
-    width: 100%;
+    flex: 1;
+    min-width: 200px;
     max-width: 400px;
     padding: 12px 20px;
     border: 2px solid var(--border-color);
@@ -6620,6 +6688,28 @@ body {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.inventory-search select {
+    padding: 12px 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 25px;
+    font-size: 1em;
+    background: var(--white);
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 150px;
+}
+
+.inventory-search select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.inventory-search select:hover {
+    border-color: var(--primary-color);
 }
 
 /* Empty state */
@@ -7055,6 +7145,17 @@ body {
         font-size: 0.9em;
     }
     
+    .inventory-search {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .inventory-search select,
+    .inventory-search input {
+        width: 100%;
+        max-width: 100%;
+    }
+    
     .brand-buttons {
         padding: 15px;
         gap: 10px;
@@ -7067,6 +7168,17 @@ body {
 }
 
 @media (max-width: 575.98px) {
+    .inventory-search {
+        padding: 12px 15px;
+        gap: 10px;
+    }
+    
+    .inventory-search select,
+    .inventory-search input {
+        padding: 10px 15px;
+        font-size: 0.95em;
+    }
+    
     .preview-modal {
         padding: 0;
         align-items: flex-start;
@@ -9277,5 +9389,229 @@ body > .nav-link,
     
     .customer-dropdown-item {
         padding: 10px 12px;
+    }
+}
+
+/* ============================================
+   Floating Chat Modal (Desktop Only)
+   ============================================ */
+
+/* النموذج العائم للشات - يظهر فقط على شاشات الكمبيوتر */
+@media (min-width: 768px) {
+    .floating-chat-modal {
+        position: fixed;
+        left: 20px; /* أقصى يسار الشاشة */
+        right: auto;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 90vw;
+        max-width: 500px;
+        height: 80vh;
+        max-height: 700px;
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        z-index: 2000; /* أعلى من sidebar */
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        animation: slideInFromLeft 0.3s ease;
+    }
+
+    @keyframes slideInFromLeft {
+        from {
+            opacity: 0;
+            transform: translateY(-50%) translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+    }
+
+    .floating-chat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 20px;
+        background: var(--white);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 12px 12px 0 0;
+        position: relative;
+        z-index: 100;
+    }
+
+    .floating-chat-header h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin: 0;
+        flex: 1;
+        text-align: center;
+    }
+
+    .floating-chat-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .floating-chat-delete-btn {
+        background: var(--danger-color);
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        width: 36px;
+        height: 36px;
+        box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+    }
+
+    .floating-chat-delete-btn:hover {
+        background: #D32F2F;
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+    }
+
+    .floating-chat-delete-btn:active {
+        transform: scale(0.95);
+    }
+
+    .floating-chat-delete-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .floating-chat-refresh-btn {
+        background: var(--primary-color);
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        width: 36px;
+        height: 36px;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+    }
+
+    .floating-chat-refresh-btn:hover {
+        background: var(--secondary-color);
+        transform: scale(1.05) rotate(90deg);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+    }
+
+    .floating-chat-refresh-btn:active {
+        transform: scale(0.95) rotate(90deg);
+    }
+
+    .floating-chat-refresh-btn.refreshing {
+        animation: rotateRefresh 1s linear infinite;
+    }
+
+    @keyframes rotateRefresh {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .floating-chat-refresh-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .floating-chat-close-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-dark);
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+    }
+
+    .floating-chat-close-btn:hover {
+        background: var(--light-bg);
+        color: var(--danger-color);
+        transform: scale(1.1);
+    }
+
+    .floating-chat-close-btn:active {
+        transform: scale(0.95);
+    }
+
+    .floating-chat-body {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(135deg, var(--light-bg) 0%, var(--secondary-color) 20%);
+    }
+
+    .floating-chat-body iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: transparent;
+    }
+
+    .floating-chat-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(2px);
+        z-index: 1999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .floating-chat-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* تحسينات للشاشات الكبيرة */
+    @media (min-width: 992px) {
+        .floating-chat-modal {
+            max-width: 450px;
+            max-height: 650px;
+        }
+    }
+
+    @media (min-width: 1200px) {
+        .floating-chat-modal {
+            max-width: 500px;
+            max-height: 700px;
+        }
+    }
+}
+
+/* إخفاء النموذج على الموبايل */
+@media (max-width: 767.98px) {
+    .floating-chat-modal,
+    .floating-chat-overlay {
+        display: none !important;
     }
 }

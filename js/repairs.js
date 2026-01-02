@@ -139,7 +139,7 @@ async function loadRepairsSection() {
                         <label for="customerSelect">اختر عميل من القائمة</label>
                         <div class="customer-search-wrapper" style="position: relative;">
                             <input type="text" id="customerSelect" class="customer-search-input" placeholder="ابحث بالاسم أو رقم الهاتف..." autocomplete="off" required>
-                            <input type="hidden" id="selectedCustomerId" name="selectedCustomerId" value="">
+                            <!-- ✅ تم إزالة العنصر المكرر - يتم استخدام selectedCustomerId من السطر 111 -->
                             <div id="customerDropdown" class="customer-dropdown" style="display: none;"></div>
                         </div>
                     </div>
@@ -265,12 +265,13 @@ async function loadRepairsSection() {
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="paidAmount">المبلغ المدفوع مقدماً</label>
+                            <label for="paidAmount" id="paidAmountLabel">المبلغ المدفوع مقدماً</label>
                             <input type="number" id="paidAmount" step="0.01" min="0" value="0" oninput="calculateRemaining()">
+                            <small id="paidAmountHint" style="color: var(--text-light); font-size: 0.85em; display: none;">يمكن للعملاء التجاريين الدفع بشكل جزئي - المتبقي يضاف للديون</small>
                         </div>
                         <div class="form-group">
-                            <label for="remainingAmount">المتبقي</label>
-                            <input type="number" id="remainingAmount" step="0.01" readonly style="background: #f5f5f5;">
+                            <label for="remainingAmount" id="remainingAmountLabel">المتبقي</label>
+                            <input type="number" id="remainingAmount" step="0.01" readonly style="background: var(--light-bg);">
                         </div>
                     </div>
 
@@ -365,53 +366,118 @@ async function loadRepairsSection() {
     
     searchTable('repairSearch', 'repairsTable');
     
-    // تحميل الفنيين
-    const branchId = getCurrentRepairBranchId();
-    if (branchId) {
-        await loadRepairTechnicians(branchId);
-    } else {
-        // إذا لم يكن هناك فرع محدد، جلب جميع المالكين
-        await loadRepairTechnicians(null);
-    }
+    // ✅ لا يتم تحميل الفنيين هنا - يتم تحميلهم فقط عند فتح نموذج الإضافة/التعديل
 }
 
 // جلب الفنيين حسب الفرع المحدد
 async function loadRepairTechnicians(branchId, preserveValue = false) {
     try {
-        // إذا لم يكن هناك فرع محدد، استخدام فرع المستخدم الحالي
-        if (!branchId) {
-            const currentUser = getCurrentUser();
-            if (currentUser && currentUser.branch_id) {
-                branchId = currentUser.branch_id;
-            }
+        // ✅ الحصول على المستخدم الحالي أولاً
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+            console.error('❌ [Repairs] لا يمكن تحميل الفنيين - المستخدم غير موجود');
+            updateTechnicianSelect(preserveValue);
+            return false;
+        }
+        
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        
+        // ✅ إذا لم يكن هناك فرع محدد، استخدام فرع المستخدم الحالي
+        if (!branchId && currentUser && currentUser.branch_id) {
+            branchId = currentUser.branch_id;
         }
         
         // جلب الفنيين والمالكين من API
         try {
             let url = 'technicians.php?include_admins=true';
-            if (branchId) {
+            
+            // ✅ إذا لم يكن هناك branchId، جلب المالكين فقط (بدون branch_id)
+            if (!branchId) {
+                // ✅ جلب المالكين فقط بدون branch_id (API سيسمح بذلك مع include_admins=true)
+                // لا نضيف branch_id إلى URL
+                // ملاحظة: هذا يحدث عندما يكون المستخدم غير مرتبط بفرع
+            } else {
+                // ✅ إذا كان branchId موجوداً
+                // ✅ إذا لم يكن المستخدم مالك (technician, employee, manager)، إضافة include_all_users
+                if (!isOwner && branchId) {
+                    url += '&include_all_users=true';
+                }
                 url += `&branch_id=${encodeURIComponent(branchId)}`;
             }
             
             const techniciansResult = await API.request(url, 'GET');
-            if (techniciansResult && techniciansResult.success && techniciansResult.data) {
-                repairTechnicians = techniciansResult.data;
+            
+            if (techniciansResult && techniciansResult.success) {
+                // ✅ التحقق من وجود البيانات
+                if (techniciansResult.data && Array.isArray(techniciansResult.data) && techniciansResult.data.length > 0) {
+                    // ✅ حفظ البيانات بشكل دائم - لا يتم استبدالها إلا عند استدعاء جديد ناجح
+                    repairTechnicians = techniciansResult.data;
+                    console.log('✅ [Repairs] تم جلب الفنيين بنجاح:', repairTechnicians.length, 'فني');
+                    console.log('📋 [Repairs] قائمة الفنيين:', repairTechnicians.map(t => ({ id: t.id, name: t.name, role: t.role })));
+                    
+                    // ✅ تحديث dropdown الفنيين مع معامل preserveValue
+                    updateTechnicianSelect(preserveValue);
+                    return true; // إرجاع true للإشارة إلى نجاح التحميل
+                } else {
+                    // ✅ لا نمسح البيانات الموجودة إذا فشل الطلب - نستخدم البيانات المحفوظة
+                    if (repairTechnicians && repairTechnicians.length > 0) {
+                        // إذا كانت هناك بيانات محفوظة، نستخدمها
+                        updateTechnicianSelect(preserveValue);
+                        return true; // إرجاع true لأن لدينا بيانات محفوظة
+                    } else {
+                        // لا توجد بيانات محفوظة ولا تم جلب بيانات جديدة
+                        repairTechnicians = [];
+                        updateTechnicianSelect(preserveValue);
+                        return false; // إرجاع false للإشارة إلى فشل التحميل
+                    }
+                }
             } else {
-                repairTechnicians = [];
+                console.error('❌ [Repairs] فشل جلب الفنيين من API:', techniciansResult ? techniciansResult.message : 'خطأ غير معروف');
+                // ✅ لا نمسح البيانات الموجودة إذا فشل الطلب - نستخدم البيانات المحفوظة
+                if (repairTechnicians && repairTechnicians.length > 0) {
+                    // إذا كانت هناك بيانات محفوظة، نستخدمها
+                    updateTechnicianSelect(preserveValue);
+                    return true; // إرجاع true لأن لدينا بيانات محفوظة
+                } else {
+                    // لا توجد بيانات محفوظة ولا تم جلب بيانات جديدة
+                    repairTechnicians = [];
+                    updateTechnicianSelect(preserveValue);
+                    return false; // إرجاع false للإشارة إلى فشل التحميل
+                }
             }
         } catch (error) {
-            console.error('⚠️ خطأ في جلب الفنيين:', error);
-            repairTechnicians = [];
+            console.error('❌ [Repairs] خطأ في جلب الفنيين:', error);
+            console.error('   - error.message:', error.message);
+            console.error('   - error.stack:', error.stack);
+            // ✅ لا نمسح البيانات الموجودة عند الخطأ - نستخدم البيانات المحفوظة
+            if (repairTechnicians && repairTechnicians.length > 0) {
+                console.log('✅ [Repairs] استخدام البيانات المحفوظة بعد الخطأ:', repairTechnicians.length, 'فني');
+                // إذا كانت هناك بيانات محفوظة، نستخدمها
+                updateTechnicianSelect(preserveValue);
+                return true; // إرجاع true لأن لدينا بيانات محفوظة
+            } else {
+                // لا توجد بيانات محفوظة
+                repairTechnicians = [];
+                updateTechnicianSelect(preserveValue);
+                return false; // إرجاع false للإشارة إلى فشل التحميل
+            }
         }
-        
-        // ✅ تحديث dropdown الفنيين مع معامل preserveValue
-        // preserveValue = false عند الإضافة الجديدة (لا يتم تحديد أي فني)
-        // preserveValue = true عند التعديل (يتم الحفاظ على القيمة المحددة)
-        updateTechnicianSelect(preserveValue);
     } catch (error) {
-        console.error('خطأ في جلب الفنيين:', error);
-        repairTechnicians = [];
-        updateTechnicianSelect(preserveValue);
+        console.error('❌ [Repairs] خطأ عام في جلب الفنيين:', error);
+        console.error('   - error.message:', error.message);
+        console.error('   - error.stack:', error.stack);
+        // ✅ لا نمسح البيانات الموجودة عند الخطأ - نستخدم البيانات المحفوظة
+        if (repairTechnicians && repairTechnicians.length > 0) {
+            console.log('✅ [Repairs] استخدام البيانات المحفوظة بعد الخطأ العام:', repairTechnicians.length, 'فني');
+            // إذا كانت هناك بيانات محفوظة، نستخدمها
+            updateTechnicianSelect(preserveValue);
+            return true; // إرجاع true لأن لدينا بيانات محفوظة
+        } else {
+            // لا توجد بيانات محفوظة
+            repairTechnicians = [];
+            updateTechnicianSelect(preserveValue);
+            return false; // إرجاع false للإشارة إلى فشل التحميل
+        }
     }
 }
 
@@ -430,17 +496,36 @@ function updateTechnicianSelect(preserveValue = false) {
         return;
     }
     
-    // ترتيب الفنيين: المالكين أولاً ثم الفنيين
+    // ترتيب المستخدمين: المالكين أولاً، ثم حسب الدور
+    const roleOrder = { 'admin': 1, 'manager': 2, 'technician': 3, 'employee': 4 };
     const sortedTechnicians = [...repairTechnicians].sort((a, b) => {
-        if (a.role === 'admin' && b.role !== 'admin') return -1;
-        if (a.role !== 'admin' && b.role === 'admin') return 1;
+        const aOrder = roleOrder[a.role] || 5;
+        const bOrder = roleOrder[b.role] || 5;
+        if (aOrder !== bOrder) return aOrder - bOrder;
         return (a.name || '').localeCompare(b.name || '');
     });
     
     sortedTechnicians.forEach(technician => {
         const option = document.createElement('option');
         option.value = technician.id;
-        const roleText = technician.role === 'admin' ? 'مالك' : 'فني صيانة';
+        
+        // ✅ نص الدور بالعربية
+        let roleText = 'فني صيانة';
+        switch (technician.role) {
+            case 'admin':
+                roleText = 'مالك';
+                break;
+            case 'manager':
+                roleText = 'مدير';
+                break;
+            case 'technician':
+                roleText = 'فني صيانة';
+                break;
+            case 'employee':
+                roleText = 'موظف';
+                break;
+        }
+        
         option.textContent = `${technician.name || ''} (${roleText})`;
         technicianSelect.appendChild(option);
     });
@@ -730,7 +815,7 @@ async function onRepairBranchChange() {
     } else {
         repairCustomers = [];
         updateCustomerSelect();
-        await loadRepairTechnicians(null); // جلب المالكين فقط
+        // ✅ لا نحمل الفنيين بدون branchId - نستخدم البيانات المحفوظة
     }
     
     // ✅ التأكد من أن الفني غير محدد بعد التحميل
@@ -754,6 +839,51 @@ async function onCustomerTypeChange() {
             if (customerType !== 'commercial') {
                 shopNameInput.value = '';
             }
+        }
+    }
+    
+    // تحديث تسميات وأوصاف حقول الدفع للعملاء التجاريين
+    const paidAmountLabel = document.getElementById('paidAmountLabel');
+    const remainingAmountLabel = document.getElementById('remainingAmountLabel');
+    const paidAmountHint = document.getElementById('paidAmountHint');
+    const paidAmountInput = document.getElementById('paidAmount');
+    
+    if (customerType === 'commercial') {
+        // للعملاء التجاريين: السماح بالدفع الجزئي
+        if (paidAmountLabel) {
+            paidAmountLabel.innerHTML = 'المبلغ المدفوع <span style="color: var(--danger-color);">*</span>';
+        }
+        if (remainingAmountLabel) {
+            remainingAmountLabel.textContent = 'المتبقي (يضاف للديون)';
+        }
+        if (paidAmountHint) {
+            paidAmountHint.style.display = 'block';
+        }
+        // تعيين القيمة الافتراضية إلى السعر الكامل
+        if (paidAmountInput) {
+            const customerPriceInput = document.getElementById('customerPrice');
+            if (customerPriceInput && customerPriceInput.value) {
+                paidAmountInput.value = parseFloat(customerPriceInput.value) || 0;
+            } else {
+                paidAmountInput.value = '0';
+            }
+            calculateRemaining();
+        }
+    } else {
+        // للعملاء العاديين: يجب دفع كامل المبلغ
+        if (paidAmountLabel) {
+            paidAmountLabel.textContent = 'المبلغ المدفوع مقدماً';
+        }
+        if (remainingAmountLabel) {
+            remainingAmountLabel.textContent = 'المتبقي';
+        }
+        if (paidAmountHint) {
+            paidAmountHint.style.display = 'none';
+        }
+        // إعادة تعيين القيمة
+        if (paidAmountInput) {
+            paidAmountInput.value = '0';
+            calculateRemaining();
         }
     }
     
@@ -1395,10 +1525,7 @@ async function loadRepairs(force = false) {
         // تحميل البيانات بشكل متوازي مع استخدام cache
         // ✅ عند force = true، نستخدم skipCache لضمان الحصول على أحدث البيانات
         const cacheOptions = force ? { skipCache: true } : {};
-        const [repairsResult, usersResult] = await Promise.all([
-            API.getRepairs(branchId, cacheOptions), // ✅ عند force، نستخدم skipCache
-            API.getUsers() // سيستخدم cache تلقائياً
-        ]);
+        const repairsResult = await API.getRepairs(branchId, cacheOptions);
         
         if (repairsResult.success) {
             let repairs = repairsResult.data || [];
@@ -1437,9 +1564,8 @@ async function loadRepairs(force = false) {
             }
         }
         
-        if (usersResult.success) {
-            allUsers = usersResult.data;
-        }
+        // ✅ إزالة استدعاء API.getUsers() لأن technician_name يأتي من API.getRepairs مباشرة
+        // وإذا احتجنا لاسم الفني، يمكن استخدام repairTechnicians التي تم تحميلها مسبقاً
         
         filterRepairs();
     } catch (error) {
@@ -1456,25 +1582,36 @@ function getTechnicianName(userId) {
         return 'غير محدد';
     }
     
-    // ✅ إصلاح: التأكد من أن allUsers محمّل
-    if (!allUsers || allUsers.length === 0) {
-        console.warn('getTechnicianName: allUsers غير محمّل - userId =', userId);
+    // ✅ استخدام repairTechnicians بدلاً من allUsers (لا يتطلب صلاحيات admin)
+    if (!repairTechnicians || repairTechnicians.length === 0) {
+        // ✅ محاولة استخدام allUsers كبديل إذا كان محمّلاً (للمالكين فقط)
+        if (allUsers && allUsers.length > 0) {
+            const userIdStr = String(userId);
+            const user = allUsers.find(u => {
+                const uId = u.id ? String(u.id) : '';
+                const uUserId = u.user_id ? String(u.user_id) : '';
+                return uId === userIdStr || uUserId === userIdStr;
+            });
+            if (user && user.name) {
+                return user.name;
+            }
+        }
+        console.warn('getTechnicianName: repairTechnicians غير محمّل - userId =', userId);
         return 'غير محدد';
     }
     
-    // ✅ إصلاح: البحث بشكل أكثر شمولاً (id, user_id, وكلاهما كسلسلة)
+    // ✅ البحث في repairTechnicians
     const userIdStr = String(userId);
-    const user = allUsers.find(u => {
-        const uId = u.id ? String(u.id) : '';
-        const uUserId = u.user_id ? String(u.user_id) : '';
-        return uId === userIdStr || uUserId === userIdStr;
+    const technician = repairTechnicians.find(t => {
+        const tId = t.id ? String(t.id) : '';
+        return tId === userIdStr;
     });
     
-    if (user && user.name) {
-        return user.name;
+    if (technician && technician.name) {
+        return technician.name;
     }
     
-    console.warn('getTechnicianName: لم يتم العثور على المستخدم - userId =', userId);
+    console.warn('getTechnicianName: لم يتم العثور على الفني - userId =', userId);
     return 'غير محدد';
 }
 
@@ -2085,7 +2222,24 @@ async function showAddRepairModal() {
         // ✅ تم إزالة updateTechnicianName() - الفني يتم اختياره يدوياً فقط من النموذج
         
         // تحميل الفروع وملء القائمة (للمالك فقط)
-        const currentUser = getCurrentUser();
+        let currentUser = getCurrentUser();
+        
+        // ✅ إذا كان branch_id null، محاولة تحديث بيانات المستخدم من الخادم
+        if (currentUser && !currentUser.branch_id) {
+            try {
+                if (typeof API !== 'undefined' && typeof API.getProfile === 'function') {
+                    const profileResult = await API.getProfile();
+                    if (profileResult && profileResult.success && profileResult.data) {
+                        currentUser = profileResult.data;
+                        // حفظ البيانات المحدثة في localStorage
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ فشل تحديث بيانات المستخدم من الخادم:', e);
+            }
+        }
+        
         const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
         
         // ✅ إعادة إظهار جميع الحقول المخفية عند التعديل
@@ -2188,6 +2342,16 @@ async function showAddRepairModal() {
             statusSelect.value = 'received'; // تم الاستلام
         }
         
+        // ✅ إخفاء النموذج حتى يتم تحميل الفنيين بنجاح
+        repairModal.style.display = 'none';
+        
+        // ✅ مسح قيمة الفني المستلم قبل تحميل الفنيين (لضمان عدم التحديد التلقائي)
+        const technicianSelect = document.getElementById('technicianSelect');
+        if (technicianSelect) {
+            technicianSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+            technicianSelect.value = '';
+        }
+        
         // إظهار حقل الفرع عند الإضافة (للمالك فقط)
         if (branchGroup) {
             if (isOwner) {
@@ -2208,27 +2372,90 @@ async function showAddRepairModal() {
                 if (branchSelect) {
                     branchSelect.required = false;
                 }
-                // للموظفين: جلب عملاء فرعهم مباشرة
-                const branchId = currentUser.branch_id;
+                // للموظفين/الفنيين/المديرين: جلب عملاء فرعهم مباشرة
+                // ✅ استخدام currentUser المحدث (بعد getProfile إذا لزم الأمر)
+                const branchId = currentUser && currentUser.branch_id ? currentUser.branch_id : null;
                 if (branchId) {
                     await loadRepairCustomers(branchId, 'retail');
-                    await loadRepairTechnicians(branchId);
+                    // ✅ إضافة: تحميل الفنيين للموظفين/الفنيين/المديرين
+                    await loadRepairTechnicians(branchId, false);
+                } else {
+                    // ✅ المستخدم غير مرتبط بفرع - جلب المالكين فقط
+                    await loadRepairTechnicians(null, false);
                 }
             }
         }
         
-        // ✅ مسح قيمة الفني المستلم قبل تحميل الفنيين (لضمان عدم التحديد التلقائي)
-        const technicianSelect = document.getElementById('technicianSelect');
-        if (technicianSelect) {
-            technicianSelect.value = '';
+        // ✅ تحميل الفنيين مرة واحدة فقط حسب الفرع المحدد
+        let techniciansLoaded = false;
+        if (isOwner) {
+            // للمالك: تحميل الفنيين حسب الفرع المحدد
+            const branchIdForTechnicians = getCurrentRepairBranchId();
+            if (branchIdForTechnicians) {
+                techniciansLoaded = await loadRepairTechnicians(branchIdForTechnicians, false);
+            } else if (currentUser && currentUser.branch_id) {
+                // إذا لم يكن هناك فرع محدد، استخدام فرع المستخدم الحالي
+                techniciansLoaded = await loadRepairTechnicians(currentUser.branch_id, false);
+            } else {
+                // إذا لم يكن هناك branchId، لا يمكن تحميل الفنيين
+                console.warn('⚠️ [Repairs] لا يمكن تحميل الفنيين - branchId غير محدد');
+                if (technicianSelect) {
+                    technicianSelect.innerHTML = '<option value="">لا يمكن تحميل الفنيين - الفرع غير محدد</option>';
+                }
+            }
+        } else {
+            // ✅ للموظفين/الفنيين/المديرين: تم تحميل الفنيين أعلاه
+            // نتحقق من أن التحميل نجح من خلال التحقق من البيانات المحفوظة
+            techniciansLoaded = repairTechnicians && repairTechnicians.length > 0;
+            
+            if (!techniciansLoaded) {
+                // إذا فشل التحميل أعلاه، نحاول مرة أخرى
+                if (currentUser && currentUser.branch_id) {
+                    techniciansLoaded = await loadRepairTechnicians(currentUser.branch_id, false);
+                } else {
+                    // ✅ محاولة جلب المالكين فقط (بدون branch_id)
+                    techniciansLoaded = await loadRepairTechnicians(null, false);
+                }
+            }
+            
+            if (!techniciansLoaded) {
+                console.error('❌ [Repairs] فشل تحميل الفنيين');
+                if (technicianSelect) {
+                    technicianSelect.innerHTML = '<option value="">لا يمكن تحميل الفنيين</option>';
+                }
+            }
         }
         
-        // تحميل الفنيين حسب الفرع المحدد
-        const branchIdForTechnicians = getCurrentRepairBranchId();
-        await loadRepairTechnicians(branchIdForTechnicians);
-        
-        // ✅ التأكد من أن الفني غير محدد بعد التحميل
+        // ✅ التأكد من أن الفنيين تم تحميلهم بنجاح قبل عرض النموذج
         if (technicianSelect) {
+            // التحقق من أن الفنيين تم تحميلهم
+            // نتحقق من repairTechnicians أولاً (البيانات المحفوظة)
+            const hasTechniciansData = repairTechnicians && repairTechnicians.length > 0;
+            
+            // نتحقق من أن الـ dropdown يحتوي على خيارات (أكثر من "اختر الفني...")
+            const hasDropdownOptions = technicianSelect.options.length > 1;
+            
+            // نتحقق من أن الخيار الأول ليس "جاري التحميل" أو رسائل خطأ
+            const firstOptionText = technicianSelect.options[0] ? technicianSelect.options[0].textContent : '';
+            const isValidFirstOption = firstOptionText.includes('اختر الفني') || firstOptionText === '';
+            
+            // نجاح التحميل إذا:
+            // 1. تم تحميل البيانات بنجاح (techniciansLoaded = true)، أو
+            // 2. هناك بيانات محفوظة (hasTechniciansData) و dropdown يحتوي على خيارات
+            const loadSuccess = techniciansLoaded || (hasTechniciansData && hasDropdownOptions && isValidFirstOption);
+            
+            if (!loadSuccess) {
+                console.error('❌ [Repairs] فشل تحميل الفنيين - لا يمكن عرض النموذج');
+                console.error('   - techniciansLoaded:', techniciansLoaded);
+                console.error('   - hasTechniciansData:', hasTechniciansData);
+                console.error('   - hasDropdownOptions:', hasDropdownOptions);
+                console.error('   - repairTechnicians.length:', repairTechnicians ? repairTechnicians.length : 0);
+                console.error('   - dropdown options:', technicianSelect.options.length);
+                showMessage('حدث خطأ أثناء تحميل قائمة الفنيين. يرجى المحاولة مرة أخرى.', 'error');
+                return;
+            }
+            
+            // ✅ التأكد من أن الفني غير محدد بعد التحميل
             technicianSelect.value = '';
         }
         
@@ -2238,6 +2465,7 @@ async function showAddRepairModal() {
         // مسح حقول أرقام الفواتير
         setSparePartsInvoices([]);
         
+        // ✅ إظهار النموذج فقط بعد اكتمال تحميل الفنيين
         repairModal.style.display = 'flex';
     } catch (error) {
         console.error('خطأ في فتح نموذج إضافة العملية:', error);
@@ -2719,6 +2947,21 @@ async function saveRepair(event) {
         return;
     }
 
+    // جلب قيم الدفع
+    const paidAmount = parseFloat(document.getElementById('paidAmount').value) || 0;
+    const customerPriceNum = parseFloat(customerPrice);
+    
+    // التحقق من الدفع الجزئي: مسموح فقط للعملاء التجاريين
+    if (customerType !== 'commercial' && paidAmount < customerPriceNum) {
+        showMessage('يجب دفع كامل المبلغ للعملاء العاديين', 'error');
+        return;
+    }
+    
+    // للعملاء التجاريين: السماح بالدفع الجزئي
+    // للعملاء العاديين: التأكد من دفع كامل المبلغ
+    const finalPaidAmount = customerType === 'commercial' ? paidAmount : customerPriceNum;
+    const remainingAmount = Math.max(0, customerPriceNum - finalPaidAmount);
+
     const currentUser = getCurrentUser();
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
     
@@ -2764,8 +3007,8 @@ async function saveRepair(event) {
         repair_cost: parseFloat(document.getElementById('repairCost').value) || 0,
         parts_store: document.getElementById('partsStore').value.trim(),
         spare_parts_invoices: sparePartsInvoices,
-        paid_amount: parseFloat(document.getElementById('paidAmount').value) || 0,
-        remaining_amount: parseFloat(document.getElementById('remainingAmount').value) || 0,
+        paid_amount: finalPaidAmount,
+        remaining_amount: remainingAmount,
         delivery_date: document.getElementById('deliveryDate').value,
         status: document.getElementById('status').value,
         notes: notesValue

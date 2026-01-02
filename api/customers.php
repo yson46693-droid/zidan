@@ -33,16 +33,7 @@ function handleDatabaseError($error, $query = '') {
             }
         }
         
-        // محاولة استدعاء setupDatabase مباشرة
-        if (file_exists(__DIR__ . '/setup.php')) {
-            require_once __DIR__ . '/setup.php';
-            $setupResult = setupDatabase();
-            
-            if ($setupResult['success'] && !empty($setupResult['tables_created'])) {
-                error_log("✅ تم إنشاء الجداول الناقصة تلقائياً: " . implode(', ', $setupResult['tables_created']));
-                return true;
-            }
-        }
+        // ✅ تم إزالة setup.php - لم يعد مطلوباً
     }
     
     return false;

@@ -20,8 +20,8 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: 213.239.220.209
-          username: zidan
-          password: 5?snq146Y
+          username: alaazidan
+          password: KGw~1blLgk1hz*d1
 
           protocol: ftp
           port: 21

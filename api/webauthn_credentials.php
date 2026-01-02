@@ -8,11 +8,6 @@ ob_start();
 
 define('ACCESS_ALLOWED', true);
 
-// بدء الجلسة قبل تحميل الملفات
-if (session_status() === PHP_SESSION_NONE) {
-    @session_start();
-}
-
 try {
     require_once __DIR__ . '/config.php';
     require_once __DIR__ . '/database.php';
@@ -40,19 +35,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// التحقق من تسجيل الدخول
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'غير مصرح به. يرجى تسجيل الدخول أولاً'], JSON_UNESCAPED_UNICODE);
-    exit;
-}
+// التحقق من تسجيل الدخول باستخدام checkAuth()
+// checkAuth() سيقوم بـ response() تلقائياً إذا لم يكن هناك جلسة نشطة
+$session = checkAuth();
+$userId = $session['user_id'];
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
     try {
-        $userId = $_SESSION['user_id'];
-        
         $credentials = dbSelect(
             "SELECT id, credential_id, device_name, created_at, last_used 
              FROM webauthn_credentials 
@@ -66,35 +57,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
             $credentials = [];
         }
         
-        echo json_encode([
-            'success' => true,
-            'credentials' => $credentials
-        ], JSON_UNESCAPED_UNICODE);
+        response(true, '', ['credentials' => $credentials]);
         
     } catch (Exception $e) {
         error_log("WebAuthn Credentials List Error: " . $e->getMessage());
         error_log("Stack trace: " . $e->getTraceAsString());
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'error' => 'خطأ في تحميل البصمات: ' . $e->getMessage(),
-            'debug' => [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]
-        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        response(false, 'خطأ في تحميل البصمات: ' . $e->getMessage(), null, 500);
     }
     
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete') {
     // حذف اعتماد محدد
-    $userId = $_SESSION['user_id'];
-    $credentialId = $_POST['credential_id'] ?? '';
+    $data = getRequestData();
+    $credentialId = $data['credential_id'] ?? $_POST['credential_id'] ?? '';
     
     if (empty($credentialId)) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'معرّف الاعتماد مطلوب'], JSON_UNESCAPED_UNICODE);
-        exit;
+        response(false, 'معرّف الاعتماد مطلوب', null, 400);
     }
     
     // التحقق من أن الاعتماد يخص المستخدم الحالي
@@ -104,9 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
     );
     
     if (!$credential) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'الاعتماد غير موجود أو غير مسموح'], JSON_UNESCAPED_UNICODE);
-        exit;
+        response(false, 'الاعتماد غير موجود أو غير مسموح', null, 404);
     }
     
     // حذف الاعتماد
@@ -116,9 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
     );
     
     if ($result === false) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'فشل حذف البصمة'], JSON_UNESCAPED_UNICODE);
-        exit;
+        response(false, 'فشل حذف البصمة', null, 500);
     }
     
     // التحقق من وجود اعتماديات أخرى للمستخدم
@@ -135,14 +108,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
         );
     }
     
-    echo json_encode([
-        'success' => true,
-        'message' => 'تم حذف البصمة بنجاح',
+    response(true, 'تم حذف البصمة بنجاح', [
         'remaining_count' => $remainingCount ? $remainingCount['count'] : 0
-    ], JSON_UNESCAPED_UNICODE);
+    ]);
     
 } else {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'إجراء غير صحيح'], JSON_UNESCAPED_UNICODE);
+    response(false, 'إجراء غير صحيح', null, 400);
 }
 ?>

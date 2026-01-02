@@ -10,7 +10,7 @@ class GlobalNotificationManager {
         this.lastMessageId = null;
         this.currentUser = null;
         this.isRunning = false;
-        this.checkIntervalMs = 60000; // 60 ثانية (محسّن لتقليل الطلبات والاستهلاك)
+        this.checkIntervalMs = 30000; // 30 ثانية (تم تقليل الطلبات - الاعتماد على trigger فوري)
         this.isChatPage = window.location.pathname.includes('chat.html');
         this.activeNotifications = new Map(); // حفظ مراجع للإشعارات المفتوحة
         this.lastCheckTime = 0;
@@ -90,6 +90,19 @@ class GlobalNotificationManager {
                             }
                         });
                         console.log('✅ تم الاشتراك في MessagePollingManager الموحد');
+                        
+                        // الاستماع لحدث إرسال رسالة لإجراء فحص فوري
+                        window.addEventListener('messageSent', () => {
+                            console.log('📨 تم إرسال رسالة - فحص فوري للرسائل الجديدة');
+                            // فحص فوري بعد 1 ثانية (لضمان حفظ الرسالة في قاعدة البيانات)
+                            setTimeout(() => {
+                                if (window.MessagePollingManager && window.MessagePollingManager.isActive) {
+                                    window.MessagePollingManager.poll();
+                                } else {
+                                    this.checkForNewMessages();
+                                }
+                            }, 1000);
+                        });
                     } else {
                         // إعادة المحاولة بعد 500ms
                         setTimeout(waitForPollingManager, 500);
@@ -226,12 +239,30 @@ class GlobalNotificationManager {
             interval: this.checkIntervalMs
         });
         
-        // فحص فوري بعد تأخير صغير
+        // فحص فوري للإشعارات المحفوظة عند التحميل
         setTimeout(() => {
             this.checkForNewMessages();
         }, 1000);
+        
+        // فحص الإشعارات المحفوظة مرة أخرى بعد 3 ثواني (لضمان جلب جميع الإشعارات)
+        setTimeout(() => {
+            this.checkForNewMessages();
+        }, 3000);
 
-        // فحص دوري كل 30 ثانية (محسّن لتقليل الطلبات)
+        // الاستماع لحدث إرسال رسالة لإجراء فحص فوري
+        window.addEventListener('messageSent', () => {
+            console.log('📨 تم إرسال رسالة - فحص فوري للرسائل الجديدة');
+            // فحص فوري بعد 1 ثانية (لضمان حفظ الرسالة في قاعدة البيانات)
+            setTimeout(() => {
+                if (window.MessagePollingManager && window.MessagePollingManager.isActive) {
+                    window.MessagePollingManager.poll();
+                } else {
+                    this.checkForNewMessages();
+                }
+            }, 1000);
+        });
+
+        // فحص دوري كل 30 ثانية (تم تقليل الطلبات - الاعتماد على trigger فوري)
         this.checkInterval = setInterval(() => {
             // فحص فقط إذا كانت الصفحة مرئية
             if (this.isPageVisible) {
@@ -323,18 +354,24 @@ class GlobalNotificationManager {
         let hasNewMessages = false;
         
         messages.forEach(message => {
+            // التحقق من أن الرسالة ليست من المستخدم الحالي (المرسل)
             if (message.user_id !== this.currentUser.id) {
+                // التحقق من أن الرسالة جديدة (أكبر من lastMessageId)
                 if (this.lastMessageId === '0' || (message.id && message.id > this.lastMessageId)) {
                     this.showNotification(message);
                     hasNewMessages = true;
                 }
             }
             
+            // تحديث maxMessageId لجميع الرسائل (حتى المرسلة من المستخدم نفسه)
+            // هذا مهم لتتبع آخر رسالة تم فحصها
             if (message.id && (this.lastMessageId === '0' || message.id > maxMessageId)) {
                 maxMessageId = message.id;
             }
         });
         
+        // تحديث lastMessageId لجميع الرسائل (حتى المرسلة من المستخدم نفسه)
+        // هذا يضمن عدم فحص نفس الرسائل مرة أخرى
         if (maxMessageId !== this.lastMessageId && maxMessageId !== '0') {
             this.saveLastMessageId(maxMessageId);
         }
@@ -472,24 +509,38 @@ class GlobalNotificationManager {
         }
     }
     
-    // إضافة الإشعار إلى قائمة الإشعارات في chat.js
+    // إضافة الإشعار إلى قائمة الإشعارات في chat.js أو dashboard
     addToChatNotificationsList(message) {
         try {
-            // التحقق من وجود دالة addChatNotification من chat.js
-            if (typeof window.addChatNotification === 'function') {
-                window.addChatNotification({
-                    id: message.id,
-                    username: message.username || 'مستخدم',
-                    message: this.formatMessageBody(message),
-                    timestamp: message.created_at || new Date().toISOString(),
-                    read: false
-                });
-                console.log('✅ تم إضافة الإشعار إلى قائمة الإشعارات');
-            } else {
-                // إذا لم تكن الدالة متاحة، حفظ في localStorage مباشرة
-                // سيتم تحميلها عند فتح صفحة الشات
-                this.saveNotificationToLocalStorage(message);
+            // التحقق من أن الرسالة ليست من المستخدم الحالي (المرسل)
+            if (message.user_id === this.currentUser?.id) {
+                console.log('📤 تم تخطي إشعار الرسالة المرسلة من المستخدم نفسه');
+                return;
             }
+            
+            const notificationData = {
+                id: message.id,
+                username: message.username || 'مستخدم',
+                message: this.formatMessageBody(message),
+                timestamp: message.created_at || new Date().toISOString(),
+                read: false
+            };
+            
+            // محاولة إضافة الإشعار إلى dashboard أولاً
+            if (typeof window.addDashboardNotification === 'function') {
+                window.addDashboardNotification(notificationData);
+                console.log('✅ تم إضافة الإشعار إلى dashboard');
+            }
+            
+            // محاولة إضافة الإشعار إلى chat.js
+            if (typeof window.addChatNotification === 'function') {
+                window.addChatNotification(notificationData);
+                console.log('✅ تم إضافة الإشعار إلى chat.js');
+            }
+            
+            // حفظ في localStorage كنسخة احتياطية
+            this.saveNotificationToLocalStorage(message);
+            
         } catch (error) {
             console.error('❌ خطأ في إضافة الإشعار إلى القائمة:', error);
             // محاولة الحفظ في localStorage كبديل

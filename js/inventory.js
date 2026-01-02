@@ -1,4 +1,4 @@
-// إدارة المخزون - الأقسام الثلاثة
+// إدارة المخزن - الأقسام الثلاثة
 
 let currentInventoryTab = 'spare_parts'; // spare_parts, accessories, phones
 let allSpareParts = [];
@@ -18,6 +18,7 @@ let isLoadingInventorySection = false;
 // قائمة أنواع قطع الغيار
 const sparePartTypes = [
     { id: 'screen', name: 'شاشة', icon: 'bi-display' },
+    { id: 'touch', name: 'تاتش', icon: 'bi-display' },
     { id: 'battery', name: 'بطارية', icon: 'bi-battery-full' },
     { id: 'rear_camera', name: 'كاميرا خلفية', icon: 'bi-camera' },
     { id: 'front_camera', name: 'كاميرا أمامية', icon: 'bi-camera-video' },
@@ -38,7 +39,7 @@ const sparePartTypes = [
     { id: 'other', name: 'ملحقات أخرى', icon: 'bi-three-dots-vertical', isCustom: true }
 ];
 
-// قائمة أنواع الإكسسوارات
+// قائمة أنواع الإكسسوارات الأساسية
 const accessoryTypes = [
     { id: 'wired_headphones', name: 'سماعات سلك', icon: 'bi-headphones' },
     { id: 'wireless_headphones', name: 'سماعات وايرلس', icon: 'bi-earbuds' },
@@ -47,23 +48,116 @@ const accessoryTypes = [
     { id: 'cables', name: 'كابلات', icon: 'bi-usb-c' },
     { id: 'power_bank', name: 'باور بانك', icon: 'bi-battery-charging' },
     { id: 'external_battery', name: 'بطارية خارجية', icon: 'bi-battery' },
-    { id: 'other', name: 'ملحقات', icon: 'bi-box-seam' }
+    { id: 'other', name: 'أخرى', icon: 'bi-box-seam' }
 ];
 
-// قائمة الماركات الشائعة
-const phoneBrands = [
-    { id: 'samsung', name: 'Samsung', icon: 'bi-phone', logo: 'brands/samsung.svg' },
-    { id: 'apple', name: 'Apple', icon: 'bi-apple', logo: 'brands/apple.svg' },
-    { id: 'xiaomi', name: 'Xiaomi', icon: 'bi-phone', logo: 'brands/xiaomi.svg' },
-    { id: 'huawei', name: 'Huawei', icon: 'bi-phone', logo: 'brands/huawei.svg' },
-    { id: 'oppo', name: 'Oppo', icon: 'bi-phone', logo: 'brands/oppo.svg' },
-    { id: 'vivo', name: 'Vivo', icon: 'bi-phone', logo: 'brands/vivo.svg' },
-    { id: 'realme', name: 'Realme', icon: 'bi-phone', logo: 'brands/realme.svg' },
-    { id: 'oneplus', name: 'OnePlus', icon: 'bi-phone', logo: 'brands/oneplus.svg' },
-    { id: 'other', name: 'أخرى', icon: 'bi-phone', logo: 'brands/other.svg' }
-];
+// دالة للحصول على جميع أنواع الإكسسوارات (الأساسية + من قاعدة البيانات)
+function getAllAccessoryTypes() {
+    const baseTypes = [...accessoryTypes];
+    
+    // إزالة "أخرى" من القائمة الأساسية مؤقتاً لإضافتها في النهاية
+    const otherType = baseTypes.find(t => t.id === 'other');
+    const baseTypesWithoutOther = baseTypes.filter(t => t.id !== 'other');
+    
+    // إضافة الأنواع الفريدة من قاعدة البيانات
+    if (allAccessories && allAccessories.length > 0) {
+        const dbTypes = new Set();
+        allAccessories.forEach(accessory => {
+            if (accessory.type && accessory.type.trim() !== '') {
+                // التحقق من أن النوع ليس من الأنواع الأساسية وليس "أخرى"
+                const isBaseType = baseTypesWithoutOther.some(t => t.id === accessory.type);
+                if (!isBaseType && accessory.type !== 'other') {
+                    dbTypes.add(accessory.type);
+                }
+            }
+        });
+        
+        // إضافة الأنواع من قاعدة البيانات
+        dbTypes.forEach(typeName => {
+            baseTypesWithoutOther.push({ id: typeName, name: typeName, icon: 'bi-box-seam', isCustom: true });
+        });
+    }
+    
+    // إضافة "أخرى" في النهاية دائماً
+    if (otherType) {
+        baseTypesWithoutOther.push(otherType);
+    }
+    
+    return baseTypesWithoutOther;
+}
 
-// تهيئة قسم المخزون
+// قائمة الماركات - يتم تحميلها من قاعدة البيانات
+let phoneBrands = [];
+
+// دالة لجلب الماركات من قاعدة البيانات
+async function loadPhoneBrands() {
+    try {
+        const result = await API.request('inventory.php?action=brands', 'GET', null, { silent: true });
+        
+        if (result && result.success && Array.isArray(result.data)) {
+            // تحويل البيانات من قاعدة البيانات إلى الصيغة المطلوبة
+            phoneBrands = result.data.map(brand => {
+                const brandName = brand.name || '';
+                return {
+                    id: brand.id || brandName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'unknown',
+                    name: brandName,
+                    logo: brand.logo || null,
+                    icon: 'bi-phone',
+                    // حفظ اسم الماركة بحروف صغيرة للمطابقة
+                    nameLower: brandName.toLowerCase().trim()
+                };
+            }).filter(brand => brand.name); // استبعاد الماركات بدون اسم
+            
+            // إضافة "أخرى" في النهاية إذا لم تكن موجودة
+            const hasOther = phoneBrands.some(b => b.name === 'أخرى' || b.name.toLowerCase() === 'other');
+            if (!hasOther) {
+                phoneBrands.push({
+                    id: 'other',
+                    name: 'أخرى',
+                    icon: 'bi-phone',
+                    logo: 'other.svg', // سيتم إضافة /brands/ تلقائياً في createPhoneBrands
+                    nameLower: 'other'
+                });
+            }
+            
+            // تحديث قائمة الماركات في الواجهة إذا كانت موجودة
+            updatePhoneBrandsUI();
+        } else {
+            // في حالة الفشل، استخدام قائمة احتياطية
+            phoneBrands = [
+                { id: 'other', name: 'أخرى', icon: 'bi-phone', logo: 'other.svg', nameLower: 'other' } // سيتم إضافة /brands/ تلقائياً
+            ];
+            console.warn('فشل تحميل الماركات من قاعدة البيانات، استخدام القائمة الاحتياطية');
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل الماركات:', error);
+        // في حالة الخطأ، استخدام قائمة احتياطية
+        phoneBrands = [
+            { id: 'other', name: 'أخرى', icon: 'bi-phone', logo: 'other.svg', nameLower: 'other' } // سيتم إضافة /brands/ تلقائياً
+        ];
+    }
+}
+
+// دالة لتحديث واجهة الماركات بعد تحميلها
+function updatePhoneBrandsUI() {
+    // تحديث select الماركة في النموذج إذا كان موجوداً
+    const phoneBrandSelect = document.getElementById('phoneBrand');
+    if (phoneBrandSelect) {
+        const currentValue = phoneBrandSelect.value;
+        phoneBrandSelect.innerHTML = phoneBrands.map(brand => 
+            `<option value="${brand.name}">${brand.name}</option>`
+        ).join('');
+        // استعادة القيمة السابقة إذا كانت موجودة
+        if (currentValue) {
+            phoneBrandSelect.value = currentValue;
+        }
+    }
+    
+    // تحديث فلتر الماركات إذا كان موجوداً
+    createPhoneBrands();
+}
+
+// تهيئة قسم المخزن
 
 // التبديل بين الأقسام
 function switchInventoryTab(tab, element) {
@@ -277,8 +371,13 @@ function displaySpareParts(parts) {
         // استخدام QR Code بدلاً من الباركود
         const qrCodeUrl = generateQRCodeFallback(qrData, 200);
         
+        // تحديد دالة عرض التفاصيل حسب الصلاحيات
+        const showDetailsFunction = canEditInventory() 
+            ? `previewSparePart('${part.id}')` 
+            : `showInventoryItemDetails('spare_part', '${part.id}')`;
+        
         return `
-            <div class="inventory-card">
+            <div class="inventory-card" onclick="${showDetailsFunction}" style="cursor: pointer;">
                 <div class="inventory-card-header">
                     <div class="inventory-card-title">
                         <h3>${part.brand}</h3>
@@ -309,30 +408,34 @@ function displaySpareParts(parts) {
                 
                 <div class="inventory-card-actions">
                     ${canEditInventory() ? `
-                        <button onclick="printSparePartQRCode('${part.id}')" class="btn btn-info btn-sm" title="طباعة QR Code">
+                        <button onclick="event.stopPropagation(); printSparePartQRCode('${part.id}')" class="btn btn-info btn-sm" title="طباعة QR Code">
                             <i class="bi bi-printer"></i> طباعة
                         </button>
-                        <button onclick="previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
+                        <button onclick="event.stopPropagation(); previewSparePart('${part.id}')" class="btn btn-primary btn-sm">
                             <i class="bi bi-eye"></i> معاينة
                         </button>
-                        <button onclick="editSparePart('${part.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
+                        <button onclick="event.stopPropagation(); editSparePart('${part.id}')" class="btn btn-secondary btn-sm" data-permission="manager">
                             <i class="bi bi-pencil"></i> تعديل
                         </button>
                         ${hasPermission('admin') ? `
-                            <button onclick="deleteSparePart('${part.id}')" class="btn btn-danger btn-sm" data-permission="admin">
+                            <button onclick="event.stopPropagation(); deleteSparePart('${part.id}')" class="btn btn-danger btn-sm" data-permission="admin">
                                 <i class="bi bi-trash"></i> حذف
                             </button>
                         ` : ''}
                     ` : canRequestInventoryItem() ? `
                         <div style="display: flex; gap: 8px; width: 100%;">
-                            <button onclick="requestInventoryItem('spare_part', '${part.id}', '${part.brand} ${part.model}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
+                            <button onclick="event.stopPropagation(); requestInventoryItem('spare_part', '${part.id}', '${part.brand} ${part.model}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
                                 <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
                             </button>
-                            <button onclick="showInventoryItemDetails('spare_part', '${part.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
+                            <button onclick="event.stopPropagation(); showInventoryItemDetails('spare_part', '${part.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
                                 <i class="bi bi-info-circle"></i> عرض التفاصيل
                             </button>
                         </div>
-                    ` : ''}
+                    ` : `
+                        <button onclick="event.stopPropagation(); showInventoryItemDetails('spare_part', '${part.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="width: 100%;">
+                            <i class="bi bi-info-circle"></i> عرض التفاصيل
+                        </button>
+                    `}
                 </div>
             </div>
         `;
@@ -364,32 +467,39 @@ function filterSpareParts() {
 function createSparePartsBrandFilters() {
     // جمع جميع الماركات الفريدة
     const brands = [...new Set(allSpareParts.map(part => part.brand))].sort();
-    const container = document.getElementById('sparePartsBrandFilters');
-    if (!container) return;
+    const select = document.getElementById('sparePartsBrandFilter');
+    if (!select) return;
     
-    container.innerHTML = `
-        <div class="filter-button active" onclick="filterSparePartsByBrand('all', this)">
-            <i class="bi bi-grid"></i>
-            <span>الكل</span>
-        </div>
-        ${brands.map(brand => `
-            <div class="filter-button" onclick="filterSparePartsByBrand('${brand.toLowerCase()}', this)">
-                <i class="bi bi-phone"></i>
-                <span>${brand}</span>
-            </div>
-        `).join('')}
-    `;
+    // حفظ القيمة الحالية
+    const currentValue = select.value;
+    
+    // إضافة خيار "الكل" ثم باقي الماركات
+    select.innerHTML = '<option value="all">الكل</option>' +
+        brands.map(brand => {
+            const brandFilter = brand.toLowerCase();
+            return `<option value="${brandFilter}">${brand}</option>`;
+        }).join('');
+    
+    // استعادة القيمة السابقة إذا كانت موجودة
+    if (currentValue) {
+        select.value = currentValue;
+    } else {
+        select.value = currentSparePartBrandFilter || 'all';
+    }
 }
 
 function filterSparePartsByBrand(brand, element) {
     currentSparePartBrandFilter = brand;
     
-    // تحديث الأزرار
-    document.querySelectorAll('#sparePartsBrandFilters .filter-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    if (element) {
-        element.closest('.filter-button').classList.add('active');
+    // تحديث select (إذا كان element هو select نفسه)
+    if (element && element.tagName === 'SELECT') {
+        element.value = brand;
+    } else {
+        // إذا تم الاستدعاء من مكان آخر، تحديث select
+        const select = document.getElementById('sparePartsBrandFilter');
+        if (select) {
+            select.value = brand;
+        }
     }
     
     filterSpareParts();
@@ -495,10 +605,16 @@ async function deleteSparePart(id) {
         // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
         try {
             if (typeof dbCache !== 'undefined' && dbCache.db) {
-                const tx = dbCache.db.transaction('spareParts', 'readwrite');
-                const store = tx.objectStore('spareParts');
-                await store.clear();
-                await dbCache.saveMetadata('spareParts_last_update', 0);
+                // التحقق من وجود object store قبل الوصول إليه
+                if (dbCache.db.objectStoreNames.contains('spare_parts')) {
+                    const tx = dbCache.db.transaction('spare_parts', 'readwrite');
+                    const store = tx.objectStore('spare_parts');
+                    await store.clear();
+                    await dbCache.saveMetadata('spare_parts_last_update', 0);
+                    console.log('✅ تم مسح cache قطع الغيار');
+                } else {
+                    console.warn('⚠️ object store spare_parts غير موجود');
+                }
             }
         } catch (error) {
             console.warn('⚠️ لم يتم مسح cache:', error);
@@ -578,30 +694,41 @@ function closePreviewModal() {
 // ============================================
 
 function createAccessoryFilters() {
-    const container = document.getElementById('accessoryFilters');
-    container.innerHTML = `
-        <div class="filter-button active" onclick="filterAccessoriesByType('all', this)">
-            <i class="bi bi-grid"></i>
-            <span>الكل</span>
-        </div>
-        ${accessoryTypes.map(type => `
-            <div class="filter-button" onclick="filterAccessoriesByType('${type.id}', this)">
-                <i class="bi ${type.icon}"></i>
-                <span>${type.name}</span>
-            </div>
-        `).join('')}
-    `;
+    const select = document.getElementById('accessoryTypeFilter');
+    if (!select) return;
+    
+    // ✅ استخدام getAllAccessoryTypes() للحصول على جميع الأنواع (الأساسية + من قاعدة البيانات)
+    const allTypes = getAllAccessoryTypes();
+    
+    // حفظ القيمة الحالية
+    const currentValue = select.value;
+    
+    // إضافة خيار "الكل" ثم باقي الأنواع
+    select.innerHTML = '<option value="all">الكل</option>' +
+        allTypes.map(type => {
+            return `<option value="${type.id}">${type.name}</option>`;
+        }).join('');
+    
+    // استعادة القيمة السابقة إذا كانت موجودة
+    if (currentValue) {
+        select.value = currentValue;
+    } else {
+        select.value = currentAccessoryFilter || 'all';
+    }
 }
 
 function filterAccessoriesByType(type, element) {
     currentAccessoryFilter = type;
     
-    // تحديث الأزرار
-    document.querySelectorAll('#accessoryFilters .filter-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    if (element) {
-        element.closest('.filter-button').classList.add('active');
+    // تحديث select (إذا كان element هو select نفسه)
+    if (element && element.tagName === 'SELECT') {
+        element.value = type;
+    } else {
+        // إذا تم الاستدعاء من مكان آخر، تحديث select
+        const select = document.getElementById('accessoryTypeFilter');
+        if (select) {
+            select.value = type;
+        }
     }
     
     filterAccessories();
@@ -668,6 +795,12 @@ async function loadAccessories(silent = false, forceRefresh = false) {
             }
             
             displayAccessories(allAccessories);
+            
+            // ✅ تحديث الفلاتر والقائمة المنسدلة بعد تحميل الإكسسوارات (لإضافة الأنواع الجديدة من قاعدة البيانات)
+            if (forceRefresh) {
+                updateAccessoryTypeDropdown();
+                createAccessoryFilters();
+            }
         } else {
             // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
             if (!cachedAccessories || forceRefresh) {
@@ -893,36 +1026,48 @@ async function deleteAccessory(id) {
 // ============================================
 
 function createPhoneBrands() {
-    const container = document.getElementById('phoneBrands');
-    container.innerHTML = `
-        <div class="brand-button active" onclick="filterPhonesByBrand('all', this)">
-            <div class="brand-button-icon"><i class="bi bi-grid"></i></div>
-            <div class="brand-button-name">الكل</div>
-        </div>
-        ${phoneBrands.map(brand => `
-            <div class="brand-button" onclick="filterPhonesByBrand('${brand.id}', this)">
-                ${brand.logo ? `
-                    <div class="brand-button-icon">
-                        <img src="${brand.logo}" alt="${brand.name}" class="brand-button-image">
-                    </div>
-                ` : `
-                    <div class="brand-button-icon"><i class="bi ${brand.icon}"></i></div>
-                `}
-                <div class="brand-button-name">${brand.name}</div>
-            </div>
-        `).join('')}
-    `;
+    const select = document.getElementById('phoneBrandFilter');
+    if (!select) return;
+    
+    // إذا لم يتم تحميل الماركات بعد، تحميلها أولاً
+    if (phoneBrands.length === 0) {
+        loadPhoneBrands().then(() => {
+            createPhoneBrands(); // إعادة استدعاء الدالة بعد التحميل
+        });
+        return;
+    }
+    
+    // حفظ القيمة الحالية
+    const currentValue = select.value;
+    
+    // إضافة خيار "الكل" ثم باقي الماركات
+    select.innerHTML = '<option value="all">الكل</option>' +
+        phoneBrands.map(brand => {
+            // استخدام اسم الماركة بحروف صغيرة للفلترة (مطابقة مع filterPhones)
+            const brandFilter = brand.name.toLowerCase();
+            return `<option value="${brandFilter}">${brand.name}</option>`;
+        }).join('');
+    
+    // استعادة القيمة السابقة إذا كانت موجودة
+    if (currentValue) {
+        select.value = currentValue;
+    } else {
+        select.value = currentPhoneBrand || 'all';
+    }
 }
 
 function filterPhonesByBrand(brand, element) {
     currentPhoneBrand = brand;
     
-    // تحديث الأزرار
-    document.querySelectorAll('#phoneBrands .brand-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    if (element) {
-        element.closest('.brand-button').classList.add('active');
+    // تحديث select (إذا كان element هو select نفسه)
+    if (element && element.tagName === 'SELECT') {
+        element.value = brand;
+    } else {
+        // إذا تم الاستدعاء من مكان آخر، تحديث select
+        const select = document.getElementById('phoneBrandFilter');
+        if (select) {
+            select.value = brand;
+        }
     }
     
     filterPhones();
@@ -1060,10 +1205,23 @@ function displayPhones(phones) {
     }
     
     grid.innerHTML = phones.map(phone => {
-        // التحقق من وجود brand قبل استخدام toLowerCase
-        const phoneBrand = phone.brand || '';
-        const brandId = phoneBrand ? phoneBrand.toLowerCase() : 'other';
-        const brand = phoneBrands.find(b => b.id === brandId) || phoneBrands[phoneBrands.length - 1];
+        // البحث عن الماركة بناءً على اسم الماركة (مطابقة أفضل)
+        const phoneBrand = (phone.brand || '').trim();
+        const phoneBrandLower = phoneBrand.toLowerCase();
+        
+        // البحث عن الماركة في القائمة
+        let brand = phoneBrands.find(b => 
+            b.nameLower === phoneBrandLower || 
+            b.name.toLowerCase() === phoneBrandLower ||
+            b.id === phoneBrandLower.replace(/\s+/g, '_')
+        );
+        
+        // إذا لم تُوجد الماركة، استخدام "أخرى" أو أول ماركة في القائمة
+        if (!brand) {
+            brand = phoneBrands.find(b => b.name === 'أخرى' || b.name.toLowerCase() === 'other') || 
+                    phoneBrands[0] || 
+                    { id: 'other', name: 'أخرى', icon: 'bi-phone', logo: 'other.svg', nameLower: 'other' }; // سيتم إضافة /brands/ تلقائياً
+        }
         
         // التحقق من صحة الصورة
         const isValidImage = phone.image && (
@@ -1298,13 +1456,15 @@ function viewPhoneDetails(id) {
                 );
                 const cleanImage = phone.image ? phone.image.trim().replace(/"/g, '&quot;') : '';
                 
+                // إصلاح: بناء onerror handler بشكل صحيح لتجنب أخطاء syntax
+                const onErrorHandler = `this.onerror=null;this.style.display='none';this.parentElement.innerHTML='<i class=&quot;bi bi-phone&quot; style=&quot;font-size: 64px; color: var(--text-light);&quot;></i>';`;
                 return isValidImage ? `
                     <div class="phone-details-image">
                         <img src="${cleanImage}" 
                              alt="${(phone.brand + ' ' + phone.model).replace(/"/g, '&quot;')}" 
                              loading="lazy"
                              decoding="async"
-                             onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<i class=\\'bi bi-phone\\' style=\\'font-size: 64px; color: var(--text-light);\\'></i>';"
+                             onerror="${onErrorHandler}"
                              style="max-width: 100%; max-height: 300px; border-radius: 12px; border: 2px solid var(--border-color); box-shadow: var(--shadow); image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; image-rendering: high-quality; object-fit: contain;">
                     </div>
                 ` : '';
@@ -1481,7 +1641,7 @@ function showAddInventoryModal() {
     try {
         const user = getCurrentUser();
         if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
-            showMessage('ليس لديك صلاحية لإضافة عناصر المخزون', 'error');
+            showMessage('ليس لديك صلاحية لإضافة عناصر المخزن', 'error');
             return;
         }
     } catch (error) {
@@ -1606,7 +1766,7 @@ function createInventoryModals() {
                                 <option value="${type.id}">${type.name}</option>
                             `).join('')}
                         </select>
-                        <input type="text" id="accessoryTypeCustom" style="display: none; margin-top: 10px;" placeholder="أدخل النوع يدوياً">
+                        <input type="text" id="accessoryTypeCustom" style="display: none; margin-top: 10px;" placeholder="أدخل النوع يدوياً" class="form-control">
                     </div>
                     
                     <div class="form-group">
@@ -1689,9 +1849,9 @@ function createInventoryModals() {
                         <div class="form-group">
                             <label for="phoneBrand">الماركة *</label>
                             <select id="phoneBrand" required onchange="handlePhoneBrandChange(this)">
-                                ${phoneBrands.map(brand => `
+                                ${phoneBrands.length > 0 ? phoneBrands.map(brand => `
                                     <option value="${brand.name}">${brand.name}</option>
-                                `).join('')}
+                                `).join('') : '<option value="">جاري التحميل...</option>'}
                             </select>
                             <input type="text" id="phoneBrandCustom" style="display: none; margin-top: 10px;" placeholder="أدخل الماركة يدوياً">
                         </div>
@@ -1958,12 +2118,17 @@ async function saveSparePart(event) {
         // مسح cache أولاً
         try {
             if (typeof dbCache !== 'undefined' && dbCache.db) {
-                const tx = dbCache.db.transaction('spareParts', 'readwrite');
-                const store = tx.objectStore('spareParts');
-                await store.clear();
-                // مسح metadata أيضاً
-                await dbCache.saveMetadata('spareParts_last_update', 0);
-                console.log('✅ تم مسح cache قطع الغيار');
+                // التحقق من وجود object store قبل الوصول إليه
+                if (dbCache.db.objectStoreNames.contains('spare_parts')) {
+                    const tx = dbCache.db.transaction('spare_parts', 'readwrite');
+                    const store = tx.objectStore('spare_parts');
+                    await store.clear();
+                    // مسح metadata أيضاً
+                    await dbCache.saveMetadata('spare_parts_last_update', 0);
+                    console.log('✅ تم مسح cache قطع الغيار');
+                } else {
+                    console.warn('⚠️ object store spare_parts غير موجود');
+                }
             }
         } catch (error) {
             console.warn('⚠️ لم يتم مسح cache:', error);
@@ -1979,6 +2144,24 @@ async function saveSparePart(event) {
     }
 }
 
+// دالة لتحديث dropdown أنواع الإكسسوارات
+function updateAccessoryTypeDropdown() {
+    const select = document.getElementById('accessoryType');
+    if (!select) return;
+    
+    const allTypes = getAllAccessoryTypes();
+    const currentValue = select.value;
+    
+    select.innerHTML = allTypes.map(type => `
+        <option value="${type.id}">${type.name}</option>
+    `).join('');
+    
+    // إعادة تعيين القيمة السابقة إذا كانت موجودة
+    if (currentValue && allTypes.some(t => t.id === currentValue)) {
+        select.value = currentValue;
+    }
+}
+
 // دوال الإكسسوارات
 function showAddAccessoryModal() {
     document.getElementById('accessoryModalTitle').textContent = 'إضافة إكسسوار';
@@ -1986,6 +2169,22 @@ function showAddAccessoryModal() {
     document.getElementById('accessoryId').value = '';
     document.getElementById('accessoryImagePreview').style.display = 'none';
     document.getElementById('accessoryImageFile').value = '';
+    const customTypeInput = document.getElementById('accessoryTypeCustom');
+    if (customTypeInput) {
+        customTypeInput.value = '';
+        customTypeInput.style.display = 'none';
+        customTypeInput.required = false;
+    }
+    
+    // تحديث dropdown الأنواع (بعد إعادة تعيين النموذج)
+    updateAccessoryTypeDropdown();
+    
+    // التأكد من أن القيمة الافتراضية هي الأولى (ليس "أخرى")
+    const typeSelect = document.getElementById('accessoryType');
+    if (typeSelect && typeSelect.options.length > 0) {
+        typeSelect.value = typeSelect.options[0].value;
+    }
+    
     document.getElementById('accessoryModal').style.display = 'flex';
 }
 
@@ -2010,15 +2209,29 @@ function editAccessory(id) {
     document.getElementById('accessoryId').value = accessory.id;
     document.getElementById('accessoryName').value = accessory.name;
     
-    // التحقق إذا كان النوع موجوداً في القائمة
-    const typeExists = accessoryTypes.find(t => t.id === accessory.type);
+    // تحديث dropdown الأنواع أولاً
+    updateAccessoryTypeDropdown();
+    
+    // التحقق إذا كان النوع موجوداً في القائمة (بما في ذلك الأنواع المخصصة)
+    const allTypes = getAllAccessoryTypes();
+    const typeExists = allTypes.find(t => t.id === accessory.type);
+    
+    // ✅ تسجيل للتشخيص
+    console.log('🔍 editAccessory - accessory.type:', accessory.type, 'typeExists:', typeExists, 'allTypes:', allTypes.map(t => t.id));
+    
     if (typeExists) {
+        // النوع موجود في القائمة - اختياره من القائمة
         document.getElementById('accessoryType').value = accessory.type;
         document.getElementById('accessoryTypeCustom').style.display = 'none';
+        document.getElementById('accessoryTypeCustom').required = false;
+        document.getElementById('accessoryTypeCustom').value = ''; // مسح الحقل اليدوي
     } else {
+        // النوع غير موجود في القائمة - استخدام "أخرى" والحقل اليدوي
         document.getElementById('accessoryType').value = 'other';
         document.getElementById('accessoryTypeCustom').value = accessory.type;
         document.getElementById('accessoryTypeCustom').style.display = 'block';
+        document.getElementById('accessoryTypeCustom').required = true;
+        console.log('✅ تم تعيين النوع المخصص في الحقل اليدوي:', accessory.type);
     }
     
     document.getElementById('accessoryImage').value = accessory.image || '';
@@ -2085,11 +2298,32 @@ async function saveAccessory(event) {
     const id = document.getElementById('accessoryId').value;
     const name = document.getElementById('accessoryName').value.trim();
     let type = document.getElementById('accessoryType').value;
-    const customType = document.getElementById('accessoryTypeCustom').value.trim();
+    const customTypeInput = document.getElementById('accessoryTypeCustom');
+    const customType = customTypeInput ? customTypeInput.value.trim() : '';
     
-    // إذا كان النوع "أخرى" واستخدم المستخدم حقل الإدخال
-    if (type === 'other' && customType) {
-        type = customType;
+    // ✅ تسجيل للتشخيص
+    console.log('🔍 saveAccessory - id:', id, 'type:', type, 'customType:', customType, 'customTypeInput visible:', customTypeInput?.style.display);
+    
+    // إذا كان النوع "أخرى"، يجب أن يكون المستخدم قد أدخل نوعاً مخصصاً
+    if (type === 'other') {
+        if (!customType || customType.trim() === '') {
+            showMessage('يرجى إدخال النوع', 'error');
+            if (customTypeInput) {
+                customTypeInput.focus();
+            }
+            return;
+        }
+        type = customType.trim(); // استخدام النوع المخصص وإزالة المسافات الزائدة
+        console.log('✅ تم استخدام النوع المخصص:', type);
+    } else {
+        type = type.trim(); // إزالة المسافات الزائدة للأنواع الأخرى
+        console.log('✅ تم استخدام النوع المحدد:', type);
+    }
+    
+    // التأكد من أن النوع غير فارغ
+    if (!type || type === '') {
+        showMessage('يرجى تحديد النوع', 'error');
+        return;
     }
     
     let image = document.getElementById('accessoryImage').value.trim();
@@ -2109,14 +2343,15 @@ async function saveAccessory(event) {
         }
     }
     
-    if (!name || !type) {
-        showMessage('الاسم والنوع مطلوبان', 'error');
+    // التحقق من أن الاسم موجود (تم التحقق من type مسبقاً)
+    if (!name || name.trim() === '') {
+        showMessage('يرجى إدخال الاسم', 'error');
         return;
     }
     
     const accessoryData = {
-        name,
-        type,
+        name: name.trim(),
+        type: type, // النوع تم تنظيفه مسبقاً
         image,
         purchase_price,
         selling_price,
@@ -2131,8 +2366,8 @@ async function saveAccessory(event) {
         result = await API.addAccessory(accessoryData);
     }
     
-    if (result.success) {
-        showMessage(result.message);
+    if (result && result.success) {
+        showMessage(result.message || 'تم الحفظ بنجاح');
         closeAccessoryModal();
         
         // ✅ إجبار إعادة التحميل من الخادم (تخطي cache)
@@ -2144,7 +2379,6 @@ async function saveAccessory(event) {
                 await store.clear();
                 // مسح metadata أيضاً
                 await dbCache.saveMetadata('accessories_last_update', 0);
-                console.log('✅ تم مسح cache الإكسسوارات');
             }
         } catch (error) {
             console.warn('⚠️ لم يتم مسح cache:', error);
@@ -2154,14 +2388,28 @@ async function saveAccessory(event) {
         isLoadingAccessories = false;
         
         // تحميل البيانات من الخادم مباشرة (بدون cache)
+        // دائماً نعيد تحميل البيانات بعد الحفظ
         await loadAccessories(false, true);
+        
+        // ✅ تحديث القائمة المنسدلة للأنواع بعد إعادة التحميل
+        // (allAccessories تم تحديثه داخل loadAccessories)
+        updateAccessoryTypeDropdown();
+        
+        // ✅ تحديث فلاتر الأنواع بعد إعادة التحميل
+        createAccessoryFilters();
     } else {
         showMessage(result.message, 'error');
     }
 }
 
 // دوال الهواتف
-function showAddPhoneModal() {
+async function showAddPhoneModal() {
+    // التأكد من تحميل الماركات قبل فتح النموذج
+    if (phoneBrands.length === 0) {
+        await loadPhoneBrands();
+        updatePhoneBrandsUI();
+    }
+    
     document.getElementById('phoneModalTitle').textContent = 'إضافة هاتف';
     document.getElementById('phoneForm').reset();
     document.getElementById('phoneId').value = '';
@@ -2173,7 +2421,7 @@ function showAddPhoneModal() {
     document.getElementById('phoneModal').style.display = 'flex';
 }
 
-function editPhone(id) {
+async function editPhone(id) {
     // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
     try {
         const user = getCurrentUser();
@@ -2185,6 +2433,12 @@ function editPhone(id) {
         console.error('خطأ في التحقق من الصلاحيات:', error);
         showMessage('خطأ في التحقق من الصلاحيات', 'error');
         return;
+    }
+    
+    // التأكد من تحميل الماركات قبل فتح النموذج
+    if (phoneBrands.length === 0) {
+        await loadPhoneBrands();
+        updatePhoneBrandsUI();
     }
     
     const phone = allPhones.find(p => p.id === id);
@@ -2675,20 +2929,20 @@ function compressImage(file, maxWidth = 800, quality = 0.8) {
 function loadInventorySection() {
     // منع الاستدعاءات المتكررة
     if (isLoadingInventorySection) {
-        console.log('⏳ تحميل قسم المخزون قيد التنفيذ بالفعل...');
+        console.log('⏳ تحميل قسم المخزن قيد التنفيذ بالفعل...');
         return;
     }
     
     const section = document.getElementById('inventory-section');
     if (!section) {
-        console.error('قسم المخزون غير موجود');
+        console.error('قسم المخزن غير موجود');
         return;
     }
     
-    // التأكد من أن قسم المخزون هو القسم النشط قبل تحميل المحتوى
+    // التأكد من أن قسم المخزن هو القسم النشط قبل تحميل المحتوى
     // إذا لم يكن نشطاً، تفعيله تلقائياً
     if (!section.classList.contains('active')) {
-        console.log('⚠️ قسم المخزون غير نشط، سيتم تفعيله تلقائياً');
+        console.log('⚠️ قسم المخزن غير نشط، سيتم تفعيله تلقائياً');
         section.classList.add('active');
         section.style.display = 'block';
         
@@ -2702,16 +2956,21 @@ function loadInventorySection() {
     }
     
     isLoadingInventorySection = true;
-    console.log('📦 تحميل قسم المخزون...');
+    console.log('📦 تحميل قسم المخزن...');
     
     // مسح البيانات القديمة
     allSpareParts = [];
     allAccessories = [];
     allPhones = [];
     
+    // التحقق من نوع المستخدم لإخفاء زر الإضافة للفنيين
+    const user = getCurrentUser();
+    const isTechnician = user && user.role === 'technician';
+    const addButtonStyle = isTechnician ? 'display: none;' : '';
+    
     section.innerHTML = `
         <div class="section-header">
-            <button onclick="showAddInventoryModal()" class="btn btn-primary" data-permission="manager">
+            <button onclick="showAddInventoryModal()" class="btn btn-primary" data-permission="manager" style="${addButtonStyle}">
                 <i class="bi bi-plus-circle"></i> إضافة
             </button>
         </div>
@@ -2734,8 +2993,10 @@ function loadInventorySection() {
 
         <!-- قسم قطع الغيار -->
         <div id="spare-parts-section" class="inventory-section active">
-            <div class="filter-buttons" id="sparePartsBrandFilters"></div>
             <div class="inventory-search">
+                <select id="sparePartsBrandFilter" onchange="filterSparePartsByBrand(this.value, this)">
+                    <option value="all">الكل</option>
+                </select>
                 <input type="text" id="sparePartsSearch" placeholder="بحث بالموديل..." onkeyup="filterSpareParts()">
             </div>
             <div class="inventory-grid" id="sparePartsGrid"></div>
@@ -2743,8 +3004,10 @@ function loadInventorySection() {
 
         <!-- قسم الإكسسوارات -->
         <div id="accessories-section" class="inventory-section">
-            <div class="filter-buttons" id="accessoryFilters"></div>
             <div class="inventory-search">
+                <select id="accessoryTypeFilter" onchange="filterAccessoriesByType(this.value, this)">
+                    <option value="all">الكل</option>
+                </select>
                 <input type="text" id="accessoriesSearch" placeholder="بحث في الإكسسوارات..." onkeyup="filterAccessories()">
             </div>
             <div class="inventory-grid" id="accessoriesGrid"></div>
@@ -2752,8 +3015,10 @@ function loadInventorySection() {
 
         <!-- قسم الهواتف -->
         <div id="phones-section" class="inventory-section">
-            <div class="brand-buttons" id="phoneBrands"></div>
             <div class="inventory-search">
+                <select id="phoneBrandFilter" onchange="filterPhonesByBrand(this.value, this)">
+                    <option value="all">الكل</option>
+                </select>
                 <input type="text" id="phonesSearch" placeholder="بحث في الهواتف..." onkeyup="filterPhones()">
             </div>
             <div class="inventory-grid" id="phonesGrid"></div>
@@ -2787,22 +3052,22 @@ function loadInventorySection() {
     }
     
     // تحميل البيانات - دائماً إعادة تحميل كاملة
-    console.log('📥 تحميل بيانات المخزون...');
+    console.log('📥 تحميل بيانات المخزن...');
     
     // تحميل البيانات بعد تأخير لضمان أن DOM جاهز تماماً
     setTimeout(() => {
         // التأكد من أن القسم مرئي قبل تحميل البيانات
         const inventorySection = document.getElementById('inventory-section');
         if (!inventorySection) {
-            console.error('❌ قسم المخزون غير موجود');
+            console.error('❌ قسم المخزن غير موجود');
             isLoadingInventorySection = false;
             return;
         }
         
-        // التأكد من أن قسم المخزون هو القسم النشط الوحيد
+        // التأكد من أن قسم المخزن هو القسم النشط الوحيد
         // إذا لم يكن نشطاً، تفعيله تلقائياً
         if (!inventorySection.classList.contains('active')) {
-            console.log('⚠️ قسم المخزون غير نشط، سيتم تفعيله تلقائياً');
+            console.log('⚠️ قسم المخزن غير نشط، سيتم تفعيله تلقائياً');
             inventorySection.classList.add('active');
             inventorySection.style.display = 'block';
         }
@@ -2830,7 +3095,10 @@ function loadInventorySection() {
                 
                 // تحميل جميع البيانات دائماً (قطع الغيار، الإكسسوارات، الهواتف)
                 // لا نستخدم silent: true حتى تظهر loading overlay عند النقر على التبويب
-                console.log('📥 بدء تحميل جميع بيانات المخزون (قطع الغيار، الإكسسوارات، الهواتف)...');
+                console.log('📥 بدء تحميل جميع بيانات المخزن (قطع الغيار، الإكسسوارات، الهواتف)...');
+                
+                // تحميل الماركات أولاً ثم باقي البيانات
+                await loadPhoneBrands();
                 
                 await Promise.all([
                     loadSpareParts(false), // silent = false لظهور loading overlay
@@ -2838,20 +3106,21 @@ function loadInventorySection() {
                     loadPhones(false) // silent = false لظهور loading overlay
                 ]);
                 
-                // إنشاء أزرار الفلترة بعد اكتمال تحميل جميع البيانات
+                // إنشاء الفلاتر بعد اكتمال تحميل جميع البيانات
                 setTimeout(() => {
                     try {
+                        createSparePartsBrandFilters();
                         createAccessoryFilters();
                         createPhoneBrands();
                         hideByPermission();
                     } catch (error) {
-                        console.error('خطأ في إنشاء أزرار الفلترة:', error);
+                        console.error('خطأ في إنشاء الفلاتر:', error);
                     }
                 }, 300);
                 
-                console.log('✅ تم تحميل جميع بيانات المخزون بنجاح');
+                console.log('✅ تم تحميل جميع بيانات المخزن بنجاح');
             } catch (error) {
-                console.error('❌ خطأ في تحميل بيانات المخزون:', error);
+                console.error('❌ خطأ في تحميل بيانات المخزن:', error);
             } finally {
                 isLoadingInventorySection = false;
                 
@@ -2900,8 +3169,16 @@ async function printAccessoryBarcode(id) {
         // الحصول على قيمة الباركود للـ QR Code
         const barcodeValue = accessory.barcode || accessory.code || accessory.id?.toString() || id;
         
-        // إنشاء بيانات QR Code
-        const qrData = barcodeValue;
+        // إنشاء بيانات QR Code بصيغة JSON (مثل قطع الغيار)
+        const qrData = JSON.stringify({
+            type: 'ACCESSORY',
+            id: accessory.id,
+            name: accessory.name || '',
+            accessoryType: accessory.type || '',
+            barcode: barcodeValue,
+            price: accessory.selling_price || 0,
+            timestamp: Date.now()
+        });
         
         // إنشاء QR Code
         let qrImage = '';
@@ -3428,8 +3705,16 @@ async function printPhoneFullLabel(id) {
         // الحصول على قيمة الباركود للـ QR Code
         const barcodeValue = phone.barcode || phone.code || phone.id?.toString() || id;
         
-        // إنشاء بيانات QR Code
-        const qrData = barcodeValue;
+        // إنشاء بيانات QR Code بصيغة JSON (مثل قطع الغيار)
+        const qrData = JSON.stringify({
+            type: 'PHONE',
+            id: phone.id,
+            brand: phone.brand || '',
+            model: phone.model || '',
+            barcode: barcodeValue,
+            price: phone.selling_price || 0,
+            timestamp: Date.now()
+        });
         
         // إنشاء QR Code
         let qrImage = '';
@@ -3790,8 +4075,16 @@ async function printPhoneQRCodeOnly(id) {
         // الحصول على قيمة الباركود للـ QR Code
         const barcodeValue = phone.barcode || phone.code || phone.id?.toString() || id;
         
-        // إنشاء بيانات QR Code
-        const qrData = barcodeValue;
+        // إنشاء بيانات QR Code بصيغة JSON (مثل قطع الغيار)
+        const qrData = JSON.stringify({
+            type: 'PHONE',
+            id: phone.id,
+            brand: phone.brand || '',
+            model: phone.model || '',
+            barcode: barcodeValue,
+            price: phone.selling_price || 0,
+            timestamp: Date.now()
+        });
         
         // إنشاء QR Code
         let qrImage = '';

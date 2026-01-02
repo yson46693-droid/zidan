@@ -35,12 +35,11 @@ function loadExpensesSection() {
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
     const isManager = currentUser && (currentUser.role === 'manager');
     const showAdvancedFeatures = isOwner || isManager;
+    // إظهار المستحقات فقط للمستخدمين الذين ليسوا مالك أو مدير (أي الموظف والفني)
+    const showSalariesSection = !isOwner && !isManager;
     
-    // إذا لم يكن المستخدم مدير أو مالك، عرض الصفحة القديمة
-    if (!showAdvancedFeatures) {
-        loadExpensesSectionLegacy();
-        return;
-    }
+    // جميع المستخدمين يستخدمون الصفحة الجديدة (لرؤية سجل المعاملات)
+    // لكن الميزات المتقدمة (مثل اختيار الفرع) تظهر فقط للمالك والمدير
     
     section.innerHTML = `
         <div class="section-header">
@@ -184,7 +183,7 @@ function loadExpensesSection() {
                 </div>
 
                 <!-- جدول المستحقات -->
-                <div class="salaries-table-wrapper" style="display: ${showAdvancedFeatures ? 'block' : 'none'};">
+                <div class="salaries-table-wrapper" style="display: ${showSalariesSection ? 'block' : 'none'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3 class="table-title" style="margin: 0;"><i class="bi bi-person-badge"></i> المستحقات</h3>
                         <button onclick="toggleSalaryFilters()" class="btn btn-sm btn-icon" title="فلترة" style="padding: 8px 12px;">
@@ -302,7 +301,7 @@ function loadExpensesSection() {
                 </div>
 
                 <!-- جدول المستحقات -->
-                <div class="salaries-table-wrapper" style="display: ${showAdvancedFeatures ? 'block' : 'none'};">
+                <div class="salaries-table-wrapper" style="display: ${showSalariesSection ? 'block' : 'none'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3 class="table-title" style="margin: 0;"><i class="bi bi-person-badge"></i> المستحقات</h3>
                         <button onclick="toggleSalaryFilters2()" class="btn btn-sm btn-icon" title="فلترة" style="padding: 8px 12px;">
@@ -723,12 +722,7 @@ function loadExpensesSection() {
     }
     
     // تحديد الفرع الافتراضي
-    const defaultBranchId = isOwner ? null : currentUser.branch_id;
-    if (defaultBranchId) {
-        // للمستخدم غير المالك: تعيين الفرع الحالي مباشرة
-        currentTreasuryBranchId = defaultBranchId;
-        loadTreasuryData(defaultBranchId);
-    } else if (isOwner) {
+    if (isOwner) {
         // للمالك: تحميل الفرع الأول افتراضياً
         loadTreasuryBranches().then(() => {
             const branchSelect = document.getElementById('treasuryBranchSelect');
@@ -737,6 +731,28 @@ function loadExpensesSection() {
                 switchTreasuryBranch();
             }
         });
+    } else {
+        // للمستخدم غير المالك: استخدام فرع المستخدم
+        if (currentUser) {
+            const branchId = currentUser.branch_id;
+            // التحقق من أن branch_id موجود وصالح (ليس null, undefined, 0, أو string فارغ)
+            if (branchId !== null && branchId !== undefined && branchId !== '' && branchId !== '0' && branchId !== 0) {
+                const defaultBranchId = String(branchId).trim();
+                currentTreasuryBranchId = defaultBranchId;
+                // استخدام requestAnimationFrame لضمان أن DOM جاهز
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        loadTreasuryData(defaultBranchId).catch(error => {
+                            console.error('خطأ في تحميل بيانات الخزنة:', error);
+                            showMessage('حدث خطأ أثناء تحميل بيانات الخزنة', 'error');
+                        });
+                    }, 150);
+                });
+            } else {
+                // branch_id غير موجود أو غير صالح - لكن لا نطبع خطأ لأنه قد يكون مالك أو مدير
+                // (في هذه الحالة، لا يجب أن يصل الكود هنا لأن المالك والمدير يتم التعامل معهما في الشرط السابق)
+            }
+        }
     }
     
     // إضافة event listeners للبحث

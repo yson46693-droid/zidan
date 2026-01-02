@@ -464,7 +464,7 @@ const API = {
         return await this.request('repairs.php', 'DELETE', { id });
     },
 
-    // المخزون
+    // المخزن
     async getInventory() {
         return await this.request('inventory.php', 'GET');
     },

@@ -6,47 +6,8 @@ while (ob_get_level() > 0) {
 
 // بدء معالجة الأخطاء قبل أي شيء
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-
-// إصلاح CORS احتياطي - للتأكد من عمل CORS حتى لو فشل config.php
-$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$currentHost = $_SERVER['HTTP_HOST'] ?? '';
-
-// ✅ تحسين اكتشاف HTTPS
-$isHttps = false;
-if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
-    $isHttps = true;
-} elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
-    $isHttps = true;
-} elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-    $isHttps = true;
-} elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
-    $isHttps = true;
-}
-
-if (!empty($requestOrigin)) {
-    // ✅ السماح بالدومينات الفرعية تلقائياً (مثل zidan.egsystem.top)
-    header('Access-Control-Allow-Origin: ' . $requestOrigin);
-    header('Access-Control-Allow-Credentials: true');
-} elseif (!empty($currentHost)) {
-    $protocol = $isHttps ? 'https' : 'http';
-    $currentOrigin = $protocol . '://' . $currentHost;
-    header('Access-Control-Allow-Origin: ' . $currentOrigin);
-    header('Access-Control-Allow-Credentials: true');
-} else {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Credentials: false');
-}
-
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override');
-
-// معالجة طلبات OPTIONS (preflight) فوراً
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
 
 try {
     require_once 'config.php';
@@ -75,19 +36,6 @@ try {
 }
 
 $method = getRequestMethod();
-
-// تسجيل معلومات الطلب للتشخيص (مفصل)
-$logInfo = [
-    'method' => $method,
-    'origin' => $_SERVER['HTTP_ORIGIN'] ?? 'none',
-    'host' => $_SERVER['HTTP_HOST'] ?? 'none',
-    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-    'https' => isset($_SERVER['HTTPS']) ? $_SERVER['HTTPS'] : 'not_set',
-    'request_uri' => $_SERVER['REQUEST_URI'] ?? 'unknown',
-    'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'not_set'
-];
-error_log("🔐 Auth Request: " . json_encode($logInfo, JSON_UNESCAPED_UNICODE));
 
 // تسجيل الدخول
 if ($method === 'POST') {
@@ -132,7 +80,7 @@ if ($method === 'POST') {
         response(false, 'اسم المستخدم وكلمة المرور مطلوبة', null, 400);
     }
     
-    // التحقق من الاتصال بقاعدة البيانات وإصلاحها إذا لزم الأمر
+    // التحقق من الاتصال بقاعدة البيانات
     try {
         $conn = getDBConnection();
         if (!$conn) {
@@ -149,64 +97,14 @@ if ($method === 'POST') {
         
         error_log("✅ تم الاتصال بقاعدة البيانات بنجاح");
         
-        // ✅ التأكد من أن قاعدة البيانات محدثة (إضافة الأعمدة الناقصة)
-        try {
-            if (file_exists(__DIR__ . '/setup.php')) {
-                require_once __DIR__ . '/setup.php';
-                // تطبيق التحديثات فقط (بدون إنشاء جداول جديدة)
-                $migrationsApplied = applyDatabaseMigrations($conn);
-                if (!empty($migrationsApplied)) {
-                    error_log("✅ تم تطبيق تحديثات قاعدة البيانات: " . implode(', ', $migrationsApplied));
-                }
-            }
-        } catch (Exception $e) {
-            error_log("⚠️ تحذير: فشل التحقق من تحديثات قاعدة البيانات: " . $e->getMessage());
-            // لا نوقف العملية، فقط نسجل التحذير
-        } catch (Error $e) {
-            error_log("⚠️ تحذير: خطأ قاتل في التحقق من تحديثات قاعدة البيانات: " . $e->getMessage());
-            // لا نوقف العملية، فقط نسجل التحذير
-        }
-        
-        // تنظيف اسم المستخدم من المسافات
-        $username = trim($username);
-        
-        // البحث عن المستخدم في قاعدة البيانات
-        // ✅ استخدام BINARY للتأكد من المقارنة الحساسة لحالة الأحرف (case-sensitive)
-        // هذا يمنع محاولات تسجيل الدخول بأسماء مستخدمين قديمة بعد تغييرها
-        // محاولة جلب البيانات مع جميع الأعمدة المتاحة (بدون specialization لأنه قد لا يكون موجوداً)
+        // البحث عن المستخدم في قاعدة البيانات مع اسم الفرع
         $user = dbSelectOne(
-            "SELECT id, username, password, name, role, branch_id, avatar FROM users WHERE BINARY username = ?",
+            "SELECT u.id, u.username, u.password, u.name, u.role, u.branch_id, b.name as branch_name 
+             FROM users u 
+             LEFT JOIN branches b ON u.branch_id = b.id 
+             WHERE u.username = ?",
             [$username]
         );
-        
-        // إذا فشل مرة أخرى، محاولة بدون avatar
-        if ($user === false) {
-            error_log('⚠️ فشل جلب بيانات المستخدم مع avatar، محاولة بدونها');
-            $user = dbSelectOne(
-                "SELECT id, username, password, name, role, branch_id FROM users WHERE BINARY username = ?",
-                [$username]
-            );
-        }
-        
-        // إذا فشل مرة أخرى، محاولة بدون branch_id
-        if ($user === false) {
-            error_log('⚠️ فشل جلب بيانات المستخدم مع branch_id، محاولة بدونها');
-            $user = dbSelectOne(
-                "SELECT id, username, password, name, role FROM users WHERE BINARY username = ?",
-                [$username]
-            );
-        }
-        
-        // التأكد من أن البيانات تم جلبها بنجاح
-        if ($user === false || $user === null) {
-            error_log('❌ فشل جلب بيانات المستخدم بالكامل');
-            $user = null;
-        } else {
-            // التأكد من وجود جميع الحقول (تعيين null للأعمدة غير الموجودة)
-            if (!isset($user['avatar'])) $user['avatar'] = null;
-            if (!isset($user['branch_id'])) $user['branch_id'] = null;
-            if (!isset($user['specialization'])) $user['specialization'] = null;
-        }
         
         error_log("نتيجة البحث عن المستخدم: " . ($user ? "موجود" : "غير موجود"));
         
@@ -216,16 +114,6 @@ if ($method === 'POST') {
         }
         
         if ($user) {
-            // ✅ تحقق أمني صارم: التأكد من تطابق اسم المستخدم المدخل مع اسم المستخدم في قاعدة البيانات (case-sensitive)
-            // هذا يمنع محاولات تسجيل الدخول بأسماء مستخدمين قديمة بعد تغييرها
-            if (!isset($user['username']) || trim($user['username']) !== $username) {
-                error_log("🚨 ثغرة أمنية محتملة: اسم المستخدم المدخل لا يطابق اسم المستخدم في قاعدة البيانات");
-                error_log("   اسم المستخدم المدخل: '" . $username . "'");
-                error_log("   اسم المستخدم في قاعدة البيانات: '" . ($user['username'] ?? 'null') . "'");
-                // لا نكشف معلومات إضافية للمهاجم
-                response(false, 'اسم المستخدم أو كلمة المرور غير صحيحة', null, 401);
-            }
-            
             error_log("المستخدم موجود - التحقق من كلمة المرور...");
             
             if (empty($user['password'])) {
@@ -246,106 +134,24 @@ if ($method === 'POST') {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
-                $_SESSION['branch_id'] = $user['branch_id'] ?? null;
+                $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
                 
-                // ✅ تسجيل حدث تسجيل الدخول الناجح
-                error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username . " (ID: " . $user['id'] . ")");
-                error_log("   IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
-                error_log("   User-Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
+                error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username . " - branch_id: " . ($user['branch_id'] ?? 'null'));
                 
                 // إرجاع الاستجابة مباشرة - response() ستقوم بـ exit تلقائياً
-                $userData = [
+                response(true, 'تم تسجيل الدخول بنجاح', [
                     'id' => $user['id'],
                     'username' => $user['username'],
                     'name' => $user['name'],
                     'role' => $user['role'],
                     'branch_id' => $user['branch_id'] ?? null,
-                    'is_owner' => ($user['role'] === 'admin')
-                ];
-                
-                // إضافة avatar إذا كان موجوداً
-                if (isset($user['avatar'])) {
-                    $userData['avatar'] = $user['avatar'];
-                } else {
-                    $userData['avatar'] = null;
-                }
-                
-                // جلب معلومات الفرع إذا كان مرتبطاً بفرع
-                if (!empty($user['branch_id'])) {
-                    try {
-                        $branch = dbSelectOne(
-                            "SELECT id, name, code, has_pos FROM branches WHERE id = ?",
-                            [$user['branch_id']]
-                        );
-                        if ($branch) {
-                            $userData['branch_name'] = $branch['name'];
-                            $userData['branch_code'] = $branch['code'];
-                            $userData['has_pos'] = (bool)$branch['has_pos'];
-                        }
-                    } catch (Exception $e) {
-                        error_log('خطأ في جلب معلومات الفرع: ' . $e->getMessage());
-                    }
-                } else {
-                    $userData['branch_name'] = null;
-                    $userData['branch_code'] = null;
-                    $userData['has_pos'] = false;
-                }
-                
-                // ✅ التحقق من role وبيانات المستخدم قبل إرجاع الاستجابة
-                $errorReason = null;
-                
-                // التحقق من وجود role
-                if (empty($userData['role'])) {
-                    $errorReason = 'فشل في تحديد دور المستخدم: role فارغ';
-                    error_log('❌ ' . $errorReason . ' - User ID: ' . $userData['id']);
-                } 
-                // التحقق من صحة role
-                elseif (!in_array($userData['role'], ['admin', 'manager', 'employee'])) {
-                    $errorReason = 'دور المستخدم غير صحيح: ' . $userData['role'];
-                    error_log('❌ ' . $errorReason . ' - User ID: ' . $userData['id']);
-                }
-                // التحقق من وجود بيانات أساسية
-                elseif (empty($userData['id']) || empty($userData['username']) || empty($userData['name'])) {
-                    $errorReason = 'بيانات المستخدم غير مكتملة: id=' . ($userData['id'] ?? 'null') . ', username=' . ($userData['username'] ?? 'null') . ', name=' . ($userData['name'] ?? 'null');
-                    error_log('❌ ' . $errorReason);
-                }
-                
-                // إذا كان هناك خطأ، عمل logout وإرجاع الخطأ
-                if ($errorReason !== null) {
-                    // مسح الجلسة
-                    $_SESSION = array();
-                    $params = session_get_cookie_params();
-                    setcookie(
-                        session_name(),
-                        '',
-                        time() - 42000,
-                        $params["path"],
-                        $params["domain"],
-                        $params["secure"],
-                        $params["httponly"]
-                    );
-                    session_destroy();
-                    
-                    error_log('❌ تم تسجيل الخروج تلقائياً بسبب: ' . $errorReason);
-                    response(false, $errorReason, [
-                        'error_type' => 'user_data_validation_failed',
-                        'reason' => $errorReason,
-                        'user_id' => $userData['id'] ?? null
-                    ], 500);
-                }
-                
-                response(true, 'تم تسجيل الدخول بنجاح', $userData);
+                    'branch_name' => $user['branch_name'] ?? null
+                ]);
             } else {
-                // ✅ تسجيل محاولة تسجيل الدخول الفاشلة (كلمة مرور خاطئة)
                 error_log("❌ كلمة المرور غير صحيحة للمستخدم: " . $username);
-                error_log("   IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
-                error_log("   User-Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
             }
         } else {
-            // ✅ تسجيل محاولة تسجيل الدخول الفاشلة (اسم مستخدم غير موجود)
             error_log("❌ المستخدم غير موجود: " . $username);
-            error_log("   IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
-            error_log("   User-Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
         }
     } catch (Exception $e) {
         $errorMsg = "خطأ في استعلام قاعدة البيانات: " . $e->getMessage();
@@ -377,204 +183,23 @@ if ($method === 'GET') {
     }
     
     if (isset($_SESSION['user_id'])) {
-        // جلب بيانات المستخدم من قاعدة البيانات (بما في ذلك avatar و branch_id)
-        $userId = $_SESSION['user_id'];
-        
-        // محاولة جلب البيانات مع جميع الأعمدة المتاحة (بدون specialization لأنه قد لا يكون موجوداً)
-        $user = dbSelectOne(
-            "SELECT id, username, name, role, branch_id, avatar FROM users WHERE id = ?",
-            [$userId]
-        );
-        
-        // إذا فشل مرة أخرى، محاولة بدون avatar
-        if ($user === false) {
-            error_log('⚠️ فشل جلب البيانات مع avatar، محاولة بدونها');
-            $user = dbSelectOne(
-                "SELECT id, username, name, role, branch_id FROM users WHERE id = ?",
-                [$userId]
-            );
-        }
-        
-        // إذا فشل مرة أخرى، محاولة بدون branch_id
-        if ($user === false) {
-            error_log('⚠️ فشل جلب البيانات مع branch_id، محاولة بدونها');
-            $user = dbSelectOne(
-                "SELECT id, username, name, role FROM users WHERE id = ?",
-                [$userId]
-            );
-        }
-        
-        // التأكد من أن البيانات تم جلبها بنجاح
-        if ($user === false || $user === null) {
-            error_log('❌ فشل جلب بيانات المستخدم بالكامل');
-            $user = null;
-        } else {
-            // التأكد من وجود جميع الحقول (تعيين null للأعمدة غير الموجودة)
-            if (!isset($user['avatar'])) $user['avatar'] = null;
-            if (!isset($user['branch_id'])) $user['branch_id'] = null;
-            if (!isset($user['specialization'])) $user['specialization'] = null;
-        }
-        
-        try {
-            if ($user) {
-                $userData = [
-                    'id' => $user['id'],
-                    'username' => $user['username'],
-                    'name' => $user['name'],
-                    'role' => $user['role'],
-                    'branch_id' => $user['branch_id'] ?? null,
-                    'is_owner' => ($user['role'] === 'admin'),
-                    'avatar' => $user['avatar'] ?? null
-                ];
-                
-                // جلب معلومات الفرع إذا كان مرتبطاً بفرع
-                if (!empty($user['branch_id'])) {
-                    try {
-                        $branch = dbSelectOne(
-                            "SELECT id, name, code, has_pos FROM branches WHERE id = ?",
-                            [$user['branch_id']]
-                        );
-                        if ($branch) {
-                            $userData['branch_name'] = $branch['name'];
-                            $userData['branch_code'] = $branch['code'];
-                            $userData['has_pos'] = (bool)$branch['has_pos'];
-                        }
-                    } catch (Exception $e) {
-                        error_log('خطأ في جلب معلومات الفرع: ' . $e->getMessage());
-                    }
-                } else {
-                    $userData['branch_name'] = null;
-                    $userData['branch_code'] = null;
-                    $userData['has_pos'] = false;
-                }
-                
-                // ✅ التحقق من role وبيانات المستخدم
-                $errorReason = null;
-                
-                // التحقق من وجود role
-                if (empty($userData['role'])) {
-                    $errorReason = 'فشل في تحديد دور المستخدم: role فارغ';
-                    error_log('❌ ' . $errorReason . ' - User ID: ' . $userData['id']);
-                } 
-                // التحقق من صحة role
-                elseif (!in_array($userData['role'], ['admin', 'manager', 'employee'])) {
-                    $errorReason = 'دور المستخدم غير صحيح: ' . $userData['role'];
-                    error_log('❌ ' . $errorReason . ' - User ID: ' . $userData['id']);
-                }
-                // التحقق من وجود بيانات أساسية
-                elseif (empty($userData['id']) || empty($userData['username']) || empty($userData['name'])) {
-                    $errorReason = 'بيانات المستخدم غير مكتملة: id=' . ($userData['id'] ?? 'null') . ', username=' . ($userData['username'] ?? 'null') . ', name=' . ($userData['name'] ?? 'null');
-                    error_log('❌ ' . $errorReason);
-                }
-                
-                // إذا كان هناك خطأ، عمل logout وإرجاع الخطأ
-                if ($errorReason !== null) {
-                    // مسح الجلسة
-                    $_SESSION = array();
-                    $params = session_get_cookie_params();
-                    setcookie(
-                        session_name(),
-                        '',
-                        time() - 42000,
-                        $params["path"],
-                        $params["domain"],
-                        $params["secure"],
-                        $params["httponly"]
-                    );
-                    session_destroy();
-                    
-                    error_log('❌ تم تسجيل الخروج تلقائياً بسبب: ' . $errorReason);
-                    response(false, $errorReason, [
-                        'error_type' => 'user_data_validation_failed',
-                        'reason' => $errorReason,
-                        'user_id' => $userData['id'] ?? null
-                    ], 500);
-                }
-                
-                response(true, 'الجلسة نشطة', $userData);
-            } else {
-                // ✅ ثغرة أمنية: إذا لم يتم العثور على المستخدم في قاعدة البيانات، يجب تسجيل الخروج فوراً
-                // هذا يمنع استخدام حسابات تم حذفها من قاعدة البيانات
-                $sessionUserId = $_SESSION['user_id'] ?? null;
-                $sessionUsername = $_SESSION['username'] ?? 'unknown';
-                
-                error_log('🚨 ثغرة أمنية: المستخدم غير موجود في قاعدة البيانات - User ID: ' . $sessionUserId . ', Username: ' . $sessionUsername);
-                error_log('   IP: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
-                error_log('   User-Agent: ' . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
-                
-                // مسح الجلسة فوراً
-                $_SESSION = array();
-                $params = session_get_cookie_params();
-                setcookie(
-                    session_name(),
-                    '',
-                    time() - 42000,
-                    $params["path"],
-                    $params["domain"],
-                    $params["secure"],
-                    $params["httponly"]
-                );
-                session_destroy();
-                
-                error_log('❌ تم تسجيل الخروج تلقائياً - المستخدم غير موجود في قاعدة البيانات');
-                response(false, 'تم حذف الحساب أو غير موجود في قاعدة البيانات', [
-                    'error_type' => 'user_not_found_in_database',
-                    'reason' => 'المستخدم غير موجود في قاعدة البيانات - تم تسجيل الخروج تلقائياً',
-                    'user_id' => $sessionUserId
-                ], 401);
+        // جلب اسم الفرع إذا كان branch_id موجوداً
+        $branchName = null;
+        if (isset($_SESSION['branch_id']) && $_SESSION['branch_id']) {
+            $branch = dbSelectOne("SELECT name FROM branches WHERE id = ?", [$_SESSION['branch_id']]);
+            if ($branch && isset($branch['name'])) {
+                $branchName = $branch['name'];
             }
-        } catch (Exception $e) {
-            error_log('خطأ في جلب بيانات المستخدم: ' . $e->getMessage());
-            error_log('Stack trace: ' . $e->getTraceAsString());
-            
-            // ✅ في حالة خطأ في قاعدة البيانات، محاولة التحقق من وجود المستخدم مرة أخرى
-            // إذا فشل، يجب تسجيل الخروج لأننا لا نستطيع التحقق من وجود المستخدم
-            $sessionUserId = $_SESSION['user_id'] ?? null;
-            
-            if ($sessionUserId) {
-                try {
-                    // محاولة جلب المستخدم مرة أخرى
-                    $retryUser = dbSelectOne(
-                        "SELECT id FROM users WHERE id = ?",
-                        [$sessionUserId]
-                    );
-                    
-                    if (!$retryUser) {
-                        // المستخدم غير موجود في قاعدة البيانات - تسجيل الخروج
-                        error_log('🚨 المستخدم غير موجود في قاعدة البيانات بعد إعادة المحاولة - User ID: ' . $sessionUserId);
-                        
-                        $_SESSION = array();
-                        $params = session_get_cookie_params();
-                        setcookie(
-                            session_name(),
-                            '',
-                            time() - 42000,
-                            $params["path"],
-                            $params["domain"],
-                            $params["secure"],
-                            $params["httponly"]
-                        );
-                        session_destroy();
-                        
-                        response(false, 'تم حذف الحساب أو غير موجود في قاعدة البيانات', [
-                            'error_type' => 'user_not_found_in_database',
-                            'reason' => 'المستخدم غير موجود في قاعدة البيانات - تم تسجيل الخروج تلقائياً',
-                            'user_id' => $sessionUserId
-                        ], 401);
-                    }
-                } catch (Exception $retryException) {
-                    error_log('خطأ في إعادة محاولة جلب المستخدم: ' . $retryException->getMessage());
-                }
-            }
-            
-            // إذا كان هناك خطأ في قاعدة البيانات، إرجاع خطأ بدون تسجيل الخروج
-            // (لأن الخطأ قد يكون مؤقتاً مثل انقطاع الاتصال)
-            response(false, 'خطأ في قاعدة البيانات: ' . $e->getMessage(), [
-                'error_type' => 'database_error',
-                'reason' => 'حدث خطأ أثناء التحقق من بيانات المستخدم',
-                'user_id' => $sessionUserId
-            ], 500);
         }
+        
+        response(true, 'الجلسة نشطة', [
+            'id' => $_SESSION['user_id'],
+            'username' => $_SESSION['username'] ?? '',
+            'name' => $_SESSION['name'] ?? '',
+            'role' => $_SESSION['role'] ?? 'employee',
+            'branch_id' => $_SESSION['branch_id'] ?? null,
+            'branch_name' => $branchName
+        ]);
     } else {
         response(false, 'لا توجد جلسة نشطة', null, 401);
     }

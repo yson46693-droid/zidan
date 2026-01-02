@@ -13,7 +13,7 @@ $method = $data['_method'] ?? getRequestMethod();
 $type = $_GET['type'] ?? $data['type'] ?? 'inventory'; // inventory, spare_parts, accessories, phones
 
 /**
- * التحقق من صلاحيات المخزون
+ * التحقق من صلاحيات المخزن
  * @param string $action 'read' أو 'write'
  * @return bool
  */
@@ -22,9 +22,35 @@ function checkInventoryPermission($action = 'read') {
     $userRole = $session['role'];
     $userBranchId = $session['branch_id'] ?? null;
     
+    // ✅ إذا لم يكن branch_id موجوداً في الجلسة، جلبها من قاعدة البيانات
+    if (!$userBranchId && isset($session['user_id'])) {
+        $user = dbSelectOne("SELECT branch_id FROM users WHERE id = ?", [$session['user_id']]);
+        if ($user && isset($user['branch_id'])) {
+            $userBranchId = $user['branch_id'];
+            // حفظ branch_id في الجلسة للمرة القادمة
+            $_SESSION['branch_id'] = $userBranchId;
+        }
+    }
+    
+    // تسجيل للتشخيص
+    error_log("🔍 checkInventoryPermission - action: $action, role: $userRole, branch_id: " . ($userBranchId ?? 'null'));
+    
     // المالك له كامل الصلاحيات
     if ($userRole === 'admin') {
+        error_log("✅ checkInventoryPermission - admin allowed");
         return true;
+    }
+    
+    // ✅ المدير له صلاحيات الكتابة (إذا كان مرتبطاً بفرع)
+    if ($userRole === 'manager') {
+        // إذا كان مرتبطاً بفرع، السماح بالكتابة
+        if ($userBranchId) {
+            error_log("✅ checkInventoryPermission - manager with branch allowed");
+            return true;
+        }
+        // إذا لم يكن مرتبطاً بفرع، رفض
+        error_log("❌ checkInventoryPermission - manager without branch denied");
+        return false;
     }
     
     // إذا لم يكن مرتبطاً بفرع
@@ -52,7 +78,7 @@ function checkInventoryPermission($action = 'read') {
         // أي إجراء آخر للفرع الثاني = مرفوض
         return false;
     } catch (Exception $e) {
-        error_log('خطأ في التحقق من صلاحيات المخزون: ' . $e->getMessage());
+        error_log('خطأ في التحقق من صلاحيات المخزن: ' . $e->getMessage());
         return false;
     }
 }
@@ -60,6 +86,45 @@ function checkInventoryPermission($action = 'read') {
 // قراءة البيانات حسب النوع
 if ($method === 'GET') {
     checkAuth();
+    
+    // جلب الماركات من جدول brsql
+    if (isset($_GET['action']) && $_GET['action'] === 'brands') {
+        try {
+            // جلب الماركات من جدول brsql - استخدام نفس الاستعلام المطلوب مع استبعاد المحذوفة
+            $brands = dbSelect(
+                "SELECT * FROM `brsql` WHERE (deleted_at IS NULL OR deleted_at = '') ORDER BY `name` ASC",
+                []
+            );
+            
+            if ($brands === false) {
+                // إذا فشل الاستعلام، قد يكون جدول brsql غير موجود أو هناك مشكلة
+                // نعيد قائمة فارغة بدلاً من الخطأ
+                response(true, '', []);
+                return;
+            }
+            
+            // تحويل البيانات إلى الصيغة المطلوبة
+            $brandsList = [];
+            if (is_array($brands)) {
+                foreach ($brands as $brand) {
+                    if (isset($brand['name']) && !empty(trim($brand['name']))) {
+                        $brandsList[] = [
+                            'id' => $brand['id'] ?? null,
+                            'name' => trim($brand['name']),
+                            'logo' => $brand['logo'] ?? null
+                        ];
+                    }
+                }
+            }
+            
+            response(true, '', $brandsList);
+            return;
+        } catch (Exception $e) {
+            error_log('خطأ في جلب الماركات من brsql: ' . $e->getMessage());
+            response(false, 'خطأ في جلب الماركات: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
     
     if ($type === 'spare_parts') {
         // قراءة قطع الغيار - حد أقصى 500 قطعة لتقليل استهلاك الباندويث
@@ -161,11 +226,11 @@ if ($method === 'GET') {
         response(true, '', $processedPhones);
     }
     else {
-        // قراءة المخزون القديم (للتوافق) - حد أقصى 500 عنصر لتقليل استهلاك الباندويث
+        // قراءة المخزن القديم (للتوافق) - حد أقصى 500 عنصر لتقليل استهلاك الباندويث
         $inventory = dbSelect("SELECT * FROM inventory ORDER BY created_at DESC LIMIT 500");
         
         if ($inventory === false) {
-            response(false, 'خطأ في قراءة المخزون', null, 500);
+            response(false, 'خطأ في قراءة المخزن', null, 500);
         }
         
         response(true, '', $inventory);
@@ -174,10 +239,14 @@ if ($method === 'GET') {
 
 // إضافة بيانات جديدة
 if ($method === 'POST') {
+    // ✅ التحقق من الصلاحيات: المدير والمالك مسموح لهم
+    checkPermission('manager'); // التحقق من أن المستخدم مدير على الأقل
+    
+    // التحقق من صلاحيات المخزن (الفرع)
     if (!checkInventoryPermission('write')) {
-        response(false, 'ليس لديك صلاحية لتعديل المخزون', null, 403);
+        response(false, 'ليس لديك صلاحية لتعديل المخزن', null, 403);
+        return;
     }
-    checkPermission('manager');
     
     if ($type === 'spare_parts') {
         // إضافة قطعة غيار
@@ -336,6 +405,25 @@ if ($method === 'POST') {
             response(false, 'الاسم والنوع مطلوبان', null, 400);
         }
         
+        // ✅ التحقق من نوع عمود type - إذا كان ENUM، نحوله إلى VARCHAR
+        $conn = getDBConnection();
+        if ($conn) {
+            $columnInfo = $conn->query("SHOW COLUMNS FROM `accessories` WHERE Field = 'type'");
+            if ($columnInfo && $columnInfo->num_rows > 0) {
+                $col = $columnInfo->fetch_assoc();
+                if (stripos($col['Type'], 'enum') === 0) {
+                    // ✅ العمود هو ENUM - نحوله إلى VARCHAR(255) للسماح بأي قيمة
+                    error_log("🔧 POST accessory - type column is ENUM, converting to VARCHAR(255)");
+                    $alterResult = $conn->query("ALTER TABLE `accessories` MODIFY COLUMN `type` VARCHAR(255) DEFAULT NULL");
+                    if ($alterResult) {
+                        error_log("✅ POST accessory - type column converted to VARCHAR(255) successfully");
+                    } else {
+                        error_log("❌ POST accessory - failed to convert type column: " . $conn->error);
+                    }
+                }
+            }
+        }
+        
         $session = checkAuth();
         $accessoryId = generateId();
         
@@ -467,7 +555,7 @@ if ($method === 'POST') {
             global $lastDbError;
             // في حالة فشل إنشاء inventory، نحذف الهاتف من phones
             dbExecute("DELETE FROM phones WHERE id = ?", [$phoneId]);
-            response(false, 'خطأ في إنشاء بطاقة المخزون: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
+            response(false, 'خطأ في إنشاء بطاقة المخزن: ' . ($lastDbError ?? 'خطأ غير معروف'), null, 500);
             return;
         }
         
@@ -486,7 +574,7 @@ if ($method === 'POST') {
     else {
         // إضافة للمخزون القديم (للتوافق) - تم إيقاف هذا القسم
         // يجب استخدام type=spare_parts أو type=accessories أو type=phones
-        response(false, 'يرجى تحديد نوع المخزون: type=spare_parts أو type=accessories أو type=phones', null, 400);
+        response(false, 'يرجى تحديد نوع المخزن: type=spare_parts أو type=accessories أو type=phones', null, 400);
         
         /* الكود القديم - تم تعطيله
         $name = trim($data['name'] ?? '');
@@ -545,10 +633,19 @@ if ($method === 'POST') {
 
 // تعديل البيانات
 if ($method === 'PUT') {
+    // ✅ تسجيل للتشخيص
+    error_log("🔍 PUT request - method: $method, type: " . ($type ?? 'not set'));
+    error_log("🔍 PUT request - data keys: " . implode(', ', array_keys($data)));
+    error_log("🔍 PUT request - full data: " . json_encode($data, JSON_UNESCAPED_UNICODE));
+    
+    // ✅ التحقق من الصلاحيات: المدير والمالك مسموح لهم
+    checkPermission('manager'); // التحقق من أن المستخدم مدير على الأقل
+    
+    // التحقق من صلاحيات المخزن (الفرع)
     if (!checkInventoryPermission('write')) {
-        response(false, 'ليس لديك صلاحية لتعديل المخزون', null, 403);
+        response(false, 'ليس لديك صلاحية لتعديل المخزن', null, 403);
+        return;
     }
-    checkPermission('manager');
     
     if ($type === 'spare_parts') {
         $id = $data['id'] ?? '';
@@ -712,6 +809,10 @@ if ($method === 'PUT') {
             response(false, 'الإكسسوار غير موجود', null, 404);
         }
         
+        // ✅ تسجيل للتشخيص
+        error_log("🔍 UPDATE accessory - id: $id, data: " . json_encode($data, JSON_UNESCAPED_UNICODE));
+        error_log("🔍 UPDATE accessory - type in data: " . (isset($data['type']) ? $data['type'] : 'NOT SET'));
+        
         $updateFields = [];
         $updateParams = [];
         
@@ -720,8 +821,32 @@ if ($method === 'PUT') {
             $updateParams[] = trim($data['name']);
         }
         if (isset($data['type'])) {
-            $updateFields[] = "type = ?";
-            $updateParams[] = trim($data['type']);
+            $typeValue = trim($data['type']);
+            
+            // ✅ التحقق من نوع عمود type - إذا كان ENUM، نحوله إلى VARCHAR
+            $conn = getDBConnection();
+            if ($conn) {
+                $columnInfo = $conn->query("SHOW COLUMNS FROM `accessories` WHERE Field = 'type'");
+                if ($columnInfo && $columnInfo->num_rows > 0) {
+                    $col = $columnInfo->fetch_assoc();
+                    if (stripos($col['Type'], 'enum') === 0) {
+                        // ✅ العمود هو ENUM - نحوله إلى VARCHAR(255) للسماح بأي قيمة
+                        error_log("🔧 UPDATE accessory - type column is ENUM, converting to VARCHAR(255)");
+                        $alterResult = $conn->query("ALTER TABLE `accessories` MODIFY COLUMN `type` VARCHAR(255) DEFAULT NULL");
+                        if ($alterResult) {
+                            error_log("✅ UPDATE accessory - type column converted to VARCHAR(255) successfully");
+                        } else {
+                            error_log("❌ UPDATE accessory - failed to convert type column: " . $conn->error);
+                        }
+                    }
+                }
+            }
+            
+            $updateFields[] = "`type` = ?";  // ✅ استخدام backticks لأن type قد تكون كلمة محجوزة
+            $updateParams[] = $typeValue;
+            error_log("✅ UPDATE accessory - type will be updated to: '$typeValue' (length: " . strlen($typeValue) . ")");
+        } else {
+            error_log("❌ UPDATE accessory - type NOT in data!");
         }
         if (isset($data['image'])) {
             $updateFields[] = "image = ?";
@@ -748,10 +873,67 @@ if ($method === 'PUT') {
         $updateParams[] = $id;
         $query = "UPDATE accessories SET " . implode(', ', $updateFields) . " WHERE id = ?";
         
+        // ✅ تسجيل للتشخيص
+        error_log("🔍 UPDATE accessory - query: $query");
+        error_log("🔍 UPDATE accessory - params: " . json_encode($updateParams, JSON_UNESCAPED_UNICODE));
+        error_log("🔍 UPDATE accessory - fields count: " . count($updateFields) . ", params count: " . count($updateParams));
+        
+        // ✅ التحقق من ترتيب المعاملات
+        if (isset($data['type'])) {
+            $typeIndex = array_search("`type` = ?", $updateFields);
+            error_log("🔍 UPDATE accessory - type field index: " . ($typeIndex !== false ? $typeIndex : 'NOT FOUND'));
+            if ($typeIndex !== false && isset($updateParams[$typeIndex])) {
+                error_log("🔍 UPDATE accessory - type param at index $typeIndex: '" . $updateParams[$typeIndex] . "'");
+            }
+        }
+        
         $result = dbExecute($query, $updateParams);
         
         if ($result === false) {
+            global $lastDbError;
+            $error = $lastDbError ?? 'خطأ غير معروف في قاعدة البيانات';
+            error_log("❌ UPDATE accessory - error: $error");
             response(false, 'خطأ في تعديل الإكسسوار', null, 500);
+        }
+        
+        // ✅ التحقق من هيكل عمود type
+        if (isset($data['type'])) {
+            $conn = getDBConnection();
+            if ($conn) {
+                $columnInfo = $conn->query("SHOW COLUMNS FROM `accessories` WHERE Field = 'type'");
+                if ($columnInfo && $columnInfo->num_rows > 0) {
+                    $col = $columnInfo->fetch_assoc();
+                    error_log("🔍 UPDATE accessory - type column info: " . json_encode($col, JSON_UNESCAPED_UNICODE));
+                }
+            }
+        }
+        
+        // ✅ التحقق من أن التحديث تم بنجاح - جلب جميع الحقول
+        $updatedAccessory = dbSelectOne("SELECT * FROM accessories WHERE id = ?", [$id]);
+        if ($updatedAccessory) {
+            error_log("✅ UPDATE accessory - updated accessory (full): " . json_encode($updatedAccessory, JSON_UNESCAPED_UNICODE));
+            error_log("✅ UPDATE accessory - type value: '" . ($updatedAccessory['type'] ?? 'NULL') . "'");
+            
+            // ✅ إذا كان type لا يزال فارغًا، محاولة تحديث مباشر باستخدام استعلام مباشر (بدون prepared statements)
+            if (isset($data['type']) && empty($updatedAccessory['type'])) {
+                $typeValue = trim($data['type']);
+                $conn = getDBConnection();
+                if ($conn) {
+                    $escapedType = $conn->real_escape_string($typeValue);
+                    $escapedId = $conn->real_escape_string($id);
+                    $directQuery = "UPDATE `accessories` SET `type` = '$escapedType' WHERE id = '$escapedId'";
+                    error_log("🔍 UPDATE accessory - trying direct query: $directQuery");
+                    $directResult = $conn->query($directQuery);
+                    if ($directResult) {
+                        $afterDirect = dbSelectOne("SELECT `type` FROM accessories WHERE id = ?", [$id]);
+                        error_log("🔍 UPDATE accessory - after direct query: type = '" . ($afterDirect['type'] ?? 'NULL') . "'");
+                    } else {
+                        error_log("❌ UPDATE accessory - direct query failed: " . $conn->error);
+                    }
+                }
+            }
+        } else {
+            error_log("❌ UPDATE accessory - accessory not found after update!");
         }
         
         response(true, 'تم تعديل الإكسسوار بنجاح');
@@ -886,7 +1068,7 @@ if ($method === 'PUT') {
         response(true, 'تم تعديل الهاتف بنجاح');
     }
     else {
-        // تعديل المخزون القديم (للتوافق)
+        // تعديل المخزن القديم (للتوافق)
         $id = $data['id'] ?? '';
         
         if (empty($id)) {
@@ -950,10 +1132,13 @@ if ($method === 'PUT') {
 
 // حذف البيانات
 if ($method === 'DELETE') {
-    if (!checkInventoryPermission('write')) {
-        response(false, 'ليس لديك صلاحية لحذف المخزون', null, 403);
-    }
+    // ✅ التحقق من الصلاحيات: فقط المالك يمكنه الحذف
     checkPermission('admin');
+    
+    // التحقق من صلاحيات المخزن (الفرع)
+    if (!checkInventoryPermission('write')) {
+        response(false, 'ليس لديك صلاحية لحذف المخزن', null, 403);
+    }
     
     if ($type === 'spare_parts') {
         $id = $data['id'] ?? '';
@@ -1018,7 +1203,7 @@ if ($method === 'DELETE') {
         response(true, 'تم حذف الهاتف بنجاح');
     }
     else {
-        // حذف من المخزون القديم (للتوافق)
+        // حذف من المخزن القديم (للتوافق)
         $id = $data['id'] ?? '';
         
         if (empty($id)) {

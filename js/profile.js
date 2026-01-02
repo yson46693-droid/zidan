@@ -115,18 +115,34 @@ async function loadProfileSection() {
         }
 
         // الحصول على بيانات المستخدم الحالي مع معالجة أفضل للأخطاء
-        // أولاً: محاولة جلب البيانات من API للحصول على أحدث البيانات (بما في ذلك avatar)
+        // أولاً: محاولة جلب البيانات من profile API للحصول على أحدث البيانات (بما في ذلك avatar و branch_name)
         try {
-            if (typeof checkLogin === 'function') {
-                const user = await checkLogin();
-                if (user) {
-                    currentUser = user;
+            if (typeof API !== 'undefined' && typeof API.getProfile === 'function') {
+                const profileResult = await API.getProfile();
+                if (profileResult && profileResult.success && profileResult.data) {
+                    currentUser = profileResult.data;
                     // حفظ البيانات المحدثة في localStorage
-                    localStorage.setItem('currentUser', JSON.stringify(user));
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 }
             }
         } catch (e) {
-            console.warn('فشل الحصول على المستخدم من checkLogin:', e);
+            console.warn('فشل الحصول على المستخدم من profile API:', e);
+        }
+        
+        // إذا فشل جلب البيانات من profile API، محاولة من checkLogin
+        if (!currentUser) {
+            try {
+                if (typeof checkLogin === 'function') {
+                    const user = await checkLogin();
+                    if (user) {
+                        currentUser = user;
+                        // حفظ البيانات المحدثة في localStorage
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    }
+                }
+            } catch (e) {
+                console.warn('فشل الحصول على المستخدم من checkLogin:', e);
+            }
         }
         
         // إذا فشل جلب البيانات من API، محاولة من localStorage

@@ -184,7 +184,7 @@ if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'restore
             }
         }
         
-        // استعادة المخزون
+        // استعادة المخزن
         if (isset($data['inventory']) && is_array($data['inventory'])) {
             dbExecute("DELETE FROM inventory");
             foreach ($data['inventory'] as $item) {
@@ -218,7 +218,7 @@ if ($method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'restore
                 
                 if ($result === false) {
                     global $lastDbError;
-                    error_log('خطأ في استعادة عنصر من المخزون: ' . ($lastDbError ?? 'خطأ غير معروف'));
+                    error_log('خطأ في استعادة عنصر من المخزن: ' . ($lastDbError ?? 'خطأ غير معروف'));
                 }
             }
         }

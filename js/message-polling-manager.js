@@ -10,7 +10,7 @@
         constructor() {
             this.isActive = false;
             this.pollingInterval = null;
-            this.pollingIntervalMs = 10000; // 10 ثواني
+            this.pollingIntervalMs = 30000; // 30 ثانية (تم تقليل الطلبات - الاعتماد على trigger فوري)
             this.lastPollTime = 0;
             this.pendingPoll = false;
             this.subscribers = new Set(); // مشتركين في النتائج
@@ -72,8 +72,20 @@
             }
         };
         
+        // الاستماع لحدث إرسال رسالة لإجراء فحص فوري
+        this.messageSentListener = () => {
+            console.log('[Message Polling] 📨 تم إرسال رسالة - فحص فوري للرسائل الجديدة');
+            // فحص فوري بعد 1 ثانية (لضمان حفظ الرسالة في قاعدة البيانات)
+            if (this.isActive) {
+                setTimeout(() => {
+                    this.poll();
+                }, 1000);
+            }
+        };
+        
         document.addEventListener('visibilitychange', this.visibilityChangeListener);
         window.addEventListener('focus', this.focusListener);
+        window.addEventListener('messageSent', this.messageSentListener);
         }
 
         // إيقاف polling
@@ -96,6 +108,10 @@
             if (this.focusListener) {
                 window.removeEventListener('focus', this.focusListener);
                 this.focusListener = null;
+            }
+            if (this.messageSentListener) {
+                window.removeEventListener('messageSent', this.messageSentListener);
+                this.messageSentListener = null;
             }
 
             console.log('[Message Polling] تم إيقاف polling');
@@ -152,11 +168,8 @@
             this.lastPollTime = now;
 
             try {
-                // تحديث lastMessageId من localStorage
-                this.loadLastMessageId();
-
-                // جلب الرسائل
-                const result = await API.request(`get_messages.php?last_id=${this.lastMessageId}`, 'GET', null, { silent: true });
+                // جلب الإشعارات المحفوظة مباشرة من get_chat_notifications.php
+                const result = await API.request('get_chat_notifications.php', 'GET', null, { silent: true });
 
                 // ✅ تجاهل خطأ 401 (غير مصرح) - يعني أن المستخدم غير مسجل دخول
                 if (result && result.status === 401) {
@@ -188,7 +201,7 @@
                     // إشعار المشتركين
                     this.notifySubscribers(this.cachedResult);
                 } else {
-                    // لا توجد رسائل جديدة
+                    // لا توجد إشعارات جديدة
                     this.cachedResult = {
                         messages: [],
                         hasNewMessages: false,

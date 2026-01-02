@@ -45,10 +45,8 @@ if ($method === 'GET') {
     $isOwner = ($userRole === 'admin');
     $isManager = ($userRole === 'manager');
     
-    // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم رؤية سجل المعاملات
-    if (!$isOwner && !$isManager) {
-        response(false, 'ليس لديك صلاحية لعرض سجل المعاملات', null, 403);
-    }
+    // السماح لجميع المستخدمين بعرض سجل المعاملات
+    // (لكن غير المالك يمكنه رؤية فرعه فقط - يتم التحقق من ذلك لاحقاً)
     
     $requestedBranchId = $_GET['branch_id'] ?? null;
     $page = intval($_GET['page'] ?? 1);

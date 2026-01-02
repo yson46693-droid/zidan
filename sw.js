@@ -137,7 +137,6 @@ const optionalFiles = [
     buildPath('/js/barcode.js'),
     buildPath('/js/small-label.js'),
     buildPath('/js/backup-management.js'),
-    buildPath('/js/error-logs.js'),
     buildPath('/js/performance-monitor.js'),
     buildPath('/js/pwa-install.js'),
     buildPath('/js/pwa-validator.js'),

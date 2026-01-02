@@ -492,7 +492,7 @@ function displayReport(report) {
             <div class="summary-card">
                 <h3>المصروفات الكلية</h3>
                 <p class="summary-value expense" id="reportExpenses">${formatCurrency(report.expenses || 0)}</p>
-                <small style="color: var(--text-light);">المصروفات + تكلفة المخزون</small>
+                <small style="color: var(--text-light);">المصروفات + تكلفة المخزن</small>
             </div>
             <div class="summary-card">
                 <h3>صافي الربح النهائي</h3>
@@ -513,7 +513,7 @@ function displayReport(report) {
                 <strong>${formatCurrency(report.registered_expenses || 0)}</strong>
             </div>
             <div class="breakdown-item">
-                <span>تكلفة المخزون:</span>
+                <span>تكلفة المخزن:</span>
                 <strong>${formatCurrency(report.inventory_cost || 0)}</strong>
             </div>
             <div class="breakdown-item total-breakdown">
@@ -637,7 +637,7 @@ function printReport() {
                     <div class="summary-item">
                         <span>المصروفات الكلية:</span>
                         <strong>${formatCurrency(currentReport.expenses || 0)}</strong>
-                        <small style="display: block; color: #999;">المصروفات (${formatCurrency(currentReport.registered_expenses || 0)}) + المخزون (${formatCurrency(currentReport.inventory_cost || 0)})</small>
+                        <small style="display: block; color: #999;">المصروفات (${formatCurrency(currentReport.registered_expenses || 0)}) + المخزن (${formatCurrency(currentReport.inventory_cost || 0)})</small>
                     </div>
                     <div class="summary-item">
                         <span>صافي الربح النهائي:</span>

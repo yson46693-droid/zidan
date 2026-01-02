@@ -6,11 +6,11 @@
 
 // إعدادات قاعدة البيانات - Live Server
 define('DB_PORT', '3306');
-define('DB_NAME', '1');
-define('DB_PASS', '');
+define('DB_NAME', 'zidan_v1');
+define('DB_PASS', '2m8a&gA00');
 define('DB_CHARSET', 'utf8mb4');
-define('DB_HOST', '127.0.0.1');
-define('DB_USER', 'root');
+define('DB_HOST', 'localhost');
+define('DB_USER', 'azstore');
 // define('DB_PASS', '');
 
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
@@ -91,53 +91,14 @@ function dbSelect($query, $params = []) {
         $error = $conn->error;
         error_log('خطأ في إعداد الاستعلام: ' . $error . ' | الاستعلام: ' . substr($query, 0, 200));
         
-        // ✅ إذا كان الخطأ متعلق بجدول غير موجود أو عمود مفقود، محاولة إصلاح قاعدة البيانات تلقائياً
+        // ✅ إذا كان الخطأ متعلق بجدول غير موجود أو عمود مفقود
         if (strpos($error, "doesn't exist") !== false || 
             strpos($error, 'Table') !== false || 
-            strpos($error, "Unknown column") !== false ||
             strpos($error, "Unknown column") !== false) {
-            error_log("⚠️ تم اكتشاف مشكلة في قاعدة البيانات: $error - محاولة إصلاح قاعدة البيانات تلقائياً");
-            try {
-                if (file_exists(__DIR__ . '/setup.php')) {
-                    require_once __DIR__ . '/setup.php';
-                    $setupResult = setupDatabase();
-                    if ($setupResult['success']) {
-                        $messages = [];
-                        if (!empty($setupResult['tables_created'])) {
-                            $messages[] = "تم إنشاء الجداول: " . implode(', ', $setupResult['tables_created']);
-                        }
-                        if (!empty($setupResult['migrations_applied'])) {
-                            $messages[] = "تم تطبيق التحديثات: " . implode(', ', $setupResult['migrations_applied']);
-                        }
-                        if (!empty($messages)) {
-                            error_log("✅ " . implode(' | ', $messages));
-                        } else {
-                            error_log("✅ تم التحقق من قاعدة البيانات - جميع الجداول والأعمدة موجودة");
-                        }
-                        // إعادة المحاولة بعد إصلاح قاعدة البيانات
-                        $stmt = $conn->prepare($query);
-                        if (!$stmt) {
-                            error_log("❌ فشل إعداد الاستعلام بعد إصلاح قاعدة البيانات: " . $conn->error);
-                            return false;
-                        }
-                    } else {
-                        error_log("❌ فشل إصلاح قاعدة البيانات: " . ($setupResult['message'] ?? 'خطأ غير معروف'));
-                        return false;
-                    }
-                } else {
-                    error_log("❌ ملف setup.php غير موجود");
-                    return false;
-                }
-            } catch (Exception $e) {
-                error_log('❌ خطأ في إصلاح قاعدة البيانات تلقائياً: ' . $e->getMessage());
-                return false;
-            } catch (Error $e) {
-                error_log('❌ خطأ قاتل في إصلاح قاعدة البيانات تلقائياً: ' . $e->getMessage());
-                return false;
-            }
-        } else {
-            return false;
+            error_log("⚠️ تم اكتشاف مشكلة في قاعدة البيانات: $error");
+            error_log("❌ لا يمكن إصلاح قاعدة البيانات تلقائياً - يرجى التحقق من الجداول والأعمدة يدوياً");
         }
+        return false;
     }
     
     if (!empty($params)) {
@@ -224,7 +185,38 @@ function dbExecute($query, $params = []) {
             $values[] = $param;
         }
         
-        $stmt->bind_param($types, ...$values);
+        // ✅ تسجيل للتشخيص (فقط للاستعلامات المهمة)
+        if (strpos($query, 'UPDATE accessories') !== false && strpos($query, 'type') !== false) {
+            error_log("🔍 dbExecute - query: " . substr($query, 0, 200));
+            error_log("🔍 dbExecute - types: $types");
+            error_log("🔍 dbExecute - values: " . json_encode($values, JSON_UNESCAPED_UNICODE));
+        }
+        
+        // ✅ إصلاح: استخدام طريقة موثوقة لربط المعاملات
+        // إنشاء مصفوفة من المراجع للمعاملات بشكل صحيح
+        $bindParams = [];
+        $bindParams[0] = $types;
+        
+        // إنشاء مراجع منفصلة لكل قيمة
+        for ($i = 0; $i < count($values); $i++) {
+            $bindParams[$i + 1] = &$values[$i];
+        }
+        
+        // استخدام ReflectionMethod لربط المعاملات بشكل صحيح
+        $ref = new ReflectionMethod($stmt, 'bind_param');
+        $bindResult = $ref->invokeArgs($stmt, $bindParams);
+        
+        // ✅ تسجيل للتشخيص
+        if (strpos($query, 'UPDATE accessories') !== false && strpos($query, 'type') !== false) {
+            error_log("🔍 dbExecute - bind_param result: " . ($bindResult ? 'true' : 'false'));
+            if (!$bindResult) {
+                error_log("❌ dbExecute - bind_param error: " . $stmt->error);
+            } else {
+                // التحقق من القيم بعد الربط
+                error_log("🔍 dbExecute - values after bind (checking type index): " . 
+                    (isset($values[1]) ? "'" . $values[1] . "'" : 'NOT SET'));
+            }
+        }
     }
     
     if (!$stmt->execute()) {
@@ -236,6 +228,12 @@ function dbExecute($query, $params = []) {
     
     $affectedRows = $stmt->affected_rows;
     $insertId = $stmt->insert_id;
+    
+    // ✅ تسجيل للتشخيص (فقط للاستعلامات المهمة)
+    if (strpos($query, 'UPDATE accessories') !== false && strpos($query, 'type') !== false) {
+        error_log("🔍 dbExecute - execute successful, affected_rows: $affectedRows");
+    }
+    
     $stmt->close();
     $lastDbError = null;
     

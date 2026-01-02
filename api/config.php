@@ -142,23 +142,7 @@ define('BACKUP_DIR', __DIR__ . '/../backups/');
 // تحميل ملف قاعدة البيانات
 require_once __DIR__ . '/database.php';
 
-// ✅ تهيئة قاعدة البيانات تلقائياً عند أول زيارة (مرة واحدة فقط)
-if (file_exists(__DIR__ . '/init-database.php')) {
-    require_once __DIR__ . '/init-database.php';
-    // التحقق من حالة التهيئة وتهيئة قاعدة البيانات إذا لزم الأمر
-    try {
-        $initResult = autoInitializeDatabase();
-        if (!$initResult['initialized'] && $initResult['success']) {
-            error_log("✅ تم تهيئة قاعدة البيانات تلقائياً: " . json_encode($initResult['migrations_applied'] ?? [], JSON_UNESCAPED_UNICODE));
-        }
-    } catch (Exception $e) {
-        error_log("⚠️ تحذير: فشل التحقق من تهيئة قاعدة البيانات: " . $e->getMessage());
-        // لا نوقف التنفيذ، فقط نسجل التحذير
-    } catch (Error $e) {
-        error_log("⚠️ تحذير: خطأ قاتل في التحقق من تهيئة قاعدة البيانات: " . $e->getMessage());
-        // لا نوقف التنفيذ، فقط نسجل التحذير
-    }
-}
+// ✅ تهيئة قاعدة البيانات - تم إزالة init-database.php (لم يعد مطلوباً)
 
 // إعدادات الجلسة (قبل بدء الجلسة)
 if (session_status() === PHP_SESSION_NONE) {
@@ -229,36 +213,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ✅ تم إزالة setup.php - لم يعد مطلوباً
 if (!isset($_SESSION['db_setup_checked'])) {
-    require_once __DIR__ . '/setup.php';
-    try {
-        // إضافة timeout protection لـ setupDatabase
-        $startTime = microtime(true);
-        $maxSetupTime = 10; // 10 ثواني كحد أقصى
-        
-        $setupResult = setupDatabase();
-        
-        // التحقق من الوقت المستغرق
-        $elapsedTime = microtime(true) - $startTime;
-        if ($elapsedTime > $maxSetupTime) {
-            error_log('تحذير: setupDatabase() استغرق وقتاً طويلاً: ' . round($elapsedTime, 2) . ' ثانية');
-        }
-        
-        $_SESSION['db_setup_checked'] = true;
-        
-        // تسجيل في السجل إذا تم إنشاء جداول جديدة
-        if (!empty($setupResult['tables_created'])) {
-            error_log('تم إنشاء الجداول التالية تلقائياً: ' . implode(', ', $setupResult['tables_created']));
-        }
-    } catch (Exception $e) {
-        error_log('خطأ في إعداد قاعدة البيانات: ' . $e->getMessage());
-        // لا نوقف التنفيذ، فقط نسجل الخطأ
-        // لكن نحدد أن setup تم التحقق منه لتجنب المحاولة مرة أخرى
-        $_SESSION['db_setup_checked'] = true;
-    } catch (Error $e) {
-        error_log('خطأ قاتل في إعداد قاعدة البيانات: ' . $e->getMessage());
-        $_SESSION['db_setup_checked'] = true;
-    }
+    $_SESSION['db_setup_checked'] = true;
 }
 
 // دوال مساعدة
@@ -437,7 +394,7 @@ function checkPermission($requiredRole) {
     }
 }
 
-// إنشاء مستخدم افتراضي عند أول تشغيل
+// ✅ تم إزالة إدراج البيانات الافتراضية - لم يعد يتم إنشاء مستخدمين أو إعدادات افتراضية
 function initializeSystem() {
     try {
         // التحقق من الاتصال أولاً قبل محاولة إنشاء قاعدة البيانات
@@ -447,70 +404,16 @@ function initializeSystem() {
             return; // لا نوقف التنفيذ، فقط نسجل التحذير
         }
         
-        // إنشاء قاعدة البيانات إذا لم تكن موجودة (فقط عند الحاجة)
-        // ملاحظة: createDatabaseIfNotExists قد يكون بطيئاً، لذلك نستخدمه بحذر
-        // يمكن تخطي هذا إذا كانت قاعدة البيانات موجودة مسبقاً
-        
         // إنشاء مجلد النسخ الاحتياطية إذا لم يكن موجوداً
         if (!is_dir(BACKUP_DIR)) {
             @mkdir(BACKUP_DIR, 0755, true);
         }
         
-        // التحقق من وجود المستخدم الافتراضي (admin) - استعلام واحد فقط
-        $defaultUser = dbSelectOne("SELECT id FROM users WHERE username = ? LIMIT 1", ['admin']);
+        // ✅ تم إزالة إدراج البيانات الافتراضية:
+        // - لا يتم إنشاء مستخدم 'admin' افتراضياً
+        // - لا يتم إنشاء مستخدم '1' افتراضياً
+        // - لا يتم إنشاء إعدادات افتراضية
         
-        if (!$defaultUser) {
-            $userId = generateId();
-            $password = password_hash('admin123', PASSWORD_DEFAULT);
-            $result = dbExecute(
-                "INSERT INTO users (id, username, password, name, role, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-                [$userId, 'admin', $password, 'المدير', 'admin']
-            );
-            if ($result === false) {
-                error_log('تحذير: فشل إنشاء المستخدم الافتراضي admin');
-            }
-        }
-        
-        // التحقق من وجود المستخدم 1 - استعلام واحد فقط
-        $user1 = dbSelectOne("SELECT id FROM users WHERE username = ? LIMIT 1", ['1']);
-        if (!$user1) {
-            $userId1 = generateId();
-            $password1 = password_hash('1', PASSWORD_DEFAULT);
-            $result1 = dbExecute(
-                "INSERT INTO users (id, username, password, name, role, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-                [$userId1, '1', $password1, 'المدير', 'admin']
-            );
-            if ($result1 === false) {
-                error_log('تحذير: فشل إنشاء المستخدم 1');
-            }
-        }
-        
-        // التحقق من وجود الإعدادات الافتراضية - استعلام واحد فقط
-        $shopName = dbSelectOne("SELECT `key` FROM settings WHERE `key` = ? LIMIT 1", ['shop_name']);
-        
-        if (!$shopName) {
-            $defaultSettings = [
-                ['shop_name', 'محل صيانة الهواتف'],
-                ['shop_phone', '01000000000'],
-                ['shop_address', 'القاهرة، مصر'],
-                ['shop_logo', ''],
-                ['low_stock_alert', '5'],
-                ['currency', 'ج.م'],
-                ['theme', 'light'],
-                ['loading_page_enabled', '1'] // تفعيل صفحة التحميل افتراضياً
-            ];
-            
-            // استخدام INSERT IGNORE أو ON DUPLICATE KEY UPDATE لتجنب الأخطاء
-            foreach ($defaultSettings as $setting) {
-                $result = dbExecute(
-                    "INSERT IGNORE INTO settings (`key`, `value`, updated_at) VALUES (?, ?, NOW())",
-                    $setting
-                );
-                if ($result === false) {
-                    error_log('تحذير: فشل إدراج إعداد: ' . $setting[0]);
-                }
-            }
-        }
     } catch (Exception $e) {
         // تسجيل الخطأ ولكن لا نوقف التنفيذ
         error_log('خطأ في تهيئة النظام: ' . $e->getMessage() . ' في ' . $e->getFile() . ' على السطر ' . $e->getLine());

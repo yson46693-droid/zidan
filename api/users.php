@@ -198,6 +198,119 @@ if ($method === 'POST') {
     response(true, 'تم إضافة المستخدم بنجاح', $newUser);
 }
 
+// تحديث مستخدم (PUT/PATCH)
+if ($method === 'PUT' || $method === 'PATCH') {
+    checkPermission('admin');
+    
+    if (empty($data) || (!isset($data['id']) && !isset($data['_method']))) {
+        $data = getRequestData();
+    }
+    
+    $id = $data['id'] ?? '';
+    
+    if (empty($id)) {
+        response(false, 'معرف المستخدم مطلوب', null, 400);
+    }
+    
+    // التحقق من وجود المستخدم
+    $user = dbSelectOne("SELECT id FROM users WHERE id = ?", [$id]);
+    if (!$user) {
+        response(false, 'المستخدم غير موجود', null, 404);
+    }
+    
+    // بناء استعلام UPDATE ديناميكي بناءً على الحقول المرسلة
+    $updateFields = [];
+    $updateValues = [];
+    
+    // تحديث الراتب
+    if (isset($data['salary'])) {
+        $updateFields[] = "salary = ?";
+        $updateValues[] = floatval($data['salary']);
+    }
+    
+    // تحديث اسم المستخدم
+    if (isset($data['username'])) {
+        $username = trim($data['username']);
+        if (!empty($username)) {
+            // التحقق من عدم تكرار اسم المستخدم (عدا المستخدم الحالي)
+            $existingUser = dbSelectOne("SELECT id FROM users WHERE BINARY username = ? AND id != ?", [$username, $id]);
+            if ($existingUser) {
+                response(false, 'اسم المستخدم موجود مسبقاً', null, 400);
+            }
+            $updateFields[] = "username = ?";
+            $updateValues[] = $username;
+        }
+    }
+    
+    // تحديث الاسم
+    if (isset($data['name'])) {
+        $name = trim($data['name']);
+        if (!empty($name)) {
+            $updateFields[] = "name = ?";
+            $updateValues[] = $name;
+        }
+    }
+    
+    // تحديث كلمة المرور
+    if (isset($data['password']) && !empty($data['password'])) {
+        $updateFields[] = "password = ?";
+        $updateValues[] = password_hash($data['password'], PASSWORD_DEFAULT);
+    }
+    
+    // تحديث الدور
+    if (isset($data['role'])) {
+        $role = $data['role'];
+        if (in_array($role, ['admin', 'manager', 'employee', 'technician'])) {
+            $updateFields[] = "role = ?";
+            $updateValues[] = $role;
+        }
+    }
+    
+    // تحديث الفرع
+    if (isset($data['branch_id'])) {
+        $branchId = !empty($data['branch_id']) ? trim($data['branch_id']) : null;
+        if ($branchId) {
+            // التحقق من وجود الفرع
+            $branch = dbSelectOne("SELECT id FROM branches WHERE id = ?", [$branchId]);
+            if (!$branch) {
+                response(false, 'الفرع المحدد غير موجود', null, 404);
+            }
+        }
+        $updateFields[] = "branch_id = ?";
+        $updateValues[] = $branchId;
+    }
+    
+    // إذا لم يكن هناك حقول للتحديث
+    if (empty($updateFields)) {
+        response(false, 'لا توجد حقول للتحديث', null, 400);
+    }
+    
+    // إضافة updated_at
+    $updateFields[] = "updated_at = NOW()";
+    
+    // إضافة id للقيم
+    $updateValues[] = $id;
+    
+    // بناء وتنفيذ الاستعلام
+    $query = "UPDATE users SET " . implode(", ", $updateFields) . " WHERE id = ?";
+    $result = dbExecute($query, $updateValues);
+    
+    if ($result === false) {
+        response(false, 'خطأ في تحديث المستخدم', null, 500);
+    }
+    
+    // جلب بيانات المستخدم المحدثة
+    $updatedUser = dbSelectOne(
+        "SELECT u.id, u.username, u.name, u.role, u.branch_id, u.salary, b.name as branch_name, u.created_at, u.updated_at 
+         FROM users u 
+         LEFT JOIN branches b ON u.branch_id = b.id 
+         WHERE u.id = ?",
+        [$id]
+    );
+    
+    response(true, 'تم تحديث المستخدم بنجاح', $updatedUser);
+}
+
 // حذف مستخدم
 if ($method === 'DELETE') {
     checkPermission('admin');

@@ -44,6 +44,41 @@ try {
     $fromDateFormatted = $fromDateTime->format('Y-m-d H:i:s');
     $toDateFormatted = $toDateTime->format('Y-m-d H:i:s');
     
+    // جلب جميع الرسائل المراد حذفها مع معلومات الملفات
+    $messagesToDelete = dbSelect("
+        SELECT id, file_path, file_type 
+        FROM chat_messages 
+        WHERE created_at >= ? 
+        AND created_at <= ? 
+        AND (deleted_at IS NULL OR deleted_at = '')
+        AND file_path IS NOT NULL
+        AND file_path != ''
+    ", [$fromDateFormatted, $toDateFormatted]);
+    
+    // حذف الملفات المرتبطة بالرسائل
+    $deletedFilesCount = 0;
+    if (!empty($messagesToDelete)) {
+        foreach ($messagesToDelete as $msg) {
+            $filePath = $msg['file_path'];
+            if (!empty($filePath)) {
+                // بناء المسار الكامل
+                $fullPath = __DIR__ . '/../' . ltrim($filePath, '/');
+                
+                // حذف الملف إذا كان موجوداً
+                if (file_exists($fullPath)) {
+                    try {
+                        if (unlink($fullPath)) {
+                            $deletedFilesCount++;
+                            error_log("تم حذف الملف: $fullPath");
+                        }
+                    } catch (Exception $fileError) {
+                        error_log("خطأ في حذف الملف $fullPath: " . $fileError->getMessage());
+                    }
+                }
+            }
+        }
+    }
+    
     // حذف الرسائل في الفترة المحددة
     // استخدام soft delete (تحديث deleted_at) بدلاً من الحذف الفعلي
     $deletedCount = dbExecute("
@@ -60,10 +95,11 @@ try {
     }
     
     // تسجيل العملية
-    error_log("تم حذف الرسائل من $fromDateFormatted إلى $toDateFormatted بواسطة المستخدم $userId");
+    error_log("تم حذف $deletedCount رسالة و $deletedFilesCount ملف من $fromDateFormatted إلى $toDateFormatted بواسطة المستخدم $userId");
     
-    response(true, "تم حذف $deletedCount رسالة بنجاح", [
+    response(true, "تم حذف $deletedCount رسالة و $deletedFilesCount ملف بنجاح", [
         'deleted_count' => $deletedCount,
+        'deleted_files_count' => $deletedFilesCount,
         'from_date' => $fromDateFormatted,
         'to_date' => $toDateFormatted
     ]);

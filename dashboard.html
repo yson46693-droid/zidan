@@ -405,11 +405,11 @@
             </a>
             <a href="#inventory" class="mobile-nav-item" onclick="showSection('inventory')">
                 <i class="bi bi-box-seam"></i>
-                <span>المخزون</span>
+                <span>المخزن</span>
             </a>
             <a href="pos.html" class="mobile-nav-item">
                 <i class="bi bi-cash-coin"></i>
-                <span>نقاط البيع</span>
+                <span>نقطة البيع</span>
             </a>
             <a href="#product-returns" class="mobile-nav-item" onclick="showSection('product-returns')">
                 <i class="bi bi-arrow-return-left"></i>
@@ -449,10 +449,10 @@
                 <i class="bi bi-people"></i> العملاء
             </a>
             <a href="#inventory" class="nav-link" onclick="showSection('inventory')">
-                <i class="bi bi-box-seam"></i> المخزون
+                <i class="bi bi-box-seam"></i> المخزن
             </a>
             <a href="pos.html" class="nav-link">
-                <i class="bi bi-cash-coin"></i> نقاط البيع
+                <i class="bi bi-cash-coin"></i> نقطة البيع
             </a>
             <a href="#product-returns" class="nav-link" onclick="showSection('product-returns')">
                 <i class="bi bi-arrow-return-left"></i> استرجاع المنتجات
@@ -474,6 +474,7 @@
                 <p><i class="bi bi-person-circle"></i> <strong id="userName">المستخدم</strong></p>
                 <p><i class="bi bi-shield-check"></i> <span id="userRole">الدور</span></p>
                 <p id="userSpecialization" style="display: none;"><i class="bi bi-tools"></i> <span id="userSpecializationText">التخصص</span></p>
+                <p id="userBranch" style="display: none;"><i class="bi bi-building"></i> <span id="userBranchText">الفرع</span></p>
             </div>
             <!-- عرض رقم الإصدار -->
             <div class="app-version" style="text-align: center; padding: 10px 0; margin-top: 10px; border-top: 1px solid var(--border-color);">
@@ -484,6 +485,35 @@
             <button onclick="logout()" class="btn btn-danger btn-sm"><i class="bi bi-box-arrow-right"></i> تسجيل الخروج</button>
         </div>
     </aside>
+
+    <!-- Floating Chat Modal (Desktop Only) - يفتح في أقصى يسار الشاشة -->
+    <div id="floatingChatModal" class="floating-chat-modal" style="display: none;">
+        <div class="floating-chat-header">
+            <h3>Z-chat</h3>
+            <div class="floating-chat-header-actions">
+                <button class="floating-chat-delete-btn" id="floatingChatDeleteBtn" aria-label="حذف الرسائل" title="حذف الرسائل (للمالك فقط)" style="display: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+                <button class="floating-chat-refresh-btn" id="floatingChatRefreshBtn" aria-label="تحديث الرسائل" title="تحديث الرسائل">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+                <button class="floating-chat-close-btn" id="floatingChatCloseBtn" aria-label="إغلاق">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div class="floating-chat-body">
+            <iframe id="chatIframe" src="chat.html" frameborder="0"></iframe>
+        </div>
+    </div>
+    <div class="floating-chat-overlay" id="floatingChatOverlay" style="display: none;"></div>
 
     <!-- المحتوى الرئيسي -->
     <main class="main-content">
@@ -564,28 +594,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="section-content">
-                        <h2>العمليات الحالية</h2>
-                        <div class="table-container">
-                            <table class="data-table" id="currentRepairsTable1">
-                                <thead>
-                                    <tr>
-                                        <th>رقم العملية</th>
-                                        <th>العميل</th>
-                                        <th>الجهاز</th>
-                                        <th>الحالة</th>
-                                        <th>التاريخ</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="currentRepairsBody1">
-                                    <tr>
-                                        <td colspan="5" style="text-align: center;">لا توجد عمليات حالية</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- قسم الفرع الثاني -->
@@ -617,28 +625,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="section-content">
-                        <h2>العمليات الحالية</h2>
-                        <div class="table-container">
-                            <table class="data-table" id="currentRepairsTable2">
-                                <thead>
-                                    <tr>
-                                        <th>رقم العملية</th>
-                                        <th>العميل</th>
-                                        <th>الجهاز</th>
-                                        <th>الحالة</th>
-                                        <th>التاريخ</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="currentRepairsBody2">
-                                    <tr>
-                                        <td colspan="5" style="text-align: center;">لا توجد عمليات حالية</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
                 </div>
             </section>
 
@@ -655,7 +641,7 @@
             <!-- العملاء -->
             <section id="customers-section" class="section"></section>
 
-            <!-- المخزون -->
+            <!-- المخزن -->
             <section id="inventory-section" class="section"></section>
 
             <!-- المصروفات -->
@@ -864,8 +850,8 @@
                 critical: [
                     { src: 'js/repairs.js', defer: true },
                     { src: 'js/customers.js', defer: true },
+                    { src: 'js/inventory-item-details.js', defer: true }, // ✅ يجب تحميله قبل inventory.js
                     { src: 'js/inventory.js', defer: true },
-                    { src: 'js/inventory-item-details.js', defer: true },
                     { src: 'js/inventory-request.js', defer: true }
                 ],
                 onDemand: [
@@ -890,8 +876,9 @@
                 const isEmployee = user && user.role === 'employee';
                 
                 // تصفية Critical Scripts حسب نوع المستخدم
+                // ✅ التأكد من تضمين inventory-item-details.js مع inventory.js للموظف
                 const scriptsToPreload = isEmployee 
-                    ? scripts.critical.filter(s => s.src.includes('repairs.js') || s.src.includes('inventory.js'))
+                    ? scripts.critical.filter(s => s.src.includes('repairs.js') || s.src.includes('inventory'))
                     : scripts.critical;
                 
                 // Preload فقط (بدون تحميل فوري) - سيتم التحميل عند الحاجة
@@ -1256,7 +1243,7 @@
             // مسح العلامات بعد الاستخدام
             if (isReturningFromPOS) {
                 sessionStorage.removeItem('returning_from_pos');
-                console.log('🔄 تم اكتشاف العودة من نقاط البيع - سيتم إعادة تحميل المحتوى');
+                console.log('🔄 تم اكتشاف العودة من نقطة البيع - سيتم إعادة تحميل المحتوى');
             }
             if (isReturningFromChat) {
                 sessionStorage.removeItem('returning_from_chat');
@@ -1582,7 +1569,7 @@
                 sec.style.display = 'none';
             });
             
-            // إخفاء جميع الأقسام الفرعية للمخزون أيضاً
+            // إخفاء جميع الأقسام الفرعية للمخزن أيضاً
             document.querySelectorAll('.inventory-section').forEach(sec => {
                 sec.classList.remove('active');
                 sec.style.display = 'none';
@@ -1620,7 +1607,7 @@
                     }
                 });
                 
-                // إخفاء جميع الأقسام الفرعية للمخزون إذا لم يكن القسم المحدد هو المخزون
+                // إخفاء جميع الأقسام الفرعية للمخزن إذا لم يكن القسم المحدد هو المخزن
                 if (section !== 'inventory') {
                     document.querySelectorAll('.inventory-section').forEach(sec => {
                         sec.classList.remove('active');
@@ -1826,7 +1813,11 @@
                                     await loadCustomersSection();
                                 }
                             } else if (section === 'inventory') {
+                                // ✅ تأكد من تحميل inventory-item-details.js قبل inventory.js
                                 if (typeof loadCriticalScript === 'function') {
+                                    if (typeof showInventoryItemDetails !== 'function') {
+                                        await loadCriticalScript('js/inventory-item-details.js').catch(() => {});
+                                    }
                                     await loadCriticalScript('js/inventory.js').catch(() => {});
                                 }
                                 if (typeof loadInventorySection === 'function') {
@@ -2097,7 +2088,7 @@
                 'dashboard': 'لوحة التحكم',
                 'repairs': 'عمليات الصيانة',
                 'customers': 'العملاء',
-                'inventory': 'المخزون',
+                'inventory': 'المخزن',
                 'expenses': 'خزنة الفرع',
                 'reports': 'التقارير المالية',
                 'settings': 'الإعدادات',
@@ -2193,13 +2184,20 @@
                     break;
                     
                 case 'inventory':
+                    // ✅ تأكد من تحميل inventory-item-details.js قبل inventory.js
+                    if (typeof loadCriticalScript === 'function') {
+                        // تحميل inventory-item-details.js أولاً إذا لم يكن محملاً
+                        if (typeof showInventoryItemDetails !== 'function') {
+                            await loadCriticalScript('js/inventory-item-details.js');
+                        }
+                        // تحميل inventory.js
+                        if (typeof loadInventorySection !== 'function') {
+                            await loadCriticalScript('js/inventory.js');
+                        }
+                    }
+                    // تحميل القسم بعد التأكد من تحميل جميع الملفات المطلوبة
                     if (typeof loadInventorySection === 'function') {
                         await loadInventorySection();
-                    } else if (typeof loadCriticalScript === 'function') {
-                        await loadCriticalScript('js/inventory.js');
-                        if (typeof loadInventorySection === 'function') {
-                            await loadInventorySection();
-                        }
                     }
                     break;
                     
@@ -2632,7 +2630,7 @@
                 'dashboard': 'لوحة التحكم',
                 'repairs': 'عمليات الصيانة',
                 'customers': 'العملاء',
-                'inventory': 'المخزون',
+                'inventory': 'المخزن',
                 'expenses': 'خزنة الفرع',
                 'reports': 'التقارير المالية',
                 'settings': 'الإعدادات'
@@ -2677,7 +2675,7 @@
                 sec.style.display = 'none';
             });
             
-            // إخفاء جميع الأقسام الفرعية للمخزون
+            // إخفاء جميع الأقسام الفرعية للمخزن
             document.querySelectorAll('.inventory-section').forEach(sec => {
                 sec.classList.remove('active');
                 sec.style.display = 'none';
@@ -3314,7 +3312,7 @@
                         }
                     });
                     
-                    // إخفاء جميع الأقسام الفرعية للمخزون إذا لم يكن القسم المحدد هو المخزون
+                    // إخفاء جميع الأقسام الفرعية للمخزن إذا لم يكن القسم المحدد هو المخزن
                     if (section !== 'inventory') {
                         document.querySelectorAll('.inventory-section').forEach(sec => {
                             sec.classList.remove('active');
@@ -3416,16 +3414,16 @@
                         let inventoryAttempts = 0;
                         const checkInventoryFunction = async () => {
                             if (typeof loadInventorySection === 'function') {
-                                console.log('🔄 إعادة تحميل قسم المخزون...');
+                                console.log('🔄 إعادة تحميل قسم المخزن...');
                                 
                                 // التحقق من أن القسم موجود ومرئي
                                 const inventorySection = document.getElementById('inventory-section');
                                 if (!inventorySection) {
-                                    console.warn('⚠️ قسم المخزون غير موجود');
+                                    console.warn('⚠️ قسم المخزن غير موجود');
                                     return;
                                 }
                                 
-                                // التأكد من تفعيل قسم المخزون أولاً
+                                // التأكد من تفعيل قسم المخزن أولاً
                                 inventorySection.classList.add('active');
                                 inventorySection.style.display = 'block';
                                 
@@ -3752,7 +3750,7 @@
                 }
             });
             
-            // إخفاء جميع الأقسام الفرعية للمخزون
+            // إخفاء جميع الأقسام الفرعية للمخزن
             document.querySelectorAll('.inventory-section').forEach(sec => {
                 sec.classList.remove('active');
                 sec.style.display = 'none';
@@ -3984,9 +3982,6 @@
                             console.log(`✅ [Branch ${branchNumber}] المبيعات: ${todaySalesAmount}`);
                         }
                         
-                        // عرض العمليات الحالية للفرع
-                        displayCurrentRepairs(branchRepairs, branchNumber);
-                        
                         // تحميل وعرض الفنيين للفرع
                         if (branchId) {
                             // تعيين الشهر الحالي كقيمة افتراضية
@@ -4019,7 +4014,6 @@
                         if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
                         if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
                         if (todaySalesEl) todaySalesEl.textContent = formatCurrencyFunc(0);
-                        displayCurrentRepairs([], branchNumber);
                         
                         // تحميل الفنيين حتى في حالة الخطأ
                         const branchId = branches[branchNumber - 1]?.id || null;
@@ -4088,9 +4082,6 @@
                     if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(0);
                     if (todayProfitEl) todayProfitEl.textContent = formatCurrencyFunc(0);
                     if (todaySalesEl) todaySalesEl.textContent = formatCurrencyFunc(0);
-                    
-                    // عرض رسالة في الجدول
-                    displayCurrentRepairs([], branchNumber);
                 }
                 
                 // تحديث مؤشر التحميل ليعرض الخطأ
@@ -4309,7 +4300,7 @@
                     const cardClass = shouldShowPremiumCard ? 'technician-card premium-gold' : 'technician-card';
                     
                     return `
-                        <div class="${cardClass}" onclick="showTechnicianRatingsModal('${technician.id}', '${escapeHtml(technician.name || '')}')" style="cursor: pointer;">
+                        <div class="${cardClass}" data-technician-id="${technician.id}" data-technician-name="${escapeHtml(technician.name || '')}" style="cursor: pointer;">
                             <div class="technician-card-header">
                                 <div class="technician-avatar">${avatarHTML}</div>
                                 <div class="technician-info">
@@ -4396,6 +4387,64 @@
                 }).join('');
                 
                 grid.innerHTML = cardsHTML;
+                
+                // ✅ إضافة event delegation لفتح modal التقييمات
+                // استخدام event delegation على مستوى grid لتجنب مشاكل التنقل بين الصفحات
+                // إزالة event listeners السابقة لتجنب التكرار
+                const existingHandler = grid._technicianCardHandler;
+                if (existingHandler) {
+                    grid.removeEventListener('click', existingHandler);
+                }
+                
+                // إنشاء handler جديد
+                const technicianCardHandler = function(e) {
+                    // البحث عن البطاقة التي تم النقر عليها
+                    const card = e.target.closest('.technician-card[data-technician-id]');
+                    if (!card) return;
+                    
+                    // منع النقر على الأزرار داخل البطاقة
+                    if (e.target.closest('.btn-edit-rating-footer')) {
+                        return;
+                    }
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const technicianId = card.getAttribute('data-technician-id');
+                    const technicianName = card.getAttribute('data-technician-name') || 'الفني';
+                    
+                    if (technicianId) {
+                        // التحقق من أن الدالة متاحة
+                        if (typeof window.showTechnicianRatingsModal === 'function') {
+                            try {
+                                window.showTechnicianRatingsModal(technicianId, technicianName);
+                            } catch (error) {
+                                console.error('❌ خطأ في فتح modal التقييمات:', error);
+                                if (typeof showNotification === 'function') {
+                                    showNotification('حدث خطأ في فتح نموذج التقييمات', 'error');
+                                }
+                            }
+                        } else {
+                            console.error('❌ showTechnicianRatingsModal غير متاحة');
+                            // محاولة إعادة تحميل الدالة بعد قليل
+                            setTimeout(() => {
+                                if (typeof window.showTechnicianRatingsModal === 'function') {
+                                    window.showTechnicianRatingsModal(technicianId, technicianName);
+                                } else {
+                                    if (typeof showNotification === 'function') {
+                                        showNotification('حدث خطأ في فتح نموذج التقييمات. يرجى تحديث الصفحة.', 'error');
+                                    }
+                                }
+                            }, 100);
+                        }
+                    }
+                };
+                
+                // حفظ المرجع لإزالته لاحقاً
+                grid._technicianCardHandler = technicianCardHandler;
+                
+                // إضافة event listener
+                grid.addEventListener('click', technicianCardHandler);
                 
             } catch (error) {
                 console.error(`❌ خطأ في عرض الفنيين للفرع ${branchNumber}:`, error);
@@ -4747,6 +4796,47 @@
         // دالة عرض/إخفاء الإشعارات (مثل الشات)
         let notifications = [];
         
+        // دالة لإضافة إشعار جديد إلى قائمة الإشعارات في dashboard
+        function addDashboardNotification(notification) {
+            try {
+                // التحقق من عدم التكرار
+                const existingIndex = notifications.findIndex(n => n.id === notification.id);
+                if (existingIndex !== -1) {
+                    console.log('⚠️ الإشعار موجود بالفعل:', notification.id);
+                    return;
+                }
+                
+                // إضافة الإشعار في البداية
+                notifications.unshift(notification);
+                
+                // حفظ فقط آخر 50 إشعار
+                notifications = notifications.slice(0, 50);
+                
+                // حفظ في localStorage
+                try {
+                    localStorage.setItem('chat_notifications', JSON.stringify(notifications));
+                } catch (e) {
+                    console.error('خطأ في حفظ الإشعارات:', e);
+                }
+                
+                // تحديث العداد والقائمة
+                updateNotificationBadge();
+                
+                // إذا كانت قائمة الإشعارات مفتوحة، تحديث العرض
+                const notificationsList = document.getElementById('notificationsList');
+                if (notificationsList && notificationsList.style.display !== 'none') {
+                    renderNotificationsList();
+                }
+                
+                console.log('✅ تم إضافة الإشعار إلى dashboard:', notification.id);
+            } catch (error) {
+                console.error('❌ خطأ في إضافة الإشعار إلى dashboard:', error);
+            }
+        }
+        
+        // تصدير الدالة للاستخدام من global-notifications.js
+        window.addDashboardNotification = addDashboardNotification;
+        
         // تحميل الإشعارات من localStorage مع استبعاد المحذوفة
         function loadNotifications() {
             try {
@@ -5095,7 +5185,7 @@
                 
                 <div class="technician-rating-body">
                     <div class="form-group technician-rating-group">
-                        <label for="editRatingValue" class="technician-rating-label">
+                        <label class="technician-rating-label">
                             <i class="bi bi-star"></i>
                             التقييم الجديد (1-5) *
                         </label>
@@ -5215,11 +5305,56 @@
         // عرض modal تقييمات وآراء العملاء للفني
         async function showTechnicianRatingsModal(technicianId, technicianName) {
             try {
-                const modal = document.getElementById('technicianRatingsModal');
+                // التحقق من المعاملات
+                if (!technicianId) {
+                    console.error('❌ technicianId غير محدد');
+                    return;
+                }
+                
+                // إنشاء modal إذا لم يكن موجوداً
+                let modal = document.getElementById('technicianRatingsModal');
+                if (!modal) {
+                    // إنشاء modal جديد
+                    modal = document.createElement('div');
+                    modal.id = 'technicianRatingsModal';
+                    modal.className = 'modal';
+                    modal.style.display = 'none';
+                    modal.setAttribute('dir', 'rtl');
+                    modal.innerHTML = `
+                        <div class="modal-content ratings-modal-content-wrapper">
+                            <div class="modal-header">
+                                <h3 id="technicianRatingsModalTitle">
+                                    <i class="bi bi-star-fill"></i>
+                                    تقييمات وآراء العملاء
+                                </h3>
+                                <button onclick="closeTechnicianRatingsModal()" class="btn-close" title="إغلاق">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <div class="modal-body" id="technicianRatingsModalBody">
+                                <div style="text-align: center; padding: 40px 20px;">
+                                    <i class="bi bi-arrow-repeat" style="font-size: 2.5em; color: var(--primary-color); margin-bottom: 20px; display: block; animation: spin 1s linear infinite;"></i>
+                                    <p style="margin-top: 15px; color: var(--text-light); font-size: 1.05em;">جاري تحميل التقييمات...</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="padding: 20px 30px; border-top: 1px solid var(--border-color); background: var(--white);">
+                                <button onclick="closeTechnicianRatingsModal()" class="btn btn-primary" style="padding: 12px 30px; font-size: 1em; border-radius: 8px; font-weight: 500;">
+                                    <i class="bi bi-check-circle"></i>
+                                    إغلاق
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                }
+                
                 const title = document.getElementById('technicianRatingsModalTitle');
                 const body = document.getElementById('technicianRatingsModalBody');
                 
-                if (!modal || !title || !body) return;
+                if (!modal || !title || !body) {
+                    console.error('❌ عناصر modal غير موجودة');
+                    return;
+                }
                 
                 title.innerHTML = `<i class="bi bi-star-fill"></i> تقييمات وآراء العملاء - ${escapeHtml(technicianName)}`;
                 
@@ -5361,6 +5496,27 @@
                 modal.style.display = 'none';
             }
         }
+        
+        // ✅ إضافة event listener لإغلاق modal عند النقر خارج المحتوى
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('technicianRatingsModal');
+            if (modal && modal.style.display === 'flex') {
+                const modalContent = modal.querySelector('.modal-content');
+                if (modalContent && !modalContent.contains(e.target) && e.target === modal) {
+                    closeTechnicianRatingsModal();
+                }
+            }
+        });
+        
+        // ✅ إضافة event listener لإغلاق modal عند الضغط على ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('technicianRatingsModal');
+                if (modal && modal.style.display === 'flex') {
+                    closeTechnicianRatingsModal();
+                }
+            }
+        });
         
         // دالة مساعدة لتحويل التاريخ
         function formatArabicDate(dateString) {
@@ -5570,6 +5726,252 @@
                 }
             });
         });
+    </script>
+
+    <!-- Floating Chat Modal JavaScript (Desktop Only) -->
+    <script>
+        // التحقق من حجم الشاشة
+        function isDesktop() {
+            return window.innerWidth >= 768;
+        }
+
+        // دوال فتح/إغلاق النموذج العائم
+        function openFloatingChat() {
+            if (!isDesktop()) {
+                // على الموبايل، الانتقال إلى chat.html مباشرة
+                window.location.href = 'chat.html';
+                return;
+            }
+
+            const modal = document.getElementById('floatingChatModal');
+            const overlay = document.getElementById('floatingChatOverlay');
+            
+            if (modal && overlay) {
+                modal.style.display = 'flex';
+                overlay.style.display = 'block';
+                setTimeout(() => {
+                    overlay.classList.add('active');
+                }, 10);
+                
+                // إعادة تحميل iframe إذا لزم الأمر
+                const iframe = document.getElementById('chatIframe');
+                if (iframe) {
+                    // إعادة تحميل iframe لضمان تحديث المحتوى
+                    const currentSrc = iframe.src;
+                    iframe.src = '';
+                    setTimeout(() => {
+                        iframe.src = currentSrc || 'chat.html';
+                    }, 100);
+                }
+            }
+        }
+
+        function closeFloatingChat() {
+            const modal = document.getElementById('floatingChatModal');
+            const overlay = document.getElementById('floatingChatOverlay');
+            
+            if (modal && overlay) {
+                overlay.classList.remove('active');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    overlay.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        function toggleFloatingChat() {
+            const modal = document.getElementById('floatingChatModal');
+            if (modal && modal.style.display === 'none') {
+                openFloatingChat();
+            } else {
+                closeFloatingChat();
+            }
+        }
+
+        // دالة إعادة تحميل iframe
+        function refreshChatIframe() {
+            const iframe = document.getElementById('chatIframe');
+            const refreshBtn = document.getElementById('floatingChatRefreshBtn');
+            
+            if (iframe && refreshBtn) {
+                // إضافة class للـ animation
+                refreshBtn.classList.add('refreshing');
+                
+                // إعادة تحميل iframe
+                const currentSrc = iframe.src;
+                iframe.src = '';
+                
+                setTimeout(() => {
+                    iframe.src = currentSrc || 'chat.html';
+                    // إزالة class بعد انتهاء التحميل
+                    setTimeout(() => {
+                        refreshBtn.classList.remove('refreshing');
+                    }, 1000);
+                }, 100);
+            }
+        }
+
+        // التحقق من صلاحيات المالك
+        async function checkOwnerPermissions() {
+            try {
+                // محاولة الحصول على معلومات المستخدم من API
+                if (typeof API !== 'undefined' && typeof API.request === 'function') {
+                    const response = await API.request('GET', 'api/profile.php');
+                    if (response && response.success && response.user) {
+                        const user = response.user;
+                        return user.role === 'admin' || user.is_owner === true || user.is_owner === 'true';
+                    }
+                }
+                
+                // التحقق من localStorage كبديل
+                try {
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        const user = JSON.parse(savedUser);
+                        return user && (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true');
+                    }
+                } catch (e) {
+                    console.error('خطأ في قراءة بيانات المستخدم من localStorage:', e);
+                }
+                
+                return false;
+            } catch (error) {
+                console.error('خطأ في التحقق من صلاحيات المالك:', error);
+                return false;
+            }
+        }
+
+        // إظهار/إخفاء زر حذف الرسائل بناءً على الصلاحيات
+        async function updateDeleteButtonVisibility() {
+            const deleteBtn = document.getElementById('floatingChatDeleteBtn');
+            if (!deleteBtn) return;
+            
+            const isOwner = await checkOwnerPermissions();
+            if (isOwner) {
+                deleteBtn.style.display = 'flex';
+                console.log('✅ زر حذف الرسائل معروض للمالك');
+            } else {
+                deleteBtn.style.display = 'none';
+                console.log('🔒 زر حذف الرسائل مخفي - المستخدم ليس مالكاً');
+            }
+        }
+
+        // فتح مودال حذف الرسائل في iframe
+        function openDeleteMessagesModal() {
+            const iframe = document.getElementById('chatIframe');
+            if (iframe && iframe.contentWindow) {
+                try {
+                    // إرسال رسالة إلى iframe لفتح مودال حذف الرسائل
+                    iframe.contentWindow.postMessage({
+                        type: 'openDeleteMessagesModal'
+                    }, '*');
+                } catch (error) {
+                    console.error('خطأ في التواصل مع iframe:', error);
+                    // في حالة الفشل، يمكن فتح صفحة chat.html مباشرة
+                    alert('يرجى فتح صفحة الشات مباشرة لحذف الرسائل');
+                }
+            }
+        }
+
+        // تهيئة عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatNavLink = document.getElementById('chatNavLink');
+            const closeBtn = document.getElementById('floatingChatCloseBtn');
+            const refreshBtn = document.getElementById('floatingChatRefreshBtn');
+            const deleteBtn = document.getElementById('floatingChatDeleteBtn');
+            const overlay = document.getElementById('floatingChatOverlay');
+
+            // التحقق من صلاحيات المالك وإظهار/إخفاء زر حذف الرسائل
+            updateDeleteButtonVisibility();
+
+            // تعديل سلوك زر الشات في الشريط الجانبي
+            if (chatNavLink) {
+                chatNavLink.addEventListener('click', function(e) {
+                    if (isDesktop()) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openFloatingChat();
+                        // تحديث حالة زر حذف الرسائل عند فتح النموذج
+                        setTimeout(() => {
+                            updateDeleteButtonVisibility();
+                        }, 500);
+                    }
+                    // على الموبايل، السلوك الافتراضي (فتح chat.html) سيعمل تلقائياً
+                });
+            }
+
+            // زر حذف الرسائل (للمالك فقط)
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // التحقق مرة أخرى من الصلاحيات قبل الفتح
+                    const isOwner = await checkOwnerPermissions();
+                    if (!isOwner) {
+                        alert('هذه الميزة متاحة للمالك فقط');
+                        console.warn('⚠️ محاولة وصول غير مصرح بها لحذف الرسائل');
+                        return;
+                    }
+                    
+                    openDeleteMessagesModal();
+                });
+            }
+
+            // زر التحديث (Refresh)
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    refreshChatIframe();
+                });
+            }
+
+            // زر الإغلاق
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeFloatingChat();
+                });
+            }
+
+            // إغلاق عند النقر على Overlay
+            if (overlay) {
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay) {
+                        closeFloatingChat();
+                    }
+                });
+            }
+
+            // إغلاق عند الضغط على Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const modal = document.getElementById('floatingChatModal');
+                    if (modal && modal.style.display !== 'none') {
+                        closeFloatingChat();
+                    }
+                }
+            });
+
+            // تحديث السلوك عند تغيير حجم النافذة
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(function() {
+                    // إذا تحولنا من desktop إلى mobile، إغلاق النموذج
+                    if (!isDesktop()) {
+                        closeFloatingChat();
+                    }
+                }, 250);
+            });
+        });
+
+        // تصدير الدوال للاستخدام العام
+        window.openFloatingChat = openFloatingChat;
+        window.closeFloatingChat = closeFloatingChat;
+        window.toggleFloatingChat = toggleFloatingChat;
     </script>
 
     </body>

@@ -12,21 +12,27 @@ $currentUserId = $session['user_id'];
 // قراءة بيانات الملف الشخصي للمستخدم الحالي
 if ($method === 'GET') {
     try {
-        // محاولة جلب avatar مع البيانات (بدون specialization لأنه قد لا يكون موجوداً)
+        // التحقق من وجود الأعمدة قبل استخدامها في الاستعلام
+        $hasAvatar = dbColumnExists('users', 'avatar');
+        $hasSpecialization = dbColumnExists('users', 'specialization');
+        
+        // بناء الاستعلام بناءً على الأعمدة الموجودة
+        $selectFields = "u.id, u.username, u.name, u.role, u.branch_id";
+        if ($hasAvatar) {
+            $selectFields .= ", u.avatar";
+        }
+        if ($hasSpecialization) {
+            $selectFields .= ", u.specialization";
+        }
+        $selectFields .= ", u.created_at, u.updated_at, b.name as branch_name";
+        
         $user = dbSelectOne(
-            "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
+            "SELECT {$selectFields}
+             FROM users u 
+             LEFT JOIN branches b ON u.branch_id = b.id 
+             WHERE u.id = ?",
             [$currentUserId]
         );
-        
-        // التأكد من وجود الحقول (تعيين null للأعمدة غير الموجودة)
-        if ($user) {
-            if (!isset($user['avatar'])) {
-                $user['avatar'] = null;
-            }
-            if (!isset($user['specialization'])) {
-                $user['specialization'] = null;
-            }
-        }
         
         if (!$user) {
             response(false, 'المستخدم غير موجود', null, 404);
@@ -35,12 +41,15 @@ if ($method === 'GET') {
         // إزالة الحقول الحساسة إن وجدت
         unset($user['password']);
         
-        // التأكد من وجود avatar و specialization (null إذا لم يكن موجوداً)
+        // التأكد من وجود الحقول (تعيين null للأعمدة غير الموجودة)
         if (!isset($user['avatar'])) {
             $user['avatar'] = null;
         }
         if (!isset($user['specialization'])) {
             $user['specialization'] = null;
+        }
+        if (!isset($user['branch_name']) || $user['branch_name'] === null) {
+            $user['branch_name'] = null;
         }
         
         response(true, '', $user);
@@ -119,22 +128,29 @@ if ($method === 'PUT') {
             if (!empty($specialization) && !in_array($specialization, ['soft', 'hard', 'fast'])) {
                 response(false, 'التخصص غير صحيح', null, 400);
             }
-            // محاولة التحقق من وجود عمود specialization قبل إضافته للاستعلام
-            try {
-                $conn = getDBConnection();
-                if ($conn) {
-                    $checkColumn = $conn->query("SHOW COLUMNS FROM users LIKE 'specialization'");
-                    if ($checkColumn && $checkColumn->num_rows > 0) {
-                        $updateFields[] = "specialization = ?";
-                        $updateParams[] = !empty($specialization) ? $specialization : null;
-                    } else {
-                        error_log('⚠️ عمود specialization غير موجود في جدول users - سيتم تجاهل التحديث');
+            
+            // التحقق من وجود عمود specialization وإضافته إذا لم يكن موجوداً
+            if (!dbColumnExists('users', 'specialization')) {
+                try {
+                    $conn = getDBConnection();
+                    if ($conn) {
+                        $conn->query("ALTER TABLE users ADD COLUMN specialization ENUM('soft', 'hard', 'fast') DEFAULT NULL");
+                        error_log('✅ تم إضافة عمود specialization إلى جدول users بنجاح');
+                    }
+                } catch (Exception $e) {
+                    error_log('⚠️ خطأ في إضافة عمود specialization: ' . $e->getMessage());
+                    // إذا كان العمود موجوداً بالفعل (Duplicate column error)، نتابع
+                    if (strpos($e->getMessage(), 'Duplicate column') === false) {
+                        error_log('⚠️ فشل إضافة عمود specialization - سيتم تجاهل التحديث');
+                        // لا نوقف العملية، فقط نتجاهل التخصص
                     }
                 }
-            } catch (Exception $e) {
-                error_log('⚠️ خطأ في التحقق من عمود specialization: ' . $e->getMessage());
-                // تجاهل الخطأ ومتابعة التحديثات الأخرى
             }
+            
+            // إضافة التخصص للاستعلام (حتى لو كان null)
+            $updateFields[] = "specialization = ?";
+            $updateParams[] = !empty($specialization) ? $specialization : null;
+            error_log('✅ إضافة specialization إلى UPDATE: ' . ($specialization ?: 'NULL'));
         }
         
         // إذا لم يكن هناك أي تحديثات
@@ -156,9 +172,24 @@ if ($method === 'PUT') {
             response(false, 'خطأ في تحديث بيانات الملف الشخصي', null, 500);
         }
         
-        // الحصول على البيانات المحدثة (بدون specialization لأنه قد لا يكون موجوداً)
+        // الحصول على البيانات المحدثة
+        $hasAvatar = dbColumnExists('users', 'avatar');
+        $hasSpecialization = dbColumnExists('users', 'specialization');
+        
+        $selectFields = "u.id, u.username, u.name, u.role";
+        if ($hasAvatar) {
+            $selectFields .= ", u.avatar";
+        }
+        if ($hasSpecialization) {
+            $selectFields .= ", u.specialization";
+        }
+        $selectFields .= ", u.created_at, u.updated_at, b.name as branch_name";
+        
         $updatedUser = dbSelectOne(
-            "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
+            "SELECT {$selectFields}
+             FROM users u 
+             LEFT JOIN branches b ON u.branch_id = b.id 
+             WHERE u.id = ?",
             [$currentUserId]
         );
         
@@ -169,6 +200,9 @@ if ($method === 'PUT') {
             }
             if (!isset($updatedUser['specialization'])) {
                 $updatedUser['specialization'] = null;
+            }
+            if (!isset($updatedUser['branch_name']) || $updatedUser['branch_name'] === null) {
+                $updatedUser['branch_name'] = null;
             }
         }
         
@@ -219,10 +253,38 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'upload_
         }
         
         // الحصول على البيانات المحدثة
+        $hasAvatar = dbColumnExists('users', 'avatar');
+        $hasSpecialization = dbColumnExists('users', 'specialization');
+        
+        $selectFields = "u.id, u.username, u.name, u.role";
+        if ($hasAvatar) {
+            $selectFields .= ", u.avatar";
+        }
+        if ($hasSpecialization) {
+            $selectFields .= ", u.specialization";
+        }
+        $selectFields .= ", u.created_at, u.updated_at, b.name as branch_name";
+        
         $updatedUser = dbSelectOne(
-            "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
+            "SELECT {$selectFields}
+             FROM users u 
+             LEFT JOIN branches b ON u.branch_id = b.id 
+             WHERE u.id = ?",
             [$currentUserId]
         );
+        
+        // التأكد من وجود الحقول
+        if ($updatedUser) {
+            if (!isset($updatedUser['avatar'])) {
+                $updatedUser['avatar'] = null;
+            }
+            if (!isset($updatedUser['specialization'])) {
+                $updatedUser['specialization'] = null;
+            }
+            if (!isset($updatedUser['branch_name']) || $updatedUser['branch_name'] === null) {
+                $updatedUser['branch_name'] = null;
+            }
+        }
         
         response(true, 'تم تحديث صورة الملف الشخصي بنجاح', $updatedUser);
         
@@ -254,10 +316,38 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'remove_
         }
         
         // الحصول على البيانات المحدثة
+        $hasAvatar = dbColumnExists('users', 'avatar');
+        $hasSpecialization = dbColumnExists('users', 'specialization');
+        
+        $selectFields = "u.id, u.username, u.name, u.role";
+        if ($hasAvatar) {
+            $selectFields .= ", u.avatar";
+        }
+        if ($hasSpecialization) {
+            $selectFields .= ", u.specialization";
+        }
+        $selectFields .= ", u.created_at, u.updated_at, b.name as branch_name";
+        
         $updatedUser = dbSelectOne(
-            "SELECT id, username, name, role, avatar, created_at, updated_at FROM users WHERE id = ?",
+            "SELECT {$selectFields}
+             FROM users u 
+             LEFT JOIN branches b ON u.branch_id = b.id 
+             WHERE u.id = ?",
             [$currentUserId]
         );
+        
+        // التأكد من وجود الحقول
+        if ($updatedUser) {
+            if (!isset($updatedUser['avatar'])) {
+                $updatedUser['avatar'] = null;
+            }
+            if (!isset($updatedUser['specialization'])) {
+                $updatedUser['specialization'] = null;
+            }
+            if (!isset($updatedUser['branch_name']) || $updatedUser['branch_name'] === null) {
+                $updatedUser['branch_name'] = null;
+            }
+        }
         
         response(true, 'تم حذف صورة الملف الشخصي بنجاح', $updatedUser);
         

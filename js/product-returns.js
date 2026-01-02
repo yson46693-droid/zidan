@@ -1,4 +1,9 @@
 // Product Returns System JavaScript
+// ✅ حماية من التحميل المكرر
+if (typeof window.productReturnsLoaded !== 'undefined') {
+    console.warn('⚠️ product-returns.js تم تحميله مسبقاً - تخطي إعادة التحميل');
+} else {
+    window.productReturnsLoaded = true;
 
 // Global State
 let currentInvoice = null;
@@ -1383,7 +1388,11 @@ function openBarcodeScanner() {
 }
 
 // Global variable to store QR code scanner instance
-let qrCodeScannerInstance = null;
+// ✅ استخدام window لتجنب إعادة التصريح عند إعادة تحميل الملف
+if (typeof window.qrCodeScannerInstance === 'undefined') {
+    window.qrCodeScannerInstance = null;
+}
+let qrCodeScannerInstance = window.qrCodeScannerInstance;
 
 // Initialize QR Code Scanner for Returns
 async function initializeQRCodeScannerForReturns() {
@@ -1728,3 +1737,4 @@ function formatDate(dateString) {
     }
 }
 
+} // ✅ نهاية حماية من التحميل المكرر

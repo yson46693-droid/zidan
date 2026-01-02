@@ -94,9 +94,9 @@
       ]
     },
     {
-      "name": "نقاط البيع",
+      "name": "نقطة البيع",
       "short_name": "POS",
-      "description": "فتح نظام نقاط البيع",
+      "description": "فتح نظام نقطة البيع",
       "url": "/pos.html",
       "icons": [
         {
