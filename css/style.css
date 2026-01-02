@@ -4404,8 +4404,10 @@ body {
     
     /* تصغير الأزرار في header-actions للهواتف */
     .top-bar {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         padding: 10px 12px !important;
+        overflow: hidden;
+        box-sizing: border-box;
     }
     
     .top-bar h1 {
@@ -4424,19 +4426,52 @@ body {
     
     .header-actions {
         gap: 4px !important;
-        width: 100%;
+        width: 100% !important;
+        max-width: 100% !important;
         justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
     }
     
-    /* إعادة تنظيم الأزرار في الهيدر العلوي - صف واحد */
+    /* إخفاء شريط التمرير في header-actions */
+    .header-actions::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    
+    /* إعادة تنظيم الأزرار في الهيدر العلوي - صف واحد مع تمرير أفقي */
     .top-bar .header-actions {
         display: flex;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         gap: 4px;
-        width: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
         align-items: center;
         justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+        padding-bottom: 2px;
+        box-sizing: border-box;
+    }
+    
+    /* إخفاء شريط التمرير في header-actions */
+    .top-bar .header-actions::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+        height: 0;
+        width: 0;
+    }
+    
+    /* ضمان أن جميع الأزرار في header-actions لا تنكمش */
+    .top-bar .header-actions > * {
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
     }
     
     .top-bar .header-actions #installButton {
@@ -4580,8 +4615,11 @@ body {
         transform: scale(0.95);
     }
     
-    /* ضمان أن جميع الأزرار بنفس الحجم */
-    .top-bar .header-actions .btn-icon {
+    /* ضمان أن جميع الأزرار بنفس الحجم ولا تنكمش */
+    .top-bar .header-actions .btn-icon,
+    .top-bar .header-actions .sync-indicator,
+    .top-bar .header-actions #mobileRefreshBtn,
+    .top-bar .header-actions #installButton {
         min-width: 36px !important;
         min-height: 36px !important;
         width: 36px !important;
@@ -4589,6 +4627,8 @@ body {
         padding: 0 !important;
         font-size: 1.1em !important;
         border-radius: 6px !important;
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
     }
     
     .header-actions .sync-indicator i {
@@ -4745,9 +4785,26 @@ body {
     
     /* أزرار العمليات */
     .header-actions {
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
+        flex-direction: row;
+        gap: 4px;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+        flex-wrap: nowrap;
+    }
+    
+    /* إخفاء شريط التمرير في header-actions */
+    .header-actions::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+    
+    /* ضمان أن الأزرار لا تنكمش */
+    .header-actions .btn-icon {
+        flex-shrink: 0 !important;
     }
     
     /* الأزرار في الهيدر العلوي تبقى أفقية */
