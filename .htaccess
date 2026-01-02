@@ -181,10 +181,12 @@ AddDefaultCharset UTF-8
 
 <IfModule mod_php.c>
     php_value soap.wsdl_cache_enabled "0"
-    php_value auto_prepend_file ".auto_prepend.php"
+    # ✅ تم إزالة auto_prepend_file - يتم التعامل معه في config.php
+    # php_value auto_prepend_file ".auto_prepend.php"
 </IfModule>
 
 <IfModule lsapi_module>
     php_value soap.wsdl_cache_enabled "0"
-    php_value auto_prepend_file ".auto_prepend.php"
+    # ✅ تم إزالة auto_prepend_file - يتم التعامل معه في config.php
+    # php_value auto_prepend_file ".auto_prepend.php"
 </IfModule>
