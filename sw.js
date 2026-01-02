@@ -463,11 +463,9 @@ self.addEventListener('fetch', event => {
     if (isDynamicFile) {
         // ✅ التحقق من أن الطلب هو لملف محلي وليس CDN خارجي
         const requestUrl = new URL(request.url);
-        const isExternalCDN = requestUrl.origin !== self.location.origin;
-        const isLocalFile = !isExternalCDN || 
-                           requestUrl.hostname === 'localhost' || 
-                           requestUrl.hostname === '127.0.0.1' ||
-                           requestUrl.hostname.includes(self.location.hostname);
+        // ✅ الحل الآمن: الاعتماد على origin matching فقط (يعمل مع أي دومين)
+        // origin يشمل protocol + hostname + port - آمن 100%
+        const isLocalFile = requestUrl.origin === self.location.origin;
         
         // ✅ Network First مع Cache Fallback للملفات الديناميكية
         // لا نضيف headers مخصصة للملفات الخارجية (CDN) لتجنب مشاكل CORS
