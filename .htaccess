@@ -8,6 +8,18 @@ DirectoryIndex index.html index.php index.htm
 # ✅ السماح بعرض الملفات
 Options -Indexes +FollowSymLinks
 
+# ✅ CRITICAL: قاعدة عامة للسماح بجميع الملفات (في البداية)
+# هذه القاعدة تضمن السماح بالوصول لجميع الملفات ما لم يتم منعها صراحة
+<FilesMatch ".*">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
 # ============================================
 # ✅ CRITICAL: السماح بصفحة تسجيل الدخول - MUST BE FIRST
 # ============================================
@@ -71,25 +83,20 @@ Options -Indexes +FollowSymLinks
     </IfModule>
 </FilesMatch>
 
-# ✅ السماح بجميع ملفات PHP في مجلد api/
-<Directory "api">
-    <IfModule mod_authz_core.c>
-        Require all granted
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Allow from all
-    </IfModule>
-</Directory>
+# ✅ السماح بجميع ملفات PHP في مجلد api/ (يتم التعامل معها عبر FilesMatch)
 
 # ✅ RewriteEngine - فقط إذا كان متاحاً (للطلبات الخاصة)
 <IfModule mod_rewrite.c>
     RewriteEngine On
     
-    # ✅ CRITICAL: السماح بـ index.html مباشرة (قبل أي قواعد أخرى)
+    # ✅ CRITICAL: السماح بالوصول للملفات والمجلدات الموجودة
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule . - [L]
+    
+    # ✅ السماح بالوصول للصفحة الرئيسية
+    RewriteCond %{REQUEST_URI} ^/?$ [NC]
+    RewriteRule . index.html [L]
     
     # ✅ السماح بجميع الطلبات إلى مجلد api/
     RewriteCond %{REQUEST_URI} ^/?api/ [NC]
