@@ -2435,6 +2435,21 @@ body {
     max-width: 450px;
 }
 
+/* التأكد من أن النماذج تستخدم العرض الكامل على الموبايل */
+@media (max-width: 768px) {
+    .modal-content.modal-sm {
+        width: 98% !important;
+        max-width: 98% !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-content.modal-sm {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -4884,11 +4899,21 @@ body {
         flex-direction: column;
     }
     
+    /* التأكد من أن جميع النماذج تستخدم العرض الكامل على الموبايل */
+    .modal-content,
+    .modal-content.modal-sm,
+    .modal-content.modal-lg {
+        width: 98% !important;
+        max-width: 98% !important;
+    }
+    
     .modal-content.modal-sm {
+        width: 98% !important;
         max-width: 98% !important;
     }
     
     .modal-content.modal-lg {
+        width: 98% !important;
         max-width: 98% !important;
     }
     
@@ -4963,6 +4988,14 @@ body {
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    
+    /* تحسين النماذج في صفحة settings على الموبايل */
+    #settings-section .modal,
+    #settings-section .modal-content,
+    #settings-section .modal-content.modal-sm {
+        width: 98% !important;
+        max-width: 98% !important;
+    }
 }
 
 /* ===== Extra Small Phones (480px) ===== */
@@ -4984,10 +5017,20 @@ body {
     }
     
     .modal-content.modal-sm {
+        width: 100% !important;
         max-width: 100% !important;
     }
     
     .modal-content.modal-lg {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* التأكد من أن جميع النماذج تستخدم العرض الكامل على الشاشات الصغيرة */
+    .modal-content,
+    .modal-content.modal-sm,
+    .modal-content.modal-lg {
+        width: 100% !important;
         max-width: 100% !important;
     }
 
@@ -5052,6 +5095,14 @@ body {
         white-space: nowrap;
         min-width: 60px;
     }
+    
+    /* تحسين النماذج في صفحة settings على الشاشات الصغيرة */
+    #settings-section .modal,
+    #settings-section .modal-content,
+    #settings-section .modal-content.modal-sm {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
 }
 
 @media (max-width: 768px) {
@@ -5100,12 +5151,24 @@ body {
     
     
     .settings-container {
-        padding: 15px;
+        padding: 10px;
+        width: 100%;
+        max-width: 100%;
     }
     
     .settings-section {
         margin-bottom: 20px;
         padding: 15px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* التأكد من أن النماذج في settings تستخدم العرض الكامل */
+    #userModal .modal-content,
+    #userModal .modal-content.modal-sm {
+        width: 98% !important;
+        max-width: 98% !important;
     }
     
     /* تبويبات الفروع - استجابة */
@@ -9668,4 +9731,5 @@ body > .nav-link,
     .floating-chat-overlay {
         display: none !important;
     }
+}
 }

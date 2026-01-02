@@ -1,3 +1,14 @@
+# ✅ تحديد MIME types للملفات الصوتية
+<IfModule mod_mime.c>
+    AddType audio/webm .webm
+    AddType audio/mpeg .mp3
+    AddType audio/ogg .ogg
+    AddType audio/wav .wav
+    AddType audio/mp4 .m4a
+    AddType audio/aac .aac
+    AddType audio/flac .flac
+</IfModule>
+
 # السماح بالوصول للملفات الصوتية
 <FilesMatch "\.(webm|mp3|ogg|wav|m4a|aac|flac)$">
     Order allow,deny
@@ -11,6 +22,22 @@
         Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, HEAD"
         Header set Access-Control-Allow-Headers "Content-Type, Range, Content-Range"
         Header set Access-Control-Expose-Headers "Content-Range, Content-Length, Accept-Ranges"
+        # ✅ تحديد Content-Type صريحاً
+        <FilesMatch "\.webm$">
+            Header set Content-Type "audio/webm"
+        </FilesMatch>
+        <FilesMatch "\.mp3$">
+            Header set Content-Type "audio/mpeg"
+        </FilesMatch>
+        <FilesMatch "\.ogg$">
+            Header set Content-Type "audio/ogg"
+        </FilesMatch>
+        <FilesMatch "\.wav$">
+            Header set Content-Type "audio/wav"
+        </FilesMatch>
+        <FilesMatch "\.m4a$">
+            Header set Content-Type "audio/mp4"
+        </FilesMatch>
     </FilesMatch>
 </IfModule>
 

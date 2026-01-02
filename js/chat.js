@@ -742,8 +742,8 @@ function createMessageElement(message) {
             const audioPlayer = document.createElement('audio');
             audioPlayer.controls = false;
             audioPlayer.preload = 'metadata';
-            // ✅ إضافة crossOrigin للملفات الصوتية لدعم CORS على الهاتف
-            audioPlayer.crossOrigin = 'anonymous';
+            // ✅ إزالة crossOrigin - يسبب مشاكل على بعض الهواتف إذا لم يكن الخادم مضبوطاً بشكل صحيح
+            // audioPlayer.crossOrigin = 'anonymous';
             
             // تحديد المسار
             if (filePath) {
@@ -814,25 +814,49 @@ function createMessageElement(message) {
             
             // معالجة أخطاء تحميل الصوت
             audioPlayer.addEventListener('error', (e) => {
-                console.error('خطأ في تحميل الملف الصوتي:', e);
+                console.error('خطأ في تحميل الملف الصوتي:', e, audioPlayer.error);
                 const error = audioPlayer.error;
                 let errorMessage = 'فشل في تشغيل الملف الصوتي';
+                let shouldRetry = false;
                 
                 if (error) {
                     switch (error.code) {
                         case error.MEDIA_ERR_ABORTED:
                             errorMessage = 'تم إلغاء تحميل الملف الصوتي';
+                            shouldRetry = true;
                             break;
                         case error.MEDIA_ERR_NETWORK:
                             errorMessage = 'خطأ في الشبكة - يرجى التحقق من الاتصال';
+                            shouldRetry = true;
                             break;
                         case error.MEDIA_ERR_DECODE:
-                            errorMessage = 'خطأ في فك تشفير الملف الصوتي';
+                            errorMessage = 'خطأ في فك تشفير الملف الصوتي - قد يكون التنسيق غير مدعوم على هذا الجهاز';
                             break;
                         case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                            errorMessage = 'نوع الملف الصوتي غير مدعوم';
+                            // ✅ كشف iOS وإظهار رسالة مناسبة
+                            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                            if (isIOS) {
+                                errorMessage = 'تنسيق الملف الصوتي (.webm) غير مدعوم على أجهزة iOS - يرجى استخدام جهاز Android أو الكمبيوتر';
+                            } else {
+                                errorMessage = 'تنسيق الملف الصوتي غير مدعوم على هذا الجهاز - يرجى المحاولة على جهاز آخر';
+                            }
+                            console.warn('تنسيق webm غير مدعوم على هذا الجهاز:', navigator.userAgent);
                             break;
                     }
+                }
+                
+                // ✅ محاولة إعادة التحميل إذا كان الخطأ قابل للمعالجة
+                if (shouldRetry && filePath && !filePath.startsWith('data:')) {
+                    console.log('محاولة إعادة تحميل الملف الصوتي...');
+                    const originalSrc = audioPlayer.src;
+                    audioPlayer.src = '';
+                    setTimeout(() => {
+                        // إزالة timestamp وإعادة إضافته
+                        const cleanPath = originalSrc.split('?')[0];
+                        audioPlayer.src = cleanPath + '?t=' + Date.now();
+                        audioPlayer.load();
+                    }, 500);
+                    return; // لا نعرض خطأ بعد - نعطي فرصة لإعادة التحميل
                 }
                 
                 // إظهار رسالة خطأ للمستخدم
@@ -841,7 +865,7 @@ function createMessageElement(message) {
                 errorDiv.textContent = errorMessage;
                 audioContainer.appendChild(errorDiv);
                 
-                // إخفاء زر التشغيل عند وجود خطأ
+                // إخفاء زر التشغيل عند وجود خطأ دائم
                 playPauseBtn.style.display = 'none';
             });
             
@@ -1041,18 +1065,36 @@ function setupEventListeners() {
     const refreshMessagesBtn = document.getElementById('refreshMessagesBtn');
     if (refreshMessagesBtn) {
         refreshMessagesBtn.addEventListener('click', refreshMessages);
+        // إضافة touch events للموبايل
+        refreshMessagesBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            refreshMessages();
+        }, { passive: false });
     }
     
     // زر الرجوع (في header الموبايل)
     const backBtn = document.getElementById('backBtn');
     if (backBtn) {
         backBtn.addEventListener('click', handleBackButton);
+        // إضافة touch events للموبايل
+        backBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleBackButton(e);
+        }, { passive: false });
     }
     
     // زر حذف الشات (في header الموبايل - للمالك فقط)
     const deleteChatBtn = document.getElementById('deleteChatBtn');
     if (deleteChatBtn) {
         deleteChatBtn.addEventListener('click', handleDeleteChat);
+        // إضافة touch events للموبايل
+        deleteChatBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleDeleteChat(e);
+        }, { passive: false });
     }
     
     // زر الرجوع (القديم - للتوافق)

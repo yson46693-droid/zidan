@@ -113,6 +113,7 @@ body {
     box-shadow: var(--chat-shadow);
     position: relative;
     z-index: 100;
+    pointer-events: auto;
 }
 
 /* أزرار الموبايل في header */
@@ -121,6 +122,9 @@ body {
     align-items: center;
     gap: 10px;
     margin-right: auto;
+    position: relative;
+    z-index: 1000;
+    pointer-events: auto;
 }
 
 /* إخفاء الأزرار على الشاشات الكبيرة (عند فتح الشات داخل iframe) */
@@ -146,6 +150,10 @@ body {
     height: 40px;
     min-width: 40px;
     min-height: 40px;
+    z-index: 1001;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .delete-chat-btn:hover {
@@ -204,6 +212,10 @@ body {
     min-width: 48px;
     min-height: 48px;
     box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+    z-index: 1001;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .back-btn svg {
@@ -2648,6 +2660,10 @@ body {
     margin-left: 10px;
     width: 40px;
     height: 40px;
+    z-index: 1001;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .refresh-messages-btn:hover {
