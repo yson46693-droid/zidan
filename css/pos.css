@@ -3822,7 +3822,28 @@
     }
 
     .btn-back {
-        display: none !important;
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
+        background: var(--primary-color);
+        color: var(--white);
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.3s ease;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .btn-back:hover {
+        background: var(--secondary-color);
+        transform: translateX(-3px);
+    }
+
+    .btn-back:active {
+        transform: translateX(-1px);
     }
 
     /* Hide Desktop Cart Section */
