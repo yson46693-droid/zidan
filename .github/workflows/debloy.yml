@@ -16,19 +16,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify Icons Directory
-        run: |
-          echo "🔍 التحقق من وجود ملفات الأيقونات..."
-          if [ ! -d "icons" ]; then
-            echo "❌ مجلد icons غير موجود!"
-            exit 1
-          fi
-          icon_count=$(find icons -name "*.png" | wc -l)
-          echo "✅ تم العثور على $icon_count ملف أيقونة"
-          ls -la icons/
-          echo ""
-          echo "📋 قائمة الملفات في مجلد icons:"
-          find icons -type f -name "*.png" | sort
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
