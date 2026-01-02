@@ -1,17 +1,63 @@
 <?php
-// تنظيف output buffer قبل أي شيء
+// ✅ CRITICAL: تنظيف output buffer قبل أي شيء
 while (ob_get_level() > 0) {
     ob_end_clean();
 }
 
-// بدء معالجة الأخطاء قبل أي شيء
+// ✅ CRITICAL: بدء معالجة الأخطاء قبل أي شيء
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
+// ✅ CRITICAL: معالجة الأخطاء القاتلة
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        // تنظيف أي output
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success' => false,
+            'message' => 'خطأ قاتل في PHP: ' . $error['message'],
+            'error' => $error['message'],
+            'file' => $error['file'],
+            'line' => $error['line'],
+            'type' => 'Fatal Error'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+});
+
+// ✅ CRITICAL: معالجة الاستثناءات غير المعالجة
+set_exception_handler(function($exception) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'خطأ استثناء غير معالج: ' . $exception->getMessage(),
+        'error' => $exception->getMessage(),
+        'file' => $exception->getFile(),
+        'line' => $exception->getLine(),
+        'type' => 'Uncaught Exception'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+});
+
 try {
     require_once 'config.php';
 } catch (Exception $e) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
@@ -19,10 +65,15 @@ try {
         'message' => 'خطأ في تحميل ملف الإعدادات: ' . $e->getMessage(),
         'error' => $e->getMessage(),
         'file' => $e->getFile(),
-        'line' => $e->getLine()
+        'line' => $e->getLine(),
+        'type' => 'Config Exception'
     ], JSON_UNESCAPED_UNICODE);
     exit;
 } catch (Error $e) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
@@ -30,16 +81,57 @@ try {
         'message' => 'خطأ قاتل في تحميل ملف الإعدادات: ' . $e->getMessage(),
         'error' => $e->getMessage(),
         'file' => $e->getFile(),
-        'line' => $e->getLine()
+        'line' => $e->getLine(),
+        'type' => 'Config Fatal Error'
     ], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+// ✅ التحقق من أن الدوال المطلوبة موجودة
+if (!function_exists('getRequestMethod')) {
+    response(false, 'دالة getRequestMethod غير موجودة', null, 500);
+}
+if (!function_exists('getRequestData')) {
+    response(false, 'دالة getRequestData غير موجودة', null, 500);
+}
+if (!function_exists('response')) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'دالة response غير موجودة',
+        'error' => 'Function response() not found'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+if (!function_exists('getDBConnection')) {
+    response(false, 'دالة getDBConnection غير موجودة', null, 500);
+}
+if (!function_exists('dbSelectOne')) {
+    response(false, 'دالة dbSelectOne غير موجودة', null, 500);
 }
 
 $method = getRequestMethod();
 
 // تسجيل الدخول
 if ($method === 'POST') {
-    $data = getRequestData();
+    try {
+        $data = getRequestData();
+    } catch (Exception $e) {
+        error_log('خطأ في getRequestData: ' . $e->getMessage());
+        response(false, 'خطأ في قراءة بيانات الطلب: ' . $e->getMessage(), [
+            'error_type' => 'Request Data Exception',
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ], 500);
+    } catch (Error $e) {
+        error_log('خطأ قاتل في getRequestData: ' . $e->getMessage());
+        response(false, 'خطأ قاتل في قراءة بيانات الطلب: ' . $e->getMessage(), [
+            'error_type' => 'Request Data Fatal Error',
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ], 500);
+    }
     
     // التحقق من طلب تسجيل الخروج
     if (isset($data['action']) && $data['action'] === 'logout') {
@@ -157,17 +249,34 @@ if ($method === 'POST') {
         $errorMsg = "خطأ في استعلام قاعدة البيانات: " . $e->getMessage();
         error_log($errorMsg);
         error_log("Stack trace: " . $e->getTraceAsString());
+        
+        // ✅ إرجاع معلومات أكثر تفصيلاً للتصحيح
         response(false, 'خطأ في قاعدة البيانات: ' . $e->getMessage(), [
             'error_type' => 'Exception',
             'file' => $e->getFile(),
-            'line' => $e->getLine()
+            'line' => $e->getLine(),
+            'trace' => explode("\n", $e->getTraceAsString())
         ], 500);
     } catch (Error $e) {
         $errorMsg = "خطأ قاتل في قاعدة البيانات: " . $e->getMessage();
         error_log($errorMsg);
         error_log("Stack trace: " . $e->getTraceAsString());
+        
+        // ✅ إرجاع معلومات أكثر تفصيلاً للتصحيح
         response(false, 'خطأ قاتل في قاعدة البيانات: ' . $e->getMessage(), [
             'error_type' => 'Fatal Error',
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => explode("\n", $e->getTraceAsString())
+        ], 500);
+    } catch (Throwable $e) {
+        // ✅ معالجة أي نوع آخر من الأخطاء (PHP 7+)
+        $errorMsg = "خطأ غير متوقع: " . $e->getMessage();
+        error_log($errorMsg);
+        error_log("Stack trace: " . $e->getTraceAsString());
+        
+        response(false, 'خطأ غير متوقع: ' . $e->getMessage(), [
+            'error_type' => 'Throwable',
             'file' => $e->getFile(),
             'line' => $e->getLine()
         ], 500);
