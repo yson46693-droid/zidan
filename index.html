@@ -1014,14 +1014,36 @@
                     // ✅ إصلاح: استخدام مسار مطلق للـ service worker
                     // ✅ استخدام sw.js.php كحل بديل لضمان MIME type الصحيح
                     const swUrl = basePath ? `${basePath}/sw.js.php` : '/sw.js.php';
+                    const swUrlFallback = basePath ? `${basePath}/sw.js` : '/sw.js';
                     // ✅ إصلاح: scope يجب أن يكون root دائماً (/) أو basePath/
                     // لا نستخدم pathname الحالي لأن scope يجب أن يكون من root
                     const scope = basePath ? `${basePath}/` : '/';
                     
-                    const registration = await navigator.serviceWorker.register(swUrl, {
-                        scope: scope,
-                        updateViaCache: 'none'
-                    });
+                    let registration;
+                    try {
+                        // محاولة استخدام sw.js.php أولاً
+                        registration = await navigator.serviceWorker.register(swUrl, {
+                            scope: scope,
+                            updateViaCache: 'none'
+                        });
+                    } catch (error) {
+                        // ✅ Fallback: إذا فشل sw.js.php، استخدم sw.js مباشرة
+                        if (error.message && error.message.includes('500')) {
+                            console.warn('⚠️ sw.js.php failed (500), trying sw.js directly...');
+                            try {
+                                registration = await navigator.serviceWorker.register(swUrlFallback, {
+                                    scope: scope,
+                                    updateViaCache: 'none'
+                                });
+                                console.log('✅ Service Worker registered using sw.js fallback');
+                            } catch (fallbackError) {
+                                console.error('❌ Both sw.js.php and sw.js failed:', fallbackError);
+                                throw fallbackError;
+                            }
+                        } else {
+                            throw error;
+                        }
+                    }
                     
                     // ✅ إزالة العلامة بعد التسجيل
                     window.serviceWorkerRegistering = false;
