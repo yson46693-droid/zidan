@@ -4,6 +4,16 @@
  */
 require_once 'config.php';
 
+/**
+ * جلب الفرع الأول (HANOVIL) حسب تاريخ الإنشاء
+ */
+function getFirstBranchId() {
+    $firstBranch = dbSelectOne(
+        "SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1"
+    );
+    return $firstBranch ? $firstBranch['id'] : null;
+}
+
 $method = getRequestMethod();
 $data = getRequestData();
 
@@ -22,7 +32,16 @@ if ($method === 'POST') {
     $itemName = $data['item_name'] ?? '';
     $quantity = intval($data['quantity'] ?? 1);
     $items = $data['items'] ?? null; // مصفوفة القطع الفرعية (لقطع الغيار)
-    $toBranchId = $data['to_branch_id'] ?? 'branch_hanovil'; // افتراضياً الفرع الأول
+    
+    // الحصول على ID الفرع الأول إذا لم يتم تحديد to_branch_id
+    $toBranchId = $data['to_branch_id'] ?? null;
+    if (!$toBranchId) {
+        $toBranchId = getFirstBranchId();
+        if (!$toBranchId) {
+            response(false, 'لم يتم العثور على الفرع الأول', null, 404);
+        }
+    }
+    
     $notes = trim($data['notes'] ?? '');
     
     // التحقق من البيانات
