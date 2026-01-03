@@ -151,13 +151,26 @@ try {
                 if (session_status() === PHP_SESSION_NONE) {
                     session_start();
                 }
+                // ✅ CRITICAL: التأكد من أن الجلسة نشطة قبل حفظ البيانات
+                if (session_status() === PHP_SESSION_NONE) {
+                    error_log("WebAuthn Login API - WARNING: Session not started, starting now...");
+                    session_start();
+                }
+                
+                // ✅ تسجيل حالة الجلسة قبل حفظ البيانات
+                error_log("WebAuthn Login API - Session ID before setting user data: " . session_id());
+                error_log("WebAuthn Login API - Session status before setting user data: " . session_status());
+                error_log("WebAuthn Login API - Session data before setting user data: " . json_encode($_SESSION));
+                
+                // حفظ بيانات المستخدم في الجلسة
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
                 
-                // ✅ تسجيلات مفصلة لحالة الجلسة
+                // ✅ تسجيل حالة الجلسة بعد حفظ البيانات
+                error_log("WebAuthn Login API - Session data after setting user data: " . json_encode($_SESSION));
                 error_log("WebAuthn Login API - Session created for user: " . $user['id'] . " - branch_id: " . ($user['branch_id'] ?? 'null'));
                 error_log("WebAuthn Login API - Session ID: " . session_id());
                 error_log("WebAuthn Login API - Session status: " . session_status() . " (PHP_SESSION_ACTIVE=" . PHP_SESSION_ACTIVE . ")");
@@ -174,22 +187,49 @@ try {
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     // التأكد من أن headers لم يتم إرسالها بعد
                     if (!headers_sent()) {
-                        session_write_close();
-                        error_log("WebAuthn Login API - Session written to cookies successfully");
-                        error_log("WebAuthn Login API - Session ID after write_close: " . session_id());
+                        // ✅ CRITICAL: استخدام session_commit() بدلاً من session_write_close() لضمان الحفظ
+                        // session_commit() هو alias لـ session_write_close() لكنه أكثر وضوحاً
+                        session_commit();
+                        error_log("WebAuthn Login API - Session committed successfully");
+                        error_log("WebAuthn Login API - Session ID after commit: " . session_id());
                     } else {
                         error_log("WebAuthn Login API - WARNING: Headers already sent, session may not be saved!");
-                        error_log("WebAuthn Login API - Attempting to write session anyway...");
+                        error_log("WebAuthn Login API - Attempting to commit session anyway...");
                         // محاولة حفظ الجلسة حتى لو تم إرسال headers
-                        @session_write_close();
+                        @session_commit();
                     }
                 } else {
                     error_log("WebAuthn Login API - ERROR: Session is not active! Status: " . session_status());
+                    // محاولة إعادة بدء الجلسة وحفظ البيانات
+                    error_log("WebAuthn Login API - Attempting to restart session...");
+                    if (session_status() === PHP_SESSION_NONE) {
+                        session_start();
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['name'] = $user['name'];
+                        $_SESSION['role'] = $user['role'];
+                        $_SESSION['branch_id'] = $user['branch_id'] ?? null;
+                        session_commit();
+                        error_log("WebAuthn Login API - Session restarted and data saved");
+                    }
                 }
                 
                 // ✅ تسجيل cookies بعد حفظ الجلسة
-                error_log("WebAuthn Login API - Cookies after session_write_close: " . json_encode($_COOKIE));
-                error_log("WebAuthn Login API - Headers sent after session_write_close: " . (headers_sent() ? 'YES' : 'NO'));
+                error_log("WebAuthn Login API - Cookies after session_commit: " . json_encode($_COOKIE));
+                error_log("WebAuthn Login API - Headers sent after session_commit: " . (headers_sent() ? 'YES' : 'NO'));
+                
+                // ✅ التحقق من أن البيانات محفوظة في الجلسة
+                // إعادة فتح الجلسة للتحقق (فقط للتحقق، ثم نغلقها مرة أخرى)
+                if (session_status() === PHP_SESSION_NONE) {
+                    session_start();
+                    error_log("WebAuthn Login API - Session data after reopening: " . json_encode($_SESSION));
+                    if (isset($_SESSION['user_id'])) {
+                        error_log("WebAuthn Login API - ✅ User data confirmed in session: user_id=" . $_SESSION['user_id']);
+                    } else {
+                        error_log("WebAuthn Login API - ❌ ERROR: User data NOT found in session after commit!");
+                    }
+                    session_commit();
+                }
                 
                 // ✅ CRITICAL: إرسال headers بعد حفظ الجلسة
                 if (!headers_sent()) {
