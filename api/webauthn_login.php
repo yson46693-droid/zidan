@@ -116,9 +116,12 @@ try {
         error_log("WebAuthn Login API - verifyLogin returned: " . ($userId ? $userId : 'false'));
         
         if ($userId) {
-            // الحصول على بيانات المستخدم
+            // الحصول على بيانات المستخدم مع اسم الفرع
             $user = dbSelectOne(
-                "SELECT id, username, name, role FROM users WHERE id = ?",
+                "SELECT u.id, u.username, u.name, u.role, u.branch_id, b.name as branch_name 
+                 FROM users u 
+                 LEFT JOIN branches b ON u.branch_id = b.id 
+                 WHERE u.id = ?",
                 [$userId]
             );
             
@@ -131,6 +134,16 @@ try {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
+                $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
+                
+                error_log("WebAuthn Login API - Session created for user: " . $user['id'] . " - branch_id: " . ($user['branch_id'] ?? 'null'));
+                
+                // ✅ CRITICAL: إغلاق الجلسة قبل إرسال الاستجابة لتجنب مشاكل headers
+                // وضمان حفظ الجلسة بشكل صحيح
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_write_close();
+                    error_log("WebAuthn Login API - Session written to cookies successfully");
+                }
                 
                 echo json_encode([
                     'success' => true,
@@ -139,7 +152,9 @@ try {
                         'id' => $user['id'],
                         'username' => $user['username'],
                         'name' => $user['name'],
-                        'role' => $user['role']
+                        'role' => $user['role'],
+                        'branch_id' => $user['branch_id'] ?? null,
+                        'branch_name' => $user['branch_name'] ?? null
                     ]
                 ], JSON_UNESCAPED_UNICODE);
             } else {
