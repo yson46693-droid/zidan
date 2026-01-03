@@ -180,43 +180,30 @@ const API = {
                     for (let attempt = 0; attempt <= maxRetries; attempt++) {
                         try {
                             response = await fetch(fullUrl, fetchOptions);
-                        clearTimeout(timeoutId);
-                        break; // نجح الطلب
-                    } catch (error) {
-                        clearTimeout(timeoutId);
-                        // إعادة المحاولة فقط للأخطاء الشبكية (ليس أخطاء HTTP)
-                        if (attempt < maxRetries && (
-                            error.name === 'TypeError' || 
-                            error.name === 'NetworkError' ||
-                            error.name === 'AbortError' ||
-                            error.message?.includes('Failed to fetch') ||
-                            error.message?.includes('Network request failed')
-                        )) {
-                            console.warn(`[API] محاولة إعادة الطلب (${attempt + 1}/${maxRetries}):`, fullUrl);
-                            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // تأخير متزايد
-                            // إعادة إنشاء controller للطلب الجديد
-                            const newController = new AbortController();
-                            const newTimeoutId = setTimeout(() => newController.abort(), 15000);
-                            fetchOptions.signal = newController.signal;
-                            continue;
+                            clearTimeout(timeoutId);
+                            break; // نجح الطلب
+                        } catch (error) {
+                            clearTimeout(timeoutId);
+                            // إعادة المحاولة فقط للأخطاء الشبكية (ليس أخطاء HTTP)
+                            if (attempt < maxRetries && (
+                                error.name === 'TypeError' || 
+                                error.name === 'NetworkError' ||
+                                error.name === 'AbortError' ||
+                                error.message?.includes('Failed to fetch') ||
+                                error.message?.includes('Network request failed')
+                            )) {
+                                console.warn(`[API] محاولة إعادة الطلب (${attempt + 1}/${maxRetries}):`, fullUrl);
+                                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // تأخير متزايد
+                                // إعادة إنشاء controller للطلب الجديد
+                                const newController = new AbortController();
+                                const newTimeoutId = setTimeout(() => newController.abort(), 15000);
+                                fetchOptions.signal = newController.signal;
+                                continue;
+                            }
+                            throw error; // رمي الخطأ إذا لم يكن خطأ شبكي أو تجاوزنا عدد المحاولات
                         }
-                        throw error; // رمي الخطأ إذا لم يكن خطأ شبكي أو تجاوزنا عدد المحاولات
                     }
-                }
-            } catch (error) {
-                clearTimeout(timeoutId);
-                // معالجة الخطأ النهائي
-                if (error.name === 'AbortError') {
-                    return {
-                        success: false,
-                        message: 'انتهت مهلة الطلب. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.',
-                        error: 'Request timeout',
-                        status: 408
-                    };
-                }
-                throw error; // رمي الخطأ للتعامل معه في catch الخارجي
-            }
-            clearTimeout(timeoutId);
+                    clearTimeout(timeoutId);
             
             console.log(`%c📥 استجابة الخادم: ${response.status} ${response.statusText}`, 
                 response.ok ? 'color: #4CAF50;' : 'color: #f44336;');
@@ -312,6 +299,16 @@ const API = {
                     message: error.message,
                     stack: error.stack
                 });
+                
+                // معالجة AbortError (timeout)
+                if (error.name === 'AbortError') {
+                    return {
+                        success: false,
+                        message: 'انتهت مهلة الطلب. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.',
+                        error: 'Request timeout',
+                        status: 408
+                    };
+                }
                 
                 // معالجة NetworkError بشكل أفضل
                 if (error.name === 'TypeError' && error.message.includes('fetch')) {
