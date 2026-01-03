@@ -923,7 +923,8 @@ function createMessageElement(message) {
             });
             textContainer.innerHTML = displayText;
         } else {
-            textContainer.textContent = message.message;
+            // استخدام innerHTML لعرض الرسائل التي تحتوي على <br> (أسطر جديدة)
+            textContainer.innerHTML = message.message;
         }
         
         bubble.appendChild(textContainer);

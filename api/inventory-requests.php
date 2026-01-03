@@ -202,8 +202,13 @@ if ($method === 'POST') {
     
     $chatMessage .= "رقم الطلب: {$requestNumber}\n";
     if (!empty($notes)) {
-        $chatMessage .= "ملاحظات: {$notes}\n";
+        // تأمين الملاحظات من XSS قبل إضافتها
+        $safeNotes = htmlspecialchars($notes, ENT_QUOTES, 'UTF-8');
+        $chatMessage .= "ملاحظات: {$safeNotes}\n";
     }
+    
+    // تحويل الأسطر الجديدة إلى <br> لعرضها بشكل صحيح في الشات
+    $chatMessage = nl2br($chatMessage);
     
     // إرسال رسالة مبسطة في الشات
     try {
@@ -424,8 +429,13 @@ if ($method === 'PUT') {
         $chatMessage .= "رقم الطلب: {$request['request_number']}\n";
         $chatMessage .= "الحالة: " . ($statusText[$status] ?? $status);
         if (!empty($notes)) {
-            $chatMessage .= "\nملاحظات: {$notes}";
+            // تأمين الملاحظات من XSS قبل إضافتها
+            $safeNotes = htmlspecialchars($notes, ENT_QUOTES, 'UTF-8');
+            $chatMessage .= "\nملاحظات: {$safeNotes}";
         }
+        
+        // تحويل الأسطر الجديدة إلى <br> لعرضها بشكل صحيح في الشات
+        $chatMessage = nl2br($chatMessage);
         
         $messageId = generateId();
         $user = dbSelectOne("SELECT name, username FROM users WHERE id = ?", [$session['user_id']]);

@@ -1172,14 +1172,79 @@ async function showEditUserModal(userId) {
         }
 
         const user = result.data;
+        
+        // ✅ تسجيل البيانات للتشخيص
+        console.log('📥 بيانات المستخدم المستلمة:', user);
+        console.log('📥 تفاصيل البيانات:', {
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            role: user.role,
+            branch_id: user.branch_id,
+            branch_name: user.branch_name
+        });
+
+        // ✅ التحقق من وجود البيانات الأساسية
+        if (!user.name && !user.username) {
+            console.error('❌ بيانات المستخدم غير كاملة:', user);
+            showMessage('خطأ: بيانات المستخدم غير كاملة. يرجى المحاولة مرة أخرى.', 'error');
+            return;
+        }
 
         // تعيين عنوان النموذج
         titleElement.textContent = 'تعديل مستخدم';
         
-        // ملء الحقول ببيانات المستخدم
-        nameField.value = user.name || '';
-        usernameField.value = user.username || '';
-        roleField.value = user.role || 'employee';
+        // حفظ معرف المستخدم في النموذج
+        form.dataset.editUserId = userId;
+        
+        // ملء الحقول الأساسية أولاً (قبل تحميل الفروع)
+        const userName = user.name || '';
+        const userUsername = user.username || '';
+        const userRole = user.role || 'employee';
+        
+        nameField.value = userName;
+        usernameField.value = userUsername;
+        roleField.value = userRole;
+        
+        console.log('✅ تم تعيين الحقول الأساسية:', {
+            name: userName,
+            username: userUsername,
+            role: userRole
+        });
+        
+        // ✅ تحميل الفروع أولاً قبل تعيين قيمة الفرع (لضمان جاهزية القائمة المنسدلة)
+        await loadUserBranches(true);
+        
+        // ✅ انتظار قليل لضمان أن القائمة المنسدلة جاهزة تماماً
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // ✅ إظهار/إخفاء حقل الفرع حسب الدور (قبل تعيين القيمة)
+        toggleBranchField();
+        
+        // ✅ تعيين الفرع بعد تحميل الفروع والتأكد من وجوده (بعد toggleBranchField)
+        const branchField = document.getElementById('userBranch');
+        if (branchField) {
+            // ✅ فقط إذا كان الدور ليس admin (لأن admin لا يجب أن يكون له فرع)
+            if (user.role !== 'admin' && user.branch_id) {
+                const branchIdStr = String(user.branch_id).trim();
+                
+                // التحقق من وجود الخيار في القائمة المنسدلة
+                const optionExists = Array.from(branchField.options).some(opt => opt.value === branchIdStr);
+                
+                if (optionExists) {
+                    branchField.value = branchIdStr;
+                    console.log('✅ تم تعيين الفرع:', branchField.value, 'من', user.branch_id);
+                } else {
+                    console.warn('⚠️ الفرع المحدد غير موجود في القائمة:', branchIdStr);
+                    branchField.value = '';
+                }
+            } else {
+                branchField.value = '';
+                if (user.role === 'admin') {
+                    console.log('✅ المستخدم من نوع admin - لا فرع محدد');
+                }
+            }
+        }
         
         // إخفاء حقل كلمة المرور (اختياري في التعديل)
         if (passwordGroup) {
@@ -1190,27 +1255,58 @@ async function showEditUserModal(userId) {
         
         // تعطيل اسم المستخدم (لا يمكن تغييره)
         usernameField.disabled = true;
-
-        // حفظ معرف المستخدم في النموذج
-        form.dataset.editUserId = userId;
-
-        // تحميل الفروع
-        await loadUserBranches(true);
-
-        // تعيين الفرع إذا كان موجوداً
-        const branchField = document.getElementById('userBranch');
-        if (branchField && user.branch_id) {
-            branchField.value = String(user.branch_id);
+        
+        // ✅ تسجيل القيم النهائية للتشخيص
+        console.log('✅ الحقول بعد التعبئة:', {
+            name: nameField.value,
+            username: usernameField.value,
+            role: roleField.value,
+            branch: branchField?.value || 'غير محدد'
+        });
+        
+        // ✅ التحقق النهائي من القيم قبل إظهار النموذج
+        if (nameField.value !== userName) {
+            console.warn('⚠️ تحذير: قيمة الاسم تغيرت بعد التعبئة. إعادة التعيين...');
+            nameField.value = userName;
         }
-
-        // إظهار/إخفاء حقل الفرع حسب الدور
-        toggleBranchField();
+        if (usernameField.value !== userUsername) {
+            console.warn('⚠️ تحذير: قيمة اسم المستخدم تغيرت بعد التعبئة. إعادة التعيين...');
+            usernameField.value = userUsername;
+        }
+        if (roleField.value !== userRole) {
+            console.warn('⚠️ تحذير: قيمة الدور تغيرت بعد التعبئة. إعادة التعيين...');
+            roleField.value = userRole;
+        }
 
         // إظهار النموذج
         userModal.style.display = 'flex';
 
         // التركيز على أول حقل قابل للتعديل
         setTimeout(() => {
+            // ✅ التحقق مرة أخرى من القيم بعد إظهار النموذج (لضمان عدم تغييرها)
+            if (nameField.value !== userName) {
+                console.warn('⚠️ إعادة تعيين الاسم بعد إظهار النموذج');
+                nameField.value = userName;
+            }
+            if (usernameField.value !== userUsername) {
+                console.warn('⚠️ إعادة تعيين اسم المستخدم بعد إظهار النموذج');
+                usernameField.value = userUsername;
+            }
+            if (roleField.value !== userRole) {
+                console.warn('⚠️ إعادة تعيين الدور بعد إظهار النموذج');
+                roleField.value = userRole;
+            }
+            if (branchField && user.branch_id) {
+                const branchIdStr = String(user.branch_id).trim();
+                if (branchField.value !== branchIdStr) {
+                    const optionExists = Array.from(branchField.options).some(opt => opt.value === branchIdStr);
+                    if (optionExists) {
+                        console.warn('⚠️ إعادة تعيين الفرع بعد إظهار النموذج');
+                        branchField.value = branchIdStr;
+                    }
+                }
+            }
+            
             nameField.focus();
         }, 100);
     } catch (error) {
