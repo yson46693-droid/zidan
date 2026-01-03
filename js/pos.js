@@ -3365,12 +3365,18 @@ async function initializePOSQRCodeScannerMobile() {
     posQRCodeScannerInstance = new Html5Qrcode('pos-qr-reader-mobile');
     posScannerOpen = true;
     
-    // Start scanner with simple config (exactly like qr.html - no await, use .catch() directly)
+    // Start scanner with optimized config for better performance and recognition
     posQRCodeScannerInstance.start(
         { facingMode: "environment" }, // الكاميرا الخلفية
         {
-            fps: 10,
-            qrbox: { width: 250, height: 250 }
+            fps: 30, // زيادة FPS للسرعة (من 10 إلى 30)
+            qrbox: { width: 280, height: 280 }, // زيادة حجم صندوق القراءة (من 250 إلى 280)
+            aspectRatio: 1.0,
+            disableFlip: false,
+            videoConstraints: {
+                aspectRatio: 1.0,
+                focusMode: "continuous" // تحسين التركيز التلقائي
+            }
         },
         function onScanSuccess(decodedText, decodedResult) {
             // Success callback - تم قراءة QR Code بنجاح (exactly like qr.html)
@@ -3545,12 +3551,16 @@ async function initializePOSQRCodeScanner() {
         const scannerId = isMobile ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
         posQRCodeScannerInstance = new Html5Qrcode(scannerId);
         
-        // إعدادات المسح - دعم QR Code والباركود
+        // إعدادات المسح - دعم QR Code والباركود (محسنة للأداء)
         const config = {
-            fps: 10,
-            qrbox: isMobile ? { width: 250, height: 250 } : { width: 300, height: 300 },
+            fps: 30, // زيادة FPS من 10 إلى 30 للسرعة الأفضل
+            qrbox: isMobile ? { width: 280, height: 280 } : { width: 350, height: 350 }, // زيادة حجم صندوق القراءة
             aspectRatio: 1.0,
-            disableFlip: false
+            disableFlip: false,
+            videoConstraints: {
+                aspectRatio: 1.0,
+                focusMode: "continuous" // تحسين التركيز التلقائي
+            }
         };
         
         // Add supportedScanTypes if available (newer versions)
@@ -3682,10 +3692,10 @@ async function initializePOSQRCodeScanner() {
         // محاولة إضافية - استخدام facingMode: environment مباشرة (مثل repairs.js)
         console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: environment مباشرة...`);
         try {
-            // إعدادات مبسطة للمحاولة الثانية
+            // إعدادات مبسطة للمحاولة الثانية (محسنة)
             const fallbackConfig = {
-                fps: 10,
-                qrbox: isMobile ? { width: 250, height: 250 } : { width: 300, height: 300 },
+                fps: 25, // زيادة FPS للمحاولة الثانية
+                qrbox: isMobile ? { width: 280, height: 280 } : { width: 350, height: 350 },
                 aspectRatio: 1.0,
                 disableFlip: false
             };
@@ -3752,10 +3762,10 @@ async function initializePOSQRCodeScanner() {
                         }
                         
                         try {
-                            // استخدام إعدادات مبسطة للمحاولة الأخيرة
+                            // استخدام إعدادات مبسطة للمحاولة الأخيرة (محسنة)
                             const finalFallbackConfig = {
-                                fps: 10,
-                                qrbox: isMobile ? { width: 250, height: 250 } : { width: 300, height: 300 },
+                                fps: 20, // زيادة FPS للمحاولة الأخيرة
+                                qrbox: isMobile ? { width: 280, height: 280 } : { width: 350, height: 350 },
                                 aspectRatio: 1.0,
                                 disableFlip: false
                             };
@@ -3875,33 +3885,69 @@ async function handlePOSQRCodeScanned(decodedText) {
     // ✅ استخدام النص المنظف للبحث
     decodedText = cleanedText;
     
-    // Try to parse QR code as JSON (inventory card format for spare parts, phones, and accessories)
+    // ✅ Try to parse QR code as JSON (inventory card format for spare parts, phones, and accessories)
+    // تحسين parsing JSON لقطع الغيار مع معالجة أفضل للأخطاء
     try {
-        const qrData = JSON.parse(decodedText);
-        if (qrData.type && qrData.id) {
-            productId = qrData.id;
+        // محاولة تنظيف النص قبل parsing (إزالة أي أحرف غير مرئية)
+        const cleanedJsonText = decodedText.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+        const qrData = JSON.parse(cleanedJsonText);
+        
+        console.log('📋 [POS Scanner] QR Code بصيغة JSON:', qrData);
+        
+        if (qrData && qrData.type && qrData.id) {
+            productId = parseInt(qrData.id); // تحويل ID إلى رقم للتأكد من التطابق
             
-            // Find product by type and ID
-            if (qrData.type === 'SPARE_PART') {
-                product = allProducts.find(p => p.id === productId && p.type === 'spare_part');
-                if (product) {
-                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Spare Part):', product.name);
+            console.log('🔍 [POS Scanner] البحث عن منتج - النوع:', qrData.type, 'ID:', productId);
+            
+            // Find product by type and ID - تحسين البحث
+            if (qrData.type === 'SPARE_PART' || qrData.type === 'spare_part') {
+                // البحث عن قطع الغيار - محاولة مطابقة ID كرقم أو نص
+                product = allProducts.find(p => {
+                    const pId = parseInt(p.id);
+                    const matchById = (pId === productId || p.id.toString() === productId.toString());
+                    const matchByType = (p.type === 'spare_part');
+                    return matchById && matchByType;
+                });
+                
+                // إذا لم يتم العثور، جرب البحث ب barcode من QR data
+                if (!product && qrData.barcode) {
+                    product = allProducts.find(p => {
+                        const normalizedBarcode = normalizeText(p.barcode || '');
+                        const qrBarcode = normalizeText(qrData.barcode);
+                        return normalizedBarcode === qrBarcode && p.type === 'spare_part';
+                    });
                 }
-            } else if (qrData.type === 'PHONE') {
-                product = allProducts.find(p => p.id === productId && p.type === 'phone');
+                
+                if (product) {
+                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Spare Part):', product.name, 'ID:', product.id);
+                } else {
+                    console.log('❌ [POS Scanner] لم يتم العثور على قطع الغيار - ID:', productId, 'Type:', qrData.type);
+                    console.log('💡 [POS Scanner] المنتجات المتاحة من نوع spare_part:', allProducts.filter(p => p.type === 'spare_part').length);
+                }
+            } else if (qrData.type === 'PHONE' || qrData.type === 'phone') {
+                product = allProducts.find(p => {
+                    const pId = parseInt(p.id);
+                    return (pId === productId || p.id.toString() === productId.toString()) && p.type === 'phone';
+                });
                 if (product) {
                     console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Phone):', product.name);
                 }
-            } else if (qrData.type === 'ACCESSORY') {
-                product = allProducts.find(p => p.id === productId && p.type === 'accessory');
+            } else if (qrData.type === 'ACCESSORY' || qrData.type === 'accessory') {
+                product = allProducts.find(p => {
+                    const pId = parseInt(p.id);
+                    return (pId === productId || p.id.toString() === productId.toString()) && p.type === 'accessory';
+                });
                 if (product) {
                     console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Accessory):', product.name);
                 }
             }
+        } else {
+            console.log('⚠️ [POS Scanner] QR Code JSON لا يحتوي على type أو id:', qrData);
         }
     } catch (e) {
         // Not JSON format - fallback to simple text search (for backward compatibility)
         console.log('ℹ️ [POS Scanner] QR Code ليس بصيغة JSON (محاولة البحث بالنص البسيط)');
+        console.log('⚠️ [POS Scanner] خطأ parsing JSON:', e.message);
     }
     
     // If not found, try finding by barcode (for phones and accessories)
