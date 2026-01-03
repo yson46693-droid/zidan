@@ -4496,12 +4496,20 @@ body {
     
     /* تصغير الأزرار في header-actions للهواتف - العنوان والأزرار في نفس الصف */
     .top-bar {
-        flex-direction: row !important;
-        align-items: center !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
         padding: 10px 12px !important;
         overflow: visible;
         box-sizing: border-box;
         gap: 8px !important;
+    }
+    
+    /* صف العنوان والأزرار في نفس الصف */
+    .top-bar > *:not(.mobile-top-user-info) {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
     }
     
     .top-bar h1 {
