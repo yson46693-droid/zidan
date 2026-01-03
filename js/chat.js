@@ -56,8 +56,6 @@ let recordingStartTime = null;
     }
 })();
 
-// ✅ تم إزالة checkAuthBeforeLoad - يتم الفحص في chat.html فقط لتجنب الفحص المزدوج
-
 // تهيئة الصفحة
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -86,30 +84,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        // إذا لم يكن هناك مستخدم محفوظ، فحص مرة أخرى (البيانات قد تأتي من protectPage في chat.html)
+        // إذا لم يكن هناك مستخدم محفوظ، فحص مرة أخرى
         if (!currentUser) {
             try {
-                const savedUser = localStorage.getItem('currentUser');
-                if (savedUser) {
-                    currentUser = JSON.parse(savedUser);
-                    console.log('✅ تم تحميل بيانات المستخدم من localStorage');
-                } else {
-                    // إذا لم تكن هناك بيانات محفوظة، فحص من الخادم
-                    const user = await checkLogin();
-                    if (!user) {
-                        console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
-                        window.location.replace('index.html');
-                        return;
-                    }
-                    currentUser = user;
+                const user = await checkLogin();
+                if (!user) {
+                    console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+                    window.location.href = 'index.html';
+                    return;
                 }
+                currentUser = user;
                 // التحقق من صلاحيات المستخدم بعد تحديثه
                 checkAndShowDeleteButton();
-                checkAndShowDeleteChatButton();
             } catch (loginError) {
                 console.error('❌ خطأ في فحص تسجيل الدخول:', loginError);
-                window.location.replace('index.html');
-                return;
+                // محاولة مرة أخرى
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                try {
+                    const user = await checkLogin();
+                    if (user) {
+                        currentUser = user;
+                        // التحقق من صلاحيات المستخدم بعد تحديثه
+                        checkAndShowDeleteButton();
+                        checkAndShowDeleteChatButton();
+                        checkAndShowDeleteChatButton();
+                    } else {
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                } catch (retryError) {
+                    console.error('❌ فشلت المحاولة الثانية:', retryError);
+                    window.location.href = 'index.html';
+                    return;
+                }
             }
         }
         

@@ -100,13 +100,32 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // ✅ إصلاح: التحقق من تسجيل الدخول مع معالجة أفضل للجلسة
-// التأكد من بدء الجلسة بشكل صحيح
+// التأكد من بدء الجلسة بشكل صحيح - يجب أن تكون الجلسة قد بدأت في config.php
+// لكن نتحقق مرة أخرى للتأكد
 if (session_status() === PHP_SESSION_NONE) {
     // إعدادات الجلسة لضمان عملها بشكل صحيح
     ini_set('session.cookie_httponly', '1');
     ini_set('session.use_only_cookies', '1');
-    ini_set('session.cookie_samesite', 'Lax');
+    
+    // اكتشاف HTTPS
+    $isSecure = false;
+    if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+        $isSecure = true;
+    } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+        $isSecure = true;
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+        $isSecure = true;
+    } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+        $isSecure = true;
+    }
+    
+    ini_set('session.cookie_samesite', $isSecure ? 'None' : 'Lax');
+    ini_set('session.cookie_secure', $isSecure ? '1' : '0');
+    
     @session_start();
+    
+    // تسجيل معلومات الجلسة للمساعدة في التشخيص
+    error_log("WebAuthn Register - Session started. Session ID: " . session_id() . ", Status: " . session_status());
 }
 
 // ✅ إصلاح: التحقق من وجود user_id في الجلسة مع رسالة خطأ أوضح
