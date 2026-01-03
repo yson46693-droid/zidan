@@ -36,14 +36,17 @@ async function loadRepairsSection() {
     section.innerHTML = `
         <div class="section-header">
             <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
-                <select id="repairBranchFilter" onchange="loadRepairs(true)" class="filter-select" required style="${isOwner ? 'display: block;' : 'display: none;'} min-width: 180px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--white); color: var(--text-dark); font-size: 0.95em; cursor: pointer; position: relative; z-index: 10;">
+                <select id="repairBranchFilter" onchange="loadRepairs(true)" class="filter-select" required style="${isOwner ? 'display: block;' : 'display: none;'} min-width: 180px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--white); color: var(--text-dark); font-size: 0.9em; cursor: pointer; position: relative; z-index: 10;">
                     <option value="">اختر الفرع</option>
                 </select>
-                <button onclick="openBarcodeScanner()" class="btn btn-info btn-sm">
+                <button onclick="openBarcodeScanner()" class="btn btn-info btn-sm" style="padding: 6px 12px; font-size: 0.85em;">
                     <i class="bi bi-upc-scan"></i> قارئ qr code الاستلام
                 </button>
-                <button onclick="showAddRepairModal()" class="btn btn-primary">
+                <button onclick="showAddRepairModal()" class="btn btn-primary btn-sm" style="padding: 6px 12px; font-size: 0.85em;">
                     <i class="bi bi-plus-circle"></i> إضافة عملية جديدة
+                </button>
+                <button onclick="showLossOperationModal()" class="btn btn-danger btn-sm" style="padding: 6px 12px; font-size: 0.85em;">
+                    <i class="bi bi-exclamation-triangle"></i> تسجيل لبس/خساره
                 </button>
             </div>
         </div>
@@ -241,6 +244,10 @@ async function loadRepairsSection() {
                             <label for="repairCost">تكلفة الإصلاح</label>
                             <input type="number" id="repairCost" step="0.01" min="0" value="0">
                         </div>
+                        <div class="form-group" id="inspectionCostGroup" style="display: none;">
+                            <label for="inspectionCost">تكلفة الكشف <span style="color: var(--danger-color);">*</span></label>
+                            <input type="number" id="inspectionCost" step="0.01" min="0" value="0">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -283,7 +290,7 @@ async function loadRepairsSection() {
                         </div>
                         <div class="form-group">
                             <label for="status">الحالة</label>
-                            <select id="status">
+                            <select id="status" onchange="toggleInspectionCostField()">
                                 <option value="received">تم الاستلام</option>
                                 <option value="under_inspection">قيد الفحص</option>
                                 <option value="awaiting_customer_approval">بانتظار موافقة العميل</option>
@@ -309,6 +316,53 @@ async function loadRepairsSection() {
                     <div class="modal-footer">
                         <button type="button" onclick="closeRepairModal()" class="btn btn-secondary">إلغاء</button>
                         <button type="submit" class="btn btn-primary">حفظ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- نموذج تسجيل عملية خاسرة -->
+        <div id="lossOperationModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>تسجيل عملية خاسرة</h3>
+                    <button onclick="closeLossOperationModal()" class="btn-close">&times;</button>
+                </div>
+                <form id="lossOperationForm" onsubmit="saveLossOperation(event)">
+                    <div class="form-group">
+                        <label for="lossRepairNumber">رقم عملية الصيانة *</label>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <input type="text" id="lossRepairNumber" class="form-control" placeholder="أدخل رقم العملية" required style="flex: 1; min-width: 200px;">
+                            <button type="button" onclick="openLossBarcodeScanner()" class="btn btn-info btn-sm" style="padding: 8px 16px; white-space: nowrap;">
+                                <i class="bi bi-qr-code-scan"></i> <span class="d-none d-md-inline">QR Scanner</span>
+                            </button>
+                        </div>
+                        <small id="lossRepairValidation" style="color: var(--text-light); font-size: 0.85em; display: block; margin-top: 5px;"></small>
+                    </div>
+
+                    <div id="lossRepairInfo" style="display: none; padding: 15px; background: var(--light-bg); border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1em;">معلومات العملية:</h4>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 10px; font-size: 0.9em;">
+                            <div><strong>العميل:</strong> <span id="lossCustomerName">-</span></div>
+                            <div><strong>الجهاز:</strong> <span id="lossDeviceType">-</span></div>
+                            <div><strong>المشكلة:</strong> <span id="lossProblem">-</span></div>
+                            <div><strong>الفرع:</strong> <span id="lossBranchName">-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lossAmount">مبلغ الخسارة (ج.م) *</label>
+                        <input type="number" id="lossAmount" step="0.01" min="0" required class="form-control" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lossReason">سبب الخسارة *</label>
+                        <textarea id="lossReason" rows="3" required class="form-control" placeholder="أدخل سبب الخسارة..."></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" onclick="closeLossOperationModal()" class="btn btn-secondary">إلغاء</button>
+                        <button type="submit" class="btn btn-danger">تسجيل الخسارة</button>
                     </div>
                 </form>
             </div>
@@ -365,6 +419,19 @@ async function loadRepairsSection() {
     }
     
     searchTable('repairSearch', 'repairsTable');
+    
+    // ✅ إضافة event listener لرقم العملية في نموذج الخسارة
+    const lossRepairNumberInput = document.getElementById('lossRepairNumber');
+    if (lossRepairNumberInput) {
+        // استخدام debounce لتقليل عدد الطلبات
+        let validationTimeout;
+        lossRepairNumberInput.addEventListener('input', () => {
+            clearTimeout(validationTimeout);
+            validationTimeout = setTimeout(() => {
+                onLossRepairNumberChange();
+            }, 500);
+        });
+    }
     
     // ✅ لا يتم تحميل الفنيين هنا - يتم تحميلهم فقط عند فتح نموذج الإضافة/التعديل
 }
@@ -2568,6 +2635,41 @@ function calculateRemaining() {
     }
 }
 
+// إظهار/إخفاء حقل تكلفة الكشف عند تغيير الحالة
+function toggleInspectionCostField() {
+    try {
+        const statusSelect = document.getElementById('status');
+        const inspectionCostGroup = document.getElementById('inspectionCostGroup');
+        const inspectionCostInput = document.getElementById('inspectionCost');
+        const repairId = document.getElementById('repairId').value;
+        const paidAmountInput = document.getElementById('paidAmount');
+        
+        if (!statusSelect || !inspectionCostGroup || !inspectionCostInput) {
+            return;
+        }
+        
+        const status = statusSelect.value;
+        const isCancelled = status === 'cancelled';
+        const paidAmount = parseFloat(paidAmountInput?.value || 0);
+        
+        // إظهار الحقل فقط عند تغيير الحالة إلى "عملية ملغية" ولدينا مبلغ مدفوع مقدماً (للعمليات الجديدة فقط)
+        if (isCancelled && !repairId && paidAmount > 0) {
+            inspectionCostGroup.style.display = 'block';
+            inspectionCostInput.required = true;
+        } else if (isCancelled && repairId) {
+            // للعمليات الموجودة: التحقق من وجود paid_amount
+            inspectionCostGroup.style.display = 'block';
+            inspectionCostInput.required = true;
+        } else {
+            inspectionCostGroup.style.display = 'none';
+            inspectionCostInput.required = false;
+            inspectionCostInput.value = '0';
+        }
+    } catch (error) {
+        console.error('خطأ في toggleInspectionCostField:', error);
+    }
+}
+
 // تحويل الصورة إلى Base64
 // ✅ دالة لضغط الصورة بنسبة 50%
 function compressImage(imageDataUrl, quality = 0.5) {
@@ -2855,7 +2957,13 @@ async function saveRepair(event) {
         const repairCost = document.getElementById('repairCost').value.trim();
         repairData.repair_cost = repairCost ? parseFloat(repairCost) : 0;
         
-        // 4. اسم محل قطع الغيار - إرساله دائماً (حتى لو فارغ)
+        // 4. تكلفة الكشف - إرسالها عند الحاجة
+        const inspectionCostInput = document.getElementById('inspectionCost');
+        if (inspectionCostInput) {
+            repairData.inspection_cost = inspectionCostInput.value ? parseFloat(inspectionCostInput.value) : 0;
+        }
+        
+        // 5. اسم محل قطع الغيار - إرساله دائماً (حتى لو فارغ)
         const partsStore = document.getElementById('partsStore').value.trim();
         repairData.parts_store = partsStore || '';
         
@@ -3031,6 +3139,7 @@ async function saveRepair(event) {
         repair_type: document.getElementById('repairType').value,
         customer_price: parseFloat(customerPrice),
         repair_cost: parseFloat(document.getElementById('repairCost').value) || 0,
+        inspection_cost: parseFloat(document.getElementById('inspectionCost')?.value || 0) || 0,
         parts_store: document.getElementById('partsStore').value.trim(),
         spare_parts_invoices: sparePartsInvoices,
         paid_amount: finalPaidAmount,
@@ -6210,6 +6319,371 @@ function setSparePartsInvoices(invoices) {
     });
 }
 
+// ✅ دوال إدارة نموذج تسجيل الخسارة
+let lossQRScannerInstance = null;
+let lossRepairData = null;
+
+// فتح نموذج تسجيل الخسارة
+function showLossOperationModal() {
+    const modal = document.getElementById('lossOperationModal');
+    if (!modal) {
+        showMessage('النموذج غير موجود. يرجى إعادة تحميل الصفحة.', 'error');
+        return;
+    }
+    
+    // إعادة تعيين النموذج
+    document.getElementById('lossOperationForm').reset();
+    document.getElementById('lossRepairInfo').style.display = 'none';
+    document.getElementById('lossRepairValidation').textContent = '';
+    document.getElementById('lossRepairValidation').style.color = 'var(--text-light)';
+    lossRepairData = null;
+    
+    modal.style.display = 'flex';
+}
+
+// إغلاق نموذج تسجيل الخسارة
+function closeLossOperationModal() {
+    const modal = document.getElementById('lossOperationModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    
+    // إيقاف QR scanner إن كان مفتوحاً
+    if (lossQRScannerInstance) {
+        try {
+            lossQRScannerInstance.stop().then(() => {
+                lossQRScannerInstance = null;
+            }).catch(() => {
+                lossQRScannerInstance = null;
+            });
+        } catch (error) {
+            lossQRScannerInstance = null;
+        }
+    }
+}
+
+// التحقق من رقم العملية
+async function validateLossRepairNumber(repairNumber) {
+    if (!repairNumber || !repairNumber.trim()) {
+        return null;
+    }
+    
+    try {
+        const result = await API.request(`repairs.php?repair_number=${encodeURIComponent(repairNumber.trim())}`, 'GET');
+        
+        if (result && result.success && result.data) {
+            return result.data;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('خطأ في التحقق من رقم العملية:', error);
+        return null;
+    }
+}
+
+// معالج تغيير رقم العملية
+async function onLossRepairNumberChange() {
+    const repairNumberInput = document.getElementById('lossRepairNumber');
+    const validationMsg = document.getElementById('lossRepairValidation');
+    const repairInfo = document.getElementById('lossRepairInfo');
+    
+    if (!repairNumberInput || !validationMsg) {
+        return;
+    }
+    
+    const repairNumber = repairNumberInput.value.trim();
+    
+    if (!repairNumber) {
+        validationMsg.textContent = '';
+        repairInfo.style.display = 'none';
+        lossRepairData = null;
+        return;
+    }
+    
+    validationMsg.textContent = 'جاري التحقق...';
+    validationMsg.style.color = 'var(--text-light)';
+    
+    const repair = await validateLossRepairNumber(repairNumber);
+    
+    if (repair) {
+        lossRepairData = repair;
+        validationMsg.textContent = '✓ تم العثور على العملية';
+        validationMsg.style.color = 'var(--success-color)';
+        
+        // عرض معلومات العملية
+        document.getElementById('lossCustomerName').textContent = repair.customer_name || '-';
+        document.getElementById('lossDeviceType').textContent = repair.device_type || '-';
+        document.getElementById('lossProblem').textContent = (repair.problem || '-').substring(0, 50) + (repair.problem && repair.problem.length > 50 ? '...' : '');
+        document.getElementById('lossBranchName').textContent = repair.branch_name || '-';
+        repairInfo.style.display = 'block';
+    } else {
+        lossRepairData = null;
+        validationMsg.textContent = '✗ العملية غير موجودة';
+        validationMsg.style.color = 'var(--danger-color)';
+        repairInfo.style.display = 'none';
+    }
+}
+
+// فتح QR Scanner لتسجيل الخسارة
+async function openLossBarcodeScanner() {
+    // التحقق من وجود ماسح مفتوح بالفعل
+    if (lossQRScannerInstance) {
+        showMessage('قارئ QR Code مفتوح بالفعل', 'info');
+        return;
+    }
+    
+    // التحقق من توفر الكاميرا
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showMessage('الكاميرا غير متوفرة في هذا المتصفح', 'error');
+        return;
+    }
+    
+    // تحميل Html5Qrcode
+    if (typeof Html5Qrcode === 'undefined') {
+        if (typeof window.loadHtml5Qrcode === 'function') {
+            try {
+                await window.loadHtml5Qrcode();
+            } catch (error) {
+                console.error('Error loading html5-qrcode:', error);
+                showMessage('فشل تحميل مكتبة قراءة QR Code', 'error');
+                return;
+            }
+        } else {
+            showMessage('مكتبة قراءة QR Code غير متاحة', 'error');
+            return;
+        }
+    }
+    
+    // إنشاء modal للـ scanner
+    const scannerModal = document.createElement('div');
+    scannerModal.id = 'lossBarcodeScannerModal';
+    scannerModal.className = 'modal';
+    scannerModal.style.display = 'flex';
+    scannerModal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>مسح QR Code من فاتورة الصيانة</h3>
+                <button onclick="closeLossBarcodeScanner()" class="btn-close">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div id="loss-scanner-area" style="width: 100%; min-height: 300px; background: var(--light-bg); border-radius: 8px; position: relative; overflow: hidden;"></div>
+                <div id="loss-scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-light);">
+                    <i class="bi bi-hourglass-split" style="font-size: 2em; display: block; margin-bottom: 10px;"></i>
+                    <p>جاري تحميل الكاميرا...</p>
+                </div>
+                <div id="loss-scanner-error" style="display: none; margin-top: 15px; padding: 15px; background: var(--danger-color); color: var(--white); border-radius: 8px;">
+                    <p id="loss-scanner-error-message"></p>
+                    <button onclick="retryLossBarcodeScanner()" class="btn btn-secondary btn-sm" style="margin-top: 10px;">إعادة المحاولة</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(scannerModal);
+    
+    // تهيئة الـ scanner
+    setTimeout(() => {
+        initializeLossQRCodeScanner();
+    }, 100);
+}
+
+// إغلاق QR Scanner للخسارة
+function closeLossBarcodeScanner() {
+    if (lossQRScannerInstance) {
+        try {
+            lossQRScannerInstance.stop().then(() => {
+                lossQRScannerInstance = null;
+            }).catch(() => {
+                lossQRScannerInstance = null;
+            });
+        } catch (error) {
+            lossQRScannerInstance = null;
+        }
+    }
+    
+    const modal = document.getElementById('lossBarcodeScannerModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// إعادة المحاولة للـ scanner
+function retryLossBarcodeScanner() {
+    closeLossBarcodeScanner();
+    setTimeout(() => {
+        openLossBarcodeScanner();
+    }, 500);
+}
+
+// تهيئة QR Code Scanner للخسارة
+async function initializeLossQRCodeScanner() {
+    const scannerArea = document.getElementById('loss-scanner-area');
+    const loadingDiv = document.getElementById('loss-scanner-loading');
+    
+    if (!scannerArea) {
+        console.error('loss-scanner-area element not found');
+        return;
+    }
+    
+    if (loadingDiv) {
+        loadingDiv.style.display = 'none';
+    }
+    
+    try {
+        lossQRScannerInstance = new Html5Qrcode("loss-scanner-area");
+        
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            disableFlip: false
+        };
+        
+        if (typeof Html5QrcodeScanType !== 'undefined') {
+            config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
+        }
+        
+        await lossQRScannerInstance.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+                handleLossQRCodeScanned(decodedText);
+            },
+            (errorMessage) => {
+                // تجاهل الأخطاء المستمرة
+            }
+        );
+        
+    } catch (error) {
+        console.error('خطأ في بدء قارئ QR Code:', error);
+        const errorDiv = document.getElementById('loss-scanner-error');
+        const errorMessage = document.getElementById('loss-scanner-error-message');
+        if (errorDiv && errorMessage) {
+            errorMessage.textContent = 'فشل في فتح الكاميرا: ' + error.message;
+            errorDiv.style.display = 'block';
+        }
+    }
+}
+
+// معالج قراءة QR Code للخسارة
+async function handleLossQRCodeScanned(decodedText) {
+    console.log('تم قراءة QR Code:', decodedText);
+    
+    // إيقاف الماسح
+    if (lossQRScannerInstance) {
+        try {
+            await lossQRScannerInstance.stop();
+            lossQRScannerInstance = null;
+        } catch (error) {
+            console.error('خطأ في إيقاف الماسح:', error);
+        }
+    }
+    
+    // إغلاق modal الـ scanner
+    closeLossBarcodeScanner();
+    
+    // استخراج رقم العملية
+    const repairNumber = extractRepairNumberFromTrackingLink(decodedText);
+    
+    if (!repairNumber) {
+        showMessage('QR Code غير صحيح. يرجى التأكد من أنه QR Code من فاتورة الصيانة.', 'error');
+        return;
+    }
+    
+    // تعيين رقم العملية في النموذج
+    const repairNumberInput = document.getElementById('lossRepairNumber');
+    if (repairNumberInput) {
+        repairNumberInput.value = repairNumber;
+        // التحقق من العملية
+        await onLossRepairNumberChange();
+    }
+}
+
+// حفظ عملية الخسارة
+async function saveLossOperation(event) {
+    event.preventDefault();
+    
+    const repairNumber = document.getElementById('lossRepairNumber').value.trim();
+    const lossAmount = parseFloat(document.getElementById('lossAmount').value);
+    const lossReason = document.getElementById('lossReason').value.trim();
+    
+    // التحقق من البيانات
+    if (!repairNumber) {
+        showMessage('يرجى إدخال رقم عملية الصيانة', 'error');
+        return;
+    }
+    
+    if (!lossRepairData) {
+        showMessage('يرجى التحقق من رقم العملية أولاً', 'error');
+        return;
+    }
+    
+    if (!lossAmount || lossAmount <= 0) {
+        showMessage('يرجى إدخال مبلغ خسارة صحيح', 'error');
+        return;
+    }
+    
+    if (!lossReason) {
+        showMessage('يرجى إدخال سبب الخسارة', 'error');
+        return;
+    }
+    
+    try {
+        // إظهار loading overlay
+        if (window.loadingOverlay && typeof window.loadingOverlay.show === 'function') {
+            window.loadingOverlay.show();
+        }
+        
+        // إعداد بيانات الخسارة
+        const lossData = {
+            repair_number: repairNumber,
+            customer_name: lossRepairData.customer_name || 'غير معروف',
+            device_type: lossRepairData.device_type || 'غير معروف',
+            problem: lossRepairData.problem || 'غير محدد',
+            loss_amount: lossAmount,
+            loss_reason: lossReason
+        };
+        
+        // إرسال الطلب
+        const result = await API.addLossOperation(lossData);
+        
+        if (result && result.success) {
+            showMessage('تم تسجيل العملية الخاسرة بنجاح', 'success');
+            closeLossOperationModal();
+            
+            // تحديث بيانات الخزنة إذا كانت متاحة
+            if (typeof loadTreasuryData === 'function' && lossRepairData.branch_id) {
+                try {
+                    await loadTreasuryData(lossRepairData.branch_id, true);
+                } catch (error) {
+                    console.error('خطأ في تحديث بيانات الخزنة:', error);
+                }
+            }
+            
+            // إعادة تحميل العمليات الخاسرة في صفحة المصروفات
+            if (typeof loadExpensesSection === 'function') {
+                try {
+                    await loadExpensesSection();
+                } catch (error) {
+                    console.error('خطأ في تحديث صفحة المصروفات:', error);
+                }
+            }
+        } else {
+            showMessage(result?.message || 'فشل في تسجيل العملية الخاسرة', 'error');
+        }
+        
+    } catch (error) {
+        console.error('خطأ في تسجيل العملية الخاسرة:', error);
+        showMessage('حدث خطأ أثناء تسجيل العملية الخاسرة', 'error');
+    } finally {
+        // إخفاء loading overlay
+        if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+            window.loadingOverlay.hide();
+        }
+    }
+}
+
 // ✅ تصدير الدوال إلى window لجعلها متاحة عالمياً
 window.onRepairBranchChange = onRepairBranchChange;
 window.onCustomerTypeChange = onCustomerTypeChange;
@@ -6219,4 +6693,10 @@ window.addInvoiceField = addInvoiceField;
 window.removeInvoiceField = removeInvoiceField;
 window.handleDeviceTypeChange = handleDeviceTypeChange;
 window.printRepairReceipt = printRepairReceipt;
+window.showLossOperationModal = showLossOperationModal;
+window.closeLossOperationModal = closeLossOperationModal;
+window.openLossBarcodeScanner = openLossBarcodeScanner;
+window.closeLossBarcodeScanner = closeLossBarcodeScanner;
+window.retryLossBarcodeScanner = retryLossBarcodeScanner;
+window.saveLossOperation = saveLossOperation;
 

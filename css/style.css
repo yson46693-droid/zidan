@@ -3876,6 +3876,42 @@ body {
     color: #721c24;
 }
 
+/* أنماط نموذج تسجيل الخسارة */
+#lossRepairInfo {
+    transition: all 0.3s ease;
+}
+
+#lossRepairInfo > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+@media (min-width: 576px) {
+    #lossRepairInfo > div {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* تحسين عرض أزرار النموذج على الموبايل */
+@media (max-width: 575.98px) {
+    #lossOperationModal .modal-content {
+        width: 95%;
+        margin: 10px auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    #lossOperationModal .form-group > div[style*="display: flex"] {
+        flex-direction: column;
+    }
+    
+    #lossOperationModal .form-group > div[style*="display: flex"] > button {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
 /* أنماط تفاصيل العملية الخاسرة */
 .loss-details {
     background: #f8f9fa;

@@ -495,6 +495,22 @@ if ($method === 'POST') {
         }
     }
     
+    // Migration: إضافة inspection_cost إذا لم يكن موجوداً
+    try {
+        if (!dbColumnExists('repairs', 'inspection_cost')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                // إضافة عمود inspection_cost بعد repair_cost
+                $conn->query("ALTER TABLE `repairs` ADD COLUMN `inspection_cost` DECIMAL(10,2) DEFAULT 0 AFTER `repair_cost`");
+                error_log('تم إضافة عمود inspection_cost إلى جدول repairs بنجاح');
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            error_log('خطأ في إضافة عمود inspection_cost: ' . $e->getMessage());
+        }
+    }
+    
     $customer_id = $data['customer_id'] ?? null;
     $customer_name = trim($data['customer_name'] ?? '');
     $customer_phone = trim($data['customer_phone'] ?? '');
@@ -605,10 +621,26 @@ if ($method === 'POST') {
         $repairBranchId = $userBranchId;
     }
     
-    // بناء الاستعلام بناءً على وجود العمود
+    // بناء الاستعلام بناءً على وجود الأعمدة
     $hasSparePartsInvoices = dbColumnExists('repairs', 'spare_parts_invoices');
+    $hasInspectionCost = dbColumnExists('repairs', 'inspection_cost');
     
-    if ($hasSparePartsInvoices) {
+    if ($hasSparePartsInvoices && $hasInspectionCost) {
+        $result = dbExecute(
+            "INSERT INTO repairs (
+                id, branch_id, repair_number, customer_id, customer_name, customer_phone, 
+                device_type, device_model, serial_number, accessories, problem, repair_type,
+                customer_price, repair_cost, inspection_cost, parts_store, spare_parts_invoices, paid_amount, remaining_amount,
+                delivery_date, device_image, status, notes, created_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+            [
+                $repairId, $repairBranchId, $repairNumber, $customer_id, $customer_name, $customer_phone,
+                $device_type, $device_model, $serial_number, $accessories, $problem, $repair_type,
+                $customer_price, $repair_cost, $inspection_cost, $parts_store, $spare_parts_invoices, $paid_amount, $remaining_amount,
+                $delivery_date, $device_image, $status, $notes, $createdBy
+            ]
+        );
+    } else if ($hasSparePartsInvoices) {
         $result = dbExecute(
             "INSERT INTO repairs (
                 id, branch_id, repair_number, customer_id, customer_name, customer_phone, 
@@ -620,6 +652,21 @@ if ($method === 'POST') {
                 $repairId, $repairBranchId, $repairNumber, $customer_id, $customer_name, $customer_phone,
                 $device_type, $device_model, $serial_number, $accessories, $problem, $repair_type,
                 $customer_price, $repair_cost, $parts_store, $spare_parts_invoices, $paid_amount, $remaining_amount,
+                $delivery_date, $device_image, $status, $notes, $createdBy
+            ]
+        );
+    } else if ($hasInspectionCost) {
+        $result = dbExecute(
+            "INSERT INTO repairs (
+                id, branch_id, repair_number, customer_id, customer_name, customer_phone, 
+                device_type, device_model, serial_number, accessories, problem, repair_type,
+                customer_price, repair_cost, inspection_cost, parts_store, paid_amount, remaining_amount,
+                delivery_date, device_image, status, notes, created_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)",
+            [
+                $repairId, $repairBranchId, $repairNumber, $customer_id, $customer_name, $customer_phone,
+                $device_type, $device_model, $serial_number, $accessories, $problem, $repair_type,
+                $customer_price, $repair_cost, $inspection_cost, $parts_store, $paid_amount, $remaining_amount,
                 $delivery_date, $device_image, $status, $notes, $createdBy
             ]
         );
@@ -642,6 +689,41 @@ if ($method === 'POST') {
     
     if ($result === false) {
         response(false, 'خطأ في إضافة عملية الصيانة', null, 500);
+    }
+    
+    // ✅ إضافة المبلغ المدفوع مقدماً إلى الخزنة (لعميل محل فقط)
+    if ($paid_amount > 0 && $customer_id) {
+        // جلب نوع العميل
+        $customer = dbSelectOne("SELECT customer_type FROM customers WHERE id = ?", [$customer_id]);
+        if ($customer && ($customer['customer_type'] ?? 'retail') === 'retail') {
+            // فقط لعميل محل: إضافة المبلغ المدفوع مقدماً إلى الخزنة
+            if (dbTableExists('treasury_transactions')) {
+                // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                $existingTransaction = dbSelectOne(
+                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'deposit' AND description LIKE ?",
+                    [$repairId, '%مبلغ مدفوع مقدماً%']
+                );
+                
+                if (!$existingTransaction) {
+                    $transactionId = generateId();
+                    $transactionDescription = "مبلغ مدفوع مقدماً - عملية صيانة رقم: {$repairNumber}";
+                    
+                    $transactionResult = dbExecute(
+                        "INSERT INTO treasury_transactions (
+                            id, branch_id, transaction_type, amount, description, 
+                            reference_id, reference_type, created_at, created_by
+                        ) VALUES (?, ?, 'deposit', ?, ?, ?, 'repair', NOW(), ?)",
+                        [$transactionId, $repairBranchId, $paid_amount, $transactionDescription, $repairId, $session['user_id']]
+                    );
+                    
+                    if ($transactionResult !== false) {
+                        error_log("✅ [Repairs API] تم إضافة المبلغ المدفوع مقدماً ({$paid_amount} ج.م) إلى الخزنة للعملية {$repairNumber}");
+                    } else {
+                        error_log("⚠️ [Repairs API] فشل إضافة المبلغ المدفوع مقدماً إلى الخزنة");
+                    }
+                }
+            }
+        }
     }
     
     // ✅ لا يتم إضافة الدين عند إنشاء العملية - سيتم إضافته فقط عند تغيير الحالة إلى "جاهز للتسليم"
@@ -736,6 +818,22 @@ if ($method === 'PUT') {
         }
     }
     
+    // Migration: إضافة inspection_cost إذا لم يكن موجوداً
+    try {
+        if (!dbColumnExists('repairs', 'inspection_cost')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                // إضافة عمود inspection_cost بعد repair_cost
+                $conn->query("ALTER TABLE `repairs` ADD COLUMN `inspection_cost` DECIMAL(10,2) DEFAULT 0 AFTER `repair_cost`");
+                error_log('تم إضافة عمود inspection_cost إلى جدول repairs بنجاح');
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            error_log('خطأ في إضافة عمود inspection_cost: ' . $e->getMessage());
+        }
+    }
+    
     // Migration: إضافة inspection_report إذا لم يكن موجوداً
     try {
         if (!dbColumnExists('repairs', 'inspection_report')) {
@@ -795,7 +893,7 @@ if ($method === 'PUT') {
     $fields = [
         'customer_id', 'customer_name', 'customer_phone', 'device_type', 'device_model',
         'serial_number', 'accessories', 'problem', 'repair_type', 'customer_price', 'repair_cost',
-        'parts_store', 'spare_parts_invoices', 'paid_amount', 'remaining_amount', 'delivery_date',
+        'inspection_cost', 'parts_store', 'spare_parts_invoices', 'paid_amount', 'remaining_amount', 'delivery_date',
         'device_image', 'status', 'inspection_report', 'notes', 'created_by'
     ];
     
@@ -894,7 +992,7 @@ if ($method === 'PUT') {
                 error_log("✅ [Repairs API] تحديث الحالة: " . $data[$field] . " للعملية: " . $id);
             }
             
-            if (in_array($field, ['customer_price', 'repair_cost', 'paid_amount', 'remaining_amount'])) {
+            if (in_array($field, ['customer_price', 'repair_cost', 'inspection_cost', 'paid_amount', 'remaining_amount'])) {
                 $updateFields[] = "$field = ?";
                 $updateParams[] = floatval($data[$field]);
             } else if ($field === 'spare_parts_invoices') {
@@ -941,9 +1039,118 @@ if ($method === 'PUT') {
     }
     
     // ✅ التحقق من تحديث الحالة بشكل صحيح
-    $updatedRepair = dbSelectOne("SELECT status, customer_price, repair_cost, branch_id FROM repairs WHERE id = ?", [$id]);
+    $updatedRepair = dbSelectOne("SELECT status, customer_price, repair_cost, branch_id, remaining_amount, paid_amount, customer_id, repair_number FROM repairs WHERE id = ?", [$id]);
     if ($updatedRepair) {
         error_log("✅ [Repairs API] الحالة بعد التحديث: " . $updatedRepair['status']);
+        $branchId = $updatedRepair['branch_id'] ?? null;
+        $repairNumberText = $updatedRepair['repair_number'] ?? $id;
+        
+        // ✅ إضافة المبلغ المتبقي إلى الخزنة عند تغيير الحالة إلى "delivered"
+        if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
+            $remainingAmount = floatval($updatedRepair['remaining_amount'] ?? 0);
+            
+            if ($remainingAmount > 0 && $branchId && dbTableExists('treasury_transactions')) {
+                // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                $existingTransaction = dbSelectOne(
+                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'deposit' AND description LIKE ?",
+                    [$id, '%المبلغ المتبقي%']
+                );
+                
+                if (!$existingTransaction) {
+                    $session = checkAuth();
+                    $transactionId = generateId();
+                    $transactionDescription = "المبلغ المتبقي - عملية صيانة رقم: {$repairNumberText}";
+                    
+                    $transactionResult = dbExecute(
+                        "INSERT INTO treasury_transactions (
+                            id, branch_id, transaction_type, amount, description, 
+                            reference_id, reference_type, created_at, created_by
+                        ) VALUES (?, ?, 'deposit', ?, ?, ?, 'repair', NOW(), ?)",
+                        [$transactionId, $branchId, $remainingAmount, $transactionDescription, $id, $session['user_id']]
+                    );
+                    
+                    if ($transactionResult !== false) {
+                        error_log("✅ [Repairs API] تم إضافة المبلغ المتبقي ({$remainingAmount} ج.م) إلى الخزنة للعملية {$repairNumberText}");
+                    } else {
+                        error_log("⚠️ [Repairs API] فشل إضافة المبلغ المتبقي إلى الخزنة");
+                    }
+                }
+            }
+        }
+        
+        // ✅ خصم تكلفة الإصلاح من الخزنة عند تغيير الحالة إلى "ready_for_delivery"
+        if (isset($data['status']) && $data['status'] === 'ready_for_delivery' && $currentStatus !== 'ready_for_delivery') {
+            $repairCost = floatval($updatedRepair['repair_cost'] ?? 0);
+            
+            if ($repairCost > 0 && $branchId && dbTableExists('treasury_transactions')) {
+                // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                $existingTransaction = dbSelectOne(
+                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'repair_cost'",
+                    [$id]
+                );
+                
+                if (!$existingTransaction) {
+                    $session = checkAuth();
+                    $transactionId = generateId();
+                    $transactionDescription = "تكلفة الإصلاح - عملية صيانة رقم: {$repairNumberText}";
+                    
+                    $transactionResult = dbExecute(
+                        "INSERT INTO treasury_transactions (
+                            id, branch_id, transaction_type, amount, description, 
+                            reference_id, reference_type, created_at, created_by
+                        ) VALUES (?, ?, 'repair_cost', ?, ?, ?, 'repair', NOW(), ?)",
+                        [$transactionId, $branchId, $repairCost, $transactionDescription, $id, $session['user_id']]
+                    );
+                    
+                    if ($transactionResult !== false) {
+                        error_log("✅ [Repairs API] تم خصم تكلفة الإصلاح ({$repairCost} ج.م) من الخزنة للعملية {$repairNumberText}");
+                    } else {
+                        error_log("⚠️ [Repairs API] فشل خصم تكلفة الإصلاح من الخزنة");
+                    }
+                }
+            }
+        }
+        
+        // ✅ معالجة حالة "cancelled": خصم تكلفة الكشف - المبلغ المدفوع مقدماً
+        if (isset($data['status']) && $data['status'] === 'cancelled' && $currentStatus !== 'cancelled') {
+            $paidAmount = floatval($updatedRepair['paid_amount'] ?? 0);
+            $inspectionCost = isset($data['inspection_cost']) ? floatval($data['inspection_cost']) : floatval($updatedRepair['inspection_cost'] ?? 0);
+            
+            if ($paidAmount > 0 && $inspectionCost > 0 && $branchId && dbTableExists('treasury_transactions')) {
+                $amountToDeduct = $inspectionCost - $paidAmount;
+                
+                // فقط إذا كان الناتج موجباً (تكلفة الكشف أكبر من المبلغ المدفوع)
+                if ($amountToDeduct > 0) {
+                    // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                    $existingTransaction = dbSelectOne(
+                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'expense' AND description LIKE ?",
+                        [$id, '%تكلفة الكشف%']
+                    );
+                    
+                    if (!$existingTransaction) {
+                        $session = checkAuth();
+                        $transactionId = generateId();
+                        $transactionDescription = "تكلفة الكشف - عملية صيانة ملغية رقم: {$repairNumberText} (تكلفة الكشف: {$inspectionCost} - المدفوع: {$paidAmount})";
+                        
+                        $transactionResult = dbExecute(
+                            "INSERT INTO treasury_transactions (
+                                id, branch_id, transaction_type, amount, description, 
+                                reference_id, reference_type, created_at, created_by
+                            ) VALUES (?, ?, 'expense', ?, ?, ?, 'repair', NOW(), ?)",
+                            [$transactionId, $branchId, $amountToDeduct, $transactionDescription, $id, $session['user_id']]
+                        );
+                        
+                        if ($transactionResult !== false) {
+                            error_log("✅ [Repairs API] تم خصم تكلفة الكشف ({$amountToDeduct} ج.م) من الخزنة للعملية الملغية {$repairNumberText}");
+                        } else {
+                            error_log("⚠️ [Repairs API] فشل خصم تكلفة الكشف من الخزنة");
+                        }
+                    }
+                } else if ($amountToDeduct <= 0) {
+                    error_log("ℹ️ [Repairs API] المبلغ المدفوع مقدماً ({$paidAmount}) أكبر من أو يساوي تكلفة الكشف ({$inspectionCost}) - لا يتم خصم شيء");
+                }
+            }
+        }
         
         // ✅ تسجيل ربح الصيانة في treasury_transactions عند تغيير الحالة إلى "delivered"
         if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
