@@ -3293,28 +3293,57 @@ async function initializePOSQRCodeScannerAuto() {
 
 // Initialize POS QR Code Scanner
 async function initializePOSQRCodeScanner() {
+    const timestamp = new Date().toISOString();
+    console.log('🚀 [POS Scanner] بدء تهيئة القارئ -', timestamp);
+    
     // Check for mobile scanner first, then desktop
     const isMobile = window.innerWidth <= 767.98;
     const qrReaderId = isMobile ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
     const loadingDivId = isMobile ? 'pos-scanner-loading-mobile' : 'pos-scanner-loading';
     const errorDivId = isMobile ? 'pos-scanner-error-mobile' : 'pos-scanner-error';
     
+    console.log('📱 [POS Scanner] نوع الجهاز:', isMobile ? 'هاتف' : 'كمبيوتر');
+    console.log('🔍 [POS Scanner] QR Reader ID:', qrReaderId);
+    console.log('🔍 [POS Scanner] Loading Div ID:', loadingDivId);
+    console.log('🔍 [POS Scanner] Error Div ID:', errorDivId);
+    
     const qrReader = document.getElementById(qrReaderId);
     const loadingDiv = document.getElementById(loadingDivId);
     const errorDiv = document.getElementById(errorDivId);
     
-    if (!qrReader) return;
+    if (!qrReader) {
+        console.error('❌ [POS Scanner] QR Reader element not found:', qrReaderId);
+        console.error('❌ [POS Scanner] جميع العناصر المتاحة:', {
+            'pos-qr-reader-mobile': !!document.getElementById('pos-qr-reader-mobile'),
+            'pos-qr-reader': !!document.getElementById('pos-qr-reader'),
+            'pos-scanner-loading-mobile': !!document.getElementById('pos-scanner-loading-mobile'),
+            'pos-scanner-loading': !!document.getElementById('pos-scanner-loading')
+        });
+        return;
+    }
+    
+    console.log('✅ [POS Scanner] QR Reader element found:', qrReaderId);
+    console.log('📐 [POS Scanner] QR Reader dimensions:', {
+        width: qrReader.offsetWidth,
+        height: qrReader.offsetHeight
+    });
     
     // Hide error initially
-    if (errorDiv) errorDiv.style.display = 'none';
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+        console.log('✅ [POS Scanner] Error div hidden');
+    }
     
     // Check if Html5Qrcode is loaded
     if (typeof Html5Qrcode === 'undefined') {
+        console.error('❌ [POS Scanner] Html5Qrcode library not loaded');
         if (loadingDiv) {
             loadingDiv.innerHTML = '<i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i><p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">خطأ: مكتبة QR Code غير متاحة</p>';
         }
         return;
     }
+    
+    console.log('✅ [POS Scanner] Html5Qrcode library loaded');
     
     try {
         // Check if already running - simple check
