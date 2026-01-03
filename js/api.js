@@ -390,6 +390,10 @@ const API = {
         return await this.request('users.php', 'POST', userData);
     },
 
+    async updateUser(userId, userData) {
+        return await this.request('users.php', 'PUT', { id: userId, ...userData });
+    },
+
     async deleteUser(id) {
         return await this.request('users.php', 'DELETE', { id });
     },
