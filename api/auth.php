@@ -191,9 +191,9 @@ if ($method === 'POST') {
         
         error_log("✅ تم الاتصال بقاعدة البيانات بنجاح");
         
-        // البحث عن المستخدم في قاعدة البيانات مع اسم الفرع
+        // البحث عن المستخدم في قاعدة البيانات مع اسم الفرع ورمز الفرع
         $user = dbSelectOne(
-            "SELECT u.id, u.username, u.password, u.name, u.role, u.branch_id, b.name as branch_name 
+            "SELECT u.id, u.username, u.password, u.name, u.role, u.branch_id, b.name as branch_name, b.code as branch_code 
              FROM users u 
              LEFT JOIN branches b ON u.branch_id = b.id 
              WHERE u.username = ?",
@@ -242,7 +242,8 @@ if ($method === 'POST') {
                     'name' => $user['name'],
                     'role' => $user['role'],
                     'branch_id' => $user['branch_id'] ?? null,
-                    'branch_name' => $user['branch_name'] ?? null
+                    'branch_name' => $user['branch_name'] ?? null,
+                    'branch_code' => $user['branch_code'] ?? null
                 ]);
             } else {
                 error_log("❌ كلمة المرور غير صحيحة للمستخدم: " . $username);
@@ -310,12 +311,18 @@ if ($method === 'GET') {
     if (isset($_SESSION['user_id'])) {
         error_log("Auth API - User ID found in session: " . $_SESSION['user_id']);
         
-        // جلب اسم الفرع إذا كان branch_id موجوداً
+        // جلب اسم الفرع ورمز الفرع إذا كان branch_id موجوداً
         $branchName = null;
+        $branchCode = null;
         if (isset($_SESSION['branch_id']) && $_SESSION['branch_id']) {
-            $branch = dbSelectOne("SELECT name FROM branches WHERE id = ?", [$_SESSION['branch_id']]);
-            if ($branch && isset($branch['name'])) {
-                $branchName = $branch['name'];
+            $branch = dbSelectOne("SELECT name, code FROM branches WHERE id = ?", [$_SESSION['branch_id']]);
+            if ($branch) {
+                if (isset($branch['name'])) {
+                    $branchName = $branch['name'];
+                }
+                if (isset($branch['code'])) {
+                    $branchCode = $branch['code'];
+                }
             }
         }
         
@@ -327,7 +334,8 @@ if ($method === 'GET') {
             'name' => $_SESSION['name'] ?? '',
             'role' => $_SESSION['role'] ?? 'employee',
             'branch_id' => $_SESSION['branch_id'] ?? null,
-            'branch_name' => $branchName
+            'branch_name' => $branchName,
+            'branch_code' => $branchCode
         ]);
     } else {
         error_log("Auth API - No user_id in session. Session keys: " . implode(', ', array_keys($_SESSION)));

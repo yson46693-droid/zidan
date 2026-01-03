@@ -2966,7 +2966,7 @@ function compressImage(file, maxWidth = 800, quality = 0.8) {
 }
 
 // إنشاء النماذج عند تحميل القسم
-function loadInventorySection() {
+async function loadInventorySection() {
     // منع الاستدعاءات المتكررة
     if (isLoadingInventorySection) {
         console.log('⏳ تحميل قسم المخزن قيد التنفيذ بالفعل...');
@@ -3003,10 +3003,22 @@ function loadInventorySection() {
     allAccessories = [];
     allPhones = [];
     
-    // التحقق من نوع المستخدم لإخفاء زر الإضافة للفنيين
+    // التحقق من نوع المستخدم لإخفاء زر الإضافة للفنيين وفرع البيطاش
     const user = getCurrentUser();
     const isTechnician = user && user.role === 'technician';
-    const addButtonStyle = isTechnician ? 'display: none;' : '';
+    
+    // التحقق من أن المستخدم مرتبط بفرع البيطاش
+    let isBaytashUser = false;
+    try {
+        if (typeof isBaytashBranch === 'function') {
+            isBaytashUser = await isBaytashBranch();
+        }
+    } catch (error) {
+        console.error('خطأ في التحقق من فرع البيطاش:', error);
+    }
+    
+    // إخفاء الزر للفنيين وأي حساب مرتبط بفرع البيطاش
+    const addButtonStyle = (isTechnician || isBaytashUser) ? 'display: none;' : '';
     
     section.innerHTML = `
         <div class="section-header">

@@ -81,11 +81,32 @@ function canRequestInventoryItem() {
             return false;
         }
         
-        const branchCode = user.branch_code || localStorage.getItem('branch_code');
-        
         // المالك له كامل الصلاحيات (يرى جميع الأزرار)
         if (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true') {
             return false; // المالك لا يحتاج زر الطلب لأنه يرى أزرار التعديل
+        }
+        
+        // الحصول على branch_code من البيانات المتاحة
+        let branchCode = user.branch_code || localStorage.getItem('branch_code');
+        
+        // إذا كان branch_code غير موجود لكن branch_id موجود، محاولة جلب branch_code
+        if (!branchCode && user.branch_id) {
+            // محاولة جلب branch_code من cache الفروع إذا كان متوفراً
+            try {
+                const branchesCache = localStorage.getItem('branches_cache');
+                if (branchesCache) {
+                    const branches = JSON.parse(branchesCache);
+                    const branch = branches.find(b => b.id === user.branch_id);
+                    if (branch && branch.code) {
+                        branchCode = branch.code;
+                        // تحديث بيانات المستخدم
+                        user.branch_code = branchCode;
+                        localStorage.setItem('currentUser', JSON.stringify(user));
+                    }
+                }
+            } catch (e) {
+                // تجاهل الأخطاء في قراءة cache
+            }
         }
         
         // فقط فرع البيطاش يمكنه طلب قطع الغيار
