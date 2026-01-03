@@ -1320,7 +1320,21 @@ async function saveUserField(userId, field, value, cell) {
                 const updatedUser = userResult.data;
                 
                 // ✅ التحقق من أن المستخدم المحدث هو المستخدم الحالي (المسجل دخول)
-                const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                let currentUser = null;
+                try {
+                    if (typeof getCurrentUser === 'function') {
+                        currentUser = getCurrentUser();
+                    } else {
+                        // محاولة قراءة من localStorage مباشرة
+                        const userStr = localStorage.getItem('currentUser');
+                        if (userStr) {
+                            currentUser = JSON.parse(userStr);
+                        }
+                    }
+                } catch (e) {
+                    console.error('خطأ في قراءة المستخدم الحالي:', e);
+                }
+                
                 const isCurrentUser = currentUser && currentUser.id === userId;
                 
                 if (isCurrentUser) {
