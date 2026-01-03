@@ -175,6 +175,13 @@ try {
             }
             
             error_log("WebAuthn Register - Challenge created successfully for user: " . $userId);
+            
+            // ✅ CRITICAL: كتابة الجلسة إلى cookies قبل إرسال الاستجابة
+            // يجب كتابة الجلسة قبل إرسال headers لضمان حفظ بيانات webauthn_challenge
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+                error_log("WebAuthn Register - Session written to cookies for user: " . $userId);
+            }
 
             echo json_encode([
                 'success' => true,

@@ -322,29 +322,33 @@ function loadProductReturnsSection() {
                 }
                 
                 .product-returns-container .search-section > div > div > div {
-                    flex-direction: column !important;
-                    gap: 8px !important;
+                    flex-direction: row !important;
+                    gap: 6px !important;
+                    flex-wrap: wrap !important;
                 }
                 
                 .product-returns-container .search-section input {
-                    width: 100% !important;
+                    flex: 1 1 60% !important;
+                    min-width: 150px !important;
                     padding: 10px 12px !important;
                     font-size: 14px !important;
                 }
                 
                 .product-returns-container .search-section button {
-                    width: 100% !important;
-                    padding: 8px 12px !important;
-                    font-size: 13px !important;
+                    flex: 0 0 auto !important;
+                    padding: 8px 10px !important;
+                    font-size: 12px !important;
                     justify-content: center !important;
-                    min-height: 40px !important;
+                    min-height: 38px !important;
+                    min-width: 60px !important;
                 }
                 
                 /* تصغير زر QR */
                 .qr-scanner-btn {
-                    padding: 8px 12px !important;
-                    font-size: 13px !important;
-                    min-height: 40px !important;
+                    padding: 8px 10px !important;
+                    font-size: 12px !important;
+                    min-height: 38px !important;
+                    min-width: 60px !important;
                 }
                 
                 .qr-scanner-btn i {
@@ -352,7 +356,8 @@ function loadProductReturnsSection() {
                 }
                 
                 .qr-scanner-btn span {
-                    font-size: 13px !important;
+                    font-size: 12px !important;
+                    display: none !important;
                 }
                 
                 /* بطاقة تفاصيل الفاتورة */
@@ -489,24 +494,45 @@ function loadProductReturnsSection() {
             
             @media (max-width: 576px) {
                 /* شاشات الهواتف المتوسطة */
-                .product-returns-container .search-section button {
-                    padding: 8px 12px !important;
+                .product-returns-container .search-section > div > div > div {
+                    gap: 5px !important;
+                }
+                
+                .product-returns-container .search-section input {
+                    flex: 1 1 55% !important;
+                    min-width: 120px !important;
+                    padding: 9px 10px !important;
                     font-size: 13px !important;
-                    min-height: 40px !important;
+                }
+                
+                .product-returns-container .search-section button {
+                    padding: 7px 9px !important;
+                    font-size: 11px !important;
+                    min-height: 36px !important;
+                    min-width: 55px !important;
                 }
                 
                 .qr-scanner-btn {
-                    padding: 8px 12px !important;
-                    font-size: 13px !important;
-                    min-height: 40px !important;
+                    padding: 7px 9px !important;
+                    font-size: 11px !important;
+                    min-height: 36px !important;
+                    min-width: 55px !important;
                 }
                 
                 .qr-scanner-btn i {
-                    font-size: 14px !important;
+                    font-size: 13px !important;
                 }
                 
                 .qr-scanner-btn span {
-                    font-size: 13px !important;
+                    font-size: 11px !important;
+                    display: none !important;
+                }
+            }
+            
+            @media (min-width: 481px) and (max-width: 768px) {
+                /* إظهار النص على الشاشات المتوسطة */
+                .qr-scanner-btn span {
+                    display: inline !important;
                 }
             }
             
@@ -530,30 +556,47 @@ function loadProductReturnsSection() {
                     height: 35px !important;
                 }
                 
+                .product-returns-container .search-section > div > div > div {
+                    gap: 4px !important;
+                }
+                
                 .product-returns-container .search-section input {
-                    padding: 8px 10px !important;
+                    flex: 1 1 50% !important;
+                    min-width: 100px !important;
+                    padding: 8px 9px !important;
                     font-size: 13px !important;
                 }
                 
                 .product-returns-container .search-section button {
-                    padding: 7px 10px !important;
+                    padding: 6px 8px !important;
+                    font-size: 11px !important;
+                    min-height: 34px !important;
+                    min-width: 50px !important;
+                }
+                
+                .product-returns-container .search-section button i {
                     font-size: 12px !important;
-                    min-height: 38px !important;
+                }
+                
+                /* تصغير الأزرار أكثر على الشاشات الصغيرة جداً */
+                .product-returns-container .search-section button:not(.qr-scanner-btn) {
+                    padding: 6px 8px !important;
                 }
                 
                 /* تصغير زر QR على الشاشات الصغيرة جداً */
                 .qr-scanner-btn {
-                    padding: 7px 10px !important;
-                    font-size: 12px !important;
-                    min-height: 38px !important;
+                    padding: 6px 8px !important;
+                    font-size: 11px !important;
+                    min-height: 34px !important;
+                    min-width: 50px !important;
                 }
                 
                 .qr-scanner-btn i {
-                    font-size: 13px !important;
+                    font-size: 12px !important;
                 }
                 
                 .qr-scanner-btn span {
-                    font-size: 12px !important;
+                    display: none !important;
                 }
                 
                 #invoiceDetailsCard {

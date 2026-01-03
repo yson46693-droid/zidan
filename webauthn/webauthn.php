@@ -138,10 +138,15 @@ class WebAuthn {
             
             $responseData = json_decode($response, true);
             
+            // ✅ إضافة تشخيص أفضل لمعرفة ما هو موجود في الجلسة
+            $sessionKeys = isset($_SESSION) && is_array($_SESSION) ? implode(', ', array_keys($_SESSION)) : 'no session data';
+            error_log("WebAuthn verifyRegistration: Session ID: " . session_id() . ", Session keys: [" . $sessionKeys . "]");
+            error_log("WebAuthn verifyRegistration: Looking for webauthn_challenge and webauthn_user_id. Expected user: $userId");
+            
             if (!isset($_SESSION['webauthn_challenge']) || 
                 !isset($_SESSION['webauthn_user_id']) ||
                 $_SESSION['webauthn_user_id'] != $userId) {
-                error_log("WebAuthn verifyRegistration: Session challenge mismatch. Expected user: $userId, Session user: " . ($_SESSION['webauthn_user_id'] ?? 'not set'));
+                error_log("WebAuthn verifyRegistration: Session challenge mismatch. Expected user: $userId, Session user: " . ($_SESSION['webauthn_user_id'] ?? 'not set') . ", Challenge: " . (isset($_SESSION['webauthn_challenge']) ? 'set' : 'not set'));
                 return false;
             }
             
