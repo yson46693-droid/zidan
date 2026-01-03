@@ -3372,8 +3372,8 @@ async function initializePOSQRCodeScanner() {
         console.error('❌ [POS Scanner] خطأ في تهيئة الماسح:', error);
         const errorMessage = error?.message || 'خطأ غير معروف';
         
-        // محاولة إضافية - استخدام facingMode المحدد مباشرة مع إعدادات مبسطة
-        console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: ${posCurrentCameraFacing} مباشرة...`);
+        // محاولة إضافية - استخدام facingMode: environment مباشرة (مثل repairs.js)
+        console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: environment مباشرة...`);
         try {
             // إعدادات مبسطة للمحاولة الثانية - مطابقة لـ repairs.js
             const fallbackConfig = {
@@ -3388,7 +3388,7 @@ async function initializePOSQRCodeScanner() {
             }
             
             await posQRCodeScannerInstance.start(
-                { facingMode: posCurrentCameraFacing },
+                { facingMode: "environment" },
                 fallbackConfig,
                 (decodedText, decodedResult) => {
                     console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
