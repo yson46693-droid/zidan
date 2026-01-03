@@ -35,34 +35,34 @@ function loadProductReturnsSection() {
             </h2>
         </div>
 
-        <div class="product-returns-container" style="padding: 20px;">
+        <div class="product-returns-container" style="padding: 20px; box-sizing: border-box; width: 100%; max-width: 100%; overflow-x: hidden;">
             <!-- Search Section -->
-            <div class="search-section" style="background: var(--white); padding: 30px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 30px;">
-                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-                    <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
-                        <div style="position: relative;">
+            <div class="search-section" style="background: var(--white); padding: 30px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 30px; box-sizing: border-box; width: 100%; max-width: 100%; overflow-x: hidden;">
+                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
+                    <div style="flex: 1; display: flex; align-items: center; gap: 15px; min-width: 0; box-sizing: border-box;">
+                        <div style="position: relative; flex-shrink: 0;">
                             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Crect fill='%23333' x='10' y='20' width='40' height='30' rx='3'/%3E%3Cline stroke='%23f44336' stroke-width='2' x1='25' y1='35' x2='35' y2='35'/%3E%3Cline stroke='%23333' stroke-width='2' x1='15' y1='15' x2='15' y2='20'/%3E%3Cline stroke='%23333' stroke-width='2' x1='45' y1='15' x2='45' y2='20'/%3E%3C/svg%3E" 
-                                 alt="ماسح باركود" style="width: 60px; height: 60px;">
+                                 alt="ماسح باركود" style="width: 60px; height: 60px; max-width: 100%; box-sizing: border-box;">
                             <div style="position: absolute; top: 40px; left: 20px; width: 20px; height: 2px; background: #f44336; animation: pulse 1s infinite;"></div>
                         </div>
-                        <div style="flex: 1;">
-                            <p style="margin: 0 0 10px 0; color: var(--text-dark); font-size: 16px; font-weight: 500;">
+                        <div style="flex: 1; min-width: 0; box-sizing: border-box; width: 100%;">
+                            <p style="margin: 0 0 10px 0; color: var(--text-dark); font-size: 16px; font-weight: 500; word-wrap: break-word; overflow-wrap: break-word;">
                                 امسح أو أدخل الرقم الموجود على الفاتورة
                             </p>
-                            <div style="display: flex; gap: 10px;">
+                            <div style="display: flex; gap: 10px; width: 100%; box-sizing: border-box; flex-wrap: wrap;">
                                 <input type="text" 
                                        id="invoiceSearchInput" 
                                        placeholder="رقم الفاتورة"
-                                       style="flex: 1; padding: 12px 15px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.3s;"
+                                       style="flex: 1 1 auto; min-width: 150px; max-width: 100%; padding: 12px 15px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.3s; box-sizing: border-box; width: 100%;"
                                        onkeypress="if(event.key === 'Enter') searchInvoiceByNumber()">
                                 <button onclick="searchInvoiceByNumber()" 
                                         class="btn btn-primary"
-                                        style="padding: 12px 25px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+                                        style="padding: 12px 25px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 16px; box-sizing: border-box; white-space: nowrap; flex-shrink: 0;">
                                     <i class="bi bi-search"></i> بحث
                                 </button>
                                 <button onclick="openQRCodeScanner()" 
                                         class="btn btn-secondary qr-scanner-btn"
-                                        style="padding: 12px 24px; background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%); color: var(--white); border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; position: relative; overflow: hidden;">
+                                        style="padding: 12px 24px; background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%); color: var(--white); border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; position: relative; overflow: hidden; box-sizing: border-box; white-space: nowrap; flex-shrink: 0;">
                                     <i class="bi bi-qr-code-scan" style="font-size: 18px;"></i>
                                     <span>مسح QR Code</span>
                                     <div style="position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); transition: left 0.5s;"></div>
@@ -74,18 +74,18 @@ function loadProductReturnsSection() {
             </div>
 
             <!-- Invoice Details Card -->
-            <div id="invoiceDetailsCard" style="display: none; background: var(--white); padding: 30px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 30px;">
-                <div style="display: flex; align-items: start; gap: 30px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 300px;">
-                        <div style="margin-bottom: 20px;">
-                            <h3 style="margin: 0 0 10px 0; color: var(--text-dark); font-size: 18px; font-weight: 600;">
+            <div id="invoiceDetailsCard" style="display: none; background: var(--white); padding: 30px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 30px; box-sizing: border-box; width: 100%; max-width: 100%; overflow-x: hidden;">
+                <div style="display: flex; align-items: start; gap: 30px; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
+                    <div style="flex: 1; min-width: 0; box-sizing: border-box; width: 100%; overflow-x: hidden;">
+                        <div style="margin-bottom: 20px; width: 100%; box-sizing: border-box; overflow-x: hidden;">
+                            <h3 style="margin: 0 0 10px 0; color: var(--text-dark); font-size: 18px; font-weight: 600; word-wrap: break-word; overflow-wrap: break-word; width: 100%;">
                                 رقم الفاتورة : <span id="invoiceNumberDisplay"></span>
                             </h3>
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-                                <div style="width: 24px; height: 24px; background: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 14px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px; width: 100%; box-sizing: border-box; flex-wrap: wrap;">
+                                <div style="width: 24px; height: 24px; background: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 14px; flex-shrink: 0; box-sizing: border-box;">
                                     <i class="bi bi-check"></i>
                                 </div>
-                                <p style="margin: 0; color: var(--text-dark); font-size: 16px;">
+                                <p style="margin: 0; color: var(--text-dark); font-size: 16px; word-wrap: break-word; overflow-wrap: break-word; flex: 1; min-width: 0;">
                                     اسم العميل : <strong id="customerNameDisplay"></strong>
                                 </p>
                             </div>
@@ -95,15 +95,15 @@ function loadProductReturnsSection() {
                             <!-- Items will be inserted here -->
                         </div>
 
-                        <div style="margin-top: 25px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="margin-top: 25px; display: flex; gap: 10px; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
                             <button onclick="returnAllItems()" 
                                     class="btn btn-secondary"
-                                    style="padding: 10px 20px; background: var(--secondary-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                    style="padding: 10px 20px; background: var(--secondary-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 14px; box-sizing: border-box; white-space: nowrap; flex-shrink: 0;">
                                 <i class="bi bi-check-all"></i> إرجاع الكل
                             </button>
                             <button onclick="clearAllItems()" 
                                     class="btn btn-secondary"
-                                    style="padding: 10px 20px; background: var(--text-light); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                    style="padding: 10px 20px; background: var(--text-light); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 14px; box-sizing: border-box; white-space: nowrap; flex-shrink: 0;">
                                 <i class="bi bi-x-circle"></i> إلغاء الكل
                             </button>
                         </div>
@@ -111,11 +111,11 @@ function loadProductReturnsSection() {
                         <button onclick="completeReturn()" 
                                 id="completeReturnBtn"
                                 class="btn btn-success"
-                                style="width: 100%; margin-top: 25px; padding: 15px; background: var(--success-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: 600; display: none;">
+                                style="width: 100%; max-width: 100%; margin-top: 25px; padding: 15px; background: var(--success-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: 600; display: none; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">
                             <i class="bi bi-check-circle"></i> إتمام عملية الاسترجاع
                         </button>
                     </div>
-                    <div style="width: 100px; cursor: pointer;" onclick="showInvoiceDetailsModal()" title="انقر لعرض تفاصيل الفاتورة">
+                    <div style="width: 100px; max-width: 100%; cursor: pointer; flex-shrink: 0; box-sizing: border-box;" onclick="showInvoiceDetailsModal()" title="انقر لعرض تفاصيل الفاتورة">
                         <img id="invoiceThumbnail" 
                              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='130' viewBox='0 0 150 200'%3E%3Crect fill='white' stroke='%23333' stroke-width='2' x='10' y='10' width='130' height='180'/%3E%3Cline stroke='%23333' stroke-width='1' x1='20' y1='30' x2='130' y2='30'/%3E%3Cline stroke='%23333' stroke-width='1' x1='20' y1='50' x2='130' y2='50'/%3E%3Cline stroke='%23333' stroke-width='1' x1='20' y1='70' x2='130' y2='70'/%3E%3Ctext x='75' y='140' text-anchor='middle' font-family='Arial' font-size='14' fill='%23333'%3Eإيصال%3C/text%3E%3C/svg%3E" 
                              alt="إيصال" 
@@ -199,6 +199,40 @@ function loadProductReturnsSection() {
         </div>
 
         <style>
+            /* قواعد عامة لمنع خروج العناصر خارج الإطار */
+            .product-returns-container,
+            .product-returns-container * {
+                box-sizing: border-box;
+            }
+            
+            .product-returns-container {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+            
+            .product-returns-container .search-section,
+            .product-returns-container .search-section * {
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            
+            .product-returns-container input,
+            .product-returns-container button,
+            .product-returns-container .btn {
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            
+            .product-returns-container p,
+            .product-returns-container h3,
+            .product-returns-container h4,
+            .product-returns-container span {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                max-width: 100%;
+            }
+            
             @keyframes pulse {
                 0%, 100% { opacity: 1; }
                 50% { opacity: 0.5; }
@@ -289,12 +323,18 @@ function loadProductReturnsSection() {
                 .product-returns-container {
                     padding: 10px !important;
                     padding-bottom: 30px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: hidden !important;
                 }
                 
                 /* تقليل padding في قسم البحث */
                 .product-returns-container .search-section {
                     padding: 15px !important;
                     margin-bottom: 15px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: hidden !important;
                 }
                 
                 /* جعل العناصر عمودية */
@@ -325,13 +365,19 @@ function loadProductReturnsSection() {
                     flex-direction: row !important;
                     gap: 6px !important;
                     flex-wrap: wrap !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
                 }
                 
                 .product-returns-container .search-section input {
                     flex: 1 1 60% !important;
                     min-width: 150px !important;
+                    max-width: 100% !important;
                     padding: 10px 12px !important;
                     font-size: 14px !important;
+                    box-sizing: border-box !important;
+                    width: auto !important;
                 }
                 
                 .product-returns-container .search-section button {
@@ -341,6 +387,9 @@ function loadProductReturnsSection() {
                     justify-content: center !important;
                     min-height: 38px !important;
                     min-width: 60px !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    white-space: nowrap !important;
                 }
                 
                 /* تصغير زر QR */
@@ -349,6 +398,9 @@ function loadProductReturnsSection() {
                     font-size: 12px !important;
                     min-height: 38px !important;
                     min-width: 60px !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    white-space: nowrap !important;
                 }
                 
                 .qr-scanner-btn i {
@@ -364,16 +416,46 @@ function loadProductReturnsSection() {
                 #invoiceDetailsCard {
                     padding: 15px !important;
                     margin-bottom: 15px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: hidden !important;
+                    box-sizing: border-box !important;
                 }
                 
                 #invoiceDetailsCard > div {
                     flex-direction: column !important;
                     gap: 15px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
                 }
                 
                 #invoiceDetailsCard > div > div:first-child {
                     min-width: auto !important;
                     width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    overflow-x: hidden !important;
+                }
+                
+                #invoiceDetailsCard > div > div:last-child {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                }
+                
+                #invoiceItemsList {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    overflow-x: hidden !important;
+                }
+                
+                #invoiceItemsList > div {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                    overflow-x: hidden !important;
                 }
                 
                 /* العنوان والنصوص */
@@ -401,11 +483,18 @@ function loadProductReturnsSection() {
                 #returnsTablesSection {
                     padding-bottom: 30px !important;
                     margin-top: 20px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: hidden !important;
+                    box-sizing: border-box !important;
                 }
                 
                 #returnsTablesSection > div {
                     grid-template-columns: 1fr !important;
                     gap: 15px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
                 }
                 
                 #returnsTablesSection h3 {
@@ -540,11 +629,17 @@ function loadProductReturnsSection() {
                 /* شاشات صغيرة جداً */
                 .product-returns-container {
                     padding: 8px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: hidden !important;
                 }
                 
                 .product-returns-container .search-section {
                     padding: 12px !important;
                     margin-bottom: 12px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    overflow-x: hidden !important;
                 }
                 
                 .product-returns-container .search-section p {
@@ -712,7 +807,7 @@ function displayInvoiceDetails(invoiceData) {
         const isDisabled = isFullyReturned || availableQuantity <= 0;
         const disabledStyle = isDisabled ? 'opacity: 0.5; background: #f5f5f5;' : '';
         
-        itemDiv.style.cssText = `display: flex; align-items: center; gap: 15px; padding: 15px; margin-bottom: 10px; background: var(--light-bg); border-radius: 8px; border: 2px solid var(--border-color); ${disabledStyle}`;
+        itemDiv.style.cssText = `display: flex; align-items: center; gap: 15px; padding: 15px; margin-bottom: 10px; background: var(--light-bg); border-radius: 8px; border: 2px solid var(--border-color); ${disabledStyle} width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden; flex-wrap: wrap;`;
         
         let quantityInfo = `الكمية: ${originalQuantity}`;
         if (returnedQuantity > 0) {
@@ -725,37 +820,37 @@ function displayInvoiceDetails(invoiceData) {
         }
         
         itemDiv.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                <div style="width: 24px; height: 24px; background: ${isDisabled ? 'var(--text-light)' : 'var(--success-color)'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; box-sizing: border-box; width: 100%; max-width: 100%; overflow-x: hidden;">
+                <div style="width: 24px; height: 24px; background: ${isDisabled ? 'var(--text-light)' : 'var(--success-color)'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 14px; flex-shrink: 0; box-sizing: border-box;">
                     <i class="bi ${isDisabled ? 'bi-x-circle' : 'bi-check'}"></i>
                 </div>
-                <div style="flex: 1;">
-                    <p style="margin: 0; color: var(--text-dark); font-size: 16px; font-weight: 500;">
+                <div style="flex: 1; min-width: 0; box-sizing: border-box; width: 100%; max-width: 100%; overflow-x: hidden;">
+                    <p style="margin: 0; color: var(--text-dark); font-size: 16px; font-weight: 500; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;">
                         ${escapeHtml(item.item_name)}
                     </p>
-                    <p style="margin: 5px 0 0 0; color: var(--text-light); font-size: 14px;">
+                    <p style="margin: 5px 0 0 0; color: var(--text-light); font-size: 14px; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%;">
                         ${quantityInfo} | السعر: ${formatCurrency(item.unit_price)}
                     </p>
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <label style="display: flex; align-items: center; gap: 5px; ${isDisabled ? 'cursor: not-allowed;' : 'cursor: pointer;'}">
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; box-sizing: border-box; width: 100%; max-width: 100%;">
+                <label style="display: flex; align-items: center; gap: 5px; ${isDisabled ? 'cursor: not-allowed;' : 'cursor: pointer;'} flex-shrink: 0; box-sizing: border-box;">
                     <input type="checkbox" 
                            id="returnItem_${itemId}"
                            onchange="toggleReturnItem('${itemId}', ${availableQuantity})"
                            ${isDisabled ? 'disabled' : ''}
-                           style="width: 20px; height: 20px; cursor: ${isDisabled ? 'not-allowed' : 'pointer'};">
-                    <span style="font-size: 14px; color: ${isDisabled ? 'var(--text-light)' : 'var(--text-dark)'};">
+                           style="width: 20px; height: 20px; cursor: ${isDisabled ? 'not-allowed' : 'pointer'}; box-sizing: border-box; flex-shrink: 0;">
+                    <span style="font-size: 14px; color: ${isDisabled ? 'var(--text-light)' : 'var(--text-dark)'}; white-space: nowrap;">
                         ${isDisabled ? 'تم الإرجاع' : 'إرجاع'}
                     </span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 5px; ${isDisabled ? 'cursor: not-allowed;' : 'cursor: pointer;'}">
+                <label style="display: flex; align-items: center; gap: 5px; ${isDisabled ? 'cursor: not-allowed;' : 'cursor: pointer;'} flex-shrink: 0; box-sizing: border-box;">
                     <input type="checkbox" 
                            id="damagedItem_${itemId}"
                            onchange="toggleItemDamaged('${itemId}')"
                            ${isDisabled ? 'disabled' : ''}
-                           style="width: 20px; height: 20px; cursor: ${isDisabled ? 'not-allowed' : 'pointer'};">
-                    <span style="font-size: 14px; color: ${isDisabled ? 'var(--text-light)' : 'var(--danger-color)'};">
+                           style="width: 20px; height: 20px; cursor: ${isDisabled ? 'not-allowed' : 'pointer'}; box-sizing: border-box; flex-shrink: 0;">
+                    <span style="font-size: 14px; color: ${isDisabled ? 'var(--text-light)' : 'var(--danger-color)'}; white-space: nowrap;">
                         تالف
                     </span>
                 </label>
@@ -765,7 +860,7 @@ function displayInvoiceDetails(invoiceData) {
                        max="${availableQuantity}" 
                        value="${availableQuantity > 0 ? availableQuantity : 0}"
                        onchange="setReturnQuantity('${itemId}', ${availableQuantity})"
-                       style="width: 80px; padding: 8px; border: 1px solid var(--border-color); border-radius: 5px; text-align: center;"
+                       style="width: 80px; max-width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 5px; text-align: center; box-sizing: border-box; flex-shrink: 0;"
                        ${isDisabled ? 'disabled' : 'disabled'}>
             </div>
         `;

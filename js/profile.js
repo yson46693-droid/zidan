@@ -701,6 +701,8 @@ async function handleRegisterBiometric() {
 
         if (result && result.success) {
             showMessage('تم تسجيل البصمة بنجاح!', 'success');
+            // إعادة تحميل البصمات أولاً
+            await loadCredentials();
             // إعادة تحميل القسم
             await loadProfileSection();
         } else {
@@ -743,6 +745,8 @@ async function deleteCredential(credentialId) {
 
         if (data.success) {
             showMessage('تم حذف البصمة بنجاح', 'success');
+            // إعادة تحميل البصمات أولاً
+            await loadCredentials();
             // إعادة تحميل القسم
             await loadProfileSection();
         } else {

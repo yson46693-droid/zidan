@@ -32,7 +32,7 @@ function loadExpensesSection() {
     }
     
     const currentUser = getCurrentUser();
-    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
     const isManager = currentUser && (currentUser.role === 'manager');
     const showAdvancedFeatures = isOwner || isManager;
     // إظهار المستحقات للمالك فقط (لإدارة رواتب الموظفين في خزنة الفرع)
@@ -977,7 +977,7 @@ function loadExpensesSectionLegacy() {
 function setupBranchFilters() {
     try {
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         const expenseBranchFilter = document.getElementById('expenseBranchFilter');
         const salaryBranchFilter = document.getElementById('salaryBranchFilter');
@@ -1008,7 +1008,7 @@ function setupBranchFilters() {
 async function loadExpensesDataBatch() {
     try {
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         // الحصول على branch_id المختار (للمالك فقط)
         let branchId = null;
@@ -1086,7 +1086,7 @@ async function loadExpenses(force = false) {
     
     try {
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         // الحصول على branch_id المختار (للمالك فقط)
         let branchId = null;
@@ -1165,7 +1165,7 @@ function displayExpenses(expenses) {
         }
         
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         // إظهار/إخفاء عمود الفرع
         const branchColumns = document.querySelectorAll('.expense-branch-column');
@@ -1211,7 +1211,7 @@ function displayExpenses(expenses) {
 async function showAddExpenseModal() {
     try {
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         document.getElementById('expenseModalTitle').textContent = 'إضافة مصروف';
         document.getElementById('expenseForm').reset();
@@ -1330,7 +1330,7 @@ async function saveExpense(event) {
         }
 
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
 
         const expenseData = {
             type: 'أخرى', // قيمة افتراضية
@@ -1422,7 +1422,7 @@ async function editExpense(id) {
         if (!expense) return;
 
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
 
         document.getElementById('expenseModalTitle').textContent = 'تعديل المصروف';
         document.getElementById('expenseId').value = expense.id;
@@ -1588,7 +1588,7 @@ async function loadExpensesBranches(force = false) {
             console.log(`📊 تم جلب ${allBranches.length} فرع من API`);
             
             const currentUser = getCurrentUser();
-            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
             console.log('👤 معلومات المستخدم:', { 
                 isOwner, 
                 role: currentUser?.role, 
@@ -1718,7 +1718,7 @@ async function loadExpensesBranches(force = false) {
 function updateBranchFilters() {
     try {
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         const expenseBranchFilter = document.getElementById('expenseBranchFilter');
         if (expenseBranchFilter && allBranches && allBranches.length > 0) {
@@ -1769,7 +1769,7 @@ async function loadSalaries(force = false) {
     
     try {
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         // الحصول على branch_id المختار (للمالك فقط)
         let branchId = null;
@@ -3392,7 +3392,7 @@ function showEditSalaryModal(userId, userName, currentSalary) {
         
         // التحقق من صلاحيات المالك
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         if (!isOwner) {
             showMessage('هذه الميزة متاحة للمالك فقط', 'error');
@@ -3426,7 +3426,7 @@ async function saveSalary(event) {
     try {
         // التحقق من صلاحيات المالك
         const currentUser = getCurrentUser();
-        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+        const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
         
         if (!isOwner) {
             showMessage('هذه الميزة متاحة للمالك فقط', 'error');
@@ -4081,7 +4081,7 @@ function displaySalariesForBranch(salaries, tbodyId, suffix = '') {
             
             // التحقق من صلاحيات المالك
             const currentUser = getCurrentUser();
-            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
             
             // زر تعديل الراتب (للمالك فقط)
             const editSalaryButton = isOwner ? `

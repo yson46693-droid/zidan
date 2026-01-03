@@ -59,7 +59,7 @@ $data = getRequestData();
 if ($method === 'POST') {
     $session = checkAuth();
     $userRole = $session['role'] ?? 'employee';
-    $isOwner = ($userRole === 'admin');
+    $isOwner = ($userRole === 'admin' || $userRole === 'owner');
     $isManager = ($userRole === 'manager');
     
     // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم تسجيل تحصيلات الدين

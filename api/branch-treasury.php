@@ -12,7 +12,7 @@ if ($method === 'GET') {
     $session = checkAuth();
     $userRole = $session['role'] ?? 'employee';
     $userBranchId = $session['branch_id'] ?? null;
-    $isOwner = ($userRole === 'admin');
+    $isOwner = ($userRole === 'admin' || $userRole === 'owner');
     $isManager = ($userRole === 'manager');
     
     // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم رؤية بيانات الخزنة
