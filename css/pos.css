@@ -637,11 +637,14 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 80%;
-    height: 80%;
-    border: 2px solid var(--primary-color);
-    border-radius: 8px;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.2), 0 0 15px rgba(33, 150, 243, 0.4);
+    width: 75%;
+    height: 75%;
+    max-width: 280px;
+    max-height: 280px;
+    border: 4px solid var(--primary-color);
+    border-radius: 15px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 40px rgba(33, 150, 243, 0.6), inset 0 0 20px rgba(33, 150, 243, 0.2);
+    background: rgba(255,255,255,0.05);
     pointer-events: none;
 }
 
@@ -651,15 +654,60 @@
     left: 50%;
     transform: translate(-50%, -50%);
     width: 75%;
-    height: 65%;
+    height: 75%;
+    max-width: 280px;
+    max-height: 280px;
     pointer-events: none;
 }
 
 .scanner-corners .corner {
     position: absolute;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--primary-color);
+    width: 40px;
+    height: 40px;
+    border: 5px solid var(--success-color);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
+}
+
+/* نص إرشادي داخل المربع */
+.scanner-overlay::after {
+    content: "ضع QR Code داخل المربع";
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: var(--white);
+    background: rgba(0,0,0,0.7);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+
+/* خطوط إرشادية داخل المربع */
+.scanner-frame::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--primary-color), transparent);
+    opacity: 0.3;
+}
+
+.scanner-frame::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--primary-color), transparent);
+    opacity: 0.3;
 }
 
 .corner-tl {
@@ -667,7 +715,7 @@
     left: 0;
     border-right: none;
     border-bottom: none;
-    border-radius: 6px 0 0 0;
+    border-radius: 8px 0 0 0;
 }
 
 .corner-tr {
@@ -675,7 +723,7 @@
     right: 0;
     border-left: none;
     border-bottom: none;
-    border-radius: 0 6px 0 0;
+    border-radius: 0 8px 0 0;
 }
 
 .corner-bl {
@@ -683,7 +731,7 @@
     left: 0;
     border-right: none;
     border-top: none;
-    border-radius: 0 0 0 6px;
+    border-radius: 0 0 0 8px;
 }
 
 .corner-br {
@@ -691,7 +739,7 @@
     right: 0;
     border-left: none;
     border-top: none;
-    border-radius: 0 0 6px 0;
+    border-radius: 0 0 8px 0;
 }
 
 @keyframes pulse {

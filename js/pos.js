@@ -2981,12 +2981,33 @@ async function openPOSBarcodeScanner() {
                             <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا</p>
                         </div>
                         <div id="pos-scanner-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;">
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; border: 3px solid var(--primary-color); border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5), 0 0 30px rgba(33, 150, 243, 0.5);"></div>
-                            <div style="position: absolute; top: calc(50% - 125px); left: calc(50% - 125px); width: 250px; height: 250px;">
-                                <div style="position: absolute; top: 0; left: 0; width: 30px; height: 30px; border-top: 4px solid var(--primary-color); border-right: 4px solid var(--primary-color); border-radius: 5px 20px 0 0;"></div>
-                                <div style="position: absolute; top: 0; right: 0; width: 30px; height: 30px; border-top: 4px solid var(--primary-color); border-left: 4px solid var(--primary-color); border-radius: 20px 5px 0 0;"></div>
-                                <div style="position: absolute; bottom: 0; left: 0; width: 30px; height: 30px; border-bottom: 4px solid var(--primary-color); border-right: 4px solid var(--primary-color); border-radius: 0 0 20px 5px;"></div>
-                                <div style="position: absolute; bottom: 0; right: 0; width: 30px; height: 30px; border-bottom: 4px solid var(--primary-color); border-left: 4px solid var(--primary-color); border-radius: 0 0 5px 20px;"></div>
+                            <!-- مربع المسح الرئيسي مع حدود واضحة -->
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 280px; border: 4px solid var(--primary-color); border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 40px rgba(33, 150, 243, 0.6), inset 0 0 20px rgba(33, 150, 243, 0.2); background: rgba(255,255,255,0.05);"></div>
+                            
+                            <!-- زوايا المربع - أكثر وضوحاً -->
+                            <div style="position: absolute; top: calc(50% - 140px); left: calc(50% - 140px); width: 280px; height: 280px;">
+                                <!-- الزاوية العلوية اليسرى -->
+                                <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; border-top: 5px solid var(--success-color); border-left: 5px solid var(--success-color); border-radius: 8px 0 0 0; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                                <!-- الزاوية العلوية اليمنى -->
+                                <div style="position: absolute; top: 0; right: 0; width: 40px; height: 40px; border-top: 5px solid var(--success-color); border-right: 5px solid var(--success-color); border-radius: 0 8px 0 0; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                                <!-- الزاوية السفلية اليسرى -->
+                                <div style="position: absolute; bottom: 0; left: 0; width: 40px; height: 40px; border-bottom: 5px solid var(--success-color); border-left: 5px solid var(--success-color); border-radius: 0 0 0 8px; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                                <!-- الزاوية السفلية اليمنى -->
+                                <div style="position: absolute; bottom: 0; right: 0; width: 40px; height: 40px; border-bottom: 5px solid var(--success-color); border-right: 5px solid var(--success-color); border-radius: 0 0 8px 0; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                            </div>
+                            
+                            <!-- نص إرشادي داخل المربع -->
+                            <div style="position: absolute; top: calc(50% + 160px); left: 50%; transform: translateX(-50%); text-align: center; color: var(--white); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 0.85em; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                                <i class="bi bi-arrows-move" style="margin-left: 5px; font-size: 1.1em;"></i>
+                                ضع QR Code داخل المربع
+                            </div>
+                            
+                            <!-- خطوط إرشادية داخل المربع -->
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 280px; opacity: 0.3;">
+                                <!-- خط أفقي في المنتصف -->
+                                <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: linear-gradient(to right, transparent, var(--primary-color), transparent);"></div>
+                                <!-- خط عمودي في المنتصف -->
+                                <div style="position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, var(--primary-color), transparent);"></div>
                             </div>
                         </div>
                     </div>
