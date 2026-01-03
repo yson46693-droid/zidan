@@ -40,8 +40,200 @@ if (ob_get_level() === 0) {
     @ob_start();
 }
 
-// ✅ ملاحظة: إعدادات الجلسة و CookieSessionHandler سيتم تعريفها لاحقاً في الملف
-// بعد تحميل database.php (لأن CookieSessionHandler يحتاج إلى تعريفه أولاً)
+// ✅ CRITICAL: تعريف CookieSessionHandler قبل أي شيء آخر
+// (لا يحتاج إلى database.php، يمكن تعريفه مباشرة)
+class CookieSessionHandler implements SessionHandlerInterface {
+    private $cookieName = 'PHPSESSDATA';
+    private $lifetime = 86400; // 24 ساعة
+    
+    #[\ReturnTypeWillChange]
+    public function open($save_path, $name): bool {
+        return true;
+    }
+    
+    #[\ReturnTypeWillChange]
+    public function close(): bool {
+        return true;
+    }
+    
+    #[\ReturnTypeWillChange]
+    public function read($session_id): string|false {
+        // محاولة قراءة البيانات من cookie واحد
+        if (isset($_COOKIE[$this->cookieName])) {
+            $data = base64_decode($_COOKIE[$this->cookieName]);
+            if ($data !== false) {
+                $decoded = json_decode($data, true);
+                if ($decoded !== null && isset($decoded['data']) && isset($decoded['expires'])) {
+                    // التحقق من انتهاء الصلاحية
+                    if ($decoded['expires'] > time()) {
+                        return $decoded['data'];
+                    }
+                }
+            }
+        }
+        
+        // محاولة قراءة البيانات من cookies مقسمة
+        if (isset($_COOKIE[$this->cookieName . '_count'])) {
+            $count = (int)$_COOKIE[$this->cookieName . '_count'];
+            $chunks = [];
+            for ($i = 0; $i < $count; $i++) {
+                if (isset($_COOKIE[$this->cookieName . '_' . $i])) {
+                    $chunks[] = $_COOKIE[$this->cookieName . '_' . $i];
+                }
+            }
+            if (count($chunks) === $count) {
+                $encoded = implode('', $chunks);
+                $data = base64_decode($encoded);
+                if ($data !== false) {
+                    $decoded = json_decode($data, true);
+                    if ($decoded !== null && isset($decoded['data']) && isset($decoded['expires'])) {
+                        // التحقق من انتهاء الصلاحية
+                        if ($decoded['expires'] > time()) {
+                            return $decoded['data'];
+                        }
+                    }
+                }
+            }
+        }
+        
+        return '';
+    }
+    
+    #[\ReturnTypeWillChange]
+    public function write($session_id, $session_data): bool {
+        // ✅ CRITICAL: التحقق من أن headers لم يتم إرسالها بعد
+        if (headers_sent()) {
+            // إذا تم إرسال headers بالفعل، لا يمكن إرسال cookies
+            // هذا يحدث عادة عند استدعاء session_write_close() بعد response()
+            return true; // نعيد true لتجنب خطأ
+        }
+        
+        $isSecure = false;
+        if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+            $isSecure = true;
+        } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+            $isSecure = true;
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            $isSecure = true;
+        } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+            $isSecure = true;
+        }
+        
+        $data = [
+            'data' => $session_data,
+            'expires' => time() + $this->lifetime
+        ];
+        
+        $encoded = base64_encode(json_encode($data));
+        
+        // تقسيم البيانات إذا كانت كبيرة جداً (حد cookies هو 4096 بايت)
+        if (strlen($encoded) > 4000) {
+            // إذا كانت كبيرة جداً، نحفظها في عدة cookies
+            $chunks = str_split($encoded, 4000);
+            $samesite = $isSecure ? 'None' : 'Lax';
+            foreach ($chunks as $index => $chunk) {
+                if (PHP_VERSION_ID >= 70300) {
+                    @setcookie($this->cookieName . '_' . $index, $chunk, [
+                        'expires' => time() + $this->lifetime,
+                        'path' => '/',
+                        'domain' => '',
+                        'secure' => $isSecure,
+                        'httponly' => true,
+                        'samesite' => $samesite
+                    ]);
+                } else {
+                    @setcookie($this->cookieName . '_' . $index, $chunk, time() + $this->lifetime, '/', '', $isSecure, true);
+                }
+            }
+            if (PHP_VERSION_ID >= 70300) {
+                @setcookie($this->cookieName . '_count', count($chunks), [
+                    'expires' => time() + $this->lifetime,
+                    'path' => '/',
+                    'domain' => '',
+                    'secure' => $isSecure,
+                    'httponly' => true,
+                    'samesite' => $samesite
+                ]);
+            } else {
+                @setcookie($this->cookieName . '_count', count($chunks), time() + $this->lifetime, '/', '', $isSecure, true);
+            }
+        } else {
+            $samesite = $isSecure ? 'None' : 'Lax';
+            if (PHP_VERSION_ID >= 70300) {
+                @setcookie($this->cookieName, $encoded, [
+                    'expires' => time() + $this->lifetime,
+                    'path' => '/',
+                    'domain' => '',
+                    'secure' => $isSecure,
+                    'httponly' => true,
+                    'samesite' => $samesite
+                ]);
+            } else {
+                @setcookie($this->cookieName, $encoded, time() + $this->lifetime, '/', '', $isSecure, true);
+            }
+        }
+        
+        return true;
+    }
+    
+    #[\ReturnTypeWillChange]
+    public function destroy($session_id): bool {
+        // حذف جميع cookies المتعلقة بالجلسة
+        if (isset($_COOKIE[$this->cookieName])) {
+            setcookie($this->cookieName, '', time() - 3600, '/', '', false, true);
+        }
+        
+        // حذف cookies المقسمة إذا كانت موجودة
+        if (isset($_COOKIE[$this->cookieName . '_count'])) {
+            $count = (int)$_COOKIE[$this->cookieName . '_count'];
+            for ($i = 0; $i < $count; $i++) {
+                setcookie($this->cookieName . '_' . $i, '', time() - 3600, '/', '', false, true);
+            }
+            setcookie($this->cookieName . '_count', '', time() - 3600, '/', '', false, true);
+        }
+        
+        return true;
+    }
+    
+    #[\ReturnTypeWillChange]
+    public function gc($maxlifetime): int|false {
+        // لا حاجة لتنظيف - cookies تنتهي تلقائياً
+        // نرجع 0 (عدد الجلسات المحذوفة) أو false في حالة الخطأ
+        return 0;
+    }
+}
+
+// ✅ CRITICAL: بدء الجلسة قبل أي headers لمنع "Cannot set session cookie - headers already sent"
+if (session_status() === PHP_SESSION_NONE) {
+    @ini_set('soap.wsdl_cache_enabled', '0');
+    
+    // استخدام معالج الجلسات المخصص (cookies)
+    $handler = new CookieSessionHandler();
+    session_set_save_handler($handler, true);
+    
+    // اكتشاف HTTPS
+    $isSecure = false;
+    if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+        $isSecure = true;
+    } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+        $isSecure = true;
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+        $isSecure = true;
+    } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+        $isSecure = true;
+    }
+    
+    session_set_cookie_params([
+        'lifetime' => 86400,
+        'path' => '/',
+        'domain' => '',
+        'secure' => $isSecure,
+        'httponly' => true,
+        'samesite' => $isSecure ? 'None' : 'Lax'
+    ]);
+    
+    @session_start();
+}
 
 // إعدادات timeout لتحسين الأداء وتجنب التعليق (30 ثانية كحد أقصى)
 set_time_limit(30);
@@ -178,198 +370,7 @@ define('BACKUP_DIR', __DIR__ . '/../backups/');
 require_once __DIR__ . '/database.php';
 
 // ✅ تهيئة قاعدة البيانات - تم إزالة init-database.php (لم يعد مطلوباً)
-
-// ✅ معالج جلسات مخصص لتخزين البيانات في cookies على جهاز المستخدم
-class CookieSessionHandler implements SessionHandlerInterface {
-    private $cookieName = 'PHPSESSDATA';
-    private $lifetime = 86400; // 24 ساعة
-    
-    public function open($save_path, $name) {
-        return true;
-    }
-    
-    public function close() {
-        return true;
-    }
-    
-    public function read($session_id) {
-        // محاولة قراءة البيانات من cookie واحد
-        if (isset($_COOKIE[$this->cookieName])) {
-            $data = base64_decode($_COOKIE[$this->cookieName]);
-            if ($data !== false) {
-                $decoded = json_decode($data, true);
-                if ($decoded !== null && isset($decoded['data']) && isset($decoded['expires'])) {
-                    // التحقق من انتهاء الصلاحية
-                    if ($decoded['expires'] > time()) {
-                        return $decoded['data'];
-                    }
-                }
-            }
-        }
-        
-        // محاولة قراءة البيانات من cookies مقسمة
-        if (isset($_COOKIE[$this->cookieName . '_count'])) {
-            $count = (int)$_COOKIE[$this->cookieName . '_count'];
-            $chunks = [];
-            for ($i = 0; $i < $count; $i++) {
-                if (isset($_COOKIE[$this->cookieName . '_' . $i])) {
-                    $chunks[] = $_COOKIE[$this->cookieName . '_' . $i];
-                }
-            }
-            if (count($chunks) === $count) {
-                $encoded = implode('', $chunks);
-                $data = base64_decode($encoded);
-                if ($data !== false) {
-                    $decoded = json_decode($data, true);
-                    if ($decoded !== null && isset($decoded['data']) && isset($decoded['expires'])) {
-                        // التحقق من انتهاء الصلاحية
-                        if ($decoded['expires'] > time()) {
-                            return $decoded['data'];
-                        }
-                    }
-                }
-            }
-        }
-        
-        return '';
-    }
-    
-    public function write($session_id, $session_data) {
-        // ✅ CRITICAL: التحقق من أن headers لم يتم إرسالها بعد
-        if (headers_sent()) {
-            // إذا تم إرسال headers بالفعل، لا يمكن إرسال cookies
-            // هذا يحدث عادة عند استدعاء session_write_close() بعد response()
-            error_log('Warning: Cannot set session cookie - headers already sent');
-            return true; // نعيد true لتجنب خطأ
-        }
-        
-        $isSecure = false;
-        if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
-            $isSecure = true;
-        } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
-            $isSecure = true;
-        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-            $isSecure = true;
-        } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
-            $isSecure = true;
-        }
-        
-        $data = [
-            'data' => $session_data,
-            'expires' => time() + $this->lifetime
-        ];
-        
-        $encoded = base64_encode(json_encode($data));
-        
-        // تقسيم البيانات إذا كانت كبيرة جداً (حد cookies هو 4096 بايت)
-        if (strlen($encoded) > 4000) {
-            // إذا كانت كبيرة جداً، نحفظها في عدة cookies
-            $chunks = str_split($encoded, 4000);
-            $samesite = $isSecure ? 'None' : 'Lax';
-            foreach ($chunks as $index => $chunk) {
-                if (PHP_VERSION_ID >= 70300) {
-                    @setcookie($this->cookieName . '_' . $index, $chunk, [
-                        'expires' => time() + $this->lifetime,
-                        'path' => '/',
-                        'domain' => '',
-                        'secure' => $isSecure,
-                        'httponly' => true,
-                        'samesite' => $samesite
-                    ]);
-                } else {
-                    @setcookie($this->cookieName . '_' . $index, $chunk, time() + $this->lifetime, '/', '', $isSecure, true);
-                }
-            }
-            if (PHP_VERSION_ID >= 70300) {
-                @setcookie($this->cookieName . '_count', count($chunks), [
-                    'expires' => time() + $this->lifetime,
-                    'path' => '/',
-                    'domain' => '',
-                    'secure' => $isSecure,
-                    'httponly' => true,
-                    'samesite' => $samesite
-                ]);
-            } else {
-                @setcookie($this->cookieName . '_count', count($chunks), time() + $this->lifetime, '/', '', $isSecure, true);
-            }
-        } else {
-            $samesite = $isSecure ? 'None' : 'Lax';
-            if (PHP_VERSION_ID >= 70300) {
-                @setcookie($this->cookieName, $encoded, [
-                    'expires' => time() + $this->lifetime,
-                    'path' => '/',
-                    'domain' => '',
-                    'secure' => $isSecure,
-                    'httponly' => true,
-                    'samesite' => $samesite
-                ]);
-            } else {
-                @setcookie($this->cookieName, $encoded, time() + $this->lifetime, '/', '', $isSecure, true);
-            }
-        }
-        
-        return true;
-    }
-    
-    #[\ReturnTypeWillChange]
-    public function destroy($session_id): bool {
-        // حذف جميع cookies المتعلقة بالجلسة
-        if (isset($_COOKIE[$this->cookieName])) {
-            setcookie($this->cookieName, '', time() - 3600, '/', '', false, true);
-        }
-        
-        // حذف cookies المقسمة إذا كانت موجودة
-        if (isset($_COOKIE[$this->cookieName . '_count'])) {
-            $count = (int)$_COOKIE[$this->cookieName . '_count'];
-            for ($i = 0; $i < $count; $i++) {
-                setcookie($this->cookieName . '_' . $i, '', time() - 3600, '/', '', false, true);
-            }
-            setcookie($this->cookieName . '_count', '', time() - 3600, '/', '', false, true);
-        }
-        
-        return true;
-    }
-    
-    #[\ReturnTypeWillChange]
-    public function gc($maxlifetime): int|false {
-        // لا حاجة لتنظيف - cookies تنتهي تلقائياً
-        // نرجع 0 (عدد الجلسات المحذوفة) أو false في حالة الخطأ
-        return 0;
-    }
-}
-
-// ✅ CRITICAL: بدء الجلسة بعد تعريف CookieSessionHandler وقبل أي headers
-// هذا يمنع خطأ "Cannot set session cookie - headers already sent"
-if (session_status() === PHP_SESSION_NONE) {
-    @ini_set('soap.wsdl_cache_enabled', '0');
-    
-    // استخدام معالج الجلسات المخصص (cookies)
-    $handler = new CookieSessionHandler();
-    session_set_save_handler($handler, true);
-    
-    // اكتشاف HTTPS
-    $isSecure = false;
-    if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
-        $isSecure = true;
-    } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
-        $isSecure = true;
-    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-        $isSecure = true;
-    } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
-        $isSecure = true;
-    }
-    
-    session_set_cookie_params([
-        'lifetime' => 86400,
-        'path' => '/',
-        'domain' => '',
-        'secure' => $isSecure,
-        'httponly' => true,
-        'samesite' => $isSecure ? 'None' : 'Lax'
-    ]);
-    
-    @session_start();
-}
+// ✅ ملاحظة: CookieSessionHandler وبدء الجلسة تم نقلهما إلى بداية الملف (قبل أي headers)
 
 // ✅ تم إزالة setup.php - لم يعد مطلوباً
 if (!isset($_SESSION['db_setup_checked'])) {

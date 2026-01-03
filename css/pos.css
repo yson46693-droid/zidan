@@ -3810,12 +3810,13 @@
 
     /* Mobile Header Content */
     .pos-header-mobile-content {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
+        display: flex;
         align-items: center;
+        justify-content: space-between;
         width: 100%;
         gap: 10px;
         position: relative;
+        flex-wrap: nowrap;
     }
 
     /* Mobile Header Title */
@@ -3824,7 +3825,8 @@
         color: var(--primary-color);
         text-align: center;
         margin: 0;
-        grid-column: 2;
+        flex: 1;
+        order: 2;
     }
 
     /* Mobile Header QR Button */
@@ -3843,7 +3845,8 @@
         height: 44px;
         min-width: 44px;
         min-height: 44px;
-        grid-column: 3;
+        flex-shrink: 0;
+        order: 1;
     }
 
     .btn-header-icon-mobile:hover {
@@ -3867,7 +3870,8 @@
         min-width: 44px;
         min-height: 44px;
         white-space: nowrap;
-        grid-column: 1;
+        flex-shrink: 0;
+        order: 3;
     }
 
     .btn-back-mobile:hover {
@@ -3989,20 +3993,24 @@
     #pos-qr-reader-mobile {
         position: relative;
         width: 100% !important;
-        height: 100% !important;
+        height: 200px !important;
+        min-height: 200px !important;
         max-height: 200px !important;
-        min-height: 0 !important;
         overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     #pos-qr-reader-mobile video {
         width: 100% !important;
-        height: 100% !important;
+        height: 200px !important;
+        min-height: 200px !important;
         max-height: 200px !important;
-        min-height: 0 !important;
-        object-fit: contain !important; /* تغيير من cover إلى contain لمنع الزووم المفرط */
+        object-fit: contain !important; /* contain لضمان عرض كامل للفيديو بدون قطع */
         z-index: 0 !important;
         position: relative;
+        display: block !important;
     }
 
     #pos-qr-reader-mobile canvas {
@@ -4023,19 +4031,24 @@
     #pos-qr-reader-mobile > div {
         position: relative !important;
         width: 100% !important;
-        height: 100% !important;
+        height: 200px !important;
+        min-height: 200px !important;
         max-height: 200px !important;
         overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     #pos-qr-reader-mobile > div > video {
         width: 100% !important;
-        height: 100% !important;
+        height: 200px !important;
+        min-height: 200px !important;
         max-height: 200px !important;
         max-width: 100% !important;
-        min-height: 0 !important;
-        object-fit: contain !important; /* تغيير من cover إلى contain لمنع الزووم المفرط */
+        object-fit: contain !important; /* contain لضمان عرض كامل للفيديو بدون قطع */
         z-index: 0 !important;
+        display: block !important;
     }
 
     .pos-qr-scanner-hint {

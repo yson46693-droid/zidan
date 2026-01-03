@@ -3383,14 +3383,15 @@ async function initializePOSQRCodeScanner() {
         // إعدادات محسّنة للسرعة والدقة الطبيعية (بدون zoom مفرط)
         // إعدادات خاصة للهواتف لتقليل الزووم
         const videoConstraints = isMobile ? {
-            // على الهواتف: استخدام دقة منخفضة لتجنب الزووم المفرط
+            // على الهواتف: استخدام الكاميرا الخلفية فقط (environment)
+            facingMode: 'environment', // إجبار استخدام الكاميرا الخلفية على الهواتف
             width: { 
-                ideal: Math.min(containerWidth * 2, 480), // دقة منخفضة على الهواتف
-                max: 640 // حد أقصى منخفض على الهواتف
+                ideal: Math.min(containerWidth * 2, 640), // دقة معقولة على الهواتف
+                max: 1280 // حد أقصى معقول
             },
             height: { 
-                ideal: Math.min(containerHeight * 2, 360),
-                max: 480
+                ideal: Math.min(containerHeight * 2, 480),
+                max: 720
             },
             frameRate: { ideal: 20, max: 30 }, // تقليل frame rate على الهواتف
             // عدم تحديد focusMode لتجنب zoom تلقائي
@@ -3407,10 +3408,13 @@ async function initializePOSQRCodeScanner() {
             frameRate: { ideal: 30, max: 30 },
         };
         
+        // إعدادات config - على الهواتف لا نحدد aspectRatio للسماح للفيديو بالتكيف تلقائياً
         const config = {
             fps: isMobile ? 20 : 30, // تقليل fps على الهواتف
             qrbox: { width: qrboxSize, height: qrboxSize },
-            aspectRatio: containerWidth / containerHeight,
+            // على الهواتف: عدم تحديد aspectRatio للسماح للفيديو بالتكيف مع الحاوية
+            // على سطح المكتب: استخدام aspectRatio للحاوية
+            ...(isMobile ? {} : { aspectRatio: containerWidth / containerHeight }),
             disableFlip: false,
             videoConstraints: videoConstraints
         };
@@ -3447,7 +3451,13 @@ async function initializePOSQRCodeScanner() {
             }
         }
         
-        // استخدام الكاميرا المحددة (الخلفية أو الأمامية) - يمكن التبديل بينهما
+        // استخدام الكاميرا المحددة (الخلفية أو الأمامية)
+        // على الهواتف: إجبار استخدام الكاميرا الخلفية فقط
+        const isMobileDevice = window.innerWidth <= 767.98;
+        if (isMobileDevice) {
+            posCurrentCameraFacing = 'environment'; // إجبار الكاميرا الخلفية على الهواتف
+        }
+        
         let cameraConfig = { facingMode: posCurrentCameraFacing };
         let cameraId = posCurrentCameraId;
         
