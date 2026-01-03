@@ -3816,37 +3816,7 @@
                 let currentRepairs = [];
                 
                 try {
-                    // تنفيذ الطلبات بشكل متوازي لتقليل وقت الانتظار
-                    const [reportResult, repairsResult] = await Promise.allSettled([
-                        API.getReport('daily', today).catch(err => ({ success: false, error: err })),
-                        API.getRepairs().catch(err => ({ success: false, error: err }))
-                    ]);
-                    
-                    // معالجة نتائج التقرير
-                    if (reportResult.status === 'fulfilled' && reportResult.value && reportResult.value.success && reportResult.value.data) {
-                        reportData = reportResult.value.data;
-                    } else {
-                        console.warn('فشل تحميل تقرير اليوم:', reportResult.value?.message || reportResult.reason || 'Unknown error');
-                        if (reportResult.value?.message) {
-                            errorMessage = reportResult.value.message;
-                            hasError = true;
-                        }
-                    }
-                    
-                    // معالجة نتائج العمليات
-                    if (repairsResult.status === 'fulfilled' && repairsResult.value && repairsResult.value.success && repairsResult.value.data) {
-                        currentRepairs = repairsResult.value.data.filter(r => 
-                            r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
-                        );
-                    } else {
-                        console.warn('فشل تحميل العمليات:', repairsResult.value?.message || repairsResult.reason || 'Unknown error');
-                        if (repairsResult.value?.message && !errorMessage) {
-                            errorMessage = repairsResult.value.message;
-                            hasError = true;
-                        }
-                    }
-                    
-                    // جلب الفروع أولاً ثم تحديث البيانات لكل فرع
+                    // ✅ تحسين: جلب الفروع أولاً فقط (تم إزالة الطلبات المكررة)
                     let branches = [];
                     try {
                         const branchesResult = await API.request('branches.php', 'GET');
@@ -3866,7 +3836,34 @@
                         console.warn('خطأ في جلب الفروع:', error);
                     }
                     
-                    // تحديث البيانات لكل فرع
+                    // ✅ تحسين: جلب بيانات جميع الفروع بشكل متوازي (بدلاً من sequential)
+                    const branchPromises = [];
+                    for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
+                        const branchNumber = branchIndex + 1;
+                        const branchId = branches[branchIndex]?.id || null;
+                        
+                        if (branchId) {
+                            // إنشاء promise لكل فرع
+                            branchPromises.push(
+                                Promise.allSettled([
+                                    API.request(`reports.php?type=daily&start_date=${today}&end_date=${today}&branch_id=${branchId}`, 'GET').catch(() => ({ success: false })),
+                                    API.getRepairs(branchId, { silent: true }).catch(() => ({ success: false })),
+                                    API.request(`branch-treasury.php?branch_id=${branchId}&filter_type=today`, 'GET').catch(() => ({ success: false }))
+                                ]).then(([reportResult, repairsResult, treasuryResult]) => ({
+                                    branchNumber,
+                                    branchId,
+                                    reportResult,
+                                    repairsResult,
+                                    treasuryResult
+                                }))
+                            );
+                        }
+                    }
+                    
+                    // انتظار جميع الطلبات المتوازية
+                    const branchResults = await Promise.allSettled(branchPromises);
+                    
+                    // ✅ تحسين: معالجة النتائج لكل فرع من الطلبات المتوازية
                     for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
                         const branchNumber = branchIndex + 1;
                         const branchId = branches[branchIndex]?.id || null;
@@ -3879,53 +3876,31 @@
                         const todaySalesEl = document.getElementById(`todaySales${branchNumber}`);
                         const todayDamagedReturnsEl = document.getElementById(`todayDamagedReturns${branchNumber}`);
                         
-                        // تحميل بيانات الفرع المحدد
+                        // ✅ تحسين: استخدام البيانات من الطلبات المتوازية
                         let branchReportData = null;
                         let branchRepairs = [];
+                        let damagedReturns = 0;
                         let todaySalesAmount = 0;
                         
-                        // ✅ إصلاح: جلب بيانات كل فرع بشكل منفصل ومستقل
-                        try {
-                            if (branchId) {
-                                // تحميل تقرير الفرع مع branch_id
-                                const branchReportUrl = `reports.php?type=daily&start_date=${today}&end_date=${today}&branch_id=${branchId}`;
-                                const branchReportResult = await API.request(branchReportUrl, 'GET').catch(() => ({ success: false }));
-                                if (branchReportResult && branchReportResult.success && branchReportResult.data) {
-                                    branchReportData = branchReportResult.data;
-                                    console.log(`✅ [Branch ${branchNumber}] تم تحميل تقرير الفرع:`, branchReportData);
-                                } else {
-                                    console.warn(`⚠️ [Branch ${branchNumber}] فشل تحميل تقرير الفرع`);
-                                }
-                                
-                                // تحميل عمليات الفرع مع branch_id
-                                const branchRepairsResult = await API.getRepairs(branchId).catch(() => ({ success: false }));
-                                if (branchRepairsResult && branchRepairsResult.success && branchRepairsResult.data) {
-                                    branchRepairs = branchRepairsResult.data.filter(r => 
-                                        r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
-                                    );
-                                    console.log(`✅ [Branch ${branchNumber}] تم تحميل ${branchRepairs.length} عملية للفرع`);
-                                }
-                            } else {
-                                // ✅ إصلاح: إذا لم يكن هناك branchId، استخدام تقرير عام بدون branch_id
-                                // لكن فقط للفرع الأول كحالة fallback
-                                if (branchIndex === 0) {
-                                    // محاولة استخدام reportData إذا كان متاحاً (بدون branch_id)
-                                    if (reportData) {
-                                        branchReportData = reportData;
-                                        branchRepairs = currentRepairs;
-                                        console.log(`⚠️ [Branch ${branchNumber}] استخدام البيانات العامة (لا يوجد branchId)`);
-                                    }
-                                } else {
-                                    // للفرع الثاني: إذا لم يكن هناك branchId، عرض قيم صفر
-                                    console.warn(`⚠️ [Branch ${branchNumber}] لا يوجد branchId - سيتم عرض قيم صفر`);
-                                    branchReportData = null;
-                                    branchRepairs = [];
-                                }
+                        if (branchId && branchResults[branchIndex] && branchResults[branchIndex].status === 'fulfilled') {
+                            const result = branchResults[branchIndex].value;
+                            
+                            // معالجة تقرير الفرع
+                            if (result.reportResult && result.reportResult.status === 'fulfilled' && result.reportResult.value?.success && result.reportResult.value?.data) {
+                                branchReportData = result.reportResult.value.data;
                             }
-                        } catch (error) {
-                            console.error(`❌ [Branch ${branchNumber}] خطأ في تحميل بيانات الفرع:`, error);
-                            branchReportData = null;
-                            branchRepairs = [];
+                            
+                            // معالجة عمليات الفرع
+                            if (result.repairsResult && result.repairsResult.status === 'fulfilled' && result.repairsResult.value?.success && result.repairsResult.value?.data) {
+                                branchRepairs = result.repairsResult.value.data.filter(r => 
+                                    r && (r.status === 'pending' || r.status === 'in_progress' || r.status === 'ready')
+                                );
+                            }
+                            
+                            // معالجة المرتجعات التالفة
+                            if (result.treasuryResult && result.treasuryResult.status === 'fulfilled' && result.treasuryResult.value?.success && result.treasuryResult.value?.data) {
+                                damagedReturns = parseFloat(result.treasuryResult.value.data.damaged_returns?.total || 0);
+                            }
                         }
                         
                         // ✅ إصلاح: استخدام sales_profit من branchReportData بدلاً من جلب المبيعات بشكل منفصل
@@ -3967,25 +3942,9 @@
                                 todayExpensesEl.textContent = formatCurrencyFunc(branchReportData.expenses || 0);
                             }
                             
-                            // المرتجعات التالفة (جلب من branch-treasury.php إذا كان branchId موجود)
+                            // المرتجعات التالفة (تم جلبها بالفعل في الطلبات المتوازية)
                             if (todayDamagedReturnsEl) {
-                                if (branchId) {
-                                    try {
-                                        const treasuryUrl = `branch-treasury.php?branch_id=${branchId}&filter_type=today`;
-                                        const treasuryResult = await API.request(treasuryUrl, 'GET').catch(() => ({ success: false }));
-                                        if (treasuryResult && treasuryResult.success && treasuryResult.data) {
-                                            const damagedReturns = parseFloat(treasuryResult.data.damaged_returns?.total || 0);
-                                            todayDamagedReturnsEl.textContent = formatCurrencyFunc(damagedReturns);
-                                        } else {
-                                            todayDamagedReturnsEl.textContent = formatCurrencyFunc(0);
-                                        }
-                                    } catch (error) {
-                                        console.error(`❌ [Branch ${branchNumber}] خطأ في جلب المرتجعات التالفة:`, error);
-                                        todayDamagedReturnsEl.textContent = formatCurrencyFunc(0);
-                                    }
-                                } else {
-                                    todayDamagedReturnsEl.textContent = formatCurrencyFunc(0);
-                                }
+                                todayDamagedReturnsEl.textContent = formatCurrencyFunc(damagedReturns);
                             }
                             
                             // صافي الربح النهائي
@@ -4014,7 +3973,7 @@
                             console.log(`✅ [Branch ${branchNumber}] المبيعات: ${todaySalesAmount}`);
                         }
                         
-                        // تحميل وعرض الفنيين للفرع
+                        // ✅ تحسين: تأجيل تحميل الفنيين حتى بعد عرض البيانات الأساسية (lazy loading)
                         if (branchId) {
                             // تعيين الشهر الحالي كقيمة افتراضية
                             const monthFilter = document.getElementById(`technicianMonthFilter${branchNumber}`);
@@ -4022,7 +3981,10 @@
                                 const now = new Date();
                                 monthFilter.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                             }
-                            loadTechnicians(branchId, branchNumber);
+                            // ✅ تأجيل تحميل الفنيين لتقليل الطلبات الفورية
+                            setTimeout(() => {
+                                loadTechnicians(branchId, branchNumber);
+                            }, 500); // تأخير 500ms
                         }
                     }
                     
