@@ -290,16 +290,23 @@ class SecurityManager {
                     '#qr-reader',
                     '#barcodeScannerModal',
                     '#posBarcodeScannerModal',
-                    '#qrCodeScannerModal'
+                    '#qrCodeScannerModal',
+                    '#loss-scanner-area',
+                    '#lossBarcodeScannerModal'
                 ];
                 
                 const hasScannerElement = scannerElements.some(selector => {
                     return document.querySelector(selector) !== null;
                 });
                 
+                // التحقق أيضاً من وجود عناصر loss scanner في DOM حتى لو لم تكن مرئية بعد
+                const lossScannerExists = document.getElementById('loss-scanner-area') !== null ||
+                                         document.getElementById('lossBarcodeScannerModal') !== null;
+                
                 if (window.location.hash.includes('barcode') || 
                     window.location.hash.includes('qr') ||
-                    hasScannerElement) {
+                    hasScannerElement ||
+                    lossScannerExists) {
                     return originalGetUserMedia.apply(this, arguments);
                 } else {
                     securityManager.logSuspiciousActivity('محاولة الوصول للكاميرا خارج السياق المسموح', 'HIGH');
