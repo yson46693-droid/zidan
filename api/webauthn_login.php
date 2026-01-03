@@ -232,9 +232,9 @@ try {
                 
                 // ✅ CRITICAL: التحقق من أن البيانات محفوظة في $_SESSION قبل response()
                 // (لا نحتاج إلى إعادة فتح الجلسة لأنها لا تزال نشطة في الذاكرة)
-                error_log("WebAuthn Login API - Final $_SESSION data before response(): " . json_encode($_SESSION));
+                error_log("WebAuthn Login API - Final session data before response(): " . json_encode($_SESSION));
                 if (isset($_SESSION['user_id'])) {
-                    error_log("WebAuthn Login API - ✅ User data confirmed in $_SESSION: user_id=" . $_SESSION['user_id']);
+                    error_log("WebAuthn Login API - ✅ User data confirmed in session: user_id=" . $_SESSION['user_id']);
                 } else {
                     error_log("WebAuthn Login API - ❌ ERROR: User data NOT found in $_SESSION before response()!");
                 }

@@ -9,69 +9,6 @@ let currentSparePartBrandFilter = 'all';
 let currentAccessoryFilter = 'all';
 let currentPhoneBrand = 'all';
 
-// دالة مساعدة للتحقق من صلاحيات الكتابة في المخزن
-async function canWriteInventory() {
-    try {
-        const user = getCurrentUser();
-        if (!user) {
-            return false;
-        }
-        
-        // المالك له كامل الصلاحيات
-        if (user.role === 'admin') {
-            return true;
-        }
-        
-        // الفنيون لا يمكنهم الكتابة
-        if (user.role === 'technician') {
-            return false;
-        }
-        
-        // إذا لم يكن هناك branch_id، لا يمكنه الكتابة
-        if (!user.branch_id) {
-            return false;
-        }
-        
-        // التحقق من الفرع - الفرع الثاني (BITASH) له صلاحيات قراءة فقط
-        // محاولة جلب branch_code من المستخدم أولاً
-        let branchCode = user.branch_code || localStorage.getItem('branch_code');
-        
-        // إذا لم يكن branch_code موجوداً، جلب معلومات الفرع من API
-        if (!branchCode) {
-            try {
-                const branchesResult = await API.request('branches.php', 'GET', null, { silent: true });
-                if (branchesResult && branchesResult.success && branchesResult.data) {
-                    const userBranch = branchesResult.data.find(b => String(b.id) === String(user.branch_id));
-                    if (userBranch && userBranch.code) {
-                        branchCode = userBranch.code;
-                        // حفظ branch_code في بيانات المستخدم للمرة القادمة
-                        user.branch_code = branchCode;
-                        localStorage.setItem('currentUser', JSON.stringify(user));
-                    }
-                }
-            } catch (error) {
-                console.warn('خطأ في جلب معلومات الفرع:', error);
-            }
-        }
-        
-        // الفرع الثاني (BITASH) له صلاحيات قراءة فقط
-        if (branchCode === 'BITASH') {
-            return false;
-        }
-        
-        // الفرع الأول (HANOVIL) والمديرون والموظفون يمكنهم الكتابة
-        if (branchCode === 'HANOVIL' || user.role === 'manager' || user.role === 'employee') {
-            return true;
-        }
-        
-        // افتراضياً، إذا لم يكن هناك branch_code، نسمح للمديرين والموظفين
-        return user.role === 'manager' || user.role === 'employee';
-    } catch (error) {
-        console.error('خطأ في التحقق من صلاحيات الكتابة في المخزن:', error);
-        return false;
-    }
-}
-
 // متغيرات لمنع الاستدعاءات المتكررة
 let isLoadingSpareParts = false;
 let isLoadingAccessories = false;
@@ -319,7 +256,7 @@ async function loadSpareParts(silent = false, forceRefresh = false) {
                         const grid = document.getElementById('sparePartsGrid');
                         if (grid) {
                             displaySpareParts(allSpareParts);
-                            createSparePartsBrandFilters();
+                            await createSparePartsBrandFilters();
                         }
                     }
                 }
@@ -352,18 +289,18 @@ async function loadSpareParts(silent = false, forceRefresh = false) {
             // التأكد من وجود العنصر قبل العرض
             const grid = document.getElementById('sparePartsGrid');
             if (!grid) {
-                setTimeout(() => {
+                setTimeout(async () => {
                     const retryGrid = document.getElementById('sparePartsGrid');
                     if (retryGrid) {
                         displaySpareParts(allSpareParts);
-                        createSparePartsBrandFilters();
+                        await createSparePartsBrandFilters();
                     }
                 }, 300);
                 return;
             }
             
             displaySpareParts(allSpareParts);
-            createSparePartsBrandFilters();
+            await createSparePartsBrandFilters();
         } else {
             // إذا فشل ولم يكن هناك cache، عرض رسالة خطأ
             if (!cachedParts || forceRefresh) {
@@ -540,18 +477,31 @@ function filterSpareParts() {
     displaySpareParts(filtered);
 }
 
-function createSparePartsBrandFilters() {
-    // جمع جميع الماركات الفريدة
-    const brands = [...new Set(allSpareParts.map(part => part.brand))].sort();
+async function createSparePartsBrandFilters() {
     const select = document.getElementById('sparePartsBrandFilter');
     if (!select) return;
     
     // حفظ القيمة الحالية
     const currentValue = select.value;
     
+    // ✅ تحميل الماركات من API إذا لم تكن محملة
+    if (phoneBrands.length === 0) {
+        await loadPhoneBrands();
+    }
+    
+    // ✅ استخدام الماركات من phoneBrands (من API) بدلاً من الاعتماد فقط على allSpareParts
+    // جمع الماركات من phoneBrands
+    const brandsFromAPI = phoneBrands.map(b => b.name).filter(b => b && b.trim());
+    
+    // ✅ أيضاً جمع الماركات من allSpareParts (للماركات المخصصة التي قد لا تكون في API)
+    const brandsFromParts = [...new Set(allSpareParts.map(part => part.brand).filter(b => b && b.trim()))];
+    
+    // ✅ دمج الماركات من المصدرين وإزالة التكرار
+    const allBrands = [...new Set([...brandsFromAPI, ...brandsFromParts])].sort();
+    
     // إضافة خيار "الكل" ثم باقي الماركات
     select.innerHTML = '<option value="all">الكل</option>' +
-        brands.map(brand => {
+        allBrands.map(brand => {
             const brandFilter = brand.toLowerCase();
             return `<option value="${brandFilter}">${brand}</option>`;
         }).join('');
@@ -1725,18 +1675,11 @@ async function deletePhone(id) {
 // ============================================
 
 async function showAddInventoryModal() {
-    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير من الفرع الأول
+    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
     try {
-        const canAdd = await canWriteInventory();
-        if (!canAdd) {
-            const user = getCurrentUser();
-            const branchCode = user?.branch_code || localStorage.getItem('branch_code') || '';
-            
-            if (branchCode === 'BITASH') {
-                showMessage('ليس لديك صلاحية لإضافة عناصر المخزن. الفرع الثاني له صلاحيات قراءة فقط.', 'error');
-            } else {
-                showMessage('ليس لديك صلاحية لإضافة عناصر المخزن', 'error');
-            }
+        const user = getCurrentUser();
+        if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
+            showMessage('ليس لديك صلاحية لإضافة عناصر المخزن', 'error');
             return;
         }
     } catch (error) {
@@ -3021,7 +2964,7 @@ function compressImage(file, maxWidth = 800, quality = 0.8) {
 }
 
 // إنشاء النماذج عند تحميل القسم
-async function loadInventorySection() {
+function loadInventorySection() {
     // منع الاستدعاءات المتكررة
     if (isLoadingInventorySection) {
         console.log('⏳ تحميل قسم المخزن قيد التنفيذ بالفعل...');
@@ -3058,10 +3001,10 @@ async function loadInventorySection() {
     allAccessories = [];
     allPhones = [];
     
-    // ✅ التحقق من صلاحيات الكتابة في المخزن
-    // الفرع الثاني (BITASH) له صلاحيات قراءة فقط
-    const canAdd = await canWriteInventory();
-    const addButtonStyle = canAdd ? '' : 'display: none;';
+    // التحقق من نوع المستخدم لإخفاء زر الإضافة للفنيين
+    const user = getCurrentUser();
+    const isTechnician = user && user.role === 'technician';
+    const addButtonStyle = isTechnician ? 'display: none;' : '';
     
     section.innerHTML = `
         <div class="section-header">
@@ -3202,9 +3145,9 @@ async function loadInventorySection() {
                 ]);
                 
                 // إنشاء الفلاتر بعد اكتمال تحميل جميع البيانات
-                setTimeout(() => {
+                setTimeout(async () => {
                     try {
-                        createSparePartsBrandFilters();
+                        await createSparePartsBrandFilters();
                         createAccessoryFilters();
                         createPhoneBrands();
                         hideByPermission();
