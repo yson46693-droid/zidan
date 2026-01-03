@@ -3375,31 +3375,44 @@ async function initializePOSQRCodeScanner() {
         const containerWidth = qrReaderElement ? qrReaderElement.offsetWidth : 400;
         const containerHeight = qrReaderElement ? qrReaderElement.offsetHeight : 300;
         
-        // حساب حجم qrbox بناءً على حجم الحاوية - حجم أكبر للتعرف الأسرع (95% للتعرف الأمثل)
-        const qrboxSize = Math.min(containerWidth * 0.95, containerHeight * 0.95, 350);
+        // حساب حجم qrbox بناءً على حجم الحاوية - حجم أصغر على الهواتف لتقليل الزووم
+        const qrboxSize = isMobile 
+            ? Math.min(containerWidth * 0.75, containerHeight * 0.75, 250) // حجم أصغر على الهواتف
+            : Math.min(containerWidth * 0.95, containerHeight * 0.95, 350);
         
         // إعدادات محسّنة للسرعة والدقة الطبيعية (بدون zoom مفرط)
+        // إعدادات خاصة للهواتف لتقليل الزووم
+        const videoConstraints = isMobile ? {
+            // على الهواتف: استخدام دقة منخفضة لتجنب الزووم المفرط
+            width: { 
+                ideal: Math.min(containerWidth * 2, 480), // دقة منخفضة على الهواتف
+                max: 640 // حد أقصى منخفض على الهواتف
+            },
+            height: { 
+                ideal: Math.min(containerHeight * 2, 360),
+                max: 480
+            },
+            frameRate: { ideal: 20, max: 30 }, // تقليل frame rate على الهواتف
+            // عدم تحديد focusMode لتجنب zoom تلقائي
+        } : {
+            // على سطح المكتب: إعدادات عادية
+            width: { 
+                ideal: Math.min(containerWidth, 640),
+                max: 1280
+            },
+            height: { 
+                ideal: Math.min(containerHeight, 480),
+                max: 720
+            },
+            frameRate: { ideal: 30, max: 30 },
+        };
+        
         const config = {
-            fps: 30, // 30 fps كافٍ للتعرف السريع (تقليل من 60 لتقليل استهلاك البطارية)
+            fps: isMobile ? 20 : 30, // تقليل fps على الهواتف
             qrbox: { width: qrboxSize, height: qrboxSize },
             aspectRatio: containerWidth / containerHeight,
             disableFlip: false,
-            // إعدادات الكاميرا المحسّنة - دقة طبيعية بدون zoom
-            videoConstraints: {
-                width: { 
-                    ideal: Math.min(containerWidth, 640), // دقة طبيعية بدون تكبير
-                    max: 1280 // حد أقصى معقول
-                },
-                height: { 
-                    ideal: Math.min(containerHeight, 480),
-                    max: 720
-                },
-                frameRate: { ideal: 30, max: 30 }, // 30 fps كافٍ
-                // إزالة focusMode و exposureMode للسماح بالضبط التلقائي الطبيعي
-                // focusMode: "continuous", // إزالة لتجنب zoom مفرط
-                // exposureMode: "continuous", // إزالة
-                // whiteBalanceMode: "continuous" // إزالة
-            }
+            videoConstraints: videoConstraints
         };
         
         // تحديد أنواع QR codes المطلوبة فقط (تحسين الأداء) - إذا كان متوفراً

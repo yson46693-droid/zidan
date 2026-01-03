@@ -3981,7 +3981,7 @@
         height: 100% !important;
         max-height: 200px !important;
         min-height: 0 !important;
-        object-fit: cover !important;
+        object-fit: contain !important; /* تغيير من cover إلى contain لمنع الزووم المفرط */
         display: block !important;
         position: relative;
     }
@@ -4000,7 +4000,7 @@
         height: 100% !important;
         max-height: 200px !important;
         min-height: 0 !important;
-        object-fit: cover !important;
+        object-fit: contain !important; /* تغيير من cover إلى contain لمنع الزووم المفرط */
         z-index: 0 !important;
         position: relative;
     }
@@ -4034,7 +4034,7 @@
         max-height: 200px !important;
         max-width: 100% !important;
         min-height: 0 !important;
-        object-fit: cover !important;
+        object-fit: contain !important; /* تغيير من cover إلى contain لمنع الزووم المفرط */
         z-index: 0 !important;
     }
 
