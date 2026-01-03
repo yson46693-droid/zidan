@@ -6467,10 +6467,12 @@ async function openLossBarcodeScanner() {
                 <button onclick="closeLossBarcodeScanner()" class="btn-close">&times;</button>
             </div>
             <div style="padding: 20px;">
-                <div id="loss-scanner-area" style="width: 100%; min-height: 300px; background: var(--light-bg); border-radius: 8px; position: relative; overflow: hidden;"></div>
-                <div id="loss-scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-light);">
-                    <i class="bi bi-hourglass-split" style="font-size: 2em; display: block; margin-bottom: 10px;"></i>
-                    <p>جاري تحميل الكاميرا...</p>
+                <div id="loss-scanner-area" style="width: 100%; min-height: 400px; background: var(--light-bg); border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+                    <div id="loss-scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; color: var(--text-dark);">
+                        <i class="bi bi-camera" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block; animation: pulse 2s infinite;"></i>
+                        <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">جاري تحميل قارئ QR Code...</p>
+                        <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا</p>
+                    </div>
                 </div>
                 <div id="loss-scanner-error" style="display: none; margin-top: 15px; padding: 15px; background: var(--danger-color); color: var(--white); border-radius: 8px;">
                     <p id="loss-scanner-error-message"></p>
@@ -6526,10 +6528,6 @@ async function initializeLossQRCodeScanner() {
         return;
     }
     
-    if (loadingDiv) {
-        loadingDiv.style.display = 'none';
-    }
-    
     try {
         lossQRScannerInstance = new Html5Qrcode("loss-scanner-area");
         
@@ -6544,6 +6542,7 @@ async function initializeLossQRCodeScanner() {
             config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
         }
         
+        // بدء المسح
         await lossQRScannerInstance.start(
             { facingMode: "environment" },
             config,
@@ -6551,16 +6550,29 @@ async function initializeLossQRCodeScanner() {
                 handleLossQRCodeScanned(decodedText);
             },
             (errorMessage) => {
-                // تجاهل الأخطاء المستمرة
+                // تجاهل الأخطاء المستمرة أثناء المسح (طبيعي)
             }
         );
         
+        // إخفاء رسالة التحميل بعد نجاح بدء المسح
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+        
+        console.log('✅ [Loss Scanner] تم بدء قارئ QR Code بنجاح');
+        
     } catch (error) {
-        console.error('خطأ في بدء قارئ QR Code:', error);
+        console.error('❌ [Loss Scanner] خطأ في بدء قارئ QR Code:', error);
+        
+        // إخفاء loading وإظهار رسالة الخطأ
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+        
         const errorDiv = document.getElementById('loss-scanner-error');
         const errorMessage = document.getElementById('loss-scanner-error-message');
         if (errorDiv && errorMessage) {
-            errorMessage.textContent = 'فشل في فتح الكاميرا: ' + error.message;
+            errorMessage.textContent = 'فشل في فتح الكاميرا: ' + (error.message || error);
             errorDiv.style.display = 'block';
         }
     }

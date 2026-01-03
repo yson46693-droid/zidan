@@ -3912,6 +3912,68 @@ body {
     }
 }
 
+/* أنماط QR Scanner للخسارة */
+#loss-scanner-area {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    overflow: hidden;
+}
+
+#loss-scanner-area video {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 400px !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    object-fit: cover !important;
+    display: block !important;
+    position: relative;
+    z-index: 0;
+}
+
+#loss-scanner-area canvas {
+    display: none !important;
+}
+
+/* Ensure html5-qrcode container is visible */
+#loss-scanner-area > div {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 400px !important;
+    overflow: hidden !important;
+}
+
+#loss-scanner-area > div > div {
+    max-height: 400px !important;
+    overflow: hidden !important;
+}
+
+#loss-scanner-area > div > div > video {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 400px !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    object-fit: cover !important;
+    z-index: 0 !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 575.98px) {
+    #loss-scanner-area {
+        min-height: 300px;
+    }
+    
+    #loss-scanner-area video,
+    #loss-scanner-area > div,
+    #loss-scanner-area > div > div,
+    #loss-scanner-area > div > div > video {
+        max-height: 300px !important;
+    }
+}
+
 /* أنماط تفاصيل العملية الخاسرة */
 .loss-details {
     background: #f8f9fa;
