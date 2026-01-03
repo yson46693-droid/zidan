@@ -3364,7 +3364,7 @@ async function initializePOSQRCodeScannerMobile() {
     // Create new scanner instance (exactly like qr.html)
     posQRCodeScannerInstance = new Html5Qrcode('pos-qr-reader-mobile');
     posScannerOpen = true;
-    
+     
     // Start scanner with optimized config for better performance and recognition
     // ✅ استخدام الكاميرا الخلفية بشكل صريح (environment) للهواتف
     posQRCodeScannerInstance.start(
