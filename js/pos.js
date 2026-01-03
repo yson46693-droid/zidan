@@ -3307,55 +3307,18 @@ async function initializePOSQRCodeScanner() {
         const containerWidth = qrReaderElement ? qrReaderElement.offsetWidth : 400;
         const containerHeight = qrReaderElement ? qrReaderElement.offsetHeight : 300;
         
-        // حساب حجم qrbox بناءً على حجم الحاوية - حجم أكبر للمسح الدقيق
+        // حساب حجم qrbox بناءً على حجم الحاوية
         const qrboxSize = isMobile 
-            ? Math.min(containerWidth * 0.85, containerHeight * 0.85, 300) // حجم أكبر للمسح الدقيق
+            ? Math.min(containerWidth * 0.9, containerHeight * 0.9, 250) // حجم معتدل للهواتف
             : Math.min(containerWidth * 0.95, containerHeight * 0.95, 350);
         
-        // إعدادات محسّنة للجودة العالية والمسح الدقيق
-        // إعدادات خاصة للهواتف مع جودة عالية للمسح الدقيق
-        const videoConstraints = isMobile ? {
-            // على الهواتف: استخدام الكاميرا الخلفية فقط (environment) بجودة عالية
-            facingMode: 'environment', // إجبار استخدام الكاميرا الخلفية على الهواتف
-            width: { 
-                ideal: 1280, // دقة عالية للمسح الدقيق
-                min: 640,  // حد أدنى للجودة
-                max: 1920  // حد أقصى للجودة العالية
-            },
-            height: { 
-                ideal: 720, // دقة عالية للمسح الدقيق
-                min: 480,   // حد أدنى للجودة
-                max: 1080   // حد أقصى للجودة العالية
-            },
-            frameRate: { ideal: 30, max: 60 }, // frame rate عالي للمسح السريع والدقيق
-            // إعدادات إضافية لتحسين الجودة
-            advanced: [
-                { zoom: { ideal: 0, min: 0, max: 0 } }, // منع zoom تلقائي
-            ]
-        } : {
-            // على سطح المكتب: إعدادات عادية
-            width: { 
-                ideal: Math.min(containerWidth, 1280),
-                max: 1920
-            },
-            height: { 
-                ideal: Math.min(containerHeight, 720),
-                max: 1080
-            },
-            frameRate: { ideal: 30, max: 60 },
-        };
-        
-        // إعدادات config محسّنة للمسح الدقيق
+        // إعدادات config مبسطة - videoConstraints يجب أن تكون فقط في start() method وليس في config
         const config = {
-            fps: isMobile ? 30 : 30, // fps عالي للمسح السريع والدقيق
+            fps: isMobile ? 10 : 10, // fps أقل للهواتف لتحسين الأداء والاستقرار
             qrbox: { width: qrboxSize, height: qrboxSize },
-            // على الهواتف: عدم تحديد aspectRatio للسماح للفيديو بالتكيف مع الحاوية
-            // على سطح المكتب: استخدام aspectRatio للحاوية
-            ...(isMobile ? {} : { aspectRatio: containerWidth / containerHeight }),
-            disableFlip: false,
-            videoConstraints: videoConstraints,
-            // إعدادات إضافية لتحسين دقة المسح
-            rememberLastUsedCamera: true // تذكر آخر كاميرا مستخدمة
+            // استخدام aspectRatio ثابت للهواتف
+            aspectRatio: isMobile ? 1.0 : (containerWidth / containerHeight),
+            disableFlip: false
         };
         
         // تحديد أنواع QR codes المطلوبة فقط (تحسين الأداء) - إذا كان متوفراً
@@ -3366,14 +3329,6 @@ async function initializePOSQRCodeScanner() {
         // Add supportedScanTypes if available (newer versions)
         if (typeof Html5QrcodeScanType !== 'undefined') {
             config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
-        }
-        
-        // تحسينات إضافية للمسح الدقيق
-        if (isMobile) {
-            // على الهواتف: إعدادات إضافية للمسح الدقيق
-            config.experimentalFeatures = {
-                useBarCodeDetectorIfSupported: true // استخدام BarCodeDetector API إذا كان متاحاً
-            };
         }
         
         
@@ -3477,6 +3432,9 @@ async function initializePOSQRCodeScanner() {
         
         console.log(`🎥 [POS Scanner] إعدادات الكاميرا (${posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية'}):`, cameraConfig);
         
+        // في html5-qrcode، videoConstraints يجب أن تكون في start() method وليس في config
+        // لذلك نستخدم config كما هو بدون videoConstraints
+        
         await posQRCodeScannerInstance.start(
             cameraConfig,
             config,
@@ -3489,6 +3447,12 @@ async function initializePOSQRCodeScanner() {
             },
             (errorMessage) => {
                 // Error callback - تجاهل الأخطاء العادية أثناء المسح (طبيعي)
+                // لكن يمكن تسجيل بعض الأخطاء للمساعدة في التشخيص
+                if (errorMessage && !errorMessage.includes('NotFoundException')) {
+                    // تجاهل NotFoundException (طبيعي أثناء المسح)
+                    // لكن تسجيل الأخطاء الأخرى للتحليل
+                    console.debug('⚠️ [POS Scanner] خطأ أثناء المسح:', errorMessage);
+                }
             }
         );
         
@@ -3503,12 +3467,28 @@ async function initializePOSQRCodeScanner() {
         console.error('❌ [POS Scanner] خطأ في تهيئة الماسح:', error);
         const errorMessage = error?.message || 'خطأ غير معروف';
         
-        // محاولة إضافية - استخدام facingMode المحدد مباشرة
+        // محاولة إضافية - استخدام facingMode المحدد مباشرة مع إعدادات مبسطة
         console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: ${posCurrentCameraFacing} مباشرة...`);
         try {
+            // إعدادات مبسطة للمحاولة الثانية
+            const fallbackConfig = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                disableFlip: false
+            };
+            
+            if (typeof Html5QrcodeSupportedFormats !== 'undefined' && Html5QrcodeSupportedFormats.QR_CODE) {
+                fallbackConfig.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
+            }
+            
+            if (typeof Html5QrcodeScanType !== 'undefined') {
+                fallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
+            }
+            
             await posQRCodeScannerInstance.start(
                 { facingMode: posCurrentCameraFacing },
-                config,
+                fallbackConfig,
                 (decodedText, decodedResult) => {
                     console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
                     handlePOSQRCodeScanned(decodedText);
@@ -3564,9 +3544,25 @@ async function initializePOSQRCodeScanner() {
                         }
                         
                         try {
+                            // استخدام إعدادات مبسطة للمحاولة الأخيرة
+                            const finalFallbackConfig = {
+                                fps: 10,
+                                qrbox: { width: 250, height: 250 },
+                                aspectRatio: 1.0,
+                                disableFlip: false
+                            };
+                            
+                            if (typeof Html5QrcodeSupportedFormats !== 'undefined' && Html5QrcodeSupportedFormats.QR_CODE) {
+                                finalFallbackConfig.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
+                            }
+                            
+                            if (typeof Html5QrcodeScanType !== 'undefined') {
+                                finalFallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
+                            }
+                            
                             await posQRCodeScannerInstance.start(
                                 cam.id,
-                                config,
+                                finalFallbackConfig,
                                 (decodedText, decodedResult) => {
                                     console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
                                     handlePOSQRCodeScanned(decodedText);

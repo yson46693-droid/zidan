@@ -80,8 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
     
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete') {
     // حذف اعتماد محدد
-    $data = getRequestData();
-    $credentialId = $data['credential_id'] ?? $_POST['credential_id'] ?? '';
+    // البيانات تُرسل كـ FormData، لذا نقرأها مباشرة من $_POST
+    $credentialId = $_POST['credential_id'] ?? '';
     
     if (empty($credentialId)) {
         response(false, 'معرّف الاعتماد مطلوب', null, 400);
