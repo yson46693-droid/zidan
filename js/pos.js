@@ -3361,83 +3361,48 @@ async function initializePOSQRCodeScannerMobile() {
         posQRCodeScannerInstance = null;
     }
     
-    try {
-        // Create new scanner instance (simplified approach like qr.html)
-        posQRCodeScannerInstance = new Html5Qrcode('pos-qr-reader-mobile');
-        posScannerOpen = true;
-        
-        // Start scanner with simple config (like qr.html)
-        await posQRCodeScannerInstance.start(
-            { facingMode: "environment" }, // الكاميرا الخلفية
-            {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-            },
-            function onScanSuccess(decodedText) {
-                // Success callback - تم قراءة QR Code بنجاح
-                console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected ✅✅✅');
-                console.log('📋 [POS Scanner Mobile] Decoded Text:', decodedText);
-                
-                // اهتزاز (موبايل)
-                if (navigator.vibrate) {
-                    navigator.vibrate(200);
-                }
-                
-                // Handle product using existing function (like desktop scanner)
-                if (decodedText && decodedText.trim()) {
-                    handlePOSQRCodeScanned(decodedText.trim());
-                } else {
-                    console.warn('⚠️ [POS Scanner Mobile] Empty decoded text');
-                }
-                
-                // Continue scanning - don't stop camera (like desktop scanner)
-            },
-            function onScanError(error) {
-                // Error callback - تجاهل أخطاء القراءة (طبيعي أثناء المسح)
-                // Ignore scanning errors - this is normal during scanning
-            }
-        ).catch(err => {
-            console.error('❌ [POS Scanner Mobile] Error starting scanner:', err);
-            const errorMessage = err?.message || 'لا يمكن تشغيل الكاميرا';
+    // Create new scanner instance (exactly like qr.html)
+    posQRCodeScannerInstance = new Html5Qrcode('pos-qr-reader-mobile');
+    posScannerOpen = true;
+    
+    // Start scanner with simple config (exactly like qr.html - no await, use .catch() directly)
+    posQRCodeScannerInstance.start(
+        { facingMode: "environment" }, // الكاميرا الخلفية
+        {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+        },
+        function onScanSuccess(decodedText) {
+            // Success callback - تم قراءة QR Code بنجاح (exactly like qr.html)
+            console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected ✅✅✅');
+            console.log('📋 [POS Scanner Mobile] Decoded Text:', decodedText);
             
-            if (loadingDiv) {
-                loadingDiv.innerHTML = `
-                    <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                    <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">❌ ${errorMessage}</p>
-                    <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
-                        إعادة المحاولة
-                    </button>
-                `;
+            // اهتزاز (موبايل)
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
             }
             
-            if (errorDiv) {
-                errorDiv.style.display = 'block';
-                const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
-                if (errorMessageEl) {
-                    errorMessageEl.textContent = `❌ ${errorMessage}`;
-                }
+            // Handle product using existing function (like desktop scanner)
+            if (decodedText && decodedText.trim()) {
+                handlePOSQRCodeScanned(decodedText.trim());
+            } else {
+                console.warn('⚠️ [POS Scanner Mobile] Empty decoded text');
             }
             
-            posQRCodeScannerInstance = null;
-            posScannerOpen = false;
-        });
-        
-        // Hide loading indicator once scanner starts
-        if (loadingDiv) {
-            loadingDiv.style.display = 'none';
+            // Continue scanning - don't stop camera (like desktop scanner)
+        },
+        function onScanError(error) {
+            // Error callback - تجاهل أخطاء القراءة (exactly like qr.html)
+            // Ignore scanning errors - this is normal during scanning
         }
-        
-        console.log('✅ [POS Scanner Mobile] Scanner started successfully');
-        
-    } catch (error) {
-        console.error('❌ [POS Scanner Mobile] Error starting scanner:', error);
-        const errorMessage = error?.message || 'خطأ غير معروف';
+    ).catch(err => {
+        console.error('❌ [POS Scanner Mobile] Error starting scanner:', err);
+        const errorMessage = err?.message || 'لا يمكن تشغيل الكاميرا';
         
         if (loadingDiv) {
             loadingDiv.innerHTML = `
                 <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">خطأ في بدء الكاميرا</p>
-                <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">${errorMessage}</p>
+                <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">❌ ${errorMessage}</p>
                 <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
                     إعادة المحاولة
                 </button>
@@ -3448,14 +3413,28 @@ async function initializePOSQRCodeScannerMobile() {
             errorDiv.style.display = 'block';
             const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
             if (errorMessageEl) {
-                errorMessageEl.textContent = '❌ فشل في الوصول إلى الكاميرا. يرجى التحقق من الأذونات والمحاولة مرة أخرى.';
+                errorMessageEl.textContent = `❌ ${errorMessage}`;
             }
         }
         
-        // Reset instance on error
         posQRCodeScannerInstance = null;
         posScannerOpen = false;
-    }
+    });
+    
+    // Hide loading indicator once scanner starts (after a short delay to ensure it started)
+    setTimeout(() => {
+        if (loadingDiv && posQRCodeScannerInstance) {
+            try {
+                const state = posQRCodeScannerInstance.getState();
+                if (state === 2 || state === 'SCANNING') {
+                    loadingDiv.style.display = 'none';
+                    console.log('✅ [POS Scanner Mobile] Scanner started successfully');
+                }
+            } catch (e) {
+                // Scanner might not be ready yet, keep loading visible
+            }
+        }
+    }, 500);
 }
 
 // Initialize POS QR Code Scanner
