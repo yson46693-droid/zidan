@@ -1060,14 +1060,14 @@ function setupEventListeners() {
             e.preventDefault();
             e.stopPropagation();
             console.log('🗑️ زر حذف الشات تم النقر عليه');
-            handleDeleteChat(e);
+            showDeleteMessagesModal();
         });
         // إضافة touch events للموبايل
         deleteChatBtn.addEventListener('touchend', function(e) {
             e.preventDefault();
             e.stopPropagation();
             console.log('🗑️ زر حذف الشات تم اللمس (touch)');
-            handleDeleteChat(e);
+            showDeleteMessagesModal();
         }, { passive: false });
     } else {
         console.warn('⚠️ زر حذف الشات غير موجود');
@@ -1095,7 +1095,7 @@ function setupEventListeners() {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('🗑️ زر حذف الشات تم النقر عليه (event delegation)');
-                handleDeleteChat(e);
+                showDeleteMessagesModal();
             }
         });
         
@@ -1115,7 +1115,7 @@ function setupEventListeners() {
                 handleBackButton(e);
             } else if (target.id === 'deleteChatBtn') {
                 console.log('🗑️ زر حذف الشات تم اللمس (event delegation)');
-                handleDeleteChat(e);
+                showDeleteMessagesModal();
             }
         }, { passive: false });
     }
