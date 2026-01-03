@@ -106,76 +106,75 @@ const API = {
             fetchOptions.body = JSON.stringify(data);
         }
 
-        try {
-            // التحقق من أن الطلب صامت (silent) - لا يعرض loading overlay
-            const isSilent = requestOptions && requestOptions.silent === true;
-            
-            // ✅ منع إرسال طلبات get_messages.php إذا لم يكن المستخدم مسجل دخول
-            const isGetMessages = endpoint.includes('get_messages.php');
-            const isChatPage = window.location.pathname.includes('chat.html');
-            
-            if (isGetMessages && !isChatPage) {
-                // التحقق من وجود مستخدم مسجل دخول
-                let hasLoggedInUser = false;
-                try {
-                    // محاولة من localStorage
-                    const userStr = localStorage.getItem('currentUser');
-                    if (userStr) {
-                        const user = JSON.parse(userStr);
-                        hasLoggedInUser = user && user.id;
-                    }
-                } catch (e) {
-                    // تجاهل الخطأ
+        // التحقق من أن الطلب صامت (silent) - لا يعرض loading overlay
+        const isSilent = requestOptions && requestOptions.silent === true;
+        
+        // ✅ منع إرسال طلبات get_messages.php إذا لم يكن المستخدم مسجل دخول
+        const isGetMessages = endpoint.includes('get_messages.php');
+        const isChatPage = window.location.pathname.includes('chat.html');
+        
+        if (isGetMessages && !isChatPage) {
+            // التحقق من وجود مستخدم مسجل دخول
+            let hasLoggedInUser = false;
+            try {
+                // محاولة من localStorage
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    hasLoggedInUser = user && user.id;
                 }
-                
-                // إذا لم يكن هناك مستخدم مسجل دخول، إرجاع استجابة فارغة بدلاً من إرسال الطلب
-                if (!hasLoggedInUser) {
-                    return {
-                        success: false,
-                        status: 401,
-                        message: 'غير مصرح، يرجى تسجيل الدخول',
-                        data: []
-                    };
-                }
-                
-                fetchOptions.headers['X-Silent-Request'] = 'true';
+            } catch (e) {
+                // تجاهل الخطأ
             }
             
-            const fullUrl = API_BASE_URL + endpoint;
-            
-            // ✅ Request Deduplication: منع الطلبات المكررة المتزامنة
-            const requestKey = getRequestKey(endpoint, method, data);
-            if (PENDING_REQUESTS.has(requestKey)) {
-                // إذا كان هناك طلب قيد التنفيذ لنفس endpoint، نعيد نفس Promise
-                if (window.location.search.includes('debug=true') || window.location.hostname === 'localhost') {
-                    console.log(`%c🔄 Request deduplication:`, 'color: #9C27B0; font-weight: bold;', endpoint, '- استخدام الطلب الموجود');
-                }
-                const pendingPromise = PENDING_REQUESTS.get(requestKey);
-                return pendingPromise.then(result => {
-                    // نسخ النتيجة لتجنب مشاكل الـ reference
-                    return JSON.parse(JSON.stringify(result));
-                });
+            // إذا لم يكن هناك مستخدم مسجل دخول، إرجاع استجابة فارغة بدلاً من إرسال الطلب
+            if (!hasLoggedInUser) {
+                return {
+                    success: false,
+                    status: 401,
+                    message: 'غير مصرح، يرجى تسجيل الدخول',
+                    data: []
+                };
             }
             
-            if (!isSilent && !(isGetMessages && !isChatPage)) {
-                console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${fullUrl}`);
+            fetchOptions.headers['X-Silent-Request'] = 'true';
+        }
+        
+        const fullUrl = API_BASE_URL + endpoint;
+        
+        // ✅ Request Deduplication: منع الطلبات المكررة المتزامنة
+        const requestKey = getRequestKey(endpoint, method, data);
+        if (PENDING_REQUESTS.has(requestKey)) {
+            // إذا كان هناك طلب قيد التنفيذ لنفس endpoint، نعيد نفس Promise
+            if (window.location.search.includes('debug=true') || window.location.hostname === 'localhost') {
+                console.log(`%c🔄 Request deduplication:`, 'color: #9C27B0; font-weight: bold;', endpoint, '- استخدام الطلب الموجود');
             }
-            if (data && actualMethod !== 'GET' && !isSilent && !(isGetMessages && !isChatPage)) {
-                console.log('📦 بيانات الطلب:', data);
-            }
-            
-            // إضافة timeout للطلبات (تقليل إلى 15 ثانية لتحسين الأداء)
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 ثانية
-            
-            fetchOptions.signal = controller.signal;
-            
-            // ✅ تحسين: إضافة retry mechanism للطلبات الفاشلة
-            let response;
-            const maxRetries = 2;
-            
-            // ✅ إنشاء Promise للطلب وإضافته إلى PENDING_REQUESTS
-            const requestPromise = (async () => {
+            const pendingPromise = PENDING_REQUESTS.get(requestKey);
+            return pendingPromise.then(result => {
+                // نسخ النتيجة لتجنب مشاكل الـ reference
+                return JSON.parse(JSON.stringify(result));
+            });
+        }
+        
+        if (!isSilent && !(isGetMessages && !isChatPage)) {
+            console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${fullUrl}`);
+        }
+        if (data && actualMethod !== 'GET' && !isSilent && !(isGetMessages && !isChatPage)) {
+            console.log('📦 بيانات الطلب:', data);
+        }
+        
+        // إضافة timeout للطلبات (تقليل إلى 15 ثانية لتحسين الأداء)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 ثانية
+        
+        fetchOptions.signal = controller.signal;
+        
+        // ✅ تحسين: إضافة retry mechanism للطلبات الفاشلة
+        let response;
+        const maxRetries = 2;
+        
+        // ✅ إنشاء Promise للطلب وإضافته إلى PENDING_REQUESTS
+        const requestPromise = (async () => {
                 try {
                     for (let attempt = 0; attempt <= maxRetries; attempt++) {
                         try {
