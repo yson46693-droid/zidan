@@ -527,13 +527,13 @@
                     <i class="bi bi-download"></i> <span class="d-none d-md-inline">تثبيت</span>
                 </button>
                 <button onclick="toggleDarkMode()" class="btn btn-icon" title="تبديل الوضع الليلي"><i class="bi bi-moon-stars"></i></button>
-                <button id="notificationsBtn" onclick="toggleNotificationsList()" class="btn btn-icon" title="الإشعارات" style="position: relative;">
+                <button id="notificationsBtn" class="btn btn-icon" title="الإشعارات" style="position: relative; touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
                     <i class="bi bi-bell"></i>
-                    <span class="notification-badge" id="notificationBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--danger-color); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center;">0</span>
+                    <span class="notification-badge" id="notificationBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--danger-color); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; pointer-events: none;">0</span>
                 </button>
                 
                 <!-- قائمة الإشعارات -->
-                <div class="notifications-list" id="notificationsList" style="display: none; position: absolute; top: 100%; right: 0; background: var(--white); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow); max-height: 400px; overflow-y: auto; z-index: 1000; margin-top: 10px; min-width: 300px;">
+                <div class="notifications-list" id="notificationsList" style="display: none; position: absolute; top: 100%; right: 0; background: var(--white); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow); max-height: 400px; overflow-y: auto; z-index: 10000; margin-top: 10px; min-width: 300px; touch-action: pan-y; -webkit-overflow-scrolling: touch;">
                     <div class="notifications-header" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid var(--border-color);">
                         <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text-dark);">الإشعارات</h3>
                         <button class="notifications-close" onclick="toggleNotificationsList()" style="background: none; border: none; font-size: 24px; color: var(--text-light); cursor: pointer; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s;">×</button>
@@ -5114,8 +5114,40 @@
             loadNotifications();
         }
         
+        // إضافة touch event listener لزر الإشعارات على الهاتف
+        const notificationsBtn = document.getElementById('notificationsBtn');
+        if (notificationsBtn) {
+            // إضافة touch event للموبايل
+            notificationsBtn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔔 زر الإشعارات تم اللمس (touch)');
+                toggleNotificationsList();
+            }, { passive: false });
+            
+            // إضافة click event أيضاً (للأمان)
+            notificationsBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔔 زر الإشعارات تم النقر');
+                toggleNotificationsList();
+            });
+        }
+        
         // إغلاق قائمة الإشعارات عند النقر خارجها
         document.addEventListener('click', function(event) {
+            const notificationsList = document.getElementById('notificationsList');
+            const notificationsBtn = document.getElementById('notificationsBtn');
+            
+            if (!notificationsList || !notificationsBtn) return;
+            
+            if (!notificationsList.contains(event.target) && !notificationsBtn.contains(event.target)) {
+                notificationsList.style.display = 'none';
+            }
+        });
+        
+        // إغلاق قائمة الإشعارات عند اللمس خارجها على الهاتف
+        document.addEventListener('touchend', function(event) {
             const notificationsList = document.getElementById('notificationsList');
             const notificationsBtn = document.getElementById('notificationsBtn');
             

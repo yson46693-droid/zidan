@@ -4494,39 +4494,57 @@ body {
         font-size: 0.85em;
     }
     
-    /* تصغير الأزرار في header-actions للهواتف */
+    /* تصغير الأزرار في header-actions للهواتف - العنوان والأزرار في نفس الصف */
     .top-bar {
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row !important;
+        align-items: center !important;
         padding: 10px 12px !important;
         overflow: visible;
         box-sizing: border-box;
+        gap: 8px !important;
     }
     
     .top-bar h1 {
-        font-size: 1.1em;
+        font-size: 0.95em;
         margin: 0;
-        width: 100%;
-        margin-bottom: 8px;
-        padding: 8px 12px;
+        flex: 1;
+        min-width: 0;
+        max-width: calc(100% - 200px); /* ترك مساحة للأزرار */
+        padding: 6px 10px;
         border: 2px solid var(--primary-color);
         border-radius: 8px;
         background: var(--white);
         color: var(--text-dark);
         text-align: center;
         font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        flex-shrink: 1;
+    }
+    
+    .top-bar h1 i {
+        font-size: 0.85em;
+        flex-shrink: 0;
     }
     
     .header-actions {
         gap: 4px !important;
-        width: 100% !important;
-        max-width: 100% !important;
+        width: auto !important;
+        max-width: none !important;
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
         justify-content: flex-start;
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none; /* Firefox */
         -ms-overflow-style: none; /* IE and Edge */
+        min-width: 180px; /* الحد الأدنى لضمان ظهور الأزرار */
     }
     
     /* إخفاء شريط التمرير في header-actions */
@@ -4540,9 +4558,10 @@ body {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         gap: 4px;
-        width: 100% !important;
-        max-width: 100% !important;
+        width: auto !important;
+        max-width: none !important;
         min-width: 0 !important;
+        flex-shrink: 0 !important;
         align-items: center;
         justify-content: flex-start;
         overflow-x: auto;
@@ -4600,10 +4619,10 @@ body {
     /* زر الإشعارات - مربع صغير مع border */
     .top-bar .header-actions .btn-icon[onclick*="showNotifications"],
     .top-bar .header-actions #notificationsBtn {
-        min-width: 36px;
-        min-height: 36px;
-        width: 36px;
-        height: 36px;
+        min-width: 44px;
+        min-height: 44px;
+        width: 44px;
+        height: 44px;
         padding: 0;
         border: 2px solid var(--primary-color);
         border-radius: 6px;
@@ -4613,6 +4632,17 @@ body {
         justify-content: center;
         order: 2;
         flex-shrink: 0;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    /* تحسين الاستجابة على اللمس */
+    .top-bar .header-actions #notificationsBtn:active {
+        transform: scale(0.95);
+        background: var(--primary-color);
+        color: var(--white);
     }
     
     /* زر البروفايل - مربع صغير مع border */
@@ -4739,6 +4769,45 @@ body {
     
     .dark-mode .mobile-user-info strong {
         color: #fff;
+    }
+    
+    /* إخفاء زر القائمة على الهاتف */
+    .top-bar .btn-menu {
+        display: none !important;
+    }
+    
+    /* تحسين قائمة الإشعارات على الهاتف */
+    .notifications-list {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 80px !important;
+        right: 10px !important;
+        left: 10px !important;
+        min-width: auto !important;
+        max-width: calc(100% - 20px) !important;
+        max-height: calc(100vh - 200px) !important;
+        z-index: 10000 !important;
+        margin-top: 0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+    }
+    
+    .notifications-list .notifications-items {
+        max-height: calc(100vh - 250px) !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    /* تحسين زر الإشعارات على الهاتف */
+    .top-bar .header-actions #notificationsBtn {
+        position: relative;
+        z-index: 10001;
+    }
+    
+    .top-bar .header-actions #notificationsBtn .notification-badge {
+        pointer-events: none;
+        z-index: 10002;
     }
 }
 
