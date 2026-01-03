@@ -1324,9 +1324,8 @@ function startLongPolling() {
 }
 
 /**
- * فحص للإشعارات المعلقة فقط عند الحاجة
- * لا فحص دوري - فقط عند وجود إشعار معلق أو حدث إرسال رسالة
- * النظام مقترن تماماً بإرسال الرسائل - لا ضغط على الخادم
+ * فحص دوري للرسائل الجديدة - تحديث فوري لجميع المستخدمين
+ * النظام يقوم بفحص دوري كل 2 ثانية للتحقق من الرسائل الجديدة
  */
 function startPeriodicCheck() {
     if (!longPollingActive) return;
@@ -1337,11 +1336,13 @@ function startPeriodicCheck() {
     // فحص فوري أولاً عند فتح الشات
     checkForNewMessages();
     
-    // لا فحص دوري - النظام يعتمد على الإشعارات المعلقة فقط
-    // الفحص يتم فقط عند:
-    // 1. إرسال رسالة جديدة (للمستخدمين الآخرين)
-    // 2. عودة المستخدم للصفحة
-    // 3. فتح الشات
+    // ✅ فحص دوري كل 2 ثانية للتحقق من الرسائل الجديدة
+    // هذا يضمن تحديث فوري لجميع المستخدمين عند إرسال رسالة جديدة
+    checkInterval = setInterval(() => {
+        if (longPollingActive && !document.hidden) {
+            checkForNewMessages();
+        }
+    }, 2000); // كل 2 ثانية
     
     // الاستماع لحدث إرسال رسالة جديدة من نفس الصفحة
     // عند إرسال رسالة جديدة، نفحص فوراً للمستخدمين الآخرين
@@ -1349,7 +1350,7 @@ function startPeriodicCheck() {
         if (longPollingActive) {
             // فحص فوري بعد إرسال رسالة (للمستخدمين الآخرين)
             // السيرفر أضاف إشعارات معلقة لكل مستخدم نشط
-            setTimeout(() => checkForNewMessages(), 1000);
+            setTimeout(() => checkForNewMessages(), 500);
         }
     };
     window.addEventListener('messageSent', messageSentListener);
@@ -1372,8 +1373,14 @@ function startPeriodicCheck() {
     window.addEventListener('focus', focusListener);
 }
 
-// ✅ إيقاف event listeners
+// ✅ إيقاف event listeners والفحص الدوري
 function stopPeriodicCheck() {
+    // إيقاف الفحص الدوري
+    if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+    }
+    
     if (messageSentListener) {
         window.removeEventListener('messageSent', messageSentListener);
         messageSentListener = null;
