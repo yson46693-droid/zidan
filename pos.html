@@ -120,9 +120,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="pos-qr-scanner-hint">
-                        <p class="scanner-hint-en">(Tap to focus)</p>
-                    </div>
                 </div>
 
                 <!-- Search Bar -->
@@ -537,17 +534,76 @@
                 backBtnMobile.addEventListener('click', handleBackClick);
             }
 
-            // ربط زر QR في الهيدر الموبايل بنفس وظيفة زر QR في الهيدر العادي
+            // ربط زر QR في الهيدر الموبايل بفتح/إغلاق جزء الكاميرا على الهواتف
             const qrHeaderBtn = document.getElementById('qrHeaderBtn');
             const qrHeaderBtnMobile = document.getElementById('qrHeaderBtnMobile');
-            if (qrHeaderBtn && qrHeaderBtnMobile) {
+            const posQrScannerMobile = document.getElementById('posQrScannerMobile');
+            
+            // دالة لفتح/إغلاق جزء الكاميرا على الهواتف
+            function toggleMobileQRScanner() {
+                if (!posQrScannerMobile) return;
+                
+                const isActive = posQrScannerMobile.classList.contains('active');
+                
+                if (isActive) {
+                    // إغلاق جزء الكاميرا
+                    posQrScannerMobile.classList.remove('active');
+                    // إيقاف الماسح إذا كان يعمل
+                    if (window.stopPOSQRCodeScannerMobile) {
+                        window.stopPOSQRCodeScannerMobile();
+                    }
+                } else {
+                    // فتح جزء الكاميرا
+                    posQrScannerMobile.classList.add('active');
+                    // تهيئة الماسح بعد تأخير لضمان ظهور العنصر
+                    setTimeout(() => {
+                        if (window.initializePOSQRCodeScannerAuto) {
+                            window.initializePOSQRCodeScannerAuto();
+                        } else {
+                            // انتظار تحميل الدالة
+                            let attempts = 0;
+                            const checkFunction = setInterval(() => {
+                                attempts++;
+                                if (window.initializePOSQRCodeScannerAuto) {
+                                    clearInterval(checkFunction);
+                                    window.initializePOSQRCodeScannerAuto();
+                                } else if (attempts > 50) {
+                                    clearInterval(checkFunction);
+                                    console.error('Failed to load scanner function');
+                                }
+                            }, 100);
+                        }
+                    }, 200);
+                }
+            }
+            
+            if (qrHeaderBtnMobile && posQrScannerMobile) {
+                // على الهواتف: فتح/إغلاق جزء الكاميرا المدمج
                 qrHeaderBtnMobile.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    // تشغيل نفس الحدث الموجود على الزر الأصلي
+                    
+                    // التحقق من أننا على هاتف
+                    if (window.innerWidth <= 767.98) {
+                        toggleMobileQRScanner();
+                    } else {
+                        // على سطح المكتب: استخدام السلوك العادي (فتح modal)
+                        if (qrHeaderBtn) {
+                            qrHeaderBtn.click();
+                        }
+                    }
+                });
+            } else if (qrHeaderBtn && qrHeaderBtnMobile) {
+                // Fallback: استخدام السلوك العادي إذا لم يوجد جزء الكاميرا المدمج
+                qrHeaderBtnMobile.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     qrHeaderBtn.click();
                 });
             }
+            
+            // جعل الدالة متاحة عالمياً
+            window.toggleMobileQRScanner = toggleMobileQRScanner;
         });
     </script>
     

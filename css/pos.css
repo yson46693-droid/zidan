@@ -3958,12 +3958,17 @@
 
     /* QR Scanner Mobile Section */
     .pos-qr-scanner-mobile {
-        display: block;
+        display: none; /* مخفي بشكل افتراضي على الهواتف */
         width: 100%;
         margin-bottom: 20px;
         background: var(--light-bg);
         border-radius: 10px;
         padding: 15px;
+    }
+    
+    /* إظهار جزء الكاميرا عند تفعيله */
+    .pos-qr-scanner-mobile.active {
+        display: block;
     }
 
     .pos-qr-scanner-box-mobile {

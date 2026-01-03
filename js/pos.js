@@ -3307,48 +3307,55 @@ async function initializePOSQRCodeScanner() {
         const containerWidth = qrReaderElement ? qrReaderElement.offsetWidth : 400;
         const containerHeight = qrReaderElement ? qrReaderElement.offsetHeight : 300;
         
-        // حساب حجم qrbox بناءً على حجم الحاوية - حجم أصغر على الهواتف لتقليل الزووم
+        // حساب حجم qrbox بناءً على حجم الحاوية - حجم أكبر للمسح الدقيق
         const qrboxSize = isMobile 
-            ? Math.min(containerWidth * 0.75, containerHeight * 0.75, 250) // حجم أصغر على الهواتف
+            ? Math.min(containerWidth * 0.85, containerHeight * 0.85, 300) // حجم أكبر للمسح الدقيق
             : Math.min(containerWidth * 0.95, containerHeight * 0.95, 350);
         
-        // إعدادات محسّنة للسرعة والدقة الطبيعية (بدون zoom مفرط)
-        // إعدادات خاصة للهواتف لتقليل الزووم
+        // إعدادات محسّنة للجودة العالية والمسح الدقيق
+        // إعدادات خاصة للهواتف مع جودة عالية للمسح الدقيق
         const videoConstraints = isMobile ? {
-            // على الهواتف: استخدام الكاميرا الخلفية فقط (environment)
+            // على الهواتف: استخدام الكاميرا الخلفية فقط (environment) بجودة عالية
             facingMode: 'environment', // إجبار استخدام الكاميرا الخلفية على الهواتف
             width: { 
-                ideal: Math.min(containerWidth * 2, 640), // دقة معقولة على الهواتف
-                max: 1280 // حد أقصى معقول
+                ideal: 1280, // دقة عالية للمسح الدقيق
+                min: 640,  // حد أدنى للجودة
+                max: 1920  // حد أقصى للجودة العالية
             },
             height: { 
-                ideal: Math.min(containerHeight * 2, 480),
-                max: 720
+                ideal: 720, // دقة عالية للمسح الدقيق
+                min: 480,   // حد أدنى للجودة
+                max: 1080   // حد أقصى للجودة العالية
             },
-            frameRate: { ideal: 20, max: 30 }, // تقليل frame rate على الهواتف
-            // عدم تحديد focusMode لتجنب zoom تلقائي
+            frameRate: { ideal: 30, max: 60 }, // frame rate عالي للمسح السريع والدقيق
+            // إعدادات إضافية لتحسين الجودة
+            advanced: [
+                { zoom: { ideal: 0, min: 0, max: 0 } }, // منع zoom تلقائي
+            ]
         } : {
             // على سطح المكتب: إعدادات عادية
             width: { 
-                ideal: Math.min(containerWidth, 640),
-                max: 1280
+                ideal: Math.min(containerWidth, 1280),
+                max: 1920
             },
             height: { 
-                ideal: Math.min(containerHeight, 480),
-                max: 720
+                ideal: Math.min(containerHeight, 720),
+                max: 1080
             },
-            frameRate: { ideal: 30, max: 30 },
+            frameRate: { ideal: 30, max: 60 },
         };
         
-        // إعدادات config - على الهواتف لا نحدد aspectRatio للسماح للفيديو بالتكيف تلقائياً
+        // إعدادات config محسّنة للمسح الدقيق
         const config = {
-            fps: isMobile ? 20 : 30, // تقليل fps على الهواتف
+            fps: isMobile ? 30 : 30, // fps عالي للمسح السريع والدقيق
             qrbox: { width: qrboxSize, height: qrboxSize },
             // على الهواتف: عدم تحديد aspectRatio للسماح للفيديو بالتكيف مع الحاوية
             // على سطح المكتب: استخدام aspectRatio للحاوية
             ...(isMobile ? {} : { aspectRatio: containerWidth / containerHeight }),
             disableFlip: false,
-            videoConstraints: videoConstraints
+            videoConstraints: videoConstraints,
+            // إعدادات إضافية لتحسين دقة المسح
+            rememberLastUsedCamera: true // تذكر آخر كاميرا مستخدمة
         };
         
         // تحديد أنواع QR codes المطلوبة فقط (تحسين الأداء) - إذا كان متوفراً
@@ -3359,6 +3366,14 @@ async function initializePOSQRCodeScanner() {
         // Add supportedScanTypes if available (newer versions)
         if (typeof Html5QrcodeScanType !== 'undefined') {
             config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
+        }
+        
+        // تحسينات إضافية للمسح الدقيق
+        if (isMobile) {
+            // على الهواتف: إعدادات إضافية للمسح الدقيق
+            config.experimentalFeatures = {
+                useBarCodeDetectorIfSupported: true // استخدام BarCodeDetector API إذا كان متاحاً
+            };
         }
         
         
@@ -3896,7 +3911,32 @@ document.addEventListener('visibilitychange', async function() {
     }
 });
 
+// دالة لإيقاف الماسح المدمج (للهواتف)
+async function stopPOSQRCodeScannerMobile() {
+    try {
+        if (posQRCodeScannerInstance) {
+            try {
+                await posQRCodeScannerInstance.stop();
+            } catch (err) {
+                // تجاهل الأخطاء إذا كان الماسح متوقفاً بالفعل
+            }
+            try {
+                await posQRCodeScannerInstance.clear();
+            } catch (err) {
+                // تجاهل الأخطاء
+            }
+            posQRCodeScannerInstance = null;
+        }
+        posScannerOpen = false;
+    } catch (e) {
+        posQRCodeScannerInstance = null;
+        posScannerOpen = false;
+    }
+}
+
 // Make functions globally available
 window.openPOSBarcodeScanner = openPOSBarcodeScanner;
 window.closePOSBarcodeScanner = closePOSBarcodeScanner;
 window.togglePOSCamera = togglePOSCamera;
+window.stopPOSQRCodeScannerMobile = stopPOSQRCodeScannerMobile;
+window.initializePOSQRCodeScannerAuto = initializePOSQRCodeScannerAuto;

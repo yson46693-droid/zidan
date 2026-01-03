@@ -633,7 +633,8 @@ async function loadCredentials() {
         const data = await response.json();
 
         if (data.success) {
-            userCredentials = data.credentials || [];
+            // ✅ إصلاح: البيانات تأتي في data.data.credentials وليس data.credentials
+            userCredentials = data.data?.credentials || data.credentials || [];
         } else {
             console.error('خطأ في تحميل البصمات:', data.message || data.error || 'خطأ غير معروف');
             userCredentials = [];
