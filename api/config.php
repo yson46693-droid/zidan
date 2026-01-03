@@ -28,19 +28,25 @@ if (file_exists($autoPrependFile)) {
 // ✅ استعادة error_reporting إلى القيمة الأصلية (بعد تطبيق الإعدادات)
 error_reporting($originalErrorReporting);
 
-// تنظيف output buffer قبل أي شيء
-if (ob_get_level()) {
-    ob_end_clean();
+// ✅ CRITICAL: تنظيف output buffer قبل أي شيء لمنع "headers already sent"
+// التحقق من وجود buffer قبل محاولة حذفه
+while (ob_get_level() > 0) {
+    @ob_end_clean();
 }
-ob_start();
+
+// ✅ CRITICAL: بدء output buffering لمنع أي output غير مقصود
+// لكن فقط إذا لم يكن هناك buffer نشط بالفعل
+if (ob_get_level() === 0) {
+    @ob_start();
+}
+
+// ✅ ملاحظة: إعدادات الجلسة و CookieSessionHandler سيتم تعريفها لاحقاً في الملف
+// بعد تحميل database.php (لأن CookieSessionHandler يحتاج إلى تعريفه أولاً)
 
 // إعدادات timeout لتحسين الأداء وتجنب التعليق (30 ثانية كحد أقصى)
 set_time_limit(30);
 ini_set('max_execution_time', 30);
 ini_set('default_socket_timeout', 10);
-
-// إعدادات النظام الأساسية
-header('Content-Type: application/json; charset=utf-8');
 
 // تعيين التوقيت لمصر - الإسكندرية
 date_default_timezone_set('Africa/Cairo');
@@ -305,7 +311,8 @@ class CookieSessionHandler implements SessionHandlerInterface {
         return true;
     }
     
-    public function destroy($session_id) {
+    #[\ReturnTypeWillChange]
+    public function destroy($session_id): bool {
         // حذف جميع cookies المتعلقة بالجلسة
         if (isset($_COOKIE[$this->cookieName])) {
             setcookie($this->cookieName, '', time() - 3600, '/', '', false, true);
@@ -323,13 +330,16 @@ class CookieSessionHandler implements SessionHandlerInterface {
         return true;
     }
     
-    public function gc($maxlifetime) {
+    #[\ReturnTypeWillChange]
+    public function gc($maxlifetime): int|false {
         // لا حاجة لتنظيف - cookies تنتهي تلقائياً
-        return true;
+        // نرجع 0 (عدد الجلسات المحذوفة) أو false في حالة الخطأ
+        return 0;
     }
 }
 
-// إعدادات الجلسة
+// ✅ CRITICAL: بدء الجلسة بعد تعريف CookieSessionHandler وقبل أي headers
+// هذا يمنع خطأ "Cannot set session cookie - headers already sent"
 if (session_status() === PHP_SESSION_NONE) {
     @ini_set('soap.wsdl_cache_enabled', '0');
     
@@ -358,7 +368,7 @@ if (session_status() === PHP_SESSION_NONE) {
         'samesite' => $isSecure ? 'None' : 'Lax'
     ]);
     
-    session_start();
+    @session_start();
 }
 
 // ✅ تم إزالة setup.php - لم يعد مطلوباً
@@ -435,13 +445,16 @@ function writeJSON($file, $data) {
 
 function response($success, $message = '', $data = null, $code = 200) {
     // ✅ CRITICAL: تنظيف أي output سابق تماماً
+    // التحقق من وجود buffer قبل محاولة حذفه
     while (ob_get_level() > 0) {
-        ob_end_clean();
+        @ob_end_clean();
     }
     
-    // ✅ CRITICAL: إيقاف output buffering تماماً
-    @ob_end_flush();
-    @ob_end_clean();
+    // ✅ CRITICAL: إيقاف output buffering تماماً (فقط إذا كان موجوداً)
+    if (ob_get_level() > 0) {
+        @ob_end_flush();
+        @ob_end_clean();
+    }
     
     // ✅ CRITICAL: التأكد من أن headers لم يتم إرسالها بعد
     if (!headers_sent($file, $line)) {
