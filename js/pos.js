@@ -3366,10 +3366,11 @@ async function initializePOSQRCodeScannerMobile() {
     posScannerOpen = true;
      
     // Start scanner with optimized config for better performance and recognition
-    // ✅ استخدام الكاميرا الخلفية بشكل صريح (environment) للهواتف
+    // ✅ استخدام الكاميرا الأمامية (user) لأنها كانت تعمل بشكل أفضل
+    // إذا أردت تجربة الكاميرا الخلفية، غيّر facingMode إلى "environment"
     posQRCodeScannerInstance.start(
         { 
-            facingMode: "environment" // الكاميرا الخلفية - مهم جداً للهواتف
+            facingMode: "user" // الكاميرا الأمامية - كانت تعمل بشكل أفضل في التجربة
         },
         {
             fps: 30, // زيادة FPS للسرعة (من 10 إلى 30)
@@ -3418,29 +3419,98 @@ async function initializePOSQRCodeScannerMobile() {
             // Ignore scanning errors - this is normal during scanning
         }
     ).catch(err => {
-        console.error('❌ [POS Scanner Mobile] Error starting scanner:', err);
-        const errorMessage = err?.message || 'لا يمكن تشغيل الكاميرا';
+        // ✅ إذا فشلت الكاميرا الخلفية، جرب الكاميرا الأمامية
+        console.warn('⚠️ [POS Scanner Mobile] فشل استخدام الكاميرا الخلفية، محاولة الكاميرا الأمامية...', err);
         
-        if (loadingDiv) {
-            loadingDiv.innerHTML = `
-                <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">❌ ${errorMessage}</p>
-                <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
-                    إعادة المحاولة
-                </button>
-            `;
-        }
-        
-        if (errorDiv) {
-            errorDiv.style.display = 'block';
-            const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
-            if (errorMessageEl) {
-                errorMessageEl.textContent = `❌ ${errorMessage}`;
+        // محاولة استخدام الكاميرا الأمامية كبديل
+        if (posQRCodeScannerInstance) {
+            posQRCodeScannerInstance.start(
+                { 
+                    facingMode: "user" // الكاميرا الأمامية كبديل
+                },
+                {
+                    fps: 30,
+                    qrbox: { width: 280, height: 280 },
+                    aspectRatio: 1.0,
+                    disableFlip: false
+                },
+                function onScanSuccess(decodedText, decodedResult) {
+                    console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected (Front Camera) ✅✅✅');
+                    console.log('📋 [POS Scanner Mobile] Decoded Text (Raw):', decodedText);
+                    
+                    if (!decodedText || typeof decodedText !== 'string') {
+                        console.warn('⚠️ [POS Scanner Mobile] Invalid decoded text:', decodedText);
+                        return;
+                    }
+                    
+                    const cleanedText = decodedText
+                        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                    
+                    if (navigator.vibrate) {
+                        navigator.vibrate(200);
+                    }
+                    
+                    if (cleanedText && cleanedText.length > 0) {
+                        handlePOSQRCodeScanned(cleanedText);
+                    }
+                },
+                function onScanError(error) {
+                    // تجاهل أخطاء القراءة
+                }
+            ).catch(frontCameraErr => {
+                // فشلت الكاميرا الأمامية أيضاً
+                console.error('❌ [POS Scanner Mobile] فشل استخدام الكاميرا الأمامية أيضاً:', frontCameraErr);
+                const errorMessage = frontCameraErr?.message || 'لا يمكن تشغيل الكاميرا';
+                
+                if (loadingDiv) {
+                    loadingDiv.innerHTML = `
+                        <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
+                        <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">❌ ${errorMessage}</p>
+                        <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
+                            إعادة المحاولة
+                        </button>
+                    `;
+                }
+                
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                    const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
+                    if (errorMessageEl) {
+                        errorMessageEl.textContent = `❌ ${errorMessage}`;
+                    }
+                }
+                
+                posQRCodeScannerInstance = null;
+                posScannerOpen = false;
+            });
+        } else {
+            // إذا لم يكن هناك instance، عرض رسالة خطأ
+            console.error('❌ [POS Scanner Mobile] Error starting scanner:', err);
+            const errorMessage = err?.message || 'لا يمكن تشغيل الكاميرا';
+            
+            if (loadingDiv) {
+                loadingDiv.innerHTML = `
+                    <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
+                    <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">❌ ${errorMessage}</p>
+                    <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
+                        إعادة المحاولة
+                    </button>
+                `;
             }
+            
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+                const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
+                if (errorMessageEl) {
+                    errorMessageEl.textContent = `❌ ${errorMessage}`;
+                }
+            }
+            
+            posQRCodeScannerInstance = null;
+            posScannerOpen = false;
         }
-        
-        posQRCodeScannerInstance = null;
-        posScannerOpen = false;
     });
     
     // Hide loading indicator once scanner starts (after a short delay to ensure it started)
