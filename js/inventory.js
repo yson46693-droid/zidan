@@ -387,6 +387,8 @@ function displaySpareParts(parts) {
         // تحديد دالة عرض التفاصيل حسب الصلاحيات
         const showDetailsFunction = canEditInventory() 
             ? `previewSparePart('${part.id}')` 
+            : canRequestInventoryItem()
+            ? `previewSparePart('${part.id}')`
             : `showInventoryItemDetails('spare_part', '${part.id}')`;
         
         return `
@@ -440,8 +442,8 @@ function displaySpareParts(parts) {
                             <button onclick="event.stopPropagation(); requestInventoryItem('spare_part', '${part.id}', '${part.brand} ${part.model}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
                                 <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
                             </button>
-                            <button onclick="event.stopPropagation(); showInventoryItemDetails('spare_part', '${part.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
-                                <i class="bi bi-info-circle"></i> عرض التفاصيل
+                            <button onclick="event.stopPropagation(); previewSparePart('${part.id}')" class="btn btn-primary btn-sm" title="معاينة" style="flex: 1;">
+                                <i class="bi bi-eye"></i> معاينة
                             </button>
                         </div>
                     ` : `
@@ -984,8 +986,8 @@ function displayAccessories(accessories) {
                             <button onclick="requestInventoryItem('accessory', '${cleanAccessoryId}', '${cleanName}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
                                 <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
                             </button>
-                            <button onclick="showInventoryItemDetails('accessory', '${cleanAccessoryId}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
-                                <i class="bi bi-info-circle"></i> عرض التفاصيل
+                            <button onclick="showInventoryItemDetails('accessory', '${cleanAccessoryId}')" class="btn btn-primary btn-sm" title="معاينة" style="flex: 1;">
+                                <i class="bi bi-eye"></i> معاينة
                             </button>
                         </div>
                     ` : ''}
@@ -1364,8 +1366,8 @@ function displayPhones(phones) {
                                 <button disabled class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1; opacity: 0.5; cursor: not-allowed; pointer-events: none;">
                                     <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
                                 </button>
-                                <button onclick="event.stopPropagation(); showInventoryItemDetails('phone', '${phone.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
-                                    <i class="bi bi-info-circle"></i> عرض التفاصيل
+                                <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm" title="معاينة" style="flex: 1;">
+                                    <i class="bi bi-eye"></i> معاينة
                                 </button>
                             </div>
                         ` : `
@@ -1373,8 +1375,8 @@ function displayPhones(phones) {
                                 <button onclick="event.stopPropagation(); requestInventoryItem('phone', '${phone.id}', '${phone.brand} ${phone.model}')" class="btn btn-warning btn-sm" title="طلب من الفرع الأول" style="flex: 1;">
                                     <i class="bi bi-cart-plus"></i> طلب من الفرع الأول
                                 </button>
-                                <button onclick="event.stopPropagation(); showInventoryItemDetails('phone', '${phone.id}')" class="btn btn-info btn-sm" title="عرض التفاصيل" style="flex: 1;">
-                                    <i class="bi bi-info-circle"></i> عرض التفاصيل
+                                <button onclick="event.stopPropagation(); viewPhoneDetails('${phone.id}')" class="btn btn-primary btn-sm" title="معاينة" style="flex: 1;">
+                                    <i class="bi bi-eye"></i> معاينة
                                 </button>
                             </div>
                         `}
