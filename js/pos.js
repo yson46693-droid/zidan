@@ -2920,6 +2920,8 @@ window.setPartialPayment = setPartialPayment;
 let posScannerOpen = false;
 let posQRCodeScannerInstance = null;
 let posScannerLocked = false; // منع القراءات المتكررة
+let posCurrentCameraFacing = 'environment'; // 'environment' للخلفية، 'user' للأمامية
+let posCurrentCameraId = null; // ID الكاميرا الحالية
 
 // Open Barcode Scanner for POS
 async function openPOSBarcodeScanner() {
@@ -3042,6 +3044,13 @@ async function openPOSBarcodeScanner() {
                 50% { opacity: 0.5; }
             }
             
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+                20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            }
+            
             #pos-qr-reader video {
                 width: 100%;
                 height: 100%;
@@ -3116,6 +3125,58 @@ async function openPOSBarcodeScanner() {
                 closePOSBarcodeScanner();
             });
         }
+        
+        // إضافة event listener للضغط على منطقة الكاميرا للتبديل بين الكاميرات (خاصة على الموبايل)
+        const qrReader = document.getElementById('pos-qr-reader');
+        if (qrReader) {
+            // إزالة pointer-events: none من overlay للسماح بالضغط
+            const overlay = document.getElementById('pos-scanner-overlay');
+            if (overlay) {
+                overlay.style.pointerEvents = 'auto';
+                overlay.style.cursor = 'pointer';
+            }
+            
+            // إضافة event listener للضغط على منطقة الكاميرا
+            const handleCameraToggle = async (e) => {
+                // تجنب التبديل عند الضغط على الأزرار أو العناصر الأخرى
+                if (e.target.closest('.btn-close') || e.target.closest('button')) {
+                    return;
+                }
+                
+                // التبديل بين الكاميرات
+                await togglePOSCamera();
+            };
+            
+            // إضافة event listener للضغط (خاصة على الموبايل)
+            qrReader.addEventListener('click', handleCameraToggle);
+            qrReader.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                handleCameraToggle(e);
+            });
+            
+            // إضافة hint للمستخدم (خاصة على الموبايل)
+            if (window.innerWidth <= 767.98) {
+                const hint = document.createElement('div');
+                hint.id = 'pos-camera-toggle-hint';
+                hint.style.cssText = 'position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: var(--white); padding: 8px 15px; border-radius: 20px; font-size: 0.85em; z-index: 15; pointer-events: none; animation: fadeInOut 3s ease;';
+                hint.innerHTML = '<i class="bi bi-camera-reverse"></i> اضغط للتبديل بين الكاميرات';
+                qrReader.appendChild(hint);
+                
+                // إخفاء الـ hint بعد 3 ثوان
+                setTimeout(() => {
+                    if (hint.parentElement) {
+                        hint.style.opacity = '0';
+                        hint.style.transition = 'opacity 0.5s ease';
+                        setTimeout(() => {
+                            if (hint.parentElement) {
+                                hint.remove();
+                            }
+                        }, 500);
+                    }
+                }, 3000);
+            }
+        }
+        
         initializePOSQRCodeScanner();
     }, 300);
 }
@@ -3189,6 +3250,61 @@ async function initializePOSQRCodeScannerAuto() {
     console.log('🚀 [POS Scanner] Starting scanner initialization...');
     posScannerOpen = true;
     await initializePOSQRCodeScanner();
+    
+    // إضافة event listener للضغط على منطقة الكاميرا للتبديل بين الكاميرات (خاصة على الموبايل)
+    const qrReaderMobile = document.getElementById('pos-qr-reader-mobile');
+    const qrReaderDesktop = document.getElementById('pos-qr-reader');
+    const targetReader = qrReaderMobile || qrReaderDesktop;
+    
+    if (targetReader) {
+        // إزالة pointer-events: none من overlay للسماح بالضغط
+        const overlayId = qrReaderMobile ? 'pos-scanner-overlay-mobile' : 'pos-scanner-overlay';
+        const overlay = document.getElementById(overlayId);
+        if (overlay) {
+            overlay.style.pointerEvents = 'auto';
+            overlay.style.cursor = 'pointer';
+        }
+        
+        // إضافة event listener للضغط على منطقة الكاميرا
+        const handleCameraToggle = async (e) => {
+            // تجنب التبديل عند الضغط على الأزرار أو العناصر الأخرى
+            if (e.target.closest('.btn-close') || e.target.closest('button')) {
+                return;
+            }
+            
+            // التبديل بين الكاميرات
+            await togglePOSCamera();
+        };
+        
+        // إضافة event listener للضغط (خاصة على الموبايل)
+        targetReader.addEventListener('click', handleCameraToggle);
+        targetReader.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleCameraToggle(e);
+        });
+        
+        // إضافة hint للمستخدم (خاصة على الموبايل)
+        if (window.innerWidth <= 767.98 && !document.getElementById('pos-camera-toggle-hint-mobile')) {
+            const hint = document.createElement('div');
+            hint.id = 'pos-camera-toggle-hint-mobile';
+            hint.style.cssText = 'position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: var(--white); padding: 8px 15px; border-radius: 20px; font-size: 0.85em; z-index: 15; pointer-events: none; animation: fadeInOut 3s ease;';
+            hint.innerHTML = '<i class="bi bi-camera-reverse"></i> اضغط للتبديل بين الكاميرات';
+            targetReader.appendChild(hint);
+            
+            // إخفاء الـ hint بعد 3 ثوان
+            setTimeout(() => {
+                if (hint.parentElement) {
+                    hint.style.opacity = '0';
+                    hint.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => {
+                        if (hint.parentElement) {
+                            hint.remove();
+                        }
+                    }, 500);
+                }
+            }, 3000);
+        }
+    }
 }
 
 // Initialize POS QR Code Scanner
@@ -3299,53 +3415,78 @@ async function initializePOSQRCodeScanner() {
             }
         }
         
-        // ✅ إجبار استخدام الكاميرا الخلفية دائماً - استخدام facingMode: "environment" مباشرة أولاً
-        // هذا يضمن استخدام الكاميرا الخلفية على جميع الأجهزة
-        let cameraConfig = { facingMode: "environment" };
-        let cameraId = null;
+        // استخدام الكاميرا المحددة (الخلفية أو الأمامية) - يمكن التبديل بينهما
+        let cameraConfig = { facingMode: posCurrentCameraFacing };
+        let cameraId = posCurrentCameraId;
         
-        // محاولة الحصول على قائمة الكاميرات للعثور على الكاميرا الخلفية بشكل دقيق
+        // محاولة الحصول على قائمة الكاميرات للعثور على الكاميرا المطلوبة بشكل دقيق
         try {
             const cameras = await Html5Qrcode.getCameras();
             console.log('📷 [POS Scanner] الكاميرات المتاحة:', cameras.length);
             
             if (cameras && cameras.length > 0) {
-                // البحث عن الكاميرا الخلفية - تحسين البحث
-                const backCamera = cameras.find(cam => {
-                    const label = (cam.label || '').toLowerCase();
-                    // البحث عن كلمات مفتاحية للكاميرا الخلفية
-                    return label.includes('back') || 
-                           label.includes('rear') || 
-                           label.includes('environment') ||
-                           label.includes('خلفي') ||
-                           label.includes('خلفية') ||
-                           label.includes('back camera') ||
-                           label.includes('rear camera') ||
-                           label.includes('camera2') || // Android camera2 API
-                           label.includes('camera 1') || // عادة الكاميرا الخلفية
-                           (cam.facingMode && cam.facingMode === 'environment');
-                });
+                // إذا كان هناك ID كاميرا محفوظ، استخدمه
+                if (cameraId) {
+                    const savedCamera = cameras.find(cam => cam.id === cameraId);
+                    if (savedCamera) {
+                        cameraConfig = cameraId;
+                        console.log('📷 [POS Scanner] استخدام الكاميرا المحفوظة:', cameraId, savedCamera.label);
+                    } else {
+                        // الكاميرا المحفوظة غير متاحة، البحث عن كاميرا مناسبة
+                        cameraId = null;
+                    }
+                }
                 
-                if (backCamera) {
-                    cameraId = backCamera.id;
-                    cameraConfig = cameraId; // استخدام ID الكاميرا مباشرة
-                    console.log('📷 [POS Scanner] تم العثور على الكاميرا الخلفية:', cameraId, backCamera.label);
-                    // حفظ الكاميرا الخلفية
-                    localStorage.setItem('pos_last_camera_id', cameraId);
-                } else {
-                    // إذا لم نجد كاميرا خلفية بوضوح، استخدم آخر كاميرا (عادة ما تكون الخلفية)
-                    // لكن الأفضل استخدام facingMode: "environment" مباشرة
-                    console.log('📷 [POS Scanner] لم يتم العثور على كاميرا خلفية بوضوح، استخدام facingMode: environment');
-                    cameraConfig = { facingMode: "environment" };
+                // إذا لم يكن هناك ID كاميرا، البحث عن الكاميرا المناسبة
+                if (!cameraId) {
+                    const targetCamera = cameras.find(cam => {
+                        const label = (cam.label || '').toLowerCase();
+                        const facingMode = cam.facingMode || '';
+                        
+                        if (posCurrentCameraFacing === 'environment') {
+                            // البحث عن الكاميرا الخلفية
+                            return label.includes('back') || 
+                                   label.includes('rear') || 
+                                   label.includes('environment') ||
+                                   label.includes('خلفي') ||
+                                   label.includes('خلفية') ||
+                                   label.includes('back camera') ||
+                                   label.includes('rear camera') ||
+                                   label.includes('camera2') || // Android camera2 API
+                                   label.includes('camera 1') || // عادة الكاميرا الخلفية
+                                   (facingMode === 'environment');
+                        } else {
+                            // البحث عن الكاميرا الأمامية
+                            return label.includes('front') || 
+                                   label.includes('user') || 
+                                   label.includes('facing') && label.includes('user') ||
+                                   label.includes('أمامي') || 
+                                   label.includes('أمامية') ||
+                                   label.includes('selfie') ||
+                                   (facingMode === 'user');
+                        }
+                    });
+                    
+                    if (targetCamera) {
+                        cameraId = targetCamera.id;
+                        cameraConfig = cameraId; // استخدام ID الكاميرا مباشرة
+                        posCurrentCameraId = cameraId; // حفظ ID الكاميرا
+                        console.log(`📷 [POS Scanner] تم العثور على الكاميرا ${posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية'}:`, cameraId, targetCamera.label);
+                        localStorage.setItem('pos_last_camera_id', cameraId);
+                    } else {
+                        // إذا لم نجد كاميرا محددة، استخدم facingMode
+                        console.log(`📷 [POS Scanner] لم يتم العثور على كاميرا ${posCurrentCameraFacing === 'environment' ? 'خلفية' : 'أمامية'} بوضوح، استخدام facingMode: ${posCurrentCameraFacing}`);
+                        cameraConfig = { facingMode: posCurrentCameraFacing };
+                    }
                 }
             }
         } catch (camError) {
-            console.warn('⚠️ [POS Scanner] لا يمكن الحصول على قائمة الكاميرات، استخدام facingMode: environment:', camError);
-            // في حالة الخطأ، استخدم facingMode: "environment" مباشرة
-            cameraConfig = { facingMode: "environment" };
+            console.warn(`⚠️ [POS Scanner] لا يمكن الحصول على قائمة الكاميرات، استخدام facingMode: ${posCurrentCameraFacing}:`, camError);
+            // في حالة الخطأ، استخدم facingMode المحدد
+            cameraConfig = { facingMode: posCurrentCameraFacing };
         }
         
-        console.log('🎥 [POS Scanner] إعدادات الكاميرا (إجبار الخلفية):', cameraConfig);
+        console.log(`🎥 [POS Scanner] إعدادات الكاميرا (${posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية'}):`, cameraConfig);
         
         await posQRCodeScannerInstance.start(
             cameraConfig,
@@ -3373,11 +3514,11 @@ async function initializePOSQRCodeScanner() {
         console.error('❌ [POS Scanner] خطأ في تهيئة الماسح:', error);
         const errorMessage = error?.message || 'خطأ غير معروف';
         
-        // محاولة إضافية للكاميرا الخلفية - استخدام facingMode: "environment" مباشرة
-        console.log('🔄 [POS Scanner] محاولة استخدام facingMode: environment مباشرة...');
+        // محاولة إضافية - استخدام facingMode المحدد مباشرة
+        console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: ${posCurrentCameraFacing} مباشرة...`);
         try {
             await posQRCodeScannerInstance.start(
-                { facingMode: "environment" },
+                { facingMode: posCurrentCameraFacing },
                 config,
                 (decodedText, decodedResult) => {
                     console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
@@ -3388,30 +3529,49 @@ async function initializePOSQRCodeScanner() {
                 }
             );
             if (loadingDiv) loadingDiv.style.display = 'none';
-            console.log('✅ [POS Scanner] تم بدء الماسح بـ facingMode: environment');
+            console.log(`✅ [POS Scanner] تم بدء الماسح بـ facingMode: ${posCurrentCameraFacing}`);
             return;
         } catch (fallbackError) {
             console.error('❌ [POS Scanner] فشلت محاولة facingMode: environment:', fallbackError);
             
-            // محاولة أخيرة - تجربة جميع الكاميرات المتاحة للعثور على الخلفية
-            console.log('🔄 [POS Scanner] محاولة أخيرة - البحث في جميع الكاميرات...');
+            // محاولة أخيرة - تجربة جميع الكاميرات المتاحة للعثور على الكاميرا المطلوبة
+            console.log(`🔄 [POS Scanner] محاولة أخيرة - البحث في جميع الكاميرات للعثور على الكاميرا ${posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية'}...`);
             try {
                 const cameras = await Html5Qrcode.getCameras();
                 if (cameras && cameras.length > 0) {
-                    // تجربة جميع الكاميرات للعثور على الخلفية (من الأخير للأول)
-                    for (let i = cameras.length - 1; i >= 0; i--) {
-                        const cam = cameras[i];
+                    // تجربة جميع الكاميرات للعثور على الكاميرا المطلوبة
+                    const cameraList = posCurrentCameraFacing === 'environment' 
+                        ? [...cameras].reverse() // للخلفية: من الأخير للأول
+                        : cameras; // للأمامية: من الأول للأخير
+                    
+                    for (const cam of cameraList) {
                         const label = (cam.label || '').toLowerCase();
+                        const facingMode = cam.facingMode || '';
                         
-                        // تخطي الكاميرا الأمامية بشكل صارم
-                        if (label.includes('front') || 
-                            label.includes('user') || 
-                            label.includes('facing') && label.includes('user') ||
-                            label.includes('أمامي') || 
-                            label.includes('أمامية') ||
-                            label.includes('selfie')) {
-                            console.log(`⏭️ [POS Scanner] تخطي الكاميرا الأمامية: ${cam.label}`);
-                            continue;
+                        // تخطي الكاميرا غير المطلوبة
+                        if (posCurrentCameraFacing === 'environment') {
+                            // تخطي الكاميرا الأمامية
+                            if (label.includes('front') || 
+                                label.includes('user') || 
+                                (label.includes('facing') && label.includes('user')) ||
+                                label.includes('أمامي') || 
+                                label.includes('أمامية') ||
+                                label.includes('selfie') ||
+                                facingMode === 'user') {
+                                console.log(`⏭️ [POS Scanner] تخطي الكاميرا الأمامية: ${cam.label}`);
+                                continue;
+                            }
+                        } else {
+                            // تخطي الكاميرا الخلفية
+                            if (label.includes('back') || 
+                                label.includes('rear') || 
+                                label.includes('environment') ||
+                                label.includes('خلفي') || 
+                                label.includes('خلفية') ||
+                                facingMode === 'environment') {
+                                console.log(`⏭️ [POS Scanner] تخطي الكاميرا الخلفية: ${cam.label}`);
+                                continue;
+                            }
                         }
                         
                         try {
@@ -3640,6 +3800,42 @@ async function handlePOSQRCodeScanned(decodedText) {
     // Continue scanning - don't stop camera
 }
 
+// Toggle Camera (Switch between front and back camera)
+async function togglePOSCamera() {
+    if (!posQRCodeScannerInstance) {
+        console.warn('⚠️ [POS Scanner] الماسح غير نشط، لا يمكن التبديل');
+        return;
+    }
+    
+    try {
+        // إيقاف الماسح الحالي
+        await posQRCodeScannerInstance.stop();
+        await posQRCodeScannerInstance.clear();
+        
+        // تبديل الكاميرا
+        posCurrentCameraFacing = posCurrentCameraFacing === 'environment' ? 'user' : 'environment';
+        posCurrentCameraId = null; // إعادة تعيين ID الكاميرا
+        
+        console.log('🔄 [POS Scanner] التبديل إلى الكاميرا:', posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية');
+        
+        // إعادة تشغيل الماسح بالكاميرا الجديدة
+        await initializePOSQRCodeScanner();
+        
+        showMessage(`تم التبديل إلى الكاميرا ${posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية'}`, 'success');
+    } catch (error) {
+        console.error('❌ [POS Scanner] خطأ في التبديل بين الكاميرات:', error);
+        showMessage('❌ فشل التبديل بين الكاميرات. يرجى المحاولة مرة أخرى.', 'error');
+        
+        // محاولة إعادة تشغيل الماسح بالكاميرا السابقة
+        try {
+            posCurrentCameraFacing = posCurrentCameraFacing === 'environment' ? 'user' : 'environment';
+            await initializePOSQRCodeScanner();
+        } catch (retryError) {
+            console.error('❌ [POS Scanner] فشلت محاولة الاستعادة:', retryError);
+        }
+    }
+}
+
 // Close POS QR Code Scanner (only used when leaving page)
 async function closePOSBarcodeScanner() {
     try {
@@ -3702,3 +3898,4 @@ document.addEventListener('visibilitychange', async function() {
 // Make functions globally available
 window.openPOSBarcodeScanner = openPOSBarcodeScanner;
 window.closePOSBarcodeScanner = closePOSBarcodeScanner;
+window.togglePOSCamera = togglePOSCamera;
