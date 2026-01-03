@@ -338,16 +338,16 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
         if ($fileType === 'image') {
             $extension = '.jpg';
         } elseif ($fileType === 'audio') {
-            // ✅ دعم تنسيقات صوتية متعددة (webm, wav)
+            // ✅ دعم تنسيقات صوتية متعددة (mp3, m4a, mp4, webm, wav)
             if ($fileName) {
                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-                if (in_array(strtolower($fileExtension), ['webm', 'wav', 'mp3', 'm4a', 'ogg'])) {
+                if (in_array(strtolower($fileExtension), ['mp3', 'm4a', 'mp4', 'webm', 'wav', 'ogg'])) {
                     $extension = '.' . strtolower($fileExtension);
                 } else {
-                    $extension = '.webm'; // افتراضي
+                    $extension = '.mp3'; // افتراضي - استخدام mp3 للتوافق العالمي
                 }
             } else {
-                $extension = '.webm'; // تنسيق التسجيل الصوتي الافتراضي
+                $extension = '.mp3'; // تنسيق التسجيل الصوتي الافتراضي - استخدام mp3
             }
         } elseif ($fileName) {
             $extension = '.' . pathinfo($fileName, PATHINFO_EXTENSION);

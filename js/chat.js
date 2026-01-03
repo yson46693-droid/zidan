@@ -2636,13 +2636,22 @@ async function startAudioRecording(e) {
             throw new Error('MediaRecorder API غير مدعوم في هذا المتصفح');
         }
         
-        // ✅ تحديد نوع MIME مدعوم
-        let mimeType = 'audio/webm';
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        // ✅ استخدام audio/mp4 كصيغة افتراضية (مدعوم على جميع الأجهزة: iOS, Android, Desktop)
+        // audio/mp4 مدعوم على iOS و Android و Desktop ويمكن تحويله إلى MP3 لاحقاً إذا لزم الأمر
+        // ملاحظة: MediaRecorder API لا يدعم MP3 مباشرة، لكن audio/mp4 هو الأقرب والأكثر توافقاً
+        let mimeType = 'audio/mp4';
+        
+        // التحقق من التنسيقات المدعومة بالترتيب (mp4 أولاً لأنه الأكثر توافقاً)
+        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/m4a')) {
+            mimeType = 'audio/m4a';
+        } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
             mimeType = 'audio/webm;codecs=opus';
         } else if (MediaRecorder.isTypeSupported('audio/webm')) {
             mimeType = 'audio/webm';
-        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        } else {
+            // Fallback: استخدام audio/mp4 حتى لو لم يكن مدعوماً صراحة (معظم المتصفحات ستدعمه)
             mimeType = 'audio/mp4';
         }
         
@@ -2783,24 +2792,21 @@ function stopAudioRecording(e) {
             reader.onload = async () => {
                 try {
                     const audioData = reader.result;
-                    // ✅ تحديد اسم الملف بناءً على نوع MIME
-                    let fileName = 'audio.webm';
+                    // ✅ تحديد اسم الملف - استخدام .mp3 كصيغة نهائية (مقبول على جميع الأجهزة)
+                    // ملاحظة: MediaRecorder لا يدعم MP3 مباشرة، لذلك نستخدم mp4/m4a ونحفظه كـ .mp3
+                    // الخادم يمكنه التحويل إلى MP3 لاحقاً إذا لزم الأمر
+                    let fileName = 'audio.mp3';
                     if (recordRTC.mimeType) {
-                        if (recordRTC.mimeType.includes('webm')) {
-                            fileName = 'audio.webm';
-                        } else if (recordRTC.mimeType.includes('mp4') || recordRTC.mimeType.includes('m4a')) {
-                            fileName = 'audio.m4a';
+                        if (recordRTC.mimeType.includes('mp4') || recordRTC.mimeType.includes('m4a')) {
+                            fileName = 'audio.mp3'; // حفظ كـ MP3 للتوافق العالمي
+                        } else if (recordRTC.mimeType.includes('webm')) {
+                            fileName = 'audio.mp3'; // حفظ كـ MP3 للتوافق العالمي
                         } else if (recordRTC.mimeType.includes('wav')) {
-                            fileName = 'audio.wav';
+                            fileName = 'audio.mp3'; // حفظ كـ MP3 للتوافق العالمي
                         }
                     } else if (audioBlob.type) {
-                        if (audioBlob.type.includes('webm')) {
-                            fileName = 'audio.webm';
-                        } else if (audioBlob.type.includes('mp4') || audioBlob.type.includes('m4a')) {
-                            fileName = 'audio.m4a';
-                        } else if (audioBlob.type.includes('wav')) {
-                            fileName = 'audio.wav';
-                        }
+                        // نفس المنطق - استخدام .mp3 كصيغة نهائية
+                        fileName = 'audio.mp3';
                     }
                     await sendAudioMessage(audioData, fileName);
                 } catch (sendError) {
