@@ -68,7 +68,7 @@
 </head>
 <body>
     <div class="pos-container">
-        <!-- Header -->
+        <!-- Header - Desktop -->
         <header class="pos-header">
             <div class="pos-header-content">
                 <button class="btn-header-icon" id="qrHeaderBtn" title="QR Scanner">
@@ -76,6 +76,19 @@
                 </button>
                 <h1>نقطة البيع</h1>
                 <button class="btn-back" id="backBtn" style="text-decoration: none; border: none; cursor: pointer;">
+                    <i class="bi bi-arrow-right"></i> العودة  
+                </button>
+            </div>
+        </header>
+
+        <!-- Header - Mobile -->
+        <header class="pos-header-mobile">
+            <div class="pos-header-mobile-content">
+                <button class="btn-header-icon-mobile" id="qrHeaderBtnMobile" title="QR Scanner">
+                    <i class="bi bi-qr-code-scan"></i>
+                </button>
+                <h1 class="pos-header-mobile-title">نقطة البيع</h1>
+                <button class="btn-back-mobile" id="backBtnMobile" style="text-decoration: none; border: none; cursor: pointer;">
                     <i class="bi bi-arrow-right"></i> العودة  
                 </button>
             </div>
@@ -473,44 +486,66 @@
     <!-- زر الرجوع للصفحة السابقة -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const backBtn = document.getElementById('backBtn');
-            if (backBtn) {
-                backBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
+            // دالة للرجوع
+            function handleBackClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                try {
+                    // التحقق من وجود referrer وليس نفس الصفحة
+                    const referrer = document.referrer;
+                    const currentUrl = window.location.href;
                     
-                    try {
-                        // التحقق من وجود referrer وليس نفس الصفحة
-                        const referrer = document.referrer;
-                        const currentUrl = window.location.href;
+                    if (referrer && referrer !== currentUrl) {
+                        const referrerUrl = new URL(referrer);
+                        const currentUrlObj = new URL(currentUrl);
                         
-                        if (referrer && referrer !== currentUrl) {
-                            const referrerUrl = new URL(referrer);
-                            const currentUrlObj = new URL(currentUrl);
-                            
-                            // إذا كان referrer من نفس الموقع، استخدم history.back()
-                            if (referrerUrl.origin === currentUrlObj.origin) {
-                                // التحقق من أن الصفحة السابقة ليست pos.html
-                                if (!referrer.includes('pos.html')) {
-                                    window.history.back();
-                                    return;
-                                }
+                        // إذا كان referrer من نفس الموقع، استخدم history.back()
+                        if (referrerUrl.origin === currentUrlObj.origin) {
+                            // التحقق من أن الصفحة السابقة ليست pos.html
+                            if (!referrer.includes('pos.html')) {
+                                window.history.back();
+                                return;
                             }
                         }
-                        
-                        // إذا كان هناك تاريخ متاح، استخدم history.back()
-                        if (window.history.length > 1) {
-                            window.history.back();
-                            return;
-                        }
-                        
-                        // Fallback: الانتقال إلى dashboard.html أو index.html
-                        window.location.href = 'dashboard.html';
-                    } catch (error) {
-                        console.error('خطأ في الرجوع:', error);
-                        // Fallback: الانتقال إلى dashboard.html
-                        window.location.href = 'dashboard.html';
                     }
+                    
+                    // إذا كان هناك تاريخ متاح، استخدم history.back()
+                    if (window.history.length > 1) {
+                        window.history.back();
+                        return;
+                    }
+                    
+                    // Fallback: الانتقال إلى dashboard.html أو index.html
+                    window.location.href = 'dashboard.html';
+                } catch (error) {
+                    console.error('خطأ في الرجوع:', error);
+                    // Fallback: الانتقال إلى dashboard.html
+                    window.location.href = 'dashboard.html';
+                }
+            }
+
+            // ربط زر العودة في الهيدر العادي
+            const backBtn = document.getElementById('backBtn');
+            if (backBtn) {
+                backBtn.addEventListener('click', handleBackClick);
+            }
+
+            // ربط زر العودة في الهيدر الموبايل
+            const backBtnMobile = document.getElementById('backBtnMobile');
+            if (backBtnMobile) {
+                backBtnMobile.addEventListener('click', handleBackClick);
+            }
+
+            // ربط زر QR في الهيدر الموبايل بنفس وظيفة زر QR في الهيدر العادي
+            const qrHeaderBtn = document.getElementById('qrHeaderBtn');
+            const qrHeaderBtnMobile = document.getElementById('qrHeaderBtnMobile');
+            if (qrHeaderBtn && qrHeaderBtnMobile) {
+                qrHeaderBtnMobile.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // تشغيل نفس الحدث الموجود على الزر الأصلي
+                    qrHeaderBtn.click();
                 });
             }
         });

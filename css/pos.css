@@ -17,6 +17,11 @@
     z-index: 100;
 }
 
+/* Mobile Header - Hidden by default */
+.pos-header-mobile {
+    display: none;
+}
+
 .pos-header-content {
     display: flex;
     justify-content: space-between;
@@ -3787,7 +3792,94 @@
 
 /* ===== Mobile POS Redesign Styles (max-width: 767.98px) ===== */
 @media (max-width: 767.98px) {
-    /* Header Mobile Styles */
+    /* Hide Desktop Header */
+    .pos-header {
+        display: none !important;
+    }
+
+    /* Show Mobile Header */
+    .pos-header-mobile {
+        display: block;
+        background: var(--white);
+        box-shadow: var(--shadow);
+        padding: 12px 15px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    /* Mobile Header Content */
+    .pos-header-mobile-content {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        width: 100%;
+        gap: 10px;
+        position: relative;
+    }
+
+    /* Mobile Header Title */
+    .pos-header-mobile-title {
+        font-size: 1.2em;
+        color: var(--primary-color);
+        text-align: center;
+        margin: 0;
+        grid-column: 2;
+    }
+
+    /* Mobile Header QR Button */
+    .btn-header-icon-mobile {
+        background: transparent;
+        border: none;
+        color: var(--text-dark);
+        font-size: 1.3em;
+        cursor: pointer;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.3s ease;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        grid-column: 3;
+    }
+
+    .btn-header-icon-mobile:hover {
+        color: var(--primary-color);
+    }
+
+    /* Mobile Header Back Button */
+    .btn-back-mobile {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: var(--primary-color);
+        color: var(--white);
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.3s ease;
+        min-width: 44px;
+        min-height: 44px;
+        white-space: nowrap;
+        grid-column: 1;
+    }
+
+    .btn-back-mobile:hover {
+        background: var(--secondary-color);
+        transform: translateX(-3px);
+    }
+
+    .btn-back-mobile:active {
+        transform: translateX(-1px);
+    }
+
+    /* Header Mobile Styles - Old (to be removed or kept for reference) */
     .pos-header-content {
         display: grid;
         grid-template-columns: auto 1fr auto;
