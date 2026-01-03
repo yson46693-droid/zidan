@@ -6132,14 +6132,17 @@ async function handleQRCodeScanned(decodedText) {
             switchRepairType(repair.repair_type);
         }
         
-        // ✅ انتظار أطول لضمان تحميل الجدول بعد التبديل وإعادة الرسم
+        // ✅ حساب الصفحة التي تحتوي على العملية والانتقال إليها
+        await navigateToRepairPage(repair);
+        
+        // ✅ انتظار لضمان تحميل الجدول بعد التبديل وإعادة الرسم
         setTimeout(() => {
             // ✅ تمييز العملية في الجدول تلقائياً باللون الأصفر
             highlightRepairInTable(repair.id);
             
             // عرض رسالة النجاح
             showMessage(`تم العثور على العملية: ${repair.customer_name}`, 'success');
-        }, 500);
+        }, 800); // زيادة الوقت لضمان تحميل الجدول
     } else {
         // عرض رسالة عدم وجود العملية
         const resultDiv = document.getElementById('scanner-result');
@@ -6270,14 +6273,88 @@ function searchRepairByNumber() {
             switchRepairType(repair.repair_type);
         }
         
-        // ✅ انتظار أطول لضمان تحميل الجدول بعد التبديل وإعادة الرسم
-        setTimeout(() => {
-            // تمييز العملية في الجدول باللون الأصفر
-            highlightRepairInTable(repair.id);
-            showMessage(`تم العثور على العملية: ${repair.customer_name}`, 'success');
-        }, 500);
+        // ✅ الانتقال إلى الصفحة التي تحتوي على العملية
+        navigateToRepairPage(repair).then(() => {
+            // ✅ انتظار لضمان تحميل الجدول بعد التبديل وإعادة الرسم
+            setTimeout(() => {
+                // تمييز العملية في الجدول باللون الأصفر
+                highlightRepairInTable(repair.id);
+                showMessage(`تم العثور على العملية: ${repair.customer_name}`, 'success');
+            }, 800);
+        });
     } else {
         showMessage('لم يتم العثور على العملية بهذا الرقم', 'error');
+    }
+}
+
+// ✅ دالة جديدة للانتقال إلى الصفحة التي تحتوي على العملية
+async function navigateToRepairPage(repair) {
+    try {
+        // الحصول على العمليات المفلترة الحالية (حسب نوع العملية والفلترات)
+        let filteredRepairs = allRepairs;
+        
+        // تطبيق فلتر نوع العملية
+        if (repair.repair_type) {
+            filteredRepairs = filteredRepairs.filter(r => r.repair_type === repair.repair_type);
+        }
+        
+        // تطبيق الفلترات الأخرى إن وجدت
+        const statusFilter = document.getElementById('statusFilter');
+        const dateFromFilter = document.getElementById('dateFromFilter');
+        const dateToFilter = document.getElementById('dateToFilter');
+        const searchInput = document.getElementById('repairSearch');
+        
+        if (statusFilter && statusFilter.value) {
+            filteredRepairs = filteredRepairs.filter(r => r.status === statusFilter.value);
+        }
+        
+        if (dateFromFilter && dateFromFilter.value) {
+            filteredRepairs = filteredRepairs.filter(r => {
+                const repairDate = new Date(r.created_at);
+                return repairDate >= new Date(dateFromFilter.value);
+            });
+        }
+        
+        if (dateToFilter && dateToFilter.value) {
+            filteredRepairs = filteredRepairs.filter(r => {
+                const repairDate = new Date(r.created_at);
+                return repairDate <= new Date(dateToFilter.value + 'T23:59:59');
+            });
+        }
+        
+        if (searchInput && searchInput.value.trim()) {
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            filteredRepairs = filteredRepairs.filter(r => {
+                return (r.repair_number && r.repair_number.toLowerCase().includes(searchTerm)) ||
+                       (r.customer_name && r.customer_name.toLowerCase().includes(searchTerm)) ||
+                       (r.customer_phone && r.customer_phone.includes(searchTerm)) ||
+                       (r.device_type && r.device_type.toLowerCase().includes(searchTerm));
+            });
+        }
+        
+        // البحث عن فهرس العملية في القائمة المفلترة
+        const repairIndex = filteredRepairs.findIndex(r => r.id === repair.id);
+        
+        if (repairIndex !== -1) {
+            // حساب الصفحة التي تحتوي على العملية
+            const pageNumber = Math.floor(repairIndex / repairsPerPage) + 1;
+            
+            // الانتقال إلى الصفحة
+            if (pageNumber !== currentRepairPage) {
+                currentRepairPage = pageNumber;
+                console.log(`✅ [QR Scanner] الانتقال إلى الصفحة ${pageNumber} للعثور على العملية`);
+                
+                // إعادة تطبيق الفلترات لعرض الصفحة الصحيحة
+                filterRepairs();
+                
+                // انتظار قصير لضمان تحديث الجدول
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        } else {
+            console.warn('⚠️ [QR Scanner] العملية غير موجودة في القائمة المفلترة');
+        }
+    } catch (error) {
+        console.error('❌ [QR Scanner] خطأ في الانتقال إلى صفحة العملية:', error);
     }
 }
 

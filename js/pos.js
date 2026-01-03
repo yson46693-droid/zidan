@@ -3306,9 +3306,17 @@ async function initializePOSQRCodeScannerMobile() {
         return;
     }
     
+    // Wait a bit to ensure element is fully rendered
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Hide error initially
     if (errorDiv) {
         errorDiv.style.display = 'none';
+    }
+    
+    // Show loading
+    if (loadingDiv) {
+        loadingDiv.style.display = 'block';
     }
     
     // Check if html5-qrcode library is loaded
@@ -3358,18 +3366,37 @@ async function initializePOSQRCodeScannerMobile() {
         posQRCodeScannerInstance = new Html5Qrcode('pos-qr-reader-mobile');
         posScannerOpen = true;
         
-        // Start scanner with simplified config (similar to provided code)
+        // Calculate dynamic qrbox size based on actual container size
+        const containerWidth = qrReader.offsetWidth || qrReader.clientWidth || 300;
+        const containerHeight = qrReader.offsetHeight || qrReader.clientHeight || 300;
+        // Use 80% of the smaller dimension for qrbox to ensure it fits
+        const qrboxSize = Math.min(containerWidth, containerHeight) * 0.8;
+        const qrboxDimension = Math.floor(qrboxSize);
+        
+        console.log('📐 [POS Scanner Mobile] Container size:', containerWidth, 'x', containerHeight);
+        console.log('📐 [POS Scanner Mobile] QRBox size:', qrboxDimension, 'x', qrboxDimension);
+        
+        // Start scanner with dynamic config (similar to provided code)
         await posQRCodeScannerInstance.start(
             { facingMode: "environment" },
             {
                 fps: 12,
-                qrbox: { width: 260, height: 260 }
+                qrbox: { width: qrboxDimension, height: qrboxDimension },
+                aspectRatio: 1.0,
+                disableFlip: false
             },
-            (decodedText) => {
+            (decodedText, decodedResult) => {
                 // Success callback - تم قراءة QR Code بنجاح
-                console.log('✅ [POS Scanner Mobile] Detected:', decodedText);
+                console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected ✅✅✅');
+                console.log('📋 [POS Scanner Mobile] Decoded Text:', decodedText);
+                console.log('📊 [POS Scanner Mobile] Decoded Result:', decodedResult);
+                
                 // Handle product using existing function
-                handlePOSQRCodeScanned(decodedText);
+                if (decodedText && decodedText.trim()) {
+                    handlePOSQRCodeScanned(decodedText.trim());
+                } else {
+                    console.warn('⚠️ [POS Scanner Mobile] Empty decoded text');
+                }
             },
             (errorMessage) => {
                 // Error callback - تجاهل NotFoundException (طبيعي أثناء المسح)
@@ -3390,11 +3417,25 @@ async function initializePOSQRCodeScannerMobile() {
         console.error('❌ [POS Scanner Mobile] Error starting scanner:', error);
         const errorMessage = error?.message || 'خطأ غير معروف';
         
+        // Log detailed error for debugging
+        console.error('❌ [POS Scanner Mobile] Error details:', {
+            message: errorMessage,
+            name: error?.name,
+            stack: error?.stack,
+            containerSize: {
+                width: qrReader?.offsetWidth,
+                height: qrReader?.offsetHeight
+            }
+        });
+        
         if (loadingDiv) {
             loadingDiv.innerHTML = `
                 <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
                 <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">خطأ في بدء الكاميرا</p>
                 <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">${errorMessage}</p>
+                <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
+                    إعادة المحاولة
+                </button>
             `;
         }
         
@@ -3894,13 +3935,34 @@ async function handlePOSQRCodeScanned(decodedText) {
     }
     
     if (!product) {
+        // Show error message for mobile
+        const errorDivMobile = document.getElementById('pos-scanner-error-mobile');
+        if (errorDivMobile) {
+            const errorMessageMobile = document.getElementById('pos-scanner-error-message-mobile');
+            if (errorMessageMobile) {
+                errorMessageMobile.textContent = `❌ المنتج غير موجود. QR Code: ${decodedText}`;
+            }
+            errorDivMobile.style.display = 'block';
+            
+            // Hide error after 3 seconds
+            setTimeout(() => {
+                if (errorDivMobile) {
+                    errorDivMobile.style.display = 'none';
+                }
+            }, 3000);
+        }
+        
+        // Also show error for desktop
         if (errorDiv) {
             const errorMessage = document.getElementById('pos-scanner-error-message');
             if (errorMessage) {
-                errorMessage.textContent = `❌ المنتج غير موجود في قائمة المنتجات. يرجى التحقق من QR Code والمحاولة مرة أخرى.`;
+                errorMessage.textContent = `❌ المنتج غير موجود في قائمة المنتجات. يرجى التحقق من QR Code والمحاولة مرة أخرى. QR Code: ${decodedText}`;
             }
             errorDiv.style.display = 'block';
         }
+        
+        // Show user-friendly message
+        showMessage(`❌ المنتج غير موجود. يرجى التحقق من QR Code: ${decodedText}`, 'error');
         
         // Restart scanner after 2 seconds
         setTimeout(() => {
