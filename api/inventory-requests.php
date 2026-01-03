@@ -21,12 +21,24 @@ if ($method === 'POST') {
     $itemId = $data['item_id'] ?? '';
     $itemName = $data['item_name'] ?? '';
     $quantity = intval($data['quantity'] ?? 1);
+    $items = $data['items'] ?? null; // مصفوفة القطع الفرعية (لقطع الغيار)
     $toBranchId = $data['to_branch_id'] ?? 'branch_hanovil'; // افتراضياً الفرع الأول
     $notes = trim($data['notes'] ?? '');
     
     // التحقق من البيانات
-    if (empty($itemType) || empty($itemId) || empty($itemName) || $quantity <= 0) {
-        response(false, 'البيانات المطلوبة غير مكتملة', null, 400);
+    // إذا كانت قطع غيار و items موجودة، استخدام items
+    if ($itemType === 'spare_part' && is_array($items) && !empty($items)) {
+        // التحقق من items بدلاً من quantity
+        if (empty($itemType) || empty($itemId) || empty($itemName)) {
+            response(false, 'البيانات المطلوبة غير مكتملة', null, 400);
+        }
+        // حساب إجمالي الكمية من items
+        $quantity = array_sum(array_column($items, 'quantity'));
+    } else {
+        // للمنتجات الأخرى، التحقق من quantity
+        if (empty($itemType) || empty($itemId) || empty($itemName) || $quantity <= 0) {
+            response(false, 'البيانات المطلوبة غير مكتملة', null, 400);
+        }
     }
     
     // التحقق من صحة نوع القطعة
@@ -50,13 +62,31 @@ if ($method === 'POST') {
     
     $requestId = generateId();
     
+    // التحقق من وجود حقل items في الجدول
+    $hasItemsColumn = dbColumnExists('inventory_requests', 'items');
+    $itemsJson = null;
+    
+    if ($itemType === 'spare_part' && is_array($items) && !empty($items) && $hasItemsColumn) {
+        // حفظ items كـ JSON
+        $itemsJson = json_encode($items, JSON_UNESCAPED_UNICODE);
+    }
+    
     // حفظ الطلب
-    $result = dbExecute(
-        "INSERT INTO inventory_requests 
-        (id, request_number, from_branch_id, to_branch_id, item_type, item_id, item_name, quantity, status, requested_by, notes, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW())",
-        [$requestId, $requestNumber, $userBranchId, $toBranchId, $itemType, $itemId, $itemName, $quantity, $session['user_id'], $notes]
-    );
+    if ($hasItemsColumn && $itemsJson !== null) {
+        $result = dbExecute(
+            "INSERT INTO inventory_requests 
+            (id, request_number, from_branch_id, to_branch_id, item_type, item_id, item_name, quantity, items, status, requested_by, notes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW())",
+            [$requestId, $requestNumber, $userBranchId, $toBranchId, $itemType, $itemId, $itemName, $quantity, $itemsJson, $session['user_id'], $notes]
+        );
+    } else {
+        $result = dbExecute(
+            "INSERT INTO inventory_requests 
+            (id, request_number, from_branch_id, to_branch_id, item_type, item_id, item_name, quantity, status, requested_by, notes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW())",
+            [$requestId, $requestNumber, $userBranchId, $toBranchId, $itemType, $itemId, $itemName, $quantity, $session['user_id'], $notes]
+        );
+    }
     
     if ($result === false) {
         response(false, 'خطأ في إنشاء الطلب', null, 500);
@@ -68,6 +98,30 @@ if ($method === 'POST') {
     
     // إرسال رسالة مميزة في الشات على شكل أوردر
     try {
+        // قائمة أنواع قطع الغيار
+        $sparePartTypes = [
+            'screen' => 'شاشة',
+            'touch' => 'تاتش',
+            'battery' => 'بطارية',
+            'rear_camera' => 'كاميرا خلفية',
+            'front_camera' => 'كاميرا أمامية',
+            'charging_port' => 'فلاتة شحن',
+            'flex_connector' => 'فلاتة ربط',
+            'power_flex' => 'فلاتة باور',
+            'motherboard' => 'بوردة',
+            'frame' => 'فريم',
+            'housing' => 'هاوسنج',
+            'back_cover' => 'ظهر',
+            'lens' => 'عدسات',
+            'ic' => 'IC',
+            'external_buttons' => 'أزرار خارجية',
+            'earpiece' => 'سماعة مكالمات',
+            'speaker' => 'علبة جرس',
+            'network_wire' => 'واير شبكة',
+            'network_flex' => 'فلاتة شبكة',
+            'other' => 'ملحقات أخرى'
+        ];
+        
         // بناء رسالة الأوردر بشكل مميز
         $chatMessage = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
         $chatMessage .= "📦 *طلب منتج جديد*\n";
@@ -78,7 +132,26 @@ if ($method === 'POST') {
         $chatMessage .= "📋 *تفاصيل الطلب:*\n";
         $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
         $chatMessage .= "🛍️ *المنتج:* {$itemName}\n";
-        $chatMessage .= "🔢 *الكمية:* {$quantity}\n";
+        
+        // إذا كانت قطع غيار و items موجودة، عرض تفاصيل القطع
+        if ($itemType === 'spare_part' && is_array($items) && !empty($items)) {
+            $chatMessage .= "\n📦 *القطع المطلوبة:*\n";
+            foreach ($items as $item) {
+                $itemTypeName = $sparePartTypes[$item['item_type']] ?? $item['item_type'];
+                $qty = intval($item['quantity'] ?? 0);
+                if ($qty > 0) {
+                    $chatMessage .= "  • {$itemTypeName}: {$qty}";
+                    if (!empty($item['custom_value'])) {
+                        $chatMessage .= " ({$item['custom_value']})";
+                    }
+                    $chatMessage .= "\n";
+                }
+            }
+            $chatMessage .= "\n🔢 *إجمالي الكمية:* {$quantity}\n";
+        } else {
+            $chatMessage .= "🔢 *الكمية:* {$quantity}\n";
+        }
+        
         $chatMessage .= "🔖 *رقم الطلب:* {$requestNumber}\n";
         if (!empty($notes)) {
             $chatMessage .= "📝 *ملاحظات:* {$notes}\n";

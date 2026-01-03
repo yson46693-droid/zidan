@@ -3013,8 +3013,14 @@ async function openPOSBarcodeScanner() {
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; gap: 12px; justify-content: center; padding: 20px 30px; border-top: 1px solid var(--border-color); background: var(--light-bg); flex-shrink: 0;">
+                <!-- زر التقاط صورة للهواتف (بديل للكاميرا المباشرة) -->
+                <button id="pos-scan-image-btn" onclick="openPOSImageScanner()" class="btn" style="background: var(--primary-color); color: var(--white); border: none; padding: 12px 24px; font-weight: 600; border-radius: 10px; transition: all 0.3s ease; display: none;" onmouseover="this.style.background='var(--secondary-color)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--primary-color)'; this.style.transform='translateY(0)';">
+                    <i class="bi bi-camera-fill" style="margin-left: 8px;"></i>التقاط صورة
+                </button>
                 <button onclick="closePOSBarcodeScanner()" class="btn btn-secondary" style="background: var(--text-light); color: var(--white); border: none; padding: 12px 24px; font-weight: 600; border-radius: 10px; transition: all 0.3s ease;" onmouseover="this.style.background='#555'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--text-light)'; this.style.transform='translateY(0)';">إغلاق</button>
             </div>
+            <!-- Input file مخفي للهواتف -->
+            <input type="file" id="pos-qr-image-input" accept="image/*" capture="environment" style="display: none;">
         </div>
         <style>
             @keyframes modalSlideIn {
@@ -3144,6 +3150,19 @@ async function openPOSBarcodeScanner() {
         }
         
         initializePOSQRCodeScanner();
+        
+        // إظهار زر التقاط صورة على الهواتف فقط
+        const isMobileDevice = window.innerWidth <= 767.98;
+        const scanImageBtn = document.getElementById('pos-scan-image-btn');
+        if (scanImageBtn && isMobileDevice) {
+            scanImageBtn.style.display = 'inline-block';
+        }
+        
+        // إضافة event listener لـ file input
+        const fileInput = document.getElementById('pos-qr-image-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', handlePOSImageFileSelected);
+        }
     }, 300);
 }
 
@@ -3803,6 +3822,134 @@ document.addEventListener('visibilitychange', async function() {
         // Only close when actually leaving the page
     }
 });
+
+// دالة لفتح file input للتقاط صورة (للهواتف - بديل للكاميرا المباشرة)
+async function openPOSImageScanner() {
+    try {
+        const fileInput = document.getElementById('pos-qr-image-input');
+        if (!fileInput) {
+            showMessage('❌ خطأ: لا يمكن العثور على زر التقاط الصورة', 'error');
+            return;
+        }
+        
+        // إيقاف الكاميرا المباشرة قبل فتح file input
+        if (posQRCodeScannerInstance) {
+            try {
+                await posQRCodeScannerInstance.stop();
+            } catch (e) {
+                // تجاهل الأخطاء
+            }
+        }
+        
+        // فتح file picker
+        fileInput.click();
+    } catch (error) {
+        console.error('خطأ في فتح file input:', error);
+        showMessage('❌ حدث خطأ أثناء فتح الكاميرا. يرجى المحاولة مرة أخرى.', 'error');
+    }
+}
+
+// معالج اختيار صورة من file input
+async function handlePOSImageFileSelected(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+        return;
+    }
+    
+    // التأكد من أن الملف صورة
+    if (!file.type.startsWith('image/')) {
+        showMessage('❌ يرجى اختيار صورة صحيحة', 'error');
+        return;
+    }
+    
+    try {
+        // إخفاء loading وإظهار رسالة معالجة
+        const loadingDiv = document.getElementById('pos-scanner-loading');
+        if (loadingDiv) {
+            loadingDiv.style.display = 'block';
+            loadingDiv.innerHTML = `
+                <i class="bi bi-hourglass-split" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block; animation: pulse 2s infinite;"></i>
+                <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">جاري قراءة QR Code...</p>
+            `;
+        }
+        
+        // التأكد من تحميل مكتبة Html5Qrcode
+        if (typeof Html5Qrcode === 'undefined') {
+            if (typeof window.loadHtml5Qrcode === 'function') {
+                await window.loadHtml5Qrcode();
+            } else {
+                throw new Error('مكتبة QR Code غير متاحة');
+            }
+        }
+        
+        // قراءة QR code من الصورة
+        const decodedText = await Html5Qrcode.scanFileFromDevice(file, true);
+        
+        if (decodedText) {
+            console.log('✅ [POS Scanner] تم قراءة QR Code من الصورة:', decodedText);
+            
+            // إخفاء loading
+            if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+            }
+            
+            // معالجة QR code المقروء
+            handlePOSQRCodeScanned(decodedText);
+            
+            // إعادة فتح الكاميرا المباشرة بعد القراءة
+            setTimeout(async () => {
+                try {
+                    const qrReaderId = window.innerWidth <= 767.98 ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
+                    const qrReader = document.getElementById(qrReaderId);
+                    if (qrReader && typeof initializePOSQRCodeScanner === 'function') {
+                        await initializePOSQRCodeScanner();
+                    }
+                } catch (e) {
+                    console.log('⚠️ [POS Scanner] لا يمكن إعادة فتح الكاميرا المباشرة');
+                }
+            }, 1000);
+        }
+    } catch (error) {
+        console.error('❌ [POS Scanner] خطأ في قراءة QR Code من الصورة:', error);
+        
+        const loadingDiv = document.getElementById('pos-scanner-loading');
+        const errorDiv = document.getElementById('pos-scanner-error');
+        const errorMessageEl = document.getElementById('pos-scanner-error-message');
+        
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+        
+        if (errorDiv && errorMessageEl) {
+            errorDiv.style.display = 'block';
+            if (error.message && error.message.includes('No QR code found')) {
+                errorMessageEl.textContent = '❌ لم يتم العثور على QR Code في الصورة. يرجى التأكد من أن الصورة واضحة وأن QR Code موجود فيها.';
+            } else {
+                errorMessageEl.textContent = '❌ فشل في قراءة QR Code من الصورة. يرجى المحاولة مرة أخرى.';
+            }
+        }
+        
+        showMessage('❌ لم يتم العثور على QR Code في الصورة. يرجى المحاولة مرة أخرى.', 'error');
+        
+        // إعادة فتح الكاميرا المباشرة
+        setTimeout(async () => {
+            try {
+                const qrReaderId = window.innerWidth <= 767.98 ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
+                const qrReader = document.getElementById(qrReaderId);
+                if (qrReader && typeof initializePOSQRCodeScanner === 'function') {
+                    await initializePOSQRCodeScanner();
+                }
+            } catch (e) {
+                console.log('⚠️ [POS Scanner] لا يمكن إعادة فتح الكاميرا المباشرة');
+            }
+        }, 2000);
+    } finally {
+        // إعادة تعيين file input للسماح باختيار نفس الملف مرة أخرى
+        if (event.target) {
+            event.target.value = '';
+        }
+    }
+}
 
 // دالة لإيقاف الماسح المدمج (للهواتف)
 async function stopPOSQRCodeScannerMobile() {
