@@ -829,7 +829,7 @@ function displayUserInfo() {
     const userRoleElement = document.getElementById('userRole');
     const userSpecializationElement = document.getElementById('userSpecialization');
     const userSpecializationTextElement = document.getElementById('userSpecializationText');
-    const userBranchElement = document.getElementById('userBranch');
+    const userBranchElement = document.getElementById('sidebarUserBranch');
     const userBranchTextElement = document.getElementById('userBranchText');
     
     if (userNameElement) {

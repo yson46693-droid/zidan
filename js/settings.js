@@ -314,16 +314,19 @@ function loadSettingsSection() {
                 // ✅ التحقق من وجود العناصر المطلوبة قبل تحميل البيانات
                 const usersTableBody = document.getElementById('usersTableBody');
                 if (!usersTableBody) {
-                    console.warn('usersTableBody not found, retrying after delay...');
+                    // العنصر غير موجود - قد يكون في قسم آخر، لا نعرض تحذير
                     // إعادة المحاولة بعد تأخير إضافي
                     setTimeout(() => {
-                        loadUsers().catch(err => {
-                            console.error('خطأ في تحميل المستخدمين بعد إعادة المحاولة:', err);
-                            const errorMsg = err?.message || err?.toString() || 'خطأ غير معروف';
-                            if (typeof showMessage === 'function') {
-                                showMessage('خطأ في تحميل قائمة المستخدمين: ' + errorMsg, 'error');
-                            }
-                        });
+                        const retryTableBody = document.getElementById('usersTableBody');
+                        if (retryTableBody) {
+                            loadUsers().catch(err => {
+                                console.error('خطأ في تحميل المستخدمين بعد إعادة المحاولة:', err);
+                                const errorMsg = err?.message || err?.toString() || 'خطأ غير معروف';
+                                if (typeof showMessage === 'function') {
+                                    showMessage('خطأ في تحميل قائمة المستخدمين: ' + errorMsg, 'error');
+                                }
+                            });
+                        }
                     }, 300);
                 }
                 
@@ -737,7 +740,7 @@ async function loadUsers(forceRefresh = false) {
         // التحقق من وجود العنصر قبل محاولة التحميل
         let tbody = document.getElementById('usersTableBody');
         if (!tbody) {
-            console.warn('usersTableBody not found, waiting for DOM...');
+            // العنصر غير موجود - قد يكون في قسم آخر، لا نعرض تحذير
             // إعادة المحاولة عدة مرات مع تأخير متزايد
             let retries = 0;
             const maxRetries = 5;
@@ -752,8 +755,9 @@ async function loadUsers(forceRefresh = false) {
                     retries++;
                     setTimeout(checkElement, 200 * retries); // تأخير متزايد
                 } else {
-                    console.error('usersTableBody not found after multiple retries');
-                    showMessage('خطأ: لم يتم العثور على جدول المستخدمين. يرجى إعادة تحميل الصفحة.', 'error');
+                    // العنصر غير موجود بعد عدة محاولات - قد يكون المستخدم في قسم آخر
+                    // لا نعرض رسالة خطأ لأن هذا قد يكون سلوكاً طبيعياً
+                    return;
                 }
             };
             checkElement();
@@ -832,7 +836,7 @@ function displayUsers(users) {
     
     // التحقق من وجود العنصر قبل التعديل
     if (!tbody) {
-        console.error('usersTableBody element not found');
+        // العنصر غير موجود - قد يكون المستخدم في قسم آخر، لا نعرض خطأ
         return;
     }
     
