@@ -3931,13 +3931,30 @@ async function handlePOSQRCodeScanned(decodedText) {
     // ✅ التحقق من أن المنتجات تم تحميلها
     if (!allProducts || allProducts.length === 0) {
         console.error('❌ [POS Scanner] المنتجات غير محملة بعد - انتظر قليلاً...');
+        showMessage('⏳ جاري تحميل المنتجات...', 'info');
+        
         // محاولة إعادة تحميل المنتجات
         try {
             await loadAllProducts();
+            
+            if (!allProducts || allProducts.length === 0) {
+                console.error('❌ [POS Scanner] فشل تحميل المنتجات - القائمة فارغة');
+                showMessage('❌ المنتجات غير محملة. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'error');
+                return;
+            }
+            
             console.log('✅ [POS Scanner] تم تحميل المنتجات - عدد المنتجات:', allProducts.length);
+            console.log('📊 [POS Scanner] توزيع المنتجات:', {
+                phones: allProducts.filter(p => p.type === 'phone').length,
+                accessories: allProducts.filter(p => p.type === 'accessory').length,
+                spare_parts: allProducts.filter(p => p.type === 'spare_part').length,
+                total: allProducts.length
+            });
+            
+            showMessage('✅ تم تحميل المنتجات. جرب مسح QR Code مرة أخرى.', 'success');
         } catch (e) {
             console.error('❌ [POS Scanner] فشل تحميل المنتجات:', e);
-            showMessage('❌ المنتجات غير محملة. يرجى المحاولة مرة أخرى بعد قليل.', 'error');
+            showMessage('❌ حدث خطأ أثناء تحميل المنتجات. يرجى تحديث الصفحة.', 'error');
             return;
         }
     }
@@ -3962,47 +3979,67 @@ async function handlePOSQRCodeScanned(decodedText) {
             
             console.log('🔍 [POS Scanner] البحث عن منتج - النوع:', qrData.type, 'ID:', productId);
             
-            // Find product by type and ID - تحسين البحث
-            if (qrData.type === 'SPARE_PART' || qrData.type === 'spare_part') {
-                // البحث عن قطع الغيار - محاولة مطابقة ID كرقم أو نص
+            // Determine product type (case-insensitive)
+            const qrType = (qrData.type || '').toLowerCase();
+            let targetType = '';
+            
+            if (qrType === 'spare_part' || qrType === 'sparepart') {
+                targetType = 'spare_part';
+            } else if (qrType === 'phone') {
+                targetType = 'phone';
+            } else if (qrType === 'accessory') {
+                targetType = 'accessory';
+            }
+            
+            if (targetType) {
+                // Find product by type and ID - محاولة مطابقة ID كرقم أو نص
                 product = allProducts.find(p => {
                     const pId = parseInt(p.id);
                     const matchById = (pId === productId || p.id.toString() === productId.toString());
-                    const matchByType = (p.type === 'spare_part');
+                    const matchByType = (p.type === targetType);
                     return matchById && matchByType;
                 });
                 
-                // إذا لم يتم العثور، جرب البحث ب barcode من QR data
+                // إذا لم يتم العثور، جرب البحث ب barcode من QR data (case-insensitive)
                 if (!product && qrData.barcode) {
                     product = allProducts.find(p => {
-                        const normalizedBarcode = normalizeText(p.barcode || '');
-                        const qrBarcode = normalizeText(qrData.barcode);
-                        return normalizedBarcode === qrBarcode && p.type === 'spare_part';
+                        const normalizedBarcode = normalizeText(p.barcode || '').toLowerCase();
+                        const qrBarcode = normalizeText(qrData.barcode).toLowerCase();
+                        return normalizedBarcode === qrBarcode && p.type === targetType;
+                    });
+                }
+                
+                // إذا لم يتم العثور، جرب البحث بدون تحديد النوع (أي منتج بنفس ID)
+                if (!product) {
+                    product = allProducts.find(p => {
+                        const pId = parseInt(p.id);
+                        return (pId === productId || p.id.toString() === productId.toString());
+                    });
+                    
+                    if (product) {
+                        console.log('⚠️ [POS Scanner] تم العثور على المنتج بدون مطابقة النوع - النوع الفعلي:', product.type, 'النوع المتوقع:', targetType);
+                    }
+                }
+                
+                // إذا لم يتم العثور، جرب البحث ب barcode بدون تحديد النوع
+                if (!product && qrData.barcode) {
+                    product = allProducts.find(p => {
+                        const normalizedBarcode = normalizeText(p.barcode || '').toLowerCase();
+                        const qrBarcode = normalizeText(qrData.barcode).toLowerCase();
+                        const normalizedCode = normalizeText(p.code || '').toLowerCase();
+                        return normalizedBarcode === qrBarcode || normalizedCode === qrBarcode;
                     });
                 }
                 
                 if (product) {
-                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Spare Part):', product.name, 'ID:', product.id);
+                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON):', product.name, 'ID:', product.id, 'Type:', product.type);
                 } else {
-                    console.log('❌ [POS Scanner] لم يتم العثور على قطع الغيار - ID:', productId, 'Type:', qrData.type);
-                    console.log('💡 [POS Scanner] المنتجات المتاحة من نوع spare_part:', allProducts.filter(p => p.type === 'spare_part').length);
+                    console.log('❌ [POS Scanner] لم يتم العثور على المنتج - ID:', productId, 'Type:', qrData.type, 'Barcode:', qrData.barcode);
+                    console.log('💡 [POS Scanner] المنتجات المتاحة من نوع', targetType + ':', allProducts.filter(p => p.type === targetType).length);
+                    console.log('💡 [POS Scanner] إجمالي المنتجات:', allProducts.length);
                 }
-            } else if (qrData.type === 'PHONE' || qrData.type === 'phone') {
-                product = allProducts.find(p => {
-                    const pId = parseInt(p.id);
-                    return (pId === productId || p.id.toString() === productId.toString()) && p.type === 'phone';
-                });
-                if (product) {
-                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Phone):', product.name);
-                }
-            } else if (qrData.type === 'ACCESSORY' || qrData.type === 'accessory') {
-                product = allProducts.find(p => {
-                    const pId = parseInt(p.id);
-                    return (pId === productId || p.id.toString() === productId.toString()) && p.type === 'accessory';
-                });
-                if (product) {
-                    console.log('✅ [POS Scanner] تم العثور على المنتج (JSON - Accessory):', product.name);
-                }
+            } else {
+                console.log('⚠️ [POS Scanner] نوع المنتج غير معروف:', qrData.type);
             }
         } else {
             console.log('⚠️ [POS Scanner] QR Code JSON لا يحتوي على type أو id:', qrData);
@@ -4017,6 +4054,7 @@ async function handlePOSQRCodeScanned(decodedText) {
     // This handles simple text QR codes used for phones and accessories
     if (!product) {
         const decodedTextStr = normalizeText(decodedText);
+        const decodedTextLower = decodedTextStr.toLowerCase();
         console.log('🔍 [POS Scanner] البحث في جميع المنتجات عن:', decodedTextStr);
         console.log('📦 [POS Scanner] إجمالي المنتجات المتاحة:', allProducts.length);
         
@@ -4042,37 +4080,60 @@ async function handlePOSQRCodeScanned(decodedText) {
             const normalizedBarcode = normalizeText(p.barcode || '');
             const normalizedCode = normalizeText(p.code || '');
             
-            // Try ID match first (exact match after normalization)
-            if (normalizedId && normalizedId === decodedTextStr) {
+            // Convert to lowercase for case-insensitive comparison
+            const normalizedIdLower = normalizedId.toLowerCase();
+            const normalizedBarcodeLower = normalizedBarcode.toLowerCase();
+            const normalizedCodeLower = normalizedCode.toLowerCase();
+            
+            const originalTextLower = originalText.toLowerCase();
+            
+            // Try ID match first (exact match after normalization - case insensitive)
+            if (normalizedId && normalizedIdLower === decodedTextLower) {
                 console.log('✅ [POS Scanner] تطابق ID:', p.id, '=', decodedTextStr);
                 return true;
             }
             
-            // Try barcode match (exact match after normalization)
-            if (normalizedBarcode && normalizedBarcode === decodedTextStr) {
+            // Try barcode match (exact match after normalization - case insensitive)
+            if (normalizedBarcode && normalizedBarcodeLower === decodedTextLower) {
                 console.log('✅ [POS Scanner] تطابق Barcode:', p.barcode, '=', decodedTextStr);
                 return true;
             }
             
-            // Try code match (exact match after normalization)
-            if (normalizedCode && normalizedCode === decodedTextStr) {
+            // Try code match (exact match after normalization - case insensitive)
+            if (normalizedCode && normalizedCodeLower === decodedTextLower) {
                 console.log('✅ [POS Scanner] تطابق Code:', p.code, '=', decodedTextStr);
                 return true;
             }
             
-            // Try without normalization (in case original text matches)
-            if (p.id && p.id.toString() === originalText) {
+            // Try without normalization but with lowercase (in case original text matches)
+            if (p.id && p.id.toString().toLowerCase() === originalTextLower) {
                 console.log('✅ [POS Scanner] تطابق ID (Original):', p.id);
                 return true;
             }
             
-            if (p.barcode && p.barcode.toString() === originalText) {
+            if (p.barcode && p.barcode.toString().toLowerCase() === originalTextLower) {
                 console.log('✅ [POS Scanner] تطابق Barcode (Original):', p.barcode);
                 return true;
             }
             
-            if (p.code && p.code.toString() === originalText) {
+            if (p.code && p.code.toString().toLowerCase() === originalTextLower) {
                 console.log('✅ [POS Scanner] تطابق Code (Original):', p.code);
+                return true;
+            }
+            
+            // Try exact match with original case (case sensitive)
+            if (normalizedId && normalizedId === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق ID (Case Sensitive):', p.id, '=', decodedTextStr);
+                return true;
+            }
+            
+            if (normalizedBarcode && normalizedBarcode === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق Barcode (Case Sensitive):', p.barcode, '=', decodedTextStr);
+                return true;
+            }
+            
+            if (normalizedCode && normalizedCode === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق Code (Case Sensitive):', p.code, '=', decodedTextStr);
                 return true;
             }
             
@@ -4091,16 +4152,26 @@ async function handlePOSQRCodeScanned(decodedText) {
         const decodedTextStr = normalizeText(decodedText);
         console.log('🔍 [POS Scanner] محاولة البحث الجزئي (بدون مسافات) عن:', decodedTextStr);
         
-        // Remove all spaces for comparison
-        const decodedNoSpaces = decodedTextStr.replace(/\s+/g, '').toLowerCase();
+        // Remove all spaces and special characters for comparison
+        const decodedNoSpaces = decodedTextStr.replace(/[\s\-_]+/g, '').toLowerCase();
         
         product = allProducts.find(p => {
-            const productBarcode = normalizeText(p.barcode || p.code || p.id?.toString() || '');
-            const normalizedBarcode = productBarcode.replace(/\s+/g, '').toLowerCase();
+            // Try multiple fields: barcode, code, id
+            const fields = [
+                p.barcode,
+                p.code,
+                p.id?.toString()
+            ];
             
-            if (productBarcode && normalizedBarcode === decodedNoSpaces) {
-                console.log('✅ [POS Scanner] تطابق جزئي (بدون مسافات):', productBarcode, '=', decodedTextStr);
-                return true;
+            for (const field of fields) {
+                if (!field) continue;
+                
+                const normalizedField = normalizeText(field.toString()).replace(/[\s\-_]+/g, '').toLowerCase();
+                
+                if (normalizedField === decodedNoSpaces) {
+                    console.log('✅ [POS Scanner] تطابق جزئي (بدون مسافات):', field, '=', decodedTextStr);
+                    return true;
+                }
             }
             
             return false;
@@ -4117,6 +4188,26 @@ async function handlePOSQRCodeScanned(decodedText) {
                 noSpaces: decodedNoSpaces,
                 length: cleanedText.length
             });
+            
+            // Log some products for comparison
+            if (allProducts.length > 0) {
+                console.log('💡 [POS Scanner] أمثلة على المنتجات للمقارنة:');
+                allProducts.slice(0, 10).forEach(p => {
+                    const normalizedBarcode = normalizeText(p.barcode || '').replace(/[\s\-_]+/g, '').toLowerCase();
+                    const normalizedCode = normalizeText(p.code || '').replace(/[\s\-_]+/g, '').toLowerCase();
+                    const normalizedId = normalizeText(p.id?.toString() || '').replace(/[\s\-_]+/g, '').toLowerCase();
+                    
+                    console.log(`  - ${p.name} (${p.type}):`, {
+                        id: p.id,
+                        normalizedId,
+                        barcode: p.barcode,
+                        normalizedBarcode,
+                        code: p.code,
+                        normalizedCode,
+                        match: normalizedBarcode === decodedNoSpaces || normalizedCode === decodedNoSpaces || normalizedId === decodedNoSpaces
+                    });
+                });
+            }
         }
     }
     
