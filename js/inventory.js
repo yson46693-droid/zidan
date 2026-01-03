@@ -9,6 +9,69 @@ let currentSparePartBrandFilter = 'all';
 let currentAccessoryFilter = 'all';
 let currentPhoneBrand = 'all';
 
+// دالة مساعدة للتحقق من صلاحيات الكتابة في المخزن
+async function canWriteInventory() {
+    try {
+        const user = getCurrentUser();
+        if (!user) {
+            return false;
+        }
+        
+        // المالك له كامل الصلاحيات
+        if (user.role === 'admin') {
+            return true;
+        }
+        
+        // الفنيون لا يمكنهم الكتابة
+        if (user.role === 'technician') {
+            return false;
+        }
+        
+        // إذا لم يكن هناك branch_id، لا يمكنه الكتابة
+        if (!user.branch_id) {
+            return false;
+        }
+        
+        // التحقق من الفرع - الفرع الثاني (BITASH) له صلاحيات قراءة فقط
+        // محاولة جلب branch_code من المستخدم أولاً
+        let branchCode = user.branch_code || localStorage.getItem('branch_code');
+        
+        // إذا لم يكن branch_code موجوداً، جلب معلومات الفرع من API
+        if (!branchCode) {
+            try {
+                const branchesResult = await API.request('branches.php', 'GET', null, { silent: true });
+                if (branchesResult && branchesResult.success && branchesResult.data) {
+                    const userBranch = branchesResult.data.find(b => String(b.id) === String(user.branch_id));
+                    if (userBranch && userBranch.code) {
+                        branchCode = userBranch.code;
+                        // حفظ branch_code في بيانات المستخدم للمرة القادمة
+                        user.branch_code = branchCode;
+                        localStorage.setItem('currentUser', JSON.stringify(user));
+                    }
+                }
+            } catch (error) {
+                console.warn('خطأ في جلب معلومات الفرع:', error);
+            }
+        }
+        
+        // الفرع الثاني (BITASH) له صلاحيات قراءة فقط
+        if (branchCode === 'BITASH') {
+            return false;
+        }
+        
+        // الفرع الأول (HANOVIL) والمديرون والموظفون يمكنهم الكتابة
+        if (branchCode === 'HANOVIL' || user.role === 'manager' || user.role === 'employee') {
+            return true;
+        }
+        
+        // افتراضياً، إذا لم يكن هناك branch_code، نسمح للمديرين والموظفين
+        return user.role === 'manager' || user.role === 'employee';
+    } catch (error) {
+        console.error('خطأ في التحقق من صلاحيات الكتابة في المخزن:', error);
+        return false;
+    }
+}
+
 // متغيرات لمنع الاستدعاءات المتكررة
 let isLoadingSpareParts = false;
 let isLoadingAccessories = false;
@@ -1662,11 +1725,18 @@ async function deletePhone(id) {
 // ============================================
 
 async function showAddInventoryModal() {
-    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير
+    // ✅ التحقق من الصلاحيات - فقط للمالك والمدير من الفرع الأول
     try {
-        const user = getCurrentUser();
-        if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
-            showMessage('ليس لديك صلاحية لإضافة عناصر المخزن', 'error');
+        const canAdd = await canWriteInventory();
+        if (!canAdd) {
+            const user = getCurrentUser();
+            const branchCode = user?.branch_code || localStorage.getItem('branch_code') || '';
+            
+            if (branchCode === 'BITASH') {
+                showMessage('ليس لديك صلاحية لإضافة عناصر المخزن. الفرع الثاني له صلاحيات قراءة فقط.', 'error');
+            } else {
+                showMessage('ليس لديك صلاحية لإضافة عناصر المخزن', 'error');
+            }
             return;
         }
     } catch (error) {
@@ -2951,7 +3021,7 @@ function compressImage(file, maxWidth = 800, quality = 0.8) {
 }
 
 // إنشاء النماذج عند تحميل القسم
-function loadInventorySection() {
+async function loadInventorySection() {
     // منع الاستدعاءات المتكررة
     if (isLoadingInventorySection) {
         console.log('⏳ تحميل قسم المخزن قيد التنفيذ بالفعل...');
@@ -2988,10 +3058,10 @@ function loadInventorySection() {
     allAccessories = [];
     allPhones = [];
     
-    // التحقق من نوع المستخدم لإخفاء زر الإضافة للفنيين
-    const user = getCurrentUser();
-    const isTechnician = user && user.role === 'technician';
-    const addButtonStyle = isTechnician ? 'display: none;' : '';
+    // ✅ التحقق من صلاحيات الكتابة في المخزن
+    // الفرع الثاني (BITASH) له صلاحيات قراءة فقط
+    const canAdd = await canWriteInventory();
+    const addButtonStyle = canAdd ? '' : 'display: none;';
     
     section.innerHTML = `
         <div class="section-header">
