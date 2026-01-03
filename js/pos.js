@@ -3126,54 +3126,20 @@ async function openPOSBarcodeScanner() {
             });
         }
         
-        // إضافة event listener للضغط على منطقة الكاميرا للتبديل بين الكاميرات (خاصة على الموبايل)
+        // التأكد من أن overlay لا يسمح بالضغط (منع التبديل بين الكاميرات)
         const qrReader = document.getElementById('pos-qr-reader');
         if (qrReader) {
-            // إزالة pointer-events: none من overlay للسماح بالضغط
+            // التأكد من أن overlay لا يسمح بالضغط
             const overlay = document.getElementById('pos-scanner-overlay');
             if (overlay) {
-                overlay.style.pointerEvents = 'auto';
-                overlay.style.cursor = 'pointer';
+                overlay.style.pointerEvents = 'none'; // منع الضغط على overlay
+                overlay.style.cursor = 'default';
             }
             
-            // إضافة event listener للضغط على منطقة الكاميرا
-            const handleCameraToggle = async (e) => {
-                // تجنب التبديل عند الضغط على الأزرار أو العناصر الأخرى
-                if (e.target.closest('.btn-close') || e.target.closest('button')) {
-                    return;
-                }
-                
-                // التبديل بين الكاميرات
-                await togglePOSCamera();
-            };
-            
-            // إضافة event listener للضغط (خاصة على الموبايل)
-            qrReader.addEventListener('click', handleCameraToggle);
-            qrReader.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                handleCameraToggle(e);
-            });
-            
-            // إضافة hint للمستخدم (خاصة على الموبايل)
-            if (window.innerWidth <= 767.98) {
-                const hint = document.createElement('div');
-                hint.id = 'pos-camera-toggle-hint';
-                hint.style.cssText = 'position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: var(--white); padding: 8px 15px; border-radius: 20px; font-size: 0.85em; z-index: 15; pointer-events: none; animation: fadeInOut 3s ease;';
-                hint.innerHTML = '<i class="bi bi-camera-reverse"></i> اضغط للتبديل بين الكاميرات';
-                qrReader.appendChild(hint);
-                
-                // إخفاء الـ hint بعد 3 ثوان
-                setTimeout(() => {
-                    if (hint.parentElement) {
-                        hint.style.opacity = '0';
-                        hint.style.transition = 'opacity 0.5s ease';
-                        setTimeout(() => {
-                            if (hint.parentElement) {
-                                hint.remove();
-                            }
-                        }, 500);
-                    }
-                }, 3000);
+            // إزالة أي hints للتبديل بين الكاميرات
+            const existingHint = document.getElementById('pos-camera-toggle-hint');
+            if (existingHint) {
+                existingHint.remove();
             }
         }
         
@@ -3251,58 +3217,24 @@ async function initializePOSQRCodeScannerAuto() {
     posScannerOpen = true;
     await initializePOSQRCodeScanner();
     
-    // إضافة event listener للضغط على منطقة الكاميرا للتبديل بين الكاميرات (خاصة على الموبايل)
+    // التأكد من أن overlay لا يسمح بالضغط (منع التبديل بين الكاميرات)
     const qrReaderMobile = document.getElementById('pos-qr-reader-mobile');
     const qrReaderDesktop = document.getElementById('pos-qr-reader');
     const targetReader = qrReaderMobile || qrReaderDesktop;
     
     if (targetReader) {
-        // إزالة pointer-events: none من overlay للسماح بالضغط
+        // التأكد من أن overlay لا يسمح بالضغط
         const overlayId = qrReaderMobile ? 'pos-scanner-overlay-mobile' : 'pos-scanner-overlay';
         const overlay = document.getElementById(overlayId);
         if (overlay) {
-            overlay.style.pointerEvents = 'auto';
-            overlay.style.cursor = 'pointer';
+            overlay.style.pointerEvents = 'none'; // منع الضغط على overlay
+            overlay.style.cursor = 'default';
         }
         
-        // إضافة event listener للضغط على منطقة الكاميرا
-        const handleCameraToggle = async (e) => {
-            // تجنب التبديل عند الضغط على الأزرار أو العناصر الأخرى
-            if (e.target.closest('.btn-close') || e.target.closest('button')) {
-                return;
-            }
-            
-            // التبديل بين الكاميرات
-            await togglePOSCamera();
-        };
-        
-        // إضافة event listener للضغط (خاصة على الموبايل)
-        targetReader.addEventListener('click', handleCameraToggle);
-        targetReader.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            handleCameraToggle(e);
-        });
-        
-        // إضافة hint للمستخدم (خاصة على الموبايل)
-        if (window.innerWidth <= 767.98 && !document.getElementById('pos-camera-toggle-hint-mobile')) {
-            const hint = document.createElement('div');
-            hint.id = 'pos-camera-toggle-hint-mobile';
-            hint.style.cssText = 'position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: var(--white); padding: 8px 15px; border-radius: 20px; font-size: 0.85em; z-index: 15; pointer-events: none; animation: fadeInOut 3s ease;';
-            hint.innerHTML = '<i class="bi bi-camera-reverse"></i> اضغط للتبديل بين الكاميرات';
-            targetReader.appendChild(hint);
-            
-            // إخفاء الـ hint بعد 3 ثوان
-            setTimeout(() => {
-                if (hint.parentElement) {
-                    hint.style.opacity = '0';
-                    hint.style.transition = 'opacity 0.5s ease';
-                    setTimeout(() => {
-                        if (hint.parentElement) {
-                            hint.remove();
-                        }
-                    }, 500);
-                }
-            }, 3000);
+        // إزالة أي hints للتبديل بين الكاميرات
+        const existingHint = document.getElementById('pos-camera-toggle-hint-mobile');
+        if (existingHint) {
+            existingHint.remove();
         }
     }
 }
