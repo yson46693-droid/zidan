@@ -595,6 +595,9 @@ async function loadProfileSection() {
         </div>
     `;
 
+        // ✅ إعادة تحديث قائمة البصمات بعد تحميل الواجهة (للتأكد من عرض البيانات)
+        await updateCredentialsList();
+        
         // إضافة event listeners للنموذج
         setupProfileFormHandlers();
 
@@ -657,10 +660,33 @@ async function loadCredentials() {
         
         // ✅ تسجيل البيانات للتحقق
         console.log('🔍 WebAuthn Credentials Response:', data);
+        console.log('🔍 Response structure:', {
+            success: data.success,
+            hasData: !!data.data,
+            hasCredentials: !!(data.data?.credentials),
+            dataKeys: data.data ? Object.keys(data.data) : [],
+            directCredentials: data.credentials
+        });
 
         if (data.success) {
             // ✅ إصلاح: البيانات تأتي في data.data.credentials وليس data.credentials
-            const credentials = data.data?.credentials || data.credentials || [];
+            let credentials = [];
+            
+            // ✅ محاولة جلب البيانات من عدة مصادر
+            if (data.data && data.data.credentials) {
+                credentials = data.data.credentials;
+                console.log('✅ تم جلب البيانات من data.data.credentials');
+            } else if (data.credentials) {
+                credentials = data.credentials;
+                console.log('✅ تم جلب البيانات من data.credentials');
+            } else if (data.data && Array.isArray(data.data)) {
+                credentials = data.data;
+                console.log('✅ تم جلب البيانات من data.data (array)');
+            } else {
+                console.warn('⚠️ لم يتم العثور على البيانات في أي مكان');
+            }
+            
+            // ✅ التأكد من أن credentials هو array
             userCredentials = Array.isArray(credentials) ? credentials : [];
             console.log('✅ تم تحميل البصمات:', userCredentials.length, 'بصمة');
             console.log('✅ بيانات البصمات المحملة:', JSON.stringify(userCredentials, null, 2));
@@ -668,6 +694,9 @@ async function loadCredentials() {
             // ✅ التحقق من أن البيانات صحيحة
             if (userCredentials.length > 0) {
                 console.log('✅ أول بصمة:', userCredentials[0]);
+                console.log('✅ نوع البيانات:', typeof userCredentials[0], userCredentials[0]?.constructor?.name);
+            } else {
+                console.warn('⚠️ لا توجد بصمات في userCredentials رغم وجودها في API');
             }
         } else {
             console.error('❌ خطأ في تحميل البصمات:', data.message || data.error || 'خطأ غير معروف');
@@ -745,6 +774,69 @@ async function handleRegisterBiometric() {
         showMessage('حدث خطأ أثناء تسجيل البصمة: ' + (error.message || error), 'error');
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-fingerprint"></i> <span>تسجيل بصمة جديدة</span>';
+    }
+}
+
+// تحديث قائمة البصمات في الواجهة
+async function updateCredentialsList() {
+    try {
+        // إعادة تحميل البصمات من API
+        await loadCredentials();
+        
+        // العثور على عنصر قائمة البصمات
+        const credentialsList = document.getElementById('credentials-list');
+        const credentialsHeader = document.querySelector('.credentials-list-section h4');
+        
+        if (!credentialsList) {
+            console.warn('⚠️ عنصر credentials-list غير موجود');
+            return;
+        }
+        
+        // تحديث العنوان
+        if (credentialsHeader) {
+            credentialsHeader.innerHTML = `<i class="bi bi-list-check"></i> البصمات المسجلة (${userCredentials.length})`;
+        }
+        
+        // تحديث القائمة
+        if (userCredentials.length === 0) {
+            credentialsList.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">لا توجد بصمات مسجلة بعد</p>';
+        } else {
+            const credentialsHTML = userCredentials.map(cred => {
+                if (!cred || !cred.id) {
+                    console.warn('⚠️ بصمة غير صحيحة:', cred);
+                    return '';
+                }
+                
+                return `
+                    <div class="credential-item" data-credential-id="${cred.id}">
+                        <div class="credential-info">
+                            <div class="credential-icon">
+                                <i class="bi bi-device-hdd"></i>
+                            </div>
+                            <div class="credential-details">
+                                <div class="credential-name">${escapeHtml(cred.device_name || 'جهاز غير معروف')}</div>
+                                <div class="credential-meta">
+                                    <span><i class="bi bi-calendar"></i> تم التسجيل: ${formatDate(cred.created_at)}</span>
+                                    ${cred.last_used ? `<span style="margin-right: 15px;"><i class="bi bi-clock-history"></i> آخر استخدام: ${formatDate(cred.last_used)}</span>` : '<span style="margin-right: 15px;"><i class="bi bi-clock-history"></i> لم يُستخدم بعد</span>'}
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCredential(${cred.id})" style="
+                            padding: 8px 15px;
+                            border-radius: 6px;
+                            font-size: 14px;
+                        ">
+                            <i class="bi bi-trash"></i> حذف
+                        </button>
+                    </div>
+                `;
+            }).filter(html => html !== '').join('') || '<p style="text-align: center; color: #999; padding: 20px;">لا توجد بصمات صحيحة للعرض</p>';
+            
+            credentialsList.innerHTML = credentialsHTML;
+            console.log('✅ تم تحديث قائمة البصمات:', userCredentials.length, 'بصمة');
+        }
+    } catch (error) {
+        console.error('❌ خطأ في تحديث قائمة البصمات:', error);
     }
 }
 
