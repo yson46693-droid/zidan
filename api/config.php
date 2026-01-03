@@ -261,84 +261,106 @@ ini_set('default_socket_timeout', 10);
 // تعيين التوقيت لمصر - الإسكندرية
 date_default_timezone_set('Africa/Cairo');
 
-// إعدادات HTTP Headers
-// السماح بالأصل المحدد في الطلب (للسماح بملفات تعريف الارتباط)
-$allowedOrigins = [
-    'https://www.egsystem.top',
-    'http://www.egsystem.top',
-    'https://egsystem.top',
-    'http://egsystem.top',
-    'https://zidan.egsystem.top',
-    'http://zidan.egsystem.top',
-    'https://www.zidan.egsystem.top',
-    'http://www.zidan.egsystem.top',
-    'http://localhost',
-    'https://localhost',
-    'http://127.0.0.1',
-    'https://127.0.0.1',
-    'http://localhost:5500',
-    'http://127.0.0.1:5500'
-];
-
-$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$origin = '*';
-
-// إذا كان الطلب من أصل مسموح، استخدمه مع credentials
-if (!empty($requestOrigin)) {
-    // التحقق من أن الأصل مسموح به (بما في ذلك الدومينات الفرعية)
-    foreach ($allowedOrigins as $allowedOrigin) {
-        // مطابقة دقيقة أو دومين فرعي
-        if ($requestOrigin === $allowedOrigin || 
-            strpos($requestOrigin, $allowedOrigin) !== false ||
-            // دعم الدومينات الفرعية: zidan.egsystem.top يطابق egsystem.top
-            (strpos($allowedOrigin, 'egsystem.top') !== false && strpos($requestOrigin, 'egsystem.top') !== false)) {
-            $origin = $requestOrigin;
-            break;
+// ✅ CRITICAL: دالة لإرسال CORS headers - يمكن استدعاؤها بعد حفظ الجلسة
+function sendCORSHeaders() {
+    // التحقق من أن headers لم يتم إرسالها بعد
+    if (headers_sent()) {
+        return; // Headers تم إرسالها بالفعل
+    }
+    
+    // إعدادات HTTP Headers
+    // السماح بالأصل المحدد في الطلب (للسماح بملفات تعريف الارتباط)
+    $allowedOrigins = [
+        'https://www.egsystem.top',
+        'http://www.egsystem.top',
+        'https://egsystem.top',
+        'http://egsystem.top',
+        'https://zidan.egsystem.top',
+        'http://zidan.egsystem.top',
+        'https://www.zidan.egsystem.top',
+        'http://www.zidan.egsystem.top',
+        'http://localhost',
+        'https://localhost',
+        'http://127.0.0.1',
+        'https://127.0.0.1',
+        'http://localhost:5500',
+        'http://127.0.0.1:5500'
+    ];
+    
+    $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $origin = '*';
+    
+    // إذا كان الطلب من أصل مسموح، استخدمه مع credentials
+    if (!empty($requestOrigin)) {
+        // التحقق من أن الأصل مسموح به (بما في ذلك الدومينات الفرعية)
+        foreach ($allowedOrigins as $allowedOrigin) {
+            // مطابقة دقيقة أو دومين فرعي
+            if ($requestOrigin === $allowedOrigin || 
+                strpos($requestOrigin, $allowedOrigin) !== false ||
+                // دعم الدومينات الفرعية: zidan.egsystem.top يطابق egsystem.top
+                (strpos($allowedOrigin, 'egsystem.top') !== false && strpos($requestOrigin, 'egsystem.top') !== false)) {
+                $origin = $requestOrigin;
+                break;
+            }
         }
     }
-}
-
-if ($origin !== '*') {
-    header('Access-Control-Allow-Origin: ' . $origin);
-    header('Access-Control-Allow-Credentials: true');
-} else {
-    // إذا لم يكن في القائمة، السماح به في وضع التطوير
-    // أو يمكنك إضافة origin الحالي تلقائياً
-    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
-    if (!empty($currentHost)) {
-        // ✅ تحسين اكتشاف HTTPS - متسق مع auth.php
-        $isHttps = false;
-        if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
-            $isHttps = true;
-        } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
-            $isHttps = true;
-        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-            $isHttps = true;
-        } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
-            $isHttps = true;
-        }
-        
-        $protocol = $isHttps ? 'https' : 'http';
-        $currentOrigin = $protocol . '://' . $currentHost;
-        header('Access-Control-Allow-Origin: ' . $currentOrigin);
+    
+    if ($origin !== '*') {
+        header('Access-Control-Allow-Origin: ' . $origin);
         header('Access-Control-Allow-Credentials: true');
     } else {
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Credentials: false');
+        // إذا لم يكن في القائمة، السماح به في وضع التطوير
+        // أو يمكنك إضافة origin الحالي تلقائياً
+        $currentHost = $_SERVER['HTTP_HOST'] ?? '';
+        if (!empty($currentHost)) {
+            // ✅ تحسين اكتشاف HTTPS - متسق مع auth.php
+            $isHttps = false;
+            if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
+                $isHttps = true;
+            } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+                $isHttps = true;
+            } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+                $isHttps = true;
+            } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
+                $isHttps = true;
+            }
+            
+            $protocol = $isHttps ? 'https' : 'http';
+            $currentOrigin = $protocol . '://' . $currentHost;
+            header('Access-Control-Allow-Origin: ' . $currentOrigin);
+            header('Access-Control-Allow-Credentials: true');
+        } else {
+            header('Access-Control-Allow-Origin: *');
+            header('Access-Control-Allow-Credentials: false');
+        }
     }
+    
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override');
+    header('Access-Control-Max-Age: 3600');
+    
+    // إضافة headers إضافية للأمان
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-XSS-Protection: 1; mode=block');
 }
 
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override');
-header('Access-Control-Max-Age: 3600');
+// ✅ CRITICAL: التحقق من اسم الملف - إذا كان webauthn_login.php، لا نرسل headers تلقائياً
+// سيتم استدعاء sendCORSHeaders() يدوياً بعد حفظ الجلسة
+$currentScript = basename($_SERVER['SCRIPT_NAME'] ?? '');
+$isWebAuthnLogin = ($currentScript === 'webauthn_login.php');
 
-// إضافة headers إضافية للأمان
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: SAMEORIGIN');
-header('X-XSS-Protection: 1; mode=block');
+// ✅ إرسال CORS headers تلقائياً فقط إذا لم يكن webauthn_login.php
+// webauthn_login.php سيدعو sendCORSHeaders() يدوياً بعد حفظ الجلسة
+if (!$isWebAuthnLogin) {
+    sendCORSHeaders();
+}
 
-// معالجة طلبات OPTIONS (preflight)
+// معالجة طلبات OPTIONS (preflight) - يجب أن تكون بعد إرسال CORS headers
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    if (!$isWebAuthnLogin) {
+        sendCORSHeaders(); // إرسال CORS headers للـ preflight
+    }
     http_response_code(200);
     exit();
 }

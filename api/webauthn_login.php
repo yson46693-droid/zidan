@@ -73,8 +73,9 @@ $action = $input['action'] ?? '';
 
 try {
     if ($action === 'create_challenge') {
-        // إرسال headers قبل أي output
+        // ✅ إرسال CORS headers قبل أي شيء (لا نحتاج إلى حفظ جلسة هنا)
         if (!headers_sent()) {
+            sendCORSHeaders();
             header('Content-Type: application/json; charset=utf-8');
         }
         
@@ -107,6 +108,7 @@ try {
         
         if (empty($response)) {
             if (!headers_sent()) {
+                sendCORSHeaders();
                 header('Content-Type: application/json; charset=utf-8');
             }
             http_response_code(400);
@@ -119,6 +121,7 @@ try {
             $response = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 if (!headers_sent()) {
+                    sendCORSHeaders();
                     header('Content-Type: application/json; charset=utf-8');
                 }
                 http_response_code(400);
@@ -130,6 +133,7 @@ try {
         // إذا كان response هو array بالفعل، استخدمه مباشرة
         if (!is_array($response)) {
             if (!headers_sent()) {
+                sendCORSHeaders();
                 header('Content-Type: application/json; charset=utf-8');
             }
             http_response_code(400);
@@ -222,8 +226,14 @@ try {
                 error_log("WebAuthn Login API - Headers sent after session_commit: " . (headers_sent() ? 'YES' : 'NO'));
                 error_log("WebAuthn Login API - Cookies after session_commit: " . json_encode($_COOKIE));
                 
-                // ✅ تسجيل cookies بعد حفظ الجلسة
-                error_log("WebAuthn Login API - Cookies after session_commit: " . json_encode($_COOKIE));
+                // ✅ CRITICAL: إرسال CORS headers بعد حفظ الجلسة مباشرة
+                // هذا يضمن أن الجلسة تم حفظها في cookies قبل إرسال أي headers أخرى
+                if (!headers_sent()) {
+                    sendCORSHeaders();
+                    error_log("WebAuthn Login API - ✅ CORS headers sent after session commit");
+                } else {
+                    error_log("WebAuthn Login API - ⚠️ Cannot send CORS headers - headers already sent");
+                }
                 
                 // ✅ CRITICAL: التحقق من أن البيانات محفوظة في $_SESSION قبل response()
                 error_log("WebAuthn Login API - Final session data before response(): " . json_encode($_SESSION));
@@ -233,15 +243,9 @@ try {
                     error_log("WebAuthn Login API - ❌ ERROR: User data NOT found in session before response()!");
                 }
                 
-                // ✅ CRITICAL: التحقق مرة أخرى من أن headers لم يتم إرسالها قبل response()
-                if (headers_sent($file, $line)) {
-                    error_log("WebAuthn Login API - ❌ CRITICAL ERROR: Headers sent at $file:$line before response() call!");
-                    // على أي حال، نحاول إرسال الاستجابة
-                }
-                
                 // ✅ CRITICAL: استخدام response() من config.php بدلاً من echo مباشرة
                 // response() سيتعامل مع headers بشكل صحيح
-                // لكن يجب أن نكون حذرين لأن response() قد يرسل headers إذا لم يتم إرسالها بعد
+                // CORS headers تم إرسالها بالفعل بعد حفظ الجلسة
                 response(true, 'تم تسجيل الدخول بنجاح', [
                     'id' => $user['id'],
                     'username' => $user['username'],
@@ -252,6 +256,7 @@ try {
                 ]);
             } else {
                 if (!headers_sent()) {
+                    sendCORSHeaders();
                     header('Content-Type: application/json; charset=utf-8');
                 }
                 http_response_code(404);
@@ -259,6 +264,7 @@ try {
             }
         } else {
             if (!headers_sent()) {
+                sendCORSHeaders();
                 header('Content-Type: application/json; charset=utf-8');
             }
             http_response_code(401);
@@ -267,6 +273,7 @@ try {
         
     } else {
         if (!headers_sent()) {
+            sendCORSHeaders();
             header('Content-Type: application/json; charset=utf-8');
         }
         http_response_code(400);
@@ -282,6 +289,7 @@ try {
     error_log("WebAuthn Login API Error: " . json_encode($errorDetails, JSON_UNESCAPED_UNICODE));
     
     if (!headers_sent()) {
+        sendCORSHeaders();
         header('Content-Type: application/json; charset=utf-8');
     }
     http_response_code(500);
@@ -307,6 +315,7 @@ try {
     error_log("WebAuthn Login API Fatal Error: " . json_encode($errorDetails, JSON_UNESCAPED_UNICODE));
     
     if (!headers_sent()) {
+        sendCORSHeaders();
         header('Content-Type: application/json; charset=utf-8');
     }
     http_response_code(500);
