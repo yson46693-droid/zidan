@@ -4798,26 +4798,34 @@ body {
         display: none !important;
     }
     
-    /* تحسين قائمة الإشعارات على الهاتف */
+    /* تحسين قائمة الإشعارات على الهاتف - تنسدل مباشرة تحت الـ top bar */
+    .top-bar {
+        position: relative !important;
+        z-index: 1000 !important;
+    }
+    
     .notifications-list {
         position: fixed !important;
-        top: auto !important;
-        bottom: 80px !important;
-        right: 10px !important;
-        left: 10px !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
         min-width: auto !important;
-        max-width: calc(100% - 20px) !important;
-        max-height: calc(100vh - 200px) !important;
-        z-index: 10000 !important;
+        max-width: 100% !important;
         margin-top: 0 !important;
-        border-radius: 12px !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        border-radius: 0 !important;
+        border-top: none !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--border-color) !important;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
         -webkit-overflow-scrolling: touch !important;
         touch-action: pan-y !important;
+        z-index: 10001 !important;
     }
     
     .notifications-list .notifications-items {
-        max-height: calc(100vh - 250px) !important;
         -webkit-overflow-scrolling: touch !important;
     }
     

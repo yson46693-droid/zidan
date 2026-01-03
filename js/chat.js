@@ -1316,6 +1316,10 @@ let messageSentListener = null;
 let visibilityChangeListener = null;
 let focusListener = null;
 
+// ✅ Throttling للتحقق من الرسائل الجديدة
+let lastCheckTime = 0;
+const MIN_CHECK_INTERVAL = 3000; // الحد الأدنى 3 ثواني بين الطلبات
+
 function startLongPolling() {
     if (longPollingActive) return;
     
@@ -1325,7 +1329,7 @@ function startLongPolling() {
 
 /**
  * فحص دوري للرسائل الجديدة - تحديث فوري لجميع المستخدمين
- * النظام يقوم بفحص دوري كل 2 ثانية للتحقق من الرسائل الجديدة
+ * النظام يقوم بفحص دوري كل 5 ثواني للتحقق من الرسائل الجديدة (محسّن لتقليل الضغط على السيرفر)
  */
 function startPeriodicCheck() {
     if (!longPollingActive) return;
@@ -1336,13 +1340,13 @@ function startPeriodicCheck() {
     // فحص فوري أولاً عند فتح الشات
     checkForNewMessages();
     
-    // ✅ فحص دوري كل 2 ثانية للتحقق من الرسائل الجديدة
-    // هذا يضمن تحديث فوري لجميع المستخدمين عند إرسال رسالة جديدة
+    // ✅ فحص دوري كل 5 ثواني (تم تقليل الطلبات من 2 ثانية إلى 5 ثواني)
+    // هذا يقلل الطلبات من 30/دقيقة إلى 12/دقيقة لكل مستخدم
     checkInterval = setInterval(() => {
         if (longPollingActive && !document.hidden) {
             checkForNewMessages();
         }
-    }, 2000); // كل 2 ثانية
+    }, 5000); // كل 5 ثواني (بدلاً من 2 ثانية)
     
     // الاستماع لحدث إرسال رسالة جديدة من نفس الصفحة
     // عند إرسال رسالة جديدة، نفحص فوراً للمستخدمين الآخرين
@@ -1400,6 +1404,13 @@ function stopPeriodicCheck() {
  */
 async function checkForNewMessages() {
     if (!longPollingActive) return;
+    
+    // ✅ Throttling: منع الطلبات المتكررة جداً
+    const now = Date.now();
+    if (now - lastCheckTime < MIN_CHECK_INTERVAL) {
+        return; // تخطي إذا مر أقل من 3 ثواني منذ آخر طلب
+    }
+    lastCheckTime = now;
     
     try {
         // فتح اتصال SSE مؤقت فقط عند وجود إشعار معلق

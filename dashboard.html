@@ -4900,6 +4900,26 @@
             notificationsList.style.display = isVisible ? 'none' : 'block';
             
             if (!isVisible) {
+                // على الهاتف، حساب ارتفاع الـ top bar وتحديث موضع قائمة الإشعارات
+                if (window.innerWidth <= 575.98) {
+                    const topBar = document.querySelector('.top-bar');
+                    if (topBar) {
+                        const topBarHeight = topBar.offsetHeight;
+                        notificationsList.style.top = topBarHeight + 'px';
+                        notificationsList.style.position = 'fixed';
+                        notificationsList.style.left = '0';
+                        notificationsList.style.right = '0';
+                        notificationsList.style.width = '100%';
+                        notificationsList.style.maxWidth = '100%';
+                        notificationsList.style.borderRadius = '0';
+                        notificationsList.style.borderTop = 'none';
+                        notificationsList.style.borderLeft = 'none';
+                        notificationsList.style.borderRight = 'none';
+                        notificationsList.style.borderBottom = '1px solid var(--border-color)';
+                        notificationsList.style.zIndex = '10001';
+                        notificationsList.style.maxHeight = 'calc(100vh - ' + (topBarHeight + 20) + 'px)';
+                    }
+                }
                 renderNotificationsList();
             }
         }
@@ -5145,6 +5165,33 @@
                 notificationsList.style.display = 'none';
             }
         });
+        
+        // تحديث موضع قائمة الإشعارات عند تغيير حجم الشاشة
+        function updateNotificationsListPosition() {
+            const notificationsList = document.getElementById('notificationsList');
+            if (!notificationsList) return;
+            
+            if (window.innerWidth <= 575.98 && notificationsList.style.display !== 'none') {
+                const topBar = document.querySelector('.top-bar');
+                if (topBar) {
+                    const topBarHeight = topBar.offsetHeight;
+                    notificationsList.style.top = topBarHeight + 'px';
+                    notificationsList.style.maxHeight = 'calc(100vh - ' + (topBarHeight + 20) + 'px)';
+                }
+            }
+        }
+        
+        // تحديث الموضع عند تغيير حجم الشاشة
+        window.addEventListener('resize', updateNotificationsListPosition);
+        
+        // تحديث الموضع عند تحميل الصفحة
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(updateNotificationsListPosition, 100);
+            });
+        } else {
+            setTimeout(updateNotificationsListPosition, 100);
+        }
         
         // إغلاق قائمة الإشعارات عند اللمس خارجها على الهاتف
         document.addEventListener('touchend', function(event) {

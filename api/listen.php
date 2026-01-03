@@ -179,14 +179,30 @@ function ensureActiveUsersTable() {
 
 /**
  * تحديث حالة النشاط للمستخدم
+ * ✅ محسّن: يستخدم throttling لتقليل تحديثات قاعدة البيانات (كل 30 ثانية كحد أقصى)
  */
 function updateUserActivity($userId) {
     try {
+        // ✅ Throttling: تحديث فقط كل 30 ثانية لتقليل الضغط على قاعدة البيانات
+        static $lastActivityUpdate = [];
+        static $activityUpdateThreshold = 30000; // 30 ثانية بالمللي ثانية
+        
+        $now = round(microtime(true) * 1000); // milliseconds
+        if (isset($lastActivityUpdate[$userId])) {
+            $timeSinceLastUpdate = $now - $lastActivityUpdate[$userId];
+            if ($timeSinceLastUpdate < $activityUpdateThreshold) {
+                return; // تخطي التحديث إذا مر أقل من 30 ثانية
+            }
+        }
+        
         // التأكد من وجود الجدول أولاً
         if (!ensureActiveUsersTable()) {
             error_log('فشل في التأكد من وجود جدول active_users');
             return;
         }
+        
+        // تحديث timestamp
+        $lastActivityUpdate[$userId] = $now;
         
         // التحقق من وجود المستخدم في active_users
         $existing = dbSelectOne("SELECT * FROM active_users WHERE user_id = ?", [$userId]);
