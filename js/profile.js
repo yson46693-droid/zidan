@@ -807,7 +807,7 @@ async function updateCredentialsList() {
         
         // البحث عن العنوان بعدة طرق
         let credentialsHeader = document.querySelector('.credentials-list-section h4');
-        if (!credentialsHeader) {
+        if (!credentialsHeader && credentialsList) {
             const listSection = credentialsList.closest('.credentials-list-section');
             if (listSection) {
                 credentialsHeader = listSection.querySelector('h4');

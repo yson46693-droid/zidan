@@ -956,9 +956,9 @@ function displayUsers(users) {
                 <span class="cell-content">${name}</span>
             </td>`;
             
-            // الدور - قابل للتعديل (dropdown)
-            roleCell = `<td class="editable-cell" data-field="role" data-user-id="${userIdRaw}" data-value="${roleRaw}" style="cursor: pointer; position: relative;">
-                <span class="cell-content">${getRoleTextFunc(roleRaw)}</span>
+            // الدور - غير قابل للتعديل (ممنوع تغييره)
+            roleCell = `<td style="cursor: default;">
+                <span>${getRoleTextFunc(roleRaw)}</span>
             </td>`;
             
             // الفرع - قابل للتعديل (dropdown)
@@ -1031,10 +1031,8 @@ function setupUsersTableEventListeners() {
                     
                     if (!field || !userId) return;
                     
-                    // فتح حقل التعديل حسب نوع الحقل
-                    if (field === 'role') {
-                        await showRoleDropdown(editableCell, userId, currentValue);
-                    } else if (field === 'branch_id') {
+                    // فتح حقل التعديل حسب نوع الحقل (الدور ممنوع)
+                    if (field === 'branch_id') {
                         await showBranchDropdown(editableCell, userId, currentValue);
                     } else if (field === 'name' || field === 'username') {
                         showTextInput(editableCell, userId, field, currentValue);
@@ -1306,33 +1304,177 @@ async function saveUserField(userId, field, value, cell) {
     try {
         const updateData = { [field]: value };
         
+        console.log('💾 حفظ حقل المستخدم:', { userId, field, value, updateData });
+        
         const result = await API.updateUser(userId, updateData);
+        
+        console.log('📥 نتيجة التحديث:', result);
         
         if (result && result.success) {
             showMessage('تم تحديث البيانات بنجاح', 'success');
             
-            // تحديث الخلية
-            const fieldName = field === 'branch_id' ? 'branch_name' : field;
-            const displayValue = result.data?.[fieldName] || value;
+            // ✅ إعادة جلب بيانات المستخدم المحدثة من API
+            const userResult = await API.getUser(userId);
             
-            // تحديث النص المعروض
-            let displayText = displayValue;
-            if (field === 'role') {
-                const roles = {
-                    'admin': 'مالك',
-                    'manager': 'مدير',
-                    'technician': 'فني صيانة',
-                    'employee': 'موظف'
-                };
-                displayText = roles[value] || value;
-            } else if (field === 'branch_id') {
-                displayText = displayValue || (value ? 'غير محدد' : 'لا فرع');
+            if (userResult && userResult.success && userResult.data) {
+                const updatedUser = userResult.data;
+                
+                // ✅ التحقق من أن المستخدم المحدث هو المستخدم الحالي (المسجل دخول)
+                const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                const isCurrentUser = currentUser && currentUser.id === userId;
+                
+                if (isCurrentUser) {
+                    console.log('🔄 المستخدم المحدث هو المستخدم الحالي - تحديث البيانات والصلاحيات');
+                    
+                    // ✅ تحديث بيانات المستخدم في localStorage
+                    const updatedUserData = {
+                        ...currentUser,
+                        ...updatedUser
+                    };
+                    
+                    // ✅ إذا تم تغيير الفرع، جلب branch_code من الفروع
+                    if (field === 'branch_id') {
+                        try {
+                            if (updatedUser.branch_id) {
+                                // جلب branch_code للفرع الجديد
+                                const branchesResult = await API.request('branches.php', 'GET', null, { skipCache: true });
+                                if (branchesResult && branchesResult.success && branchesResult.data) {
+                                    const branch = branchesResult.data.find(b => String(b.id) === String(updatedUser.branch_id));
+                                    if (branch && branch.code) {
+                                        updatedUserData.branch_code = branch.code;
+                                        console.log('✅ تم تحديث branch_code:', branch.code);
+                                    } else {
+                                        // إذا لم يتم العثور على الفرع، إزالة branch_code
+                                        delete updatedUserData.branch_code;
+                                        console.log('⚠️ لم يتم العثور على branch_code للفرع:', updatedUser.branch_id);
+                                    }
+                                }
+                            } else {
+                                // إذا تم حذف الفرع (null)، إزالة branch_code
+                                delete updatedUserData.branch_code;
+                                console.log('✅ تم إزالة branch_code (لا فرع)');
+                            }
+                        } catch (e) {
+                            console.warn('لم يتم جلب branch_code:', e);
+                        }
+                    }
+                    
+                    localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
+                    
+                    // ✅ تحديث الشريط الجانبي
+                    if (typeof displayUserInfo === 'function') {
+                        displayUserInfo();
+                    }
+                    
+                    // ✅ تحديث الصلاحيات في الشريط الجانبي
+                    if (typeof hideByPermission === 'function') {
+                        await hideByPermission();
+                    }
+                    
+                    // ✅ إعادة تحميل الأقسام المفتوحة لتحديث الأزرار والصلاحيات
+                    // التحقق من القسم النشط الحالي
+                    const activeSection = document.querySelector('.section.active, [id$="-section"].active');
+                    const activeSectionId = activeSection?.id || '';
+                    
+                    // ✅ إعادة تحميل قسم المخزن إذا كان مفتوحاً
+                    if (activeSectionId === 'inventory-section' || document.getElementById('inventory-section')?.classList.contains('active')) {
+                        if (typeof loadInventorySection === 'function') {
+                            console.log('🔄 إعادة تحميل قسم المخزن لتحديث الأزرار والصلاحيات');
+                            try {
+                                await loadInventorySection();
+                            } catch (e) {
+                                console.error('خطأ في إعادة تحميل قسم المخزن:', e);
+                            }
+                        }
+                    }
+                    
+                    // ✅ إعادة تحميل قسم الصيانة إذا كان مفتوحاً
+                    if (activeSectionId === 'repairs-section' || document.getElementById('repairs-section')?.classList.contains('active')) {
+                        if (typeof loadRepairsSection === 'function') {
+                            console.log('🔄 إعادة تحميل قسم الصيانة');
+                            try {
+                                await loadRepairsSection();
+                            } catch (e) {
+                                console.error('خطأ في إعادة تحميل قسم الصيانة:', e);
+                            }
+                        }
+                    }
+                    
+                    // ✅ إعادة تحميل قسم العملاء إذا كان مفتوحاً
+                    if (activeSectionId === 'customers-section' || document.getElementById('customers-section')?.classList.contains('active')) {
+                        if (typeof loadCustomersSection === 'function') {
+                            console.log('🔄 إعادة تحميل قسم العملاء');
+                            try {
+                                await loadCustomersSection();
+                            } catch (e) {
+                                console.error('خطأ في إعادة تحميل قسم العملاء:', e);
+                            }
+                        }
+                    }
+                    
+                    // ✅ إعادة تحميل قسم المصروفات إذا كان مفتوحاً
+                    if (activeSectionId === 'expenses-section' || document.getElementById('expenses-section')?.classList.contains('active')) {
+                        if (typeof loadExpensesSection === 'function') {
+                            console.log('🔄 إعادة تحميل قسم المصروفات');
+                            try {
+                                await loadExpensesSection();
+                            } catch (e) {
+                                console.error('خطأ في إعادة تحميل قسم المصروفات:', e);
+                            }
+                        }
+                    }
+                    
+                    // ✅ إذا تم تغيير الفرع، إعادة تحميل جميع الأقسام التي تعتمد على الفرع
+                    if (field === 'branch_id') {
+                        console.log('🔄 تم تغيير الفرع - إعادة تحميل جميع الأقسام المعتمدة على الفرع');
+                        
+                        // إعادة تحميل المخزن دائماً (لأن الأزرار تعتمد على الفرع)
+                        if (typeof loadInventorySection === 'function') {
+                            try {
+                                await loadInventorySection();
+                            } catch (e) {
+                                console.error('خطأ في إعادة تحميل قسم المخزن:', e);
+                            }
+                        }
+                    }
+                    
+                    // ✅ مسح cache الفروع لإجبار إعادة الجلب
+                    if (field === 'branch_id') {
+                        localStorage.removeItem('branches_cache');
+                        // مسح cache API
+                        if (typeof API_CACHE !== 'undefined' && API_CACHE.clear) {
+                            API_CACHE.clear();
+                        }
+                    }
+                }
+                
+                // تحديث الخلية بالبيانات المحدثة
+                let displayText = '';
+                
+                if (field === 'name') {
+                    displayText = updatedUser.name || value;
+                } else if (field === 'username') {
+                    displayText = updatedUser.username || value;
+                } else if (field === 'branch_id') {
+                    displayText = updatedUser.branch_name || (value ? 'غير محدد' : 'لا فرع');
+                }
+                
+                // تحديث الخلية
+                cell.innerHTML = `<span class="cell-content">${escapeHtml(displayText)}</span>`;
+                cell.setAttribute('data-value', value || '');
+                
+                console.log('✅ تم تحديث الخلية:', { field, displayText, value });
+            } else {
+                // إذا فشل جلب البيانات، استخدام القيمة المحدثة مباشرة
+                let displayText = value;
+                if (field === 'branch_id') {
+                    displayText = value ? 'غير محدد' : 'لا فرع';
+                }
+                cell.innerHTML = `<span class="cell-content">${escapeHtml(displayText)}</span>`;
+                cell.setAttribute('data-value', value || '');
             }
             
-            cell.innerHTML = `<span class="cell-content">${escapeHtml(displayText)}</span>`;
-            cell.setAttribute('data-value', value || '');
-            
-            // إعادة تحميل الجدول لإظهار التحديثات
+            // ✅ إعادة تحميل الجدول بالكامل لإظهار جميع التحديثات
             await loadUsers(true);
         } else {
             showMessage(result?.message || 'فشل تحديث البيانات', 'error');
