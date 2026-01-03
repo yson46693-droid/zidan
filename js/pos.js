@@ -3360,26 +3360,27 @@ async function initializePOSQRCodeScanner() {
         // حساب حجم qrbox بناءً على حجم الحاوية - حجم أكبر للتعرف الأسرع (95% للتعرف الأمثل)
         const qrboxSize = Math.min(containerWidth * 0.95, containerHeight * 0.95, 350);
         
-        // إعدادات محسّنة للسرعة القصوى - fps أعلى + دقة محسّنة + تحسينات متقدمة
+        // إعدادات محسّنة للسرعة والدقة الطبيعية (بدون zoom مفرط)
         const config = {
-            fps: 60, // زيادة إلى 60 fps للتعرف الأسرع (أقصى سرعة)
+            fps: 30, // 30 fps كافٍ للتعرف السريع (تقليل من 60 لتقليل استهلاك البطارية)
             qrbox: { width: qrboxSize, height: qrboxSize },
             aspectRatio: containerWidth / containerHeight,
             disableFlip: false,
-            // إعدادات الكاميرا المحسّنة للسرعة والدقة القصوى
+            // إعدادات الكاميرا المحسّنة - دقة طبيعية بدون zoom
             videoConstraints: {
                 width: { 
-                    ideal: Math.min(containerWidth * 2, 1280), // دقة أعلى للتعرف الأفضل
-                    max: 1920 // حد أقصى معقول
+                    ideal: Math.min(containerWidth, 640), // دقة طبيعية بدون تكبير
+                    max: 1280 // حد أقصى معقول
                 },
                 height: { 
-                    ideal: Math.min(containerHeight * 2, 720),
-                    max: 1080
+                    ideal: Math.min(containerHeight, 480),
+                    max: 720
                 },
-                frameRate: { ideal: 60, max: 60 }, // معدل إطارات ثابت 60 fps
-                focusMode: "continuous", // تركيز مستمر للتعرف الأسرع
-                exposureMode: "continuous",
-                whiteBalanceMode: "continuous" // توازن الأبيض المستمر
+                frameRate: { ideal: 30, max: 30 }, // 30 fps كافٍ
+                // إزالة focusMode و exposureMode للسماح بالضبط التلقائي الطبيعي
+                // focusMode: "continuous", // إزالة لتجنب zoom مفرط
+                // exposureMode: "continuous", // إزالة
+                // whiteBalanceMode: "continuous" // إزالة
             }
         };
         

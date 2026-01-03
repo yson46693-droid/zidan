@@ -1,5 +1,5 @@
-// إدارة صلاحيات الموقع - طلب الصلاحيات عند أول فتح
-// ✅ يطلب المايكروفون والكاميرا والملفات والنماذج المنبثقة عند أول فتح
+// إدارة صلاحيات الموقع - طلب الصلاحيات عند الحاجة الفعلية فقط
+// ✅ يطلب الصلاحيات فقط عند الاستخدام الفعلي (مايك/كاميرا) وليس عند فتح الموقع
 
 /**
  * طلب صلاحية المايكروفون
@@ -256,76 +256,21 @@ async function requestAllPermissions() {
 }
 
 /**
- * طلب الصلاحيات عند تحميل الصفحة (بعد تفاعل المستخدم)
+ * تهيئة نظام الصلاحيات (بدون طلب الصلاحيات تلقائياً)
+ * الصلاحيات سيتم طلبها فقط عند الحاجة الفعلية (عند استخدام المايك/الكاميرا)
  */
 function initPermissions() {
-    // التحقق من أننا لم نطلب الصلاحيات من قبل
-    const permissionsRequested = localStorage.getItem('permissionsRequested');
-    if (permissionsRequested === 'true') {
-        console.log('⏸️ تم طلب الصلاحيات من قبل - تخطي');
-        return;
-    }
-    
-    // انتظار تحميل الصفحة
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            // طلب الصلاحيات بعد تفاعل المستخدم الأول (click, touch, keydown)
-            const requestPermissionsOnInteraction = async () => {
-                // التحقق مرة أخرى قبل الطلب
-                const alreadyRequested = localStorage.getItem('permissionsRequested');
-                if (alreadyRequested === 'true') {
-                    return;
-                }
-                
-                // إزالة event listeners بعد أول تفاعل
-                document.removeEventListener('click', requestPermissionsOnInteraction);
-                document.removeEventListener('touchstart', requestPermissionsOnInteraction);
-                document.removeEventListener('keydown', requestPermissionsOnInteraction);
-                
-                // طلب الصلاحيات
-                await requestAllPermissions();
-            };
-            
-            // إضافة event listeners للتفاعل الأول
-            document.addEventListener('click', requestPermissionsOnInteraction, { once: true, passive: true });
-            document.addEventListener('touchstart', requestPermissionsOnInteraction, { once: true, passive: true });
-            document.addEventListener('keydown', requestPermissionsOnInteraction, { once: true, passive: true });
-            
-            // طلب الصلاحيات تلقائياً بعد 2 ثوان (إذا لم يكن هناك تفاعل)
-            setTimeout(async () => {
-                const alreadyRequested = localStorage.getItem('permissionsRequested');
-                if (alreadyRequested !== 'true') {
-                    console.log('⏰ طلب الصلاحيات تلقائياً بعد 2 ثوان');
-                    await requestAllPermissions();
-                }
-            }, 2000);
-        });
-    } else {
-        // إذا كانت الصفحة محملة بالفعل
-        const requestPermissionsOnInteraction = async () => {
-            const alreadyRequested = localStorage.getItem('permissionsRequested');
-            if (alreadyRequested === 'true') {
-                return;
-            }
-            
-            document.removeEventListener('click', requestPermissionsOnInteraction);
-            document.removeEventListener('touchstart', requestPermissionsOnInteraction);
-            document.removeEventListener('keydown', requestPermissionsOnInteraction);
-            
-            await requestAllPermissions();
-        };
+    // التحقق من الصلاحيات المخزنة وتحديثها إذا لزم الأمر
+    // بدون طلب أي صلاحيات - فقط التحقق من الحالة
+    try {
+        // التحقق من صلاحية المايكروفون (بدون طلب)
+        checkMicrophonePermission().catch(() => {});
         
-        document.addEventListener('click', requestPermissionsOnInteraction, { once: true, passive: true });
-        document.addEventListener('touchstart', requestPermissionsOnInteraction, { once: true, passive: true });
-        document.addEventListener('keydown', requestPermissionsOnInteraction, { once: true, passive: true });
-        
-        setTimeout(async () => {
-            const alreadyRequested = localStorage.getItem('permissionsRequested');
-            if (alreadyRequested !== 'true') {
-                console.log('⏰ طلب الصلاحيات تلقائياً بعد 2 ثوان');
-                await requestAllPermissions();
-            }
-        }, 2000);
+        // التحقق من صلاحية الكاميرا (بدون طلب)
+        checkCameraPermission().catch(() => {});
+    } catch (error) {
+        // خطأ صامت - لا نريد إزعاج المستخدم
+        console.log('⚠️ لا يمكن التحقق من الصلاحيات:', error);
     }
 }
 
@@ -335,12 +280,41 @@ function initPermissions() {
  */
 async function checkMicrophonePermission() {
     try {
+        // التحقق من localStorage أولاً (إذا كانت الصلاحية مخزنة)
+        const storedPermission = localStorage.getItem('microphonePermission');
+        if (storedPermission === 'granted') {
+            // التحقق من الصلاحية الفعلية للتأكد من أنها لم تتغير
+            if (navigator.permissions) {
+                try {
+                    const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                    // إذا تغيرت الصلاحية، تحديث localStorage
+                    if (permissionStatus.state !== storedPermission) {
+                        localStorage.setItem('microphonePermission', permissionStatus.state);
+                        return permissionStatus.state;
+                    }
+                    return 'granted';
+                } catch (e) {
+                    // إذا فشل التحقق من Permissions API، نثق في القيمة المخزنة
+                    return 'granted';
+                }
+            }
+            // إذا لم يكن Permissions API متاحاً، نثق في القيمة المخزنة
+            return 'granted';
+        }
+        
+        if (storedPermission === 'denied') {
+            return 'denied';
+        }
+        
+        // إذا لم تكن هناك قيمة مخزنة، التحقق من Permissions API
         if (!navigator.permissions) {
             return null; // لا يمكن التحقق
         }
         
         try {
             const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+            // تخزين حالة الصلاحية
+            localStorage.setItem('microphonePermission', permissionStatus.state);
             return permissionStatus.state;
         } catch (e) {
             // بعض المتصفحات لا تدعم 'microphone' في permissions.query
@@ -358,12 +332,41 @@ async function checkMicrophonePermission() {
  */
 async function checkCameraPermission() {
     try {
+        // التحقق من localStorage أولاً (إذا كانت الصلاحية مخزنة)
+        const storedPermission = localStorage.getItem('cameraPermission');
+        if (storedPermission === 'granted') {
+            // التحقق من الصلاحية الفعلية للتأكد من أنها لم تتغير
+            if (navigator.permissions) {
+                try {
+                    const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+                    // إذا تغيرت الصلاحية، تحديث localStorage
+                    if (permissionStatus.state !== storedPermission) {
+                        localStorage.setItem('cameraPermission', permissionStatus.state);
+                        return permissionStatus.state;
+                    }
+                    return 'granted';
+                } catch (e) {
+                    // إذا فشل التحقق من Permissions API، نثق في القيمة المخزنة
+                    return 'granted';
+                }
+            }
+            // إذا لم يكن Permissions API متاحاً، نثق في القيمة المخزنة
+            return 'granted';
+        }
+        
+        if (storedPermission === 'denied') {
+            return 'denied';
+        }
+        
+        // إذا لم تكن هناك قيمة مخزنة، التحقق من Permissions API
         if (!navigator.permissions) {
             return null; // لا يمكن التحقق
         }
         
         try {
             const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+            // تخزين حالة الصلاحية
+            localStorage.setItem('cameraPermission', permissionStatus.state);
             return permissionStatus.state;
         } catch (e) {
             // بعض المتصفحات لا تدعم 'camera' في permissions.query
@@ -388,13 +391,24 @@ async function getMicrophoneStream(constraints = { audio: true }) {
             return null;
         }
         
-        // التحقق من حالة الصلاحية أولاً
+        // التحقق من حالة الصلاحية أولاً (بدون طلب الصلاحية)
         const permissionState = await checkMicrophonePermission();
         
         if (permissionState === 'granted') {
             // الصلاحية ممنوحة بالفعل - لن يظهر prompt
             console.log('✅ صلاحية المايكروفون ممنوحة - استخدام مباشر');
-            return await navigator.mediaDevices.getUserMedia(constraints);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                // تأكيد الحصول على الصلاحية وتخزينها
+                localStorage.setItem('microphonePermission', 'granted');
+                return stream;
+            } catch (error) {
+                // إذا فشل، قد تكون الصلاحية تم رفضها
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    localStorage.setItem('microphonePermission', 'denied');
+                }
+                throw error;
+            }
         }
         
         if (permissionState === 'denied') {
@@ -404,7 +418,18 @@ async function getMicrophoneStream(constraints = { audio: true }) {
         }
         
         // إذا كانت 'prompt' أو null، طلب الصلاحية (سيظهر prompt مرة واحدة فقط)
-        return await navigator.mediaDevices.getUserMedia(constraints);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            // بعد الحصول على الصلاحية بنجاح، تخزينها
+            localStorage.setItem('microphonePermission', 'granted');
+            return stream;
+        } catch (error) {
+            // إذا فشل، تخزين حالة الرفض
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                localStorage.setItem('microphonePermission', 'denied');
+            }
+            throw error;
+        }
     } catch (error) {
         console.error('❌ خطأ في الحصول على stream المايكروفون:', error);
         return null;
@@ -424,13 +449,24 @@ async function getCameraStream(constraints = { video: true }) {
             return null;
         }
         
-        // التحقق من حالة الصلاحية أولاً
+        // التحقق من حالة الصلاحية أولاً (بدون طلب الصلاحية)
         const permissionState = await checkCameraPermission();
         
         if (permissionState === 'granted') {
             // الصلاحية ممنوحة بالفعل - لن يظهر prompt
             console.log('✅ صلاحية الكاميرا ممنوحة - استخدام مباشر');
-            return await navigator.mediaDevices.getUserMedia(constraints);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                // تأكيد الحصول على الصلاحية وتخزينها
+                localStorage.setItem('cameraPermission', 'granted');
+                return stream;
+            } catch (error) {
+                // إذا فشل، قد تكون الصلاحية تم رفضها
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    localStorage.setItem('cameraPermission', 'denied');
+                }
+                throw error;
+            }
         }
         
         if (permissionState === 'denied') {
@@ -440,7 +476,18 @@ async function getCameraStream(constraints = { video: true }) {
         }
         
         // إذا كانت 'prompt' أو null، طلب الصلاحية (سيظهر prompt مرة واحدة فقط)
-        return await navigator.mediaDevices.getUserMedia(constraints);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            // بعد الحصول على الصلاحية بنجاح، تخزينها
+            localStorage.setItem('cameraPermission', 'granted');
+            return stream;
+        } catch (error) {
+            // إذا فشل، تخزين حالة الرفض
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                localStorage.setItem('cameraPermission', 'denied');
+            }
+            throw error;
+        }
     } catch (error) {
         console.error('❌ خطأ في الحصول على stream الكاميرا:', error);
         return null;
@@ -495,5 +542,6 @@ if (typeof window !== 'undefined') {
     window.checkNotificationPermission = checkNotificationPermission;
 }
 
-// تهيئة طلب الصلاحيات عند تحميل الملف
+// تهيئة نظام الصلاحيات (بدون طلب الصلاحيات تلقائياً)
+// الصلاحيات سيتم طلبها فقط عند الحاجة الفعلية
 initPermissions();

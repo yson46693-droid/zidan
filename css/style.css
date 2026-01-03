@@ -801,6 +801,49 @@ body {
     .content {
         padding-bottom: 30px;
     }
+    
+    /* تحسينات عامة للنماذج والبطاقات */
+    .card,
+    .form-container,
+    .data-card {
+        padding: 15px !important;
+        margin-bottom: 15px !important;
+    }
+    
+    /* تصغير الأزرار */
+    .btn {
+        padding: 10px 15px !important;
+        font-size: 14px !important;
+    }
+    
+    .btn-icon {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+    }
+    
+    /* تحسين الجداول */
+    .data-table {
+        font-size: 13px !important;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px !important;
+        font-size: 12px !important;
+    }
+    
+    /* تحسين العناوين */
+    .section-header h2 {
+        font-size: 1.3em !important;
+    }
+    
+    h3 {
+        font-size: 1.1em !important;
+    }
+    
+    h4 {
+        font-size: 1em !important;
+    }
 }
 
 /* الأقسام */
@@ -9533,36 +9576,76 @@ body > .nav-link,
     #treasury-withdrawals-section {
         padding-bottom: 30px;
     }
+    
+    /* تحسينات responsive لصفحة خزنة الفرع */
+    .treasury-header {
+        padding: 15px !important;
+    }
+    
+    .treasury-summary,
+    .sales-summary {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .summary-card {
+        padding: 15px !important;
+    }
+    
+    .sales-filter-section {
+        padding: 15px !important;
+    }
+    
+    .branch-switcher {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+    
+    .filter-input {
+        width: 100% !important;
+        padding: 10px !important;
+    }
 }
 
 @media (max-width: 575.98px) {
     .treasury-header {
-        padding: 12px;
-    }
-    
-    .treasury-header h2 {
-        font-size: 1.1em;
-    }
-    
-    .summary-card {
         padding: 10px !important;
     }
     
-    .summary-card label {
-        font-size: 0.85em;
+    .treasury-header h2 {
+        font-size: 1em !important;
     }
     
-    .summary-card div {
-        font-size: 1.2em !important;
-    }
-    
-    .sales-filter-section {
+    .summary-card {
         padding: 12px !important;
     }
     
+    .summary-card label {
+        font-size: 0.8em !important;
+    }
+    
+    .summary-card div {
+        font-size: 1.1em !important;
+    }
+    
+    .sales-filter-section {
+        padding: 10px !important;
+        margin-bottom: 12px !important;
+    }
+    
     .sales-filter-section h3 {
-        font-size: 1.1em;
-        margin-bottom: 12px;
+        font-size: 1em !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .branch-switcher label {
+        font-size: 0.85em !important;
+    }
+    
+    .filter-input {
+        font-size: 0.9em !important;
+        padding: 8px !important;
     }
 }
 

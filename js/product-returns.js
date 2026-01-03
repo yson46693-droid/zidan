@@ -285,42 +285,203 @@ function loadProductReturnsSection() {
             }
             
             @media (max-width: 768px) {
+                /* تقليل الـ padding الرئيسي */
+                .product-returns-container {
+                    padding: 10px !important;
+                    padding-bottom: 30px !important;
+                }
+                
+                /* تقليل padding في قسم البحث */
+                .product-returns-container .search-section {
+                    padding: 15px !important;
+                    margin-bottom: 15px !important;
+                }
+                
+                /* جعل العناصر عمودية */
                 .product-returns-container .search-section > div {
-                    flex-direction: column;
+                    flex-direction: column !important;
+                    gap: 15px !important;
+                }
+                
+                .product-returns-container .search-section > div > div {
+                    flex-direction: column !important;
+                    gap: 10px !important;
+                    width: 100% !important;
+                }
+                
+                /* تصغير الصورة */
+                .product-returns-container .search-section img[alt="ماسح باركود"] {
+                    width: 40px !important;
+                    height: 40px !important;
+                }
+                
+                /* جعل حقل الإدخال والأزرار أصغر */
+                .product-returns-container .search-section p {
+                    font-size: 14px !important;
+                    margin-bottom: 8px !important;
+                }
+                
+                .product-returns-container .search-section > div > div > div {
+                    flex-direction: column !important;
+                    gap: 8px !important;
+                }
+                
+                .product-returns-container .search-section input {
+                    width: 100% !important;
+                    padding: 10px 12px !important;
+                    font-size: 14px !important;
+                }
+                
+                .product-returns-container .search-section button {
+                    width: 100% !important;
+                    padding: 10px 15px !important;
+                    font-size: 14px !important;
+                    justify-content: center !important;
+                }
+                
+                /* تصغير زر QR */
+                .qr-scanner-btn {
+                    padding: 10px 15px !important;
+                    font-size: 14px !important;
+                }
+                
+                .qr-scanner-btn i {
+                    font-size: 16px !important;
+                }
+                
+                /* بطاقة تفاصيل الفاتورة */
+                #invoiceDetailsCard {
+                    padding: 15px !important;
+                    margin-bottom: 15px !important;
+                }
+                
+                #invoiceDetailsCard > div {
+                    flex-direction: column !important;
+                    gap: 15px !important;
+                }
+                
+                #invoiceDetailsCard > div > div:first-child {
+                    min-width: auto !important;
+                    width: 100% !important;
+                }
+                
+                /* العنوان والنصوص */
+                #invoiceDetailsCard h3 {
+                    font-size: 16px !important;
+                }
+                
+                #invoiceDetailsCard p {
+                    font-size: 14px !important;
+                }
+                
+                /* الأزرار داخل بطاقة الفاتورة */
+                #invoiceDetailsCard button {
+                    padding: 8px 15px !important;
+                    font-size: 13px !important;
+                }
+                
+                /* صورة الفاتورة المصغرة */
+                #invoiceDetailsCard > div > div:last-child {
+                    width: 70px !important;
+                    margin: 0 auto;
+                }
+                
+                /* قسم الجداول */
+                #returnsTablesSection {
+                    padding-bottom: 30px !important;
+                    margin-top: 20px !important;
                 }
                 
                 #returnsTablesSection > div {
                     grid-template-columns: 1fr !important;
+                    gap: 15px !important;
                 }
                 
-                .qr-scanner-btn {
-                    padding: 10px 18px !important;
-                    font-size: 14px !important;
+                #returnsTablesSection h3 {
+                    font-size: 16px !important;
+                    margin-bottom: 15px !important;
+                }
+                
+                #returnsTablesSection h4 {
+                    font-size: 15px !important;
+                    margin-bottom: 12px !important;
+                }
+                
+                #returnsTablesSection > div > div {
+                    padding: 15px !important;
                 }
                 
                 .data-table {
                     min-width: 500px !important;
+                    font-size: 13px !important;
                 }
                 
-                /* Invoice thumbnail on mobile */
-                #invoiceDetailsCard > div > div:last-child {
-                    width: 80px !important;
-                    margin: 0 auto;
-                }
-                
-                /* إضافة مساحة سفلية إضافية لمنع اختفاء المحتوى */
-                .product-returns-container {
-                    padding-bottom: 30px !important;
-                }
-                
-                #returnsTablesSection {
-                    padding-bottom: 30px !important;
+                .data-table th,
+                .data-table td {
+                    padding: 8px !important;
+                    font-size: 12px !important;
                 }
             }
             
             @media (max-width: 480px) {
+                /* شاشات صغيرة جداً */
+                .product-returns-container {
+                    padding: 8px !important;
+                }
+                
+                .product-returns-container .search-section {
+                    padding: 12px !important;
+                    margin-bottom: 12px !important;
+                }
+                
+                .product-returns-container .search-section p {
+                    font-size: 13px !important;
+                }
+                
+                .product-returns-container .search-section img[alt="ماسح باركود"] {
+                    width: 35px !important;
+                    height: 35px !important;
+                }
+                
+                .product-returns-container .search-section input,
+                .product-returns-container .search-section button {
+                    padding: 8px 12px !important;
+                    font-size: 13px !important;
+                }
+                
+                #invoiceDetailsCard {
+                    padding: 12px !important;
+                }
+                
+                #invoiceDetailsCard h3 {
+                    font-size: 15px !important;
+                }
+                
+                #invoiceDetailsCard p {
+                    font-size: 13px !important;
+                }
+                
                 #invoiceDetailsCard > div > div:last-child {
-                    width: 70px !important;
+                    width: 60px !important;
+                }
+                
+                #returnsTablesSection h3 {
+                    font-size: 15px !important;
+                }
+                
+                #returnsTablesSection h4 {
+                    font-size: 14px !important;
+                }
+                
+                .data-table {
+                    min-width: 450px !important;
+                    font-size: 12px !important;
+                }
+                
+                .data-table th,
+                .data-table td {
+                    padding: 6px !important;
+                    font-size: 11px !important;
                 }
             }
         </style>

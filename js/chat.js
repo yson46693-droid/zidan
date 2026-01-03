@@ -56,75 +56,7 @@ let recordingStartTime = null;
     }
 })();
 
-// فحص تسجيل الدخول الفوري - قبل تحميل الصفحة
-(async function checkAuthBeforeLoad() {
-    try {
-        // الانتظار حتى يتم تحميل API و auth
-        let retries = 0;
-        const maxRetries = 50; // زيادة عدد المحاولات
-        while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            retries++;
-        }
-        
-        if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
-            console.error('❌ فشل تحميل ملفات المصادقة بعد', maxRetries, 'محاولة');
-            // إعطاء فرصة إضافية - الانتظار قليلاً ثم المحاولة مرة أخرى
-            await new Promise(resolve => setTimeout(resolve, 500));
-            if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
-                console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
-                window.location.href = 'index.html';
-                return;
-            }
-        }
-        
-        // إعطاء فرصة إضافية للتأكد من أن API جاهز
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // فحص تسجيل الدخول فوراً
-        const user = await checkLogin();
-        if (!user) {
-            console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
-            window.location.href = 'index.html';
-            return;
-        }
-        
-        // حفظ المستخدم للمتابعة
-        currentUser = user;
-        
-        // التحقق من صلاحيات المستخدم إذا كان DOM جاهزاً
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', checkAndShowDeleteButton);
-        } else {
-            checkAndShowDeleteButton();
-        }
-        
-    } catch (error) {
-        console.error('❌ خطأ في فحص تسجيل الدخول:', error);
-        // محاولة مرة أخرى قبل التوجيه
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            if (typeof checkLogin === 'function') {
-                const user = await checkLogin();
-                if (user) {
-                    console.log('✅ نجحت المحاولة الثانية للتحقق من تسجيل الدخول');
-                    currentUser = user;
-                    // التحقق من صلاحيات المستخدم إذا كان DOM جاهزاً
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', checkAndShowDeleteButton);
-                    } else {
-                        checkAndShowDeleteButton();
-                    }
-                    return;
-                }
-            }
-        } catch (retryError) {
-            console.error('❌ فشلت المحاولة الثانية:', retryError);
-        }
-        window.location.href = 'index.html';
-        return;
-    }
-})();
+// ✅ تم إزالة checkAuthBeforeLoad - يتم الفحص في chat.html فقط لتجنب الفحص المزدوج
 
 // تهيئة الصفحة
 document.addEventListener('DOMContentLoaded', async () => {
@@ -154,39 +86,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        // إذا لم يكن هناك مستخدم محفوظ، فحص مرة أخرى
+        // إذا لم يكن هناك مستخدم محفوظ، فحص مرة أخرى (البيانات قد تأتي من protectPage في chat.html)
         if (!currentUser) {
             try {
-                const user = await checkLogin();
-                if (!user) {
-                    console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
-                    window.location.href = 'index.html';
-                    return;
-                }
-                currentUser = user;
-                // التحقق من صلاحيات المستخدم بعد تحديثه
-                checkAndShowDeleteButton();
-            } catch (loginError) {
-                console.error('❌ خطأ في فحص تسجيل الدخول:', loginError);
-                // محاولة مرة أخرى
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                try {
+                const savedUser = localStorage.getItem('currentUser');
+                if (savedUser) {
+                    currentUser = JSON.parse(savedUser);
+                    console.log('✅ تم تحميل بيانات المستخدم من localStorage');
+                } else {
+                    // إذا لم تكن هناك بيانات محفوظة، فحص من الخادم
                     const user = await checkLogin();
-                    if (user) {
-                        currentUser = user;
-                        // التحقق من صلاحيات المستخدم بعد تحديثه
-                        checkAndShowDeleteButton();
-                        checkAndShowDeleteChatButton();
-                        checkAndShowDeleteChatButton();
-                    } else {
-                        window.location.href = 'index.html';
+                    if (!user) {
+                        console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+                        window.location.replace('index.html');
                         return;
                     }
-                } catch (retryError) {
-                    console.error('❌ فشلت المحاولة الثانية:', retryError);
-                    window.location.href = 'index.html';
-                    return;
+                    currentUser = user;
                 }
+                // التحقق من صلاحيات المستخدم بعد تحديثه
+                checkAndShowDeleteButton();
+                checkAndShowDeleteChatButton();
+            } catch (loginError) {
+                console.error('❌ خطأ في فحص تسجيل الدخول:', loginError);
+                window.location.replace('index.html');
+                return;
             }
         }
         

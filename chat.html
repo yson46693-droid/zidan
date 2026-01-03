@@ -180,9 +180,16 @@
     <script>
         (async function protectPage() {
             try {
+                // ✅ منع الاستدعاء المتعدد
+                if (window.protectPageInProgress) {
+                    console.log('⏸️ فحص تسجيل الدخول قيد التنفيذ بالفعل');
+                    return;
+                }
+                window.protectPageInProgress = true;
+                
                 // الانتظار حتى يتم تحميل API و auth
                 let retries = 0;
-                const maxRetries = 50; // زيادة عدد المحاولات
+                const maxRetries = 30; // تقليل عدد المحاولات
                 while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     retries++;
@@ -190,27 +197,24 @@
                 
                 if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
                     console.error('❌ فشل تحميل ملفات المصادقة بعد', maxRetries, 'محاولة');
-                    // إعطاء فرصة إضافية - الانتظار قليلاً ثم المحاولة مرة أخرى
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
-                        console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
-                        window.location.href = 'index.html';
-                        return;
-                    }
+                    window.protectPageInProgress = false;
+                    // ✅ استخدام replace بدلاً من href لتجنب إضافة للتاريخ
+                    window.location.replace('index.html');
+                    return;
                 }
-                
-                // إعطاء فرصة إضافية للتأكد من أن API جاهز
-                await new Promise(resolve => setTimeout(resolve, 200));
                 
                 // فحص تسجيل الدخول
                 const user = await checkLogin();
+                
                 if (!user) {
                     console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
-                    window.location.href = 'index.html';
+                    window.protectPageInProgress = false;
+                    window.location.replace('index.html');
                     return;
                 }
                 
                 console.log('✅ تم التحقق من تسجيل الدخول بنجاح');
+                window.protectPageInProgress = false;
                 
                 // ✅ إصلاح CSS و Bootstrap Icons عند تحميل الصفحة
                 if (typeof ensureCSSAndIconsLoaded === 'function') {
@@ -218,7 +222,9 @@
                 }
             } catch (error) {
                 console.error('❌ خطأ في فحص تسجيل الدخول:', error);
-                // محاولة مرة أخرى قبل التوجيه
+                window.protectPageInProgress = false;
+                
+                // محاولة مرة أخرى قبل التوجيه (فقط مرة واحدة)
                 try {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     if (typeof checkLogin === 'function') {
@@ -231,7 +237,7 @@
                 } catch (retryError) {
                     console.error('❌ فشلت المحاولة الثانية:', retryError);
                 }
-                window.location.href = 'index.html';
+                window.location.replace('index.html');
             }
         })();
     </script>
