@@ -3372,17 +3372,13 @@ async function initializePOSQRCodeScanner() {
         const scannerId = isMobile ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
         posQRCodeScannerInstance = new Html5Qrcode(scannerId);
         
-        // إعدادات المسح - دعم QR Code والباركود (إطار أوسع للباركود)
+        // إعدادات المسح - دعم QR Code والباركود
         const config = {
             fps: 10,
-            qrbox: isMobile ? { width: 320, height: 180 } : { width: 300, height: 300 },
+            qrbox: isMobile ? { width: 250, height: 250 } : { width: 300, height: 300 },
+            aspectRatio: 1.0,
             disableFlip: false
         };
-        
-        // على سطح المكتب فقط: إضافة aspectRatio للمربع
-        if (!isMobile) {
-            config.aspectRatio = 1.0;
-        }
         
         // Add supportedScanTypes if available (newer versions)
         if (typeof Html5QrcodeScanType !== 'undefined') {
@@ -3497,17 +3493,13 @@ async function initializePOSQRCodeScanner() {
         // محاولة إضافية - استخدام facingMode: environment مباشرة (مثل repairs.js)
         console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: environment مباشرة...`);
         try {
-            // إعدادات مبسطة للمحاولة الثانية - دعم الباركود
+            // إعدادات مبسطة للمحاولة الثانية
             const fallbackConfig = {
                 fps: 10,
-                qrbox: isMobile ? { width: 320, height: 180 } : { width: 300, height: 300 },
+                qrbox: isMobile ? { width: 250, height: 250 } : { width: 300, height: 300 },
+                aspectRatio: 1.0,
                 disableFlip: false
             };
-            
-            // على سطح المكتب فقط: إضافة aspectRatio
-            if (!isMobile) {
-                fallbackConfig.aspectRatio = 1.0;
-            }
             
             if (typeof Html5QrcodeScanType !== 'undefined') {
                 fallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
@@ -3571,17 +3563,13 @@ async function initializePOSQRCodeScanner() {
                         }
                         
                         try {
-                            // استخدام إعدادات مبسطة للمحاولة الأخيرة - دعم الباركود
+                            // استخدام إعدادات مبسطة للمحاولة الأخيرة
                             const finalFallbackConfig = {
                                 fps: 10,
-                                qrbox: isMobile ? { width: 320, height: 180 } : { width: 300, height: 300 },
+                                qrbox: isMobile ? { width: 250, height: 250 } : { width: 300, height: 300 },
+                                aspectRatio: 1.0,
                                 disableFlip: false
                             };
-                            
-                            // على سطح المكتب فقط: إضافة aspectRatio
-                            if (!isMobile) {
-                                finalFallbackConfig.aspectRatio = 1.0;
-                            }
                             
                             if (typeof Html5QrcodeScanType !== 'undefined') {
                                 finalFallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
