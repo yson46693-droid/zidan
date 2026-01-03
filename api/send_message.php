@@ -172,9 +172,10 @@ try {
         }
     }
     
-    // إشعار جميع المستخدمين النشطين في الشات بوجود رسالة جديدة
-    // يتم استدعاء تحديث الشات لكل مستخدم نشط مرة واحدة في الخلفية
-    notifyActiveChatUsers($messageId, $userId);
+    // ✅ إشعار جميع المستخدمين المسجلين دخولهم بتحديث الشات فوراً
+    // استدعاء API تحديث الشات - مقترن تماماً بإرسال الرسائل
+    require_once __DIR__ . '/notify-chat-update.php';
+    notifyAllUsersForChatUpdate($messageId, $userId);
     
     // إعداد بيانات الرسالة المرسلة
     $sentMessage = [
