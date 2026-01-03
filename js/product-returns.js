@@ -334,19 +334,25 @@ function loadProductReturnsSection() {
                 
                 .product-returns-container .search-section button {
                     width: 100% !important;
-                    padding: 10px 15px !important;
-                    font-size: 14px !important;
+                    padding: 8px 12px !important;
+                    font-size: 13px !important;
                     justify-content: center !important;
+                    min-height: 40px !important;
                 }
                 
                 /* تصغير زر QR */
                 .qr-scanner-btn {
-                    padding: 10px 15px !important;
-                    font-size: 14px !important;
+                    padding: 8px 12px !important;
+                    font-size: 13px !important;
+                    min-height: 40px !important;
                 }
                 
                 .qr-scanner-btn i {
-                    font-size: 16px !important;
+                    font-size: 14px !important;
+                }
+                
+                .qr-scanner-btn span {
+                    font-size: 13px !important;
                 }
                 
                 /* بطاقة تفاصيل الفاتورة */
@@ -411,34 +417,31 @@ function loadProductReturnsSection() {
                     padding: 15px !important;
                 }
                 
-                /* جعل الجداول responsive تماماً */
-                #returnsTablesSection > div > div {
-                    overflow-x: auto !important;
-                    -webkit-overflow-scrolling: touch !important;
+                /* جعل الجداول responsive تماماً - تحويل إلى بطاقات */
+                #returnsTablesSection > div > div > div[style*="overflow-x"] {
+                    overflow-x: visible !important;
                 }
                 
                 .data-table {
                     width: 100% !important;
                     min-width: 100% !important;
                     max-width: 100% !important;
-                    font-size: 12px !important;
                     display: block !important;
-                    overflow-x: auto !important;
-                }
-                
-                .data-table thead,
-                .data-table tbody,
-                .data-table tr {
-                    display: block !important;
-                    width: 100% !important;
+                    border: none !important;
                 }
                 
                 .data-table thead {
                     display: none !important;
                 }
                 
+                .data-table tbody {
+                    display: block !important;
+                    width: 100% !important;
+                }
+                
                 .data-table tbody tr {
                     display: block !important;
+                    width: 100% !important;
                     margin-bottom: 12px !important;
                     background: var(--white) !important;
                     border: 1px solid var(--border-color) !important;
@@ -451,11 +454,12 @@ function loadProductReturnsSection() {
                     display: flex !important;
                     justify-content: space-between !important;
                     align-items: center !important;
-                    padding: 8px 0 !important;
+                    padding: 10px 0 !important;
                     border: none !important;
                     border-bottom: 1px solid var(--light-bg) !important;
                     text-align: right !important;
                     font-size: 13px !important;
+                    width: 100% !important;
                 }
                 
                 .data-table tbody td:last-child {
@@ -470,32 +474,39 @@ function loadProductReturnsSection() {
                     flex-shrink: 0 !important;
                 }
                 
-                /* إخفاء الجداول التقليدية وإظهار النسخة المخصصة */
-                #normalReturnsTableBody tr,
-                #damagedReturnsTableBody tr {
+                /* معالجة حالة "لا توجد مرتجعات" */
+                .data-table tbody tr td[colspan] {
                     display: block !important;
-                    margin-bottom: 12px !important;
-                    background: var(--white) !important;
-                    border: 1px solid var(--border-color) !important;
-                    border-radius: 8px !important;
-                    padding: 12px !important;
-                }
-                
-                #normalReturnsTableBody td,
-                #damagedReturnsTableBody td {
-                    display: flex !important;
-                    justify-content: space-between !important;
-                    align-items: center !important;
-                    padding: 8px 0 !important;
-                    border: none !important;
-                    border-bottom: 1px solid var(--light-bg) !important;
-                    text-align: right !important;
-                    font-size: 13px !important;
-                }
-                
-                #normalReturnsTableBody td:last-child,
-                #damagedReturnsTableBody td:last-child {
+                    text-align: center !important;
+                    padding: 20px !important;
                     border-bottom: none !important;
+                }
+                
+                .data-table tbody tr td[colspan]::before {
+                    content: none !important;
+                }
+            }
+            
+            @media (max-width: 576px) {
+                /* شاشات الهواتف المتوسطة */
+                .product-returns-container .search-section button {
+                    padding: 8px 12px !important;
+                    font-size: 13px !important;
+                    min-height: 40px !important;
+                }
+                
+                .qr-scanner-btn {
+                    padding: 8px 12px !important;
+                    font-size: 13px !important;
+                    min-height: 40px !important;
+                }
+                
+                .qr-scanner-btn i {
+                    font-size: 14px !important;
+                }
+                
+                .qr-scanner-btn span {
+                    font-size: 13px !important;
                 }
             }
             
@@ -519,10 +530,30 @@ function loadProductReturnsSection() {
                     height: 35px !important;
                 }
                 
-                .product-returns-container .search-section input,
-                .product-returns-container .search-section button {
-                    padding: 8px 12px !important;
+                .product-returns-container .search-section input {
+                    padding: 8px 10px !important;
                     font-size: 13px !important;
+                }
+                
+                .product-returns-container .search-section button {
+                    padding: 7px 10px !important;
+                    font-size: 12px !important;
+                    min-height: 38px !important;
+                }
+                
+                /* تصغير زر QR على الشاشات الصغيرة جداً */
+                .qr-scanner-btn {
+                    padding: 7px 10px !important;
+                    font-size: 12px !important;
+                    min-height: 38px !important;
+                }
+                
+                .qr-scanner-btn i {
+                    font-size: 13px !important;
+                }
+                
+                .qr-scanner-btn span {
+                    font-size: 12px !important;
                 }
                 
                 #invoiceDetailsCard {
@@ -1271,10 +1302,10 @@ function displayReturnsTables() {
             damagedTableBody.innerHTML = damagedPaginatedReturns.map(returnItem => {
                 return `
                     <tr style="border-bottom: 1px solid var(--border-color); transition: background 0.2s ease;" onmouseover="this.style.background='var(--light-bg)';" onmouseout="this.style.background='';">
-                        <td style="padding: 12px; white-space: nowrap;">${escapeHtml(returnItem.return_number)}</td>
-                        <td style="padding: 12px; white-space: nowrap;">${escapeHtml(returnItem.sale_number)}</td>
-                        <td style="padding: 12px; white-space: nowrap;">${escapeHtml(returnItem.customer_name || 'غير محدد')}</td>
-                        <td style="padding: 12px; white-space: nowrap;">${formatDate(returnItem.created_at)}</td>
+                        <td data-label="رقم الاسترجاع" style="padding: 12px; white-space: nowrap;">${escapeHtml(returnItem.return_number)}</td>
+                        <td data-label="رقم الفاتورة" style="padding: 12px; white-space: nowrap;">${escapeHtml(returnItem.sale_number)}</td>
+                        <td data-label="العميل" style="padding: 12px; white-space: nowrap;">${escapeHtml(returnItem.customer_name || 'غير محدد')}</td>
+                        <td data-label="التاريخ" style="padding: 12px; white-space: nowrap;">${formatDate(returnItem.created_at)}</td>
                     </tr>
                 `;
             }).join('');
