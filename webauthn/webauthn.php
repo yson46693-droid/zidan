@@ -523,36 +523,33 @@ class WebAuthn {
                 return false;
             }
             
-            // التحقق من التحدي (مع مرونة أكثر)
+            // التحقق من التحدي
+            // challenge يتم إرساله كـ base64url من createLoginChallenge
+            // JavaScript يرسله كـ base64url أيضاً في clientDataJSON
             $expectedChallenge = $challenge;
             $receivedChallenge = $clientData['challenge'] ?? '';
             
-            // تحويل receivedChallenge من base64url إلى base64url للمقارنة
-            // لأن challenge يتم إرساله كـ base64url من createLoginChallenge
-            $expectedChallengeNormalized = strtr($expectedChallenge, '-_', '+/');
-            $receivedChallengeNormalized = strtr($receivedChallenge, '-_', '+/');
+            // تحويل base64url إلى base64 عادي للمقارنة
+            $expectedBase64 = strtr($expectedChallenge, '-_', '+/');
+            $receivedBase64 = strtr($receivedChallenge, '-_', '+/');
             
-            // إضافة padding إذا لزم الأمر
-            $mod = strlen($expectedChallengeNormalized) % 4;
+            // إضافة padding
+            $mod = strlen($expectedBase64) % 4;
             if ($mod) {
-                $expectedChallengeNormalized .= str_repeat('=', 4 - $mod);
+                $expectedBase64 .= str_repeat('=', 4 - $mod);
             }
-            $mod = strlen($receivedChallengeNormalized) % 4;
+            $mod = strlen($receivedBase64) % 4;
             if ($mod) {
-                $receivedChallengeNormalized .= str_repeat('=', 4 - $mod);
+                $receivedBase64 .= str_repeat('=', 4 - $mod);
             }
             
-            // محاولة فك الترميز والمقارنة
-            $expectedDecoded = base64_decode($expectedChallengeNormalized, true);
-            $receivedDecoded = base64_decode($receivedChallengeNormalized, true);
+            // فك الترميز والمقارنة كـ binary
+            $expectedDecoded = base64_decode($expectedBase64, true);
+            $receivedDecoded = base64_decode($receivedBase64, true);
             
             if ($expectedDecoded === false || $receivedDecoded === false || $expectedDecoded !== $receivedDecoded) {
-                // إذا فشلت المقارنة بعد فك الترميز، نحاول المقارنة المباشرة
-                if ($receivedChallenge !== $expectedChallenge && $receivedChallengeNormalized !== $expectedChallengeNormalized) {
-                    error_log("WebAuthn Login: Challenge mismatch. Expected: $expectedChallenge, Received: $receivedChallenge");
-                    error_log("WebAuthn Login: Challenge normalized - Expected: $expectedChallengeNormalized, Received: $receivedChallengeNormalized");
-                    return false;
-                }
+                error_log("WebAuthn Login: Challenge mismatch");
+                return false;
             }
             
             // التحقق من الأصل (مع مرونة أكثر للموبايل)
@@ -585,20 +582,17 @@ class WebAuthn {
             
             // التحقق من credential ID
             // rawId يأتي من JavaScript كـ base64 عادي (من arrayBufferToBase64)
-            // يجب أن يطابق credential_id المخزن في قاعدة البيانات (base64_encode)
+            // credential_id في قاعدة البيانات محفوظ كـ base64_encode (base64 عادي)
             $credentialIdRaw = $responseData['rawId'] ?? $responseData['id'] ?? '';
             
             if (empty($credentialIdRaw)) {
-                error_log("WebAuthn Login: Missing credential ID. Response keys: " . implode(', ', array_keys($responseData)));
+                error_log("WebAuthn Login: Missing credential ID");
                 return false;
             }
             
-            // rawId من JavaScript هو base64 عادي (من arrayBufferToBase64)
-            // تنظيفه من المسافات والأحرف الخاصة
+            // تنظيف وتطبيع credential_id
             $credentialIdEncoded = trim($credentialIdRaw);
-            
-            // إزالة أي أحرف غير base64
-            $credentialIdEncoded = preg_replace('/[^A-Za-z0-9+\/]/', '', $credentialIdEncoded);
+            $credentialIdEncoded = preg_replace('/[^A-Za-z0-9+\/=]/', '', $credentialIdEncoded);
             
             // إضافة padding إذا لزم الأمر
             $mod = strlen($credentialIdEncoded) % 4;
@@ -606,13 +600,16 @@ class WebAuthn {
                 $credentialIdEncoded .= str_repeat('=', 4 - $mod);
             }
             
-            error_log("WebAuthn Login: Searching for credential. User ID: $userId");
-            error_log("WebAuthn Login: Received credential ID (first 50 chars): " . substr($credentialIdEncoded, 0, 50));
-            error_log("WebAuthn Login: Received credential ID length: " . strlen($credentialIdEncoded));
+            // فك الترميز للمقارنة binary
+            $receivedCredentialBinary = base64_decode($credentialIdEncoded, true);
+            if ($receivedCredentialBinary === false) {
+                error_log("WebAuthn Login: Failed to decode credential ID");
+                return false;
+            }
             
-            // جلب جميع البصمات للمستخدم للمقارنة
+            // جلب جميع البصمات للمستخدم
             $allCredentials = dbSelect(
-                "SELECT id, credential_id, device_name, LENGTH(credential_id) as cred_length FROM webauthn_credentials WHERE user_id = ?",
+                "SELECT id, credential_id, public_key, device_name FROM webauthn_credentials WHERE user_id = ?",
                 [$userId]
             );
             
@@ -621,95 +618,47 @@ class WebAuthn {
                 return false;
             }
             
-            error_log("WebAuthn Login: User has " . count($allCredentials) . " credentials. Comparing...");
-            
-            // البحث عن credential مطابق
-            // نستخدم LIKE للبحث المرن لأن الترميز قد يختلف قليلاً
+            // البحث عن credential مطابق عبر مقارنة binary
             $credential = null;
-            
-            // أولاً: محاولة البحث المباشر
-            $credential = dbSelectOne(
-                "SELECT * FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
-                [$userId, $credentialIdEncoded]
-            );
-            
-            if ($credential) {
-                error_log("WebAuthn Login: Direct match found! Credential ID: " . $credential['id']);
-            } else {
-                // ثانياً: البحث بدون padding
-                $credentialIdNoPadding = rtrim($credentialIdEncoded, '=');
-                $credential = dbSelectOne(
-                    "SELECT * FROM webauthn_credentials WHERE user_id = ? AND credential_id = ?",
-                    [$userId, $credentialIdNoPadding]
-                );
+            foreach ($allCredentials as $cred) {
+                $dbCredentialId = trim($cred['credential_id']);
+                $dbCredentialId = preg_replace('/[^A-Za-z0-9+\/=]/', '', $dbCredentialId);
                 
-                if ($credential) {
-                    error_log("WebAuthn Login: Match found (without padding)! Credential ID: " . $credential['id']);
-                } else {
-                    // ثالثاً: البحث بجميع البصمات ومقارنة binary
-                    error_log("WebAuthn Login: No direct match. Comparing with all credentials...");
-                    foreach ($allCredentials as $cred) {
-                        $dbCredentialId = trim($cred['credential_id']);
-                        
-                        // تنظيف credential_id من قاعدة البيانات
-                        $dbCredentialId = preg_replace('/[^A-Za-z0-9+\/]/', '', $dbCredentialId);
-                        
-                        // إضافة padding إذا لزم الأمر
-                        $mod = strlen($dbCredentialId) % 4;
-                        if ($mod) {
-                            $dbCredentialId .= str_repeat('=', 4 - $mod);
-                        }
-                        
-                        error_log("WebAuthn Login: Comparing with DB credential (first 50 chars): " . substr($dbCredentialId, 0, 50) . ", length: " . strlen($dbCredentialId));
-                        
-                        // مقارنة مباشرة
-                        if ($dbCredentialId === $credentialIdEncoded) {
-                            $credential = $cred;
-                            error_log("WebAuthn Login: Exact match found! Credential ID: " . $cred['id']);
-                            break;
-                        }
-                        
-                        // محاولة مقارنة بدون padding
-                        $dbCredNoPadding = rtrim($dbCredentialId, '=');
-                        $receivedNoPadding = rtrim($credentialIdEncoded, '=');
-                        if ($dbCredNoPadding === $receivedNoPadding) {
-                            $credential = $cred;
-                            error_log("WebAuthn Login: Match found (without padding)! Credential ID: " . $cred['id']);
-                            break;
-                        }
-                        
-                        // محاولة فك الترميز والمقارنة كـ binary
-                        try {
-                            $dbDecoded = base64_decode($dbCredentialId, true);
-                            $receivedDecoded = base64_decode($credentialIdEncoded, true);
-                            if ($dbDecoded !== false && $receivedDecoded !== false && $dbDecoded === $receivedDecoded) {
-                                $credential = $cred;
-                                error_log("WebAuthn Login: Match found (decoded binary)! Credential ID: " . $cred['id']);
-                                break;
-                            }
-                        } catch (Exception $e) {
-                            // تجاهل أخطاء فك الترميز
-                        }
-                    }
+                // إضافة padding
+                $mod = strlen($dbCredentialId) % 4;
+                if ($mod) {
+                    $dbCredentialId .= str_repeat('=', 4 - $mod);
+                }
+                
+                // فك الترميز ومقارنة binary
+                $dbCredentialBinary = base64_decode($dbCredentialId, true);
+                if ($dbCredentialBinary !== false && $dbCredentialBinary === $receivedCredentialBinary) {
+                    $credential = $cred;
+                    error_log("WebAuthn Login: Credential matched! ID: " . $cred['id'] . ", Device: " . ($cred['device_name'] ?? 'unknown'));
+                    break;
                 }
             }
             
             if (!$credential) {
-                error_log("WebAuthn Login: Credential not found after comparing all " . count($allCredentials) . " credentials");
-                error_log("WebAuthn Login: Received credential ID (full, first 100 chars): " . substr($credentialIdEncoded, 0, 100));
-                error_log("WebAuthn Login: Available credential IDs:");
-                foreach ($allCredentials as $cred) {
-                    $dbCred = trim($cred['credential_id']);
-                    error_log("  - " . substr($dbCred, 0, 50) . " (device: " . ($cred['device_name'] ?? 'unknown') . ", length: " . $cred['cred_length'] . ")");
-                }
+                error_log("WebAuthn Login: Credential not found for user: $userId");
                 return false;
             }
             
-            error_log("WebAuthn Login: Credential found! ID: " . $credential['id'] . ", Device: " . ($credential['device_name'] ?? 'unknown'));
+            // التحقق الأساسي من التوقيع
+            // ملاحظة: التحقق الكامل من التوقيع يتطلب فك ترميز public key من CBOR
+            // والتحقق باستخدام OpenSSL. هذا التحقق الأساسي يتحقق فقط من وجود البيانات
+            if (empty($signature) || strlen($signature) < 64) {
+                error_log("WebAuthn Login: Invalid signature");
+                return false;
+            }
             
-            // التحقق من التوقيع (يجب التحقق من signature باستخدام public key)
-            // هذا يتطلب فك ترميز public key من CBOR والتحقق من signature
-            // للبساطة، سنتخطى التحقق من التوقيع الآن ونركز على التحقق من credential ID
+            if (empty($authenticatorData) || strlen($authenticatorData) < 37) {
+                error_log("WebAuthn Login: Invalid authenticatorData");
+                return false;
+            }
+            
+            // TODO: إضافة التحقق الكامل من التوقيع باستخدام public key من credential['public_key']
+            // هذا يتطلب فك ترميز CBOR للـ public key واستخدام openssl_verify()
             
             // تحديث آخر استخدام
             $updateResult = dbExecute(

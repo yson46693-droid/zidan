@@ -8,29 +8,16 @@ ob_start();
 
 define('ACCESS_ALLOWED', true);
 
-// ✅ CRITICAL: بدء الجلسة قبل تحميل أي ملفات (قبل config.php الذي يرسل headers)
-// هذا يضمن أننا نستطيع حفظ الجلسة قبل إرسال أي headers
-if (session_status() === PHP_SESSION_NONE) {
-    // استخدام session handler مخصص من config.php
-    // لكن أولاً نحتاج إلى تحميل config.php بدون إرسال headers
-    // لذلك سنبدأ الجلسة يدوياً أولاً
-    @session_start();
-    error_log("WebAuthn Login API - Session started before loading config.php. Session ID: " . session_id());
-}
-
 try {
+    // تحميل config.php أولاً - سيبدأ الجلسة تلقائياً باستخدام CookieSessionHandler
     require_once __DIR__ . '/config.php';
     require_once __DIR__ . '/database.php';
     require_once __DIR__ . '/../webauthn/webauthn.php';
-    
-    // ✅ CRITICAL: بعد تحميل config.php، التأكد من أن الجلسة نشطة
-    if (session_status() === PHP_SESSION_NONE) {
-        @session_start();
-        error_log("WebAuthn Login API - Session restarted after loading config.php. Session ID: " . session_id());
-    }
 } catch (Exception $e) {
     ob_end_clean();
-    header('Content-Type: application/json; charset=utf-8');
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'خطأ في تحميل النظام: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
     exit;
@@ -38,9 +25,6 @@ try {
 
 // تنظيف output buffer
 ob_end_clean();
-
-// ✅ CRITICAL: لا نرسل headers هنا - سنرسلها بعد حفظ الجلسة
-// header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     if (!headers_sent()) {
@@ -73,15 +57,13 @@ $action = $input['action'] ?? '';
 
 try {
     if ($action === 'create_challenge') {
-        // ✅ إرسال CORS headers قبل أي شيء (لا نحتاج إلى حفظ جلسة هنا)
-        if (!headers_sent()) {
-            sendCORSHeaders();
-            header('Content-Type: application/json; charset=utf-8');
-        }
-        
         $username = $input['username'] ?? '';
         
         if (empty($username)) {
+            if (!headers_sent()) {
+                sendCORSHeaders();
+                header('Content-Type: application/json; charset=utf-8');
+            }
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'اسم المستخدم مطلوب'], JSON_UNESCAPED_UNICODE);
             exit;
@@ -90,6 +72,18 @@ try {
         error_log("WebAuthn Login API - Creating challenge for username: " . $username);
         
         $challenge = WebAuthn::createLoginChallenge($username);
+        
+        // حفظ الجلسة بعد إنشاء challenge (يحتوي على webauthn_login_challenge)
+        // لا نغلق الجلسة لأننا نحتاجها عند verify
+        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+            session_commit();
+            error_log("WebAuthn Login API - Session saved after challenge creation");
+        }
+        
+        if (!headers_sent()) {
+            sendCORSHeaders();
+            header('Content-Type: application/json; charset=utf-8');
+        }
         
         if ($challenge && is_array($challenge)) {
             error_log("WebAuthn Login API - Challenge created successfully. allowCredentials count: " . (isset($challenge['allowCredentials']) ? count($challenge['allowCredentials']) : 0));
@@ -162,90 +156,30 @@ try {
             );
             
             if ($user) {
-                // تسجيل الدخول
+                // التأكد من أن الجلسة نشطة (يجب أن تكون نشطة بالفعل من config.php)
                 if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
-                }
-                // ✅ CRITICAL: التأكد من أن الجلسة نشطة قبل حفظ البيانات
-                if (session_status() === PHP_SESSION_NONE) {
-                    error_log("WebAuthn Login API - WARNING: Session not started, starting now...");
-                    session_start();
+                    @session_start();
                 }
                 
-                // ✅ تسجيل حالة الجلسة قبل حفظ البيانات
-                error_log("WebAuthn Login API - Session ID before setting user data: " . session_id());
-                error_log("WebAuthn Login API - Session status before setting user data: " . session_status());
-                error_log("WebAuthn Login API - Session data before setting user data: " . json_encode($_SESSION));
-                
-                // ✅ CRITICAL: حفظ بيانات المستخدم في الجلسة فوراً
+                // حفظ بيانات المستخدم في الجلسة
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
-                $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
+                $_SESSION['branch_id'] = $user['branch_id'] ?? null;
                 
-                // ✅ CRITICAL: حفظ الجلسة فوراً بعد تعيين البيانات وقبل أي شيء آخر
-                // هذا مهم جداً لأن config.php يرسل CORS headers عند التحميل
-                // لذلك يجب حفظ الجلسة قبل استدعاء response() أو أي دالة أخرى ترسل headers
-                if (session_status() === PHP_SESSION_ACTIVE) {
-                    // ✅ التحقق من أن headers لم يتم إرسالها بعد
-                    if (!headers_sent($file, $line)) {
-                        // ✅ حفظ الجلسة قبل إرسال أي headers
-                        // هذا سيستدعي CookieSessionHandler::write() الذي سيحفظ البيانات في cookies
-                        session_commit();
-                        error_log("WebAuthn Login API - ✅ Session committed successfully before sending response");
-                        error_log("WebAuthn Login API - Session ID after commit: " . session_id());
-                    } else {
-                        // ⚠️ Headers تم إرسالها بالفعل - لا يمكن حفظ الجلسة في cookies
-                        error_log("WebAuthn Login API - ⚠️ WARNING: Headers already sent at $file:$line - Cannot save session to cookies!");
-                        error_log("WebAuthn Login API - Attempting to commit session anyway (may not work)...");
-                        // محاولة حفظ الجلسة على أي حال (قد لا تعمل)
-                        @session_commit();
-                    }
-                } else {
-                    error_log("WebAuthn Login API - ❌ ERROR: Session is not active! Status: " . session_status());
-                    // محاولة إعادة بدء الجلسة وحفظ البيانات
-                    if (session_status() === PHP_SESSION_NONE) {
-                        @session_start();
-                        $_SESSION['user_id'] = $user['id'];
-                        $_SESSION['username'] = $user['username'];
-                        $_SESSION['name'] = $user['name'];
-                        $_SESSION['role'] = $user['role'];
-                        $_SESSION['branch_id'] = $user['branch_id'] ?? null;
-                        if (!headers_sent()) {
-                            @session_commit();
-                            error_log("WebAuthn Login API - Session restarted and data saved");
-                        } else {
-                            error_log("WebAuthn Login API - ⚠️ Cannot commit restarted session - headers already sent");
-                        }
-                    }
+                // حفظ الجلسة قبل إرسال headers
+                if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+                    session_write_close();
+                    error_log("WebAuthn Login API - Session saved with user data: user_id=" . $user['id']);
                 }
                 
-                // ✅ تسجيل حالة الجلسة بعد الحفظ
-                error_log("WebAuthn Login API - Session data after commit: " . json_encode($_SESSION));
-                error_log("WebAuthn Login API - Headers sent after session_commit: " . (headers_sent() ? 'YES' : 'NO'));
-                error_log("WebAuthn Login API - Cookies after session_commit: " . json_encode($_COOKIE));
-                
-                // ✅ CRITICAL: إرسال CORS headers بعد حفظ الجلسة مباشرة
-                // هذا يضمن أن الجلسة تم حفظها في cookies قبل إرسال أي headers أخرى
+                // إرسال CORS headers بعد حفظ الجلسة
                 if (!headers_sent()) {
                     sendCORSHeaders();
-                    error_log("WebAuthn Login API - ✅ CORS headers sent after session commit");
-                } else {
-                    error_log("WebAuthn Login API - ⚠️ Cannot send CORS headers - headers already sent");
                 }
                 
-                // ✅ CRITICAL: التحقق من أن البيانات محفوظة في $_SESSION قبل response()
-                error_log("WebAuthn Login API - Final session data before response(): " . json_encode($_SESSION));
-                if (isset($_SESSION['user_id'])) {
-                    error_log("WebAuthn Login API - ✅ User data confirmed in session: user_id=" . $_SESSION['user_id']);
-                } else {
-                    error_log("WebAuthn Login API - ❌ ERROR: User data NOT found in session before response()!");
-                }
-                
-                // ✅ CRITICAL: استخدام response() من config.php بدلاً من echo مباشرة
-                // response() سيتعامل مع headers بشكل صحيح
-                // CORS headers تم إرسالها بالفعل بعد حفظ الجلسة
+                // استخدام response() من config.php
                 response(true, 'تم تسجيل الدخول بنجاح', [
                     'id' => $user['id'],
                     'username' => $user['username'],
