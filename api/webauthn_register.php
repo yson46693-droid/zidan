@@ -8,11 +8,8 @@ ob_start();
 
 define('ACCESS_ALLOWED', true);
 
-// بدء الجلسة قبل تحميل الملفات
-if (session_status() === PHP_SESSION_NONE) {
-    @session_start();
-}
-
+// ✅ إصلاح: لا نبدأ الجلسة هنا - يجب أن يبدأ config.php الجلسة باستخدام المعالج المخصص (CookieSessionHandler)
+// إذا بدأنا الجلسة هنا قبل config.php، لن يتم استخدام المعالج المخصص لقراءة البيانات من cookies
 try {
     require_once __DIR__ . '/config.php';
     require_once __DIR__ . '/database.php';
@@ -99,39 +96,33 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// ✅ إصلاح: التحقق من تسجيل الدخول مع معالجة أفضل للجلسة
-// التأكد من بدء الجلسة بشكل صحيح - يجب أن تكون الجلسة قد بدأت في config.php
-// لكن نتحقق مرة أخرى للتأكد
+// ✅ إصلاح: التحقق من تسجيل الدخول
+// الجلسة يجب أن تكون قد بدأت في config.php باستخدام المعالج المخصص (CookieSessionHandler)
+// التحقق من حالة الجلسة وإضافة تشخيص أفضل
 if (session_status() === PHP_SESSION_NONE) {
-    // إعدادات الجلسة لضمان عملها بشكل صحيح
-    ini_set('session.cookie_httponly', '1');
-    ini_set('session.use_only_cookies', '1');
-    
-    // اكتشاف HTTPS
-    $isSecure = false;
-    if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
-        $isSecure = true;
-    } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
-        $isSecure = true;
-    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-        $isSecure = true;
-    } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
-        $isSecure = true;
-    }
-    
-    ini_set('session.cookie_samesite', $isSecure ? 'None' : 'Lax');
-    ini_set('session.cookie_secure', $isSecure ? '1' : '0');
-    
-    @session_start();
-    
-    // تسجيل معلومات الجلسة للمساعدة في التشخيص
-    error_log("WebAuthn Register - Session started. Session ID: " . session_id() . ", Status: " . session_status());
+    // إذا لم تبدأ الجلسة، تسجيل خطأ
+    error_log("WebAuthn Register - Session not started! Session status: " . session_status());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false, 
+        'message' => 'خطأ في الجلسة. يرجى المحاولة مرة أخرى',
+        'error' => 'session_not_started'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
-// ✅ إصلاح: التحقق من وجود user_id في الجلسة مع رسالة خطأ أوضح
+// ✅ التحقق من وجود user_id في الجلسة
+// إذا كانت الجلسة نشطة ولكن user_id غير موجود، يعني أن المستخدم لم يسجل الدخول
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    // تسجيل الخطأ للمساعدة في التشخيص
-    error_log("WebAuthn Register - Session check failed. Session ID: " . session_id() . ", Session status: " . session_status() . ", Has user_id: " . (isset($_SESSION['user_id']) ? 'yes' : 'no'));
+    // تسجيل معلومات تشخيصية مفيدة
+    $sessionKeys = isset($_SESSION) && is_array($_SESSION) ? implode(', ', array_keys($_SESSION)) : 'no session data';
+    $sessionDataSize = isset($_SESSION) && is_array($_SESSION) ? count($_SESSION) : 0;
+    
+    error_log("WebAuthn Register - Session check failed. Session ID: " . session_id() . 
+              ", Session status: " . session_status() . 
+              ", Has user_id: " . (isset($_SESSION['user_id']) ? 'yes' : 'no') .
+              ", Session keys: [" . $sessionKeys . "]" .
+              ", Session data count: " . $sessionDataSize);
     
     http_response_code(401);
     echo json_encode([
@@ -168,11 +159,7 @@ try {
         }
 
         try {
-            // التأكد من بدء الجلسة قبل استدعاء createRegistrationChallenge
-            if (session_status() === PHP_SESSION_NONE) {
-                @session_start();
-            }
-            
+            // الجلسة يجب أن تكون نشطة بالفعل (تم التحقق منها في بداية الملف)
             // التحقق من أن WebAuthn class موجودة
             if (!class_exists('WebAuthn')) {
                 throw new Exception('فئة WebAuthn غير موجودة. تحقق من تحميل webauthn.php');
@@ -203,11 +190,7 @@ try {
         }
 
     } elseif ($action === 'verify') {
-        // التأكد من بدء الجلسة
-        if (session_status() === PHP_SESSION_NONE) {
-            @session_start();
-        }
-        
+        // الجلسة يجب أن تكون نشطة بالفعل (تم التحقق منها في بداية الملف)
         // التحقق من البصمة وحفظها
         $response = $input['response'] ?? null;
         

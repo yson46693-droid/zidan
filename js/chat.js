@@ -22,12 +22,19 @@ let audioStream = null; // ✅ Audio stream for cleanup
 let isRecording = false;
 let recordingTimer = null;
 let recordingStartTime = null;
+let recordingStartDelay = null; // ✅ تأخير قبل السماح بإيقاف التسجيل
 
 // منع التكبير بالضغط مرتين
 (function() {
     let lastTouchEnd = 0;
     
     document.addEventListener('touchend', function(event) {
+        // ✅ استثناء زر التسجيل الصوتي من منع التكبير
+        const audioBtn = document.getElementById('audioBtn');
+        if (audioBtn && (event.target === audioBtn || audioBtn.contains(event.target))) {
+            return; // السماح لـ touchend على زر التسجيل بالعمل بشكل طبيعي
+        }
+        
         const now = Date.now();
         if (now - lastTouchEnd <= 300) {
             event.preventDefault();
@@ -993,12 +1000,90 @@ function setupEventListeners() {
     // زر التسجيل الصوتي
     const audioBtn = document.getElementById('audioBtn');
     if (audioBtn) {
-        audioBtn.addEventListener('mousedown', startAudioRecording);
-        audioBtn.addEventListener('mouseup', stopAudioRecording);
-        audioBtn.addEventListener('mouseleave', stopAudioRecording);
-        audioBtn.addEventListener('touchstart', startAudioRecording, { passive: false });
-        audioBtn.addEventListener('touchend', stopAudioRecording);
-        audioBtn.addEventListener('touchcancel', stopAudioRecording);
+        // ✅ استخدام click بدلاً من mousedown/mouseup لتجنب المشاكل
+        audioBtn.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            startAudioRecording(e);
+        });
+        
+        audioBtn.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            stopAudioRecording(e);
+        });
+        
+        audioBtn.addEventListener('mouseleave', function(e) {
+            if (isRecording) {
+                stopAudioRecording(e);
+            }
+        });
+        
+        // ✅ معالجة touch events بشكل أفضل لمنع الإيقاف الفوري
+        let touchStartTime = 0;
+        let touchStartPosition = null;
+        let isTouchMoving = false;
+        
+        audioBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            touchStartTime = Date.now();
+            touchStartPosition = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY
+            };
+            isTouchMoving = false;
+            console.log('👆 touchstart - بدء التسجيل');
+            startAudioRecording(e);
+        }, { passive: false });
+        
+        // ✅ تتبع حركة اللمس - إذا تحرك المستخدم، لا نوقف التسجيل
+        audioBtn.addEventListener('touchmove', function(e) {
+            if (touchStartPosition && e.touches.length > 0) {
+                const moveX = Math.abs(e.touches[0].clientX - touchStartPosition.x);
+                const moveY = Math.abs(e.touches[0].clientY - touchStartPosition.y);
+                // إذا تحرك أكثر من 10 بكسل، نعتبره حركة
+                if (moveX > 10 || moveY > 10) {
+                    isTouchMoving = true;
+                }
+            }
+        }, { passive: true });
+        
+        audioBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // ✅ منع إيقاف التسجيل إذا كان قد بدأ للتو (أقل من 500ms) أو إذا كان المستخدم يتحرك
+            if (touchDuration < 500) {
+                console.log('⚠️ تم منع إيقاف التسجيل - المدة قصيرة جداً:', touchDuration, 'ms');
+                return;
+            }
+            
+            if (isTouchMoving) {
+                console.log('⚠️ تم منع إيقاف التسجيل - المستخدم يتحرك');
+                isTouchMoving = false;
+                return;
+            }
+            
+            console.log('👆 touchend - إيقاف التسجيل بعد', touchDuration, 'ms');
+            stopAudioRecording(e);
+            touchStartTime = 0;
+            touchStartPosition = null;
+        }, { passive: false });
+        
+        audioBtn.addEventListener('touchcancel', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('👆 touchcancel - إلغاء التسجيل');
+            if (isRecording) {
+                stopAudioRecording(e);
+            }
+            touchStartTime = 0;
+            touchStartPosition = null;
+            isTouchMoving = false;
+        }, { passive: false });
     }
     
     // أيقونة الإشعارات
@@ -2586,8 +2671,17 @@ async function startAudioRecording(e) {
     }
     
     if (isRecording) {
+        console.log('⚠️ التسجيل قيد التنفيذ بالفعل');
         return;
     }
+    
+    // ✅ منع بدء التسجيل إذا كان هناك تأخير قيد التنفيذ
+    if (recordingStartDelay) {
+        console.log('⚠️ بدء التسجيل قيد الانتظار بالفعل');
+        return;
+    }
+    
+    console.log('🎤 بدء التسجيل الصوتي...');
     
     try {
         // ✅ التحقق من دعم getUserMedia
@@ -2695,6 +2789,12 @@ async function startAudioRecording(e) {
         isRecording = true;
         recordingStartTime = Date.now();
         
+        // ✅ إضافة تأخير بسيط قبل السماح بإيقاف التسجيل (500ms)
+        recordingStartDelay = setTimeout(() => {
+            recordingStartDelay = null;
+            console.log('✅ يمكن الآن إيقاف التسجيل');
+        }, 500);
+        
         // تحديث واجهة الزر
         const audioBtn = document.getElementById('audioBtn');
         if (audioBtn) {
@@ -2704,6 +2804,8 @@ async function startAudioRecording(e) {
         
         // بدء عداد الوقت
         startRecordingTimer();
+        
+        console.log('✅ بدأ التسجيل الصوتي بنجاح');
         
     } catch (error) {
         console.error('خطأ في بدء التسجيل الصوتي:', error);
@@ -2722,6 +2824,12 @@ async function startAudioRecording(e) {
         }
         
         showMessage(errorMessage, 'error');
+        
+        // ✅ إلغاء التأخير إذا كان موجوداً
+        if (recordingStartDelay) {
+            clearTimeout(recordingStartDelay);
+            recordingStartDelay = null;
+        }
         
         // تنظيف
         if (audioStream) {
@@ -2743,11 +2851,26 @@ function stopAudioRecording(e) {
         e.stopPropagation();
     }
     
-    if (!isRecording || !recordRTC) {
+    // ✅ منع إيقاف التسجيل إذا كان قد بدأ للتو (أقل من 500ms)
+    if (recordingStartTime && (Date.now() - recordingStartTime) < 500) {
+        console.log('⚠️ تم منع إيقاف التسجيل - المدة قصيرة جداً:', Date.now() - recordingStartTime, 'ms');
         return;
     }
     
+    if (!isRecording || !recordRTC) {
+        console.log('⚠️ لا يوجد تسجيل قيد التنفيذ');
+        return;
+    }
+    
+    console.log('🛑 إيقاف التسجيل الصوتي...');
+    
     isRecording = false;
+    
+    // ✅ إلغاء التأخير إذا كان موجوداً
+    if (recordingStartDelay) {
+        clearTimeout(recordingStartDelay);
+        recordingStartDelay = null;
+    }
     
     // إيقاف العداد
     stopRecordingTimer();

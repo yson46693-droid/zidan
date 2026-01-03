@@ -411,15 +411,91 @@ function loadProductReturnsSection() {
                     padding: 15px !important;
                 }
                 
+                /* جعل الجداول responsive تماماً */
+                #returnsTablesSection > div > div {
+                    overflow-x: auto !important;
+                    -webkit-overflow-scrolling: touch !important;
+                }
+                
                 .data-table {
-                    min-width: 500px !important;
+                    width: 100% !important;
+                    min-width: 100% !important;
+                    max-width: 100% !important;
+                    font-size: 12px !important;
+                    display: block !important;
+                    overflow-x: auto !important;
+                }
+                
+                .data-table thead,
+                .data-table tbody,
+                .data-table tr {
+                    display: block !important;
+                    width: 100% !important;
+                }
+                
+                .data-table thead {
+                    display: none !important;
+                }
+                
+                .data-table tbody tr {
+                    display: block !important;
+                    margin-bottom: 12px !important;
+                    background: var(--white) !important;
+                    border: 1px solid var(--border-color) !important;
+                    border-radius: 8px !important;
+                    padding: 12px !important;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+                }
+                
+                .data-table tbody td {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    padding: 8px 0 !important;
+                    border: none !important;
+                    border-bottom: 1px solid var(--light-bg) !important;
+                    text-align: right !important;
                     font-size: 13px !important;
                 }
                 
-                .data-table th,
-                .data-table td {
-                    padding: 8px !important;
-                    font-size: 12px !important;
+                .data-table tbody td:last-child {
+                    border-bottom: none !important;
+                }
+                
+                .data-table tbody td::before {
+                    content: attr(data-label) !important;
+                    font-weight: 600 !important;
+                    color: var(--text-dark) !important;
+                    margin-left: 12px !important;
+                    flex-shrink: 0 !important;
+                }
+                
+                /* إخفاء الجداول التقليدية وإظهار النسخة المخصصة */
+                #normalReturnsTableBody tr,
+                #damagedReturnsTableBody tr {
+                    display: block !important;
+                    margin-bottom: 12px !important;
+                    background: var(--white) !important;
+                    border: 1px solid var(--border-color) !important;
+                    border-radius: 8px !important;
+                    padding: 12px !important;
+                }
+                
+                #normalReturnsTableBody td,
+                #damagedReturnsTableBody td {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    padding: 8px 0 !important;
+                    border: none !important;
+                    border-bottom: 1px solid var(--light-bg) !important;
+                    text-align: right !important;
+                    font-size: 13px !important;
+                }
+                
+                #normalReturnsTableBody td:last-child,
+                #damagedReturnsTableBody td:last-child {
+                    border-bottom: none !important;
                 }
             }
             
@@ -473,15 +549,25 @@ function loadProductReturnsSection() {
                     font-size: 14px !important;
                 }
                 
-                .data-table {
-                    min-width: 450px !important;
-                    font-size: 12px !important;
+                #returnsTablesSection > div > div {
+                    padding: 12px !important;
                 }
                 
-                .data-table th,
-                .data-table td {
-                    padding: 6px !important;
-                    font-size: 11px !important;
+                .data-table tbody td {
+                    font-size: 12px !important;
+                    padding: 6px 0 !important;
+                }
+                
+                #normalReturnsTableBody tr,
+                #damagedReturnsTableBody tr {
+                    padding: 10px !important;
+                    margin-bottom: 10px !important;
+                }
+                
+                #normalReturnsTableBody td,
+                #damagedReturnsTableBody td {
+                    font-size: 12px !important;
+                    padding: 6px 0 !important;
                 }
             }
         </style>
