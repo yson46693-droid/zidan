@@ -1,5 +1,7 @@
 // إدارة الملف الشخصي
 
+console.log('📦 profile.js - تم تحميل الملف');
+
 let currentUser = null;
 let userCredentials = [];
 
@@ -79,13 +81,16 @@ async function ensureWebAuthnLoaded() {
 }
 
 async function loadProfileSection() {
+    console.log('🚀 loadProfileSection() - بدء تحميل قسم الملف الشخصي');
+    
     const section = document.getElementById('profile-content');
     if (!section) {
-        console.error('profile-content not found');
+        console.error('❌ profile-content not found');
         return;
     }
 
     try {
+        console.log('✅ تم العثور على profile-content');
         // عرض حالة التحميل
         section.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-light);"><i class="bi bi-hourglass-split"></i> جاري التحميل...</p>';
 
@@ -646,7 +651,9 @@ async function loadProfileSection() {
 
 // تحميل البصمات المسجلة
 async function loadCredentials() {
+    console.log('🔵 loadCredentials() - بدء تحميل البصمات');
     try {
+        console.log('📡 جلب البيانات من API...');
         const response = await fetch('api/webauthn_credentials.php?action=list', {
             method: 'GET',
             credentials: 'same-origin'
@@ -779,6 +786,7 @@ async function handleRegisterBiometric() {
 
 // تحديث قائمة البصمات في الواجهة
 async function updateCredentialsList() {
+    console.log('🔄 updateCredentialsList() - بدء تحديث قائمة البصمات');
     try {
         // إعادة تحميل البصمات من API
         await loadCredentials();
@@ -1136,21 +1144,27 @@ function formatDate(dateString) {
 }
 
 // تحديث دالة showSection لدعم قسم الملف الشخصي
+console.log('🔧 profile.js - إعداد showSection و MutationObserver');
 if (typeof window.showSection === 'function') {
+    console.log('✅ showSection موجودة، إضافة wrapper');
     const originalShowSection = window.showSection;
     window.showSection = function(sectionId) {
+        console.log('📋 showSection() - القسم المطلوب:', sectionId);
         originalShowSection(sectionId);
         
         if (sectionId === 'profile') {
+            console.log('👤 تحميل قسم الملف الشخصي...');
             loadProfileSection();
         }
     };
 } else {
+    console.log('⚠️ showSection غير موجودة، استخدام MutationObserver');
     // إذا لم تكن الدالة موجودة، نراقب تغيير الأقسام
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             mutation.addedNodes.forEach((node) => {
                 if (node.nodeType === 1 && node.classList && node.classList.contains('section') && node.classList.contains('active') && node.id === 'profile-section') {
+                    console.log('👁️ MutationObserver - تم اكتشاف قسم الملف الشخصي');
                     loadProfileSection();
                 }
             });
@@ -1158,18 +1172,26 @@ if (typeof window.showSection === 'function') {
     });
     
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('📄 DOMContentLoaded - إعداد MutationObserver');
         const sectionsContainer = document.querySelector('.main-content');
         if (sectionsContainer) {
             observer.observe(sectionsContainer, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            console.log('✅ تم إعداد MutationObserver');
+        } else {
+            console.warn('⚠️ sectionsContainer غير موجود');
         }
     });
 }
 
 // تحميل القسم عند تحميل الصفحة إذا كان نشطاً
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 DOMContentLoaded - التحقق من القسم النشط');
     const activeSection = document.querySelector('.section.active');
     if (activeSection && activeSection.id === 'profile-section') {
+        console.log('✅ قسم الملف الشخصي نشط، تحميله...');
         loadProfileSection();
+    } else {
+        console.log('ℹ️ قسم الملف الشخصي غير نشط حالياً');
     }
 });
 

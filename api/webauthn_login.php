@@ -28,9 +28,13 @@ try {
 // تنظيف output buffer
 ob_end_clean();
 
-header('Content-Type: application/json; charset=utf-8');
+// ✅ CRITICAL: لا نرسل headers هنا - سنرسلها بعد حفظ الجلسة
+// header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'يجب استخدام طريقة POST'], JSON_UNESCAPED_UNICODE);
     exit;
@@ -58,6 +62,11 @@ $action = $input['action'] ?? '';
 
 try {
     if ($action === 'create_challenge') {
+        // إرسال headers قبل أي output
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        
         $username = $input['username'] ?? '';
         
         if (empty($username)) {
@@ -80,9 +89,15 @@ try {
         }
         
     } elseif ($action === 'verify') {
+        // ⚠️ لا نرسل headers هنا - سنرسلها بعد حفظ الجلسة في حالة النجاح
+        // فقط في حالة الأخطاء نرسل headers
+        
         $response = $input['response'] ?? $_POST['response'] ?? '';
         
         if (empty($response)) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'الاستجابة مطلوبة'], JSON_UNESCAPED_UNICODE);
             exit;
@@ -92,6 +107,9 @@ try {
         if (is_string($response)) {
             $response = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
+                if (!headers_sent()) {
+                    header('Content-Type: application/json; charset=utf-8');
+                }
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'استجابة غير صحيحة: ' . json_last_error_msg()], JSON_UNESCAPED_UNICODE);
                 exit;
@@ -100,6 +118,9 @@ try {
         
         // إذا كان response هو array بالفعل، استخدمه مباشرة
         if (!is_array($response)) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'استجابة غير صحيحة: يجب أن تكون array أو JSON string'], JSON_UNESCAPED_UNICODE);
             exit;
@@ -138,11 +159,21 @@ try {
                 
                 error_log("WebAuthn Login API - Session created for user: " . $user['id'] . " - branch_id: " . ($user['branch_id'] ?? 'null'));
                 
-                // ✅ CRITICAL: إغلاق الجلسة قبل إرسال الاستجابة لتجنب مشاكل headers
-                // وضمان حفظ الجلسة بشكل صحيح
+                // ✅ CRITICAL: إغلاق الجلسة قبل إرسال headers و output
+                // وضمان حفظ الجلسة بشكل صحيح في cookies
                 if (session_status() === PHP_SESSION_ACTIVE) {
-                    session_write_close();
-                    error_log("WebAuthn Login API - Session written to cookies successfully");
+                    // التأكد من أن headers لم يتم إرسالها بعد
+                    if (!headers_sent()) {
+                        session_write_close();
+                        error_log("WebAuthn Login API - Session written to cookies successfully");
+                    } else {
+                        error_log("WebAuthn Login API - WARNING: Headers already sent, session may not be saved!");
+                    }
+                }
+                
+                // ✅ CRITICAL: إرسال headers بعد حفظ الجلسة
+                if (!headers_sent()) {
+                    header('Content-Type: application/json; charset=utf-8');
                 }
                 
                 echo json_encode([
@@ -158,15 +189,24 @@ try {
                     ]
                 ], JSON_UNESCAPED_UNICODE);
             } else {
+                if (!headers_sent()) {
+                    header('Content-Type: application/json; charset=utf-8');
+                }
                 http_response_code(404);
                 echo json_encode(['success' => false, 'error' => 'المستخدم غير موجود'], JSON_UNESCAPED_UNICODE);
             }
         } else {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
             http_response_code(401);
             echo json_encode(['success' => false, 'error' => 'فشل التحقق من البصمة'], JSON_UNESCAPED_UNICODE);
         }
         
     } else {
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'إجراء غير صحيح'], JSON_UNESCAPED_UNICODE);
     }
@@ -178,6 +218,10 @@ try {
         'trace' => $e->getTraceAsString()
     ];
     error_log("WebAuthn Login API Error: " . json_encode($errorDetails, JSON_UNESCAPED_UNICODE));
+    
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
     http_response_code(500);
     
     $userMessage = $e->getMessage();
@@ -199,6 +243,10 @@ try {
         'trace' => $e->getTraceAsString()
     ];
     error_log("WebAuthn Login API Fatal Error: " . json_encode($errorDetails, JSON_UNESCAPED_UNICODE));
+    
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
     http_response_code(500);
     echo json_encode([
         'success' => false, 
