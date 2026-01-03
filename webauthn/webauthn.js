@@ -280,7 +280,7 @@ class SimpleWebAuthn {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'same-origin',
+                credentials: 'include', // ✅ إصلاح: استخدام include لإرسال cookies مع الطلب
                 body: JSON.stringify({
                     action: 'challenge'
                 })
@@ -297,7 +297,16 @@ class SimpleWebAuthn {
                 } catch (e) {
                     // ليس JSON
                 }
-                throw new Error(errorData?.error || errorData?.message || `خطأ في الاتصال بالخادم: ${challengeResponse.status} - ${errorText.substring(0, 200)}`);
+                
+                // ✅ إصلاح: رسالة خطأ أوضح عند فشل التحقق من الجلسة
+                if (challengeResponse.status === 401) {
+                    const errorMessage = errorData?.message || errorData?.error || 'غير مصرح. يرجى تسجيل الدخول أولاً';
+                    console.error('❌ فشل التحقق من الجلسة:', errorMessage);
+                    throw new Error(errorMessage);
+                }
+                
+                const errorMessage = errorData?.error || errorData?.message || `خطأ في الاتصال بالخادم: ${challengeResponse.status} - ${errorText.substring(0, 200)}`;
+                throw new Error(errorMessage);
             }
 
             const challengeData = await challengeResponse.json();
@@ -438,7 +447,7 @@ class SimpleWebAuthn {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'same-origin',
+                credentials: 'include', // ✅ إصلاح: استخدام include لإرسال cookies مع الطلب
                 body: JSON.stringify({
                     action: 'verify',
                     response: {

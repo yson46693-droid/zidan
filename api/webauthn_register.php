@@ -99,14 +99,27 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// التحقق من تسجيل الدخول
+// ✅ إصلاح: التحقق من تسجيل الدخول مع معالجة أفضل للجلسة
+// التأكد من بدء الجلسة بشكل صحيح
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+    // إعدادات الجلسة لضمان عملها بشكل صحيح
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_samesite', 'Lax');
+    @session_start();
 }
 
-if (!isset($_SESSION['user_id'])) {
+// ✅ إصلاح: التحقق من وجود user_id في الجلسة مع رسالة خطأ أوضح
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
+    // تسجيل الخطأ للمساعدة في التشخيص
+    error_log("WebAuthn Register - Session check failed. Session ID: " . session_id() . ", Session status: " . session_status() . ", Has user_id: " . (isset($_SESSION['user_id']) ? 'yes' : 'no'));
+    
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'غير مصرح. يرجى تسجيل الدخول أولاً'], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+        'success' => false, 
+        'message' => 'غير مصرح. يرجى تسجيل الدخول أولاً',
+        'error' => 'session_not_found'
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
