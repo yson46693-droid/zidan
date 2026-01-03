@@ -3397,18 +3397,66 @@ async function initializePOSQRCodeScanner() {
             config,
             (decodedText, decodedResult) => {
                 // Success callback - تم قراءة QR Code بنجاح
-                console.log('✅ [POS Scanner] تم قراءة QR Code:', decodedText);
+                const timestamp = new Date().toISOString();
+                const logData = {
+                    timestamp: timestamp,
+                    success: true,
+                    decodedText: decodedText,
+                    decodedResult: decodedResult,
+                    scannerId: scannerId,
+                    isMobile: isMobile,
+                    cameraConfig: cameraConfig
+                };
+                
+                // Log مفصل في console
+                console.log('✅✅✅ [POS Scanner] تم قراءة QR Code بنجاح ✅✅✅');
+                console.log('📋 [POS Scanner] البيانات المقروءة:', decodedText);
+                console.log('📊 [POS Scanner] تفاصيل القراءة:', decodedResult);
+                console.log('📱 [POS Scanner] نوع الجهاز:', isMobile ? 'هاتف' : 'كمبيوتر');
+                console.log('📷 [POS Scanner] إعدادات الكاميرا:', cameraConfig);
+                console.log('⏰ [POS Scanner] الوقت:', timestamp);
+                console.log('📦 [POS Scanner] Log Data:', JSON.stringify(logData, null, 2));
+                
+                // Log في error log أيضاً
+                try {
+                    const logMessage = `[POS QR Scanner SUCCESS] ${timestamp} - Text: ${decodedText} - Device: ${isMobile ? 'Mobile' : 'Desktop'} - Camera: ${JSON.stringify(cameraConfig)}`;
+                    console.error(logMessage); // استخدام console.error للظهور في error logs
+                } catch (e) {
+                    console.error('خطأ في تسجيل log:', e);
+                }
                 
                 // معالجة QR Code المقروء - بدون إيقاف الماسح
                 handlePOSQRCodeScanned(decodedText);
             },
             (errorMessage) => {
-                // Error callback - تجاهل الأخطاء العادية أثناء المسح (طبيعي)
-                // لكن يمكن تسجيل بعض الأخطاء للمساعدة في التشخيص
-                if (errorMessage && !errorMessage.includes('NotFoundException')) {
-                    // تجاهل NotFoundException (طبيعي أثناء المسح)
-                    // لكن تسجيل الأخطاء الأخرى للتحليل
-                    console.debug('⚠️ [POS Scanner] خطأ أثناء المسح:', errorMessage);
+                // Error callback - تسجيل جميع الأخطاء للمساعدة في التشخيص
+                const timestamp = new Date().toISOString();
+                
+                // تجاهل NotFoundException فقط (طبيعي أثناء المسح)
+                if (errorMessage && errorMessage.includes('NotFoundException')) {
+                    // هذا طبيعي - يعني لم يجد QR code في هذه اللحظة
+                    return;
+                }
+                
+                // تسجيل جميع الأخطاء الأخرى
+                const logData = {
+                    timestamp: timestamp,
+                    success: false,
+                    error: errorMessage,
+                    scannerId: scannerId,
+                    isMobile: isMobile,
+                    cameraConfig: cameraConfig
+                };
+                
+                console.warn('⚠️ [POS Scanner] خطأ أثناء المسح:', errorMessage);
+                console.log('📦 [POS Scanner] Error Log Data:', JSON.stringify(logData, null, 2));
+                
+                // Log في error log
+                try {
+                    const logMessage = `[POS QR Scanner ERROR] ${timestamp} - Error: ${errorMessage} - Device: ${isMobile ? 'Mobile' : 'Desktop'} - Camera: ${JSON.stringify(cameraConfig)}`;
+                    console.error(logMessage);
+                } catch (e) {
+                    console.error('خطأ في تسجيل error log:', e);
                 }
             }
         );
