@@ -1014,53 +1014,29 @@ function setupEventListeners() {
             }
         });
         
-        // ✅ معالجة touch events للموبايل - استخدام toggle أيضاً
+        // ✅ معالجة touch events للموبايل - استخدام toggle بسيط
         let lastTouchTime = 0;
-        let isTouching = false;
         
         audioBtn.addEventListener('touchstart', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
             const now = Date.now();
-            // ✅ منع النقرات المتكررة (أقل من 300ms)
+            // ✅ منع النقرات المتكررة (أقل من 300ms) - فقط لمنع النقرات العرضية
             if (now - lastTouchTime < 300) {
                 console.log('⚠️ تم منع النقرة المتكررة');
                 return;
             }
             
             lastTouchTime = now;
-            isTouching = true;
             
-            // ✅ toggle: إذا كان التسجيل قيد التنفيذ، أوقفه. وإلا ابدأ التسجيل
+            // ✅ toggle بسيط: إذا كان التسجيل قيد التنفيذ، أوقفه. وإلا ابدأ التسجيل
             if (isRecording) {
-                console.log('👆 touchstart - إيقاف التسجيل');
-                // تأخير بسيط قبل الإيقاف للتأكد من أن المستخدم يريد الإيقاف
-                setTimeout(() => {
-                    if (isTouching && isRecording) {
-                        stopAudioRecording(e);
-                    }
-                    isTouching = false;
-                }, 100);
+                console.log('👆 touchstart - إيقاف التسجيل (toggle)');
+                stopAudioRecording(e);
             } else {
-                console.log('👆 touchstart - بدء التسجيل');
+                console.log('👆 touchstart - بدء التسجيل (toggle)');
                 startAudioRecording(e);
-                // ✅ بعد بدء التسجيل، نتحقق من touchend لإيقاف التسجيل
-                const handleTouchEnd = function(endEvent) {
-                    endEvent.preventDefault();
-                    endEvent.stopPropagation();
-                    
-                    if (isRecording) {
-                        console.log('👆 touchend - إيقاف التسجيل بعد الضغط');
-                        stopAudioRecording(endEvent);
-                    }
-                    
-                    audioBtn.removeEventListener('touchend', handleTouchEnd);
-                    isTouching = false;
-                };
-                
-                // ✅ إضافة listener مؤقت لـ touchend
-                audioBtn.addEventListener('touchend', handleTouchEnd, { once: true, passive: false });
             }
         }, { passive: false });
         
@@ -1068,7 +1044,6 @@ function setupEventListeners() {
             e.preventDefault();
             e.stopPropagation();
             console.log('👆 touchcancel - إلغاء اللمس');
-            isTouching = false;
         }, { passive: false });
     }
     
@@ -2837,9 +2812,10 @@ function stopAudioRecording(e) {
         e.stopPropagation();
     }
     
-    // ✅ منع إيقاف التسجيل إذا كان قد بدأ للتو (أقل من 500ms)
-    if (recordingStartTime && (Date.now() - recordingStartTime) < 500) {
-        console.log('⚠️ تم منع إيقاف التسجيل - المدة قصيرة جداً:', Date.now() - recordingStartTime, 'ms');
+    // ✅ منع إيقاف التسجيل إذا كان قد بدأ للتو (أقل من 300ms) - فقط لمنع الإيقاف الفوري العرضي
+    // ملاحظة: هذا يمنع الإيقاف الفوري فقط، لكن يسمح بالإيقاف عند الضغط مرة أخرى بعد 300ms
+    if (recordingStartTime && (Date.now() - recordingStartTime) < 300) {
+        console.log('⚠️ تم منع إيقاف التسجيل - المدة قصيرة جداً (أقل من 300ms):', Date.now() - recordingStartTime, 'ms');
         return;
     }
     

@@ -52,12 +52,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
             [$userId]
         );
         
-        // التأكد من أن $credentials هو array
-        if ($credentials === false) {
+        // ✅ التأكد من أن $credentials هو array
+        if ($credentials === false || !is_array($credentials)) {
             $credentials = [];
         }
         
-        response(true, '', ['credentials' => $credentials]);
+        // ✅ تسجيل البيانات للتحقق
+        error_log("WebAuthn Credentials for user $userId: " . count($credentials) . " credentials found");
+        if (count($credentials) > 0) {
+            error_log("First credential: " . json_encode($credentials[0], JSON_UNESCAPED_UNICODE));
+        } else {
+            error_log("No credentials found for user $userId");
+        }
+        
+        // ✅ التأكد من أن البيانات في الصيغة الصحيحة
+        $responseData = [
+            'credentials' => $credentials
+        ];
+        
+        response(true, '', $responseData);
         
     } catch (Exception $e) {
         error_log("WebAuthn Credentials List Error: " . $e->getMessage());

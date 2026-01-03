@@ -184,6 +184,7 @@ async function loadProfileSection() {
 
         // تحميل البصمات المسجلة
         await loadCredentials();
+        console.log('🔍 بعد تحميل البصمات - عدد البصمات:', userCredentials.length);
         
         // جلب تقييم الفني إذا كان المستخدم فني
         let technicianRating = null;
@@ -631,16 +632,21 @@ async function loadCredentials() {
         }
 
         const data = await response.json();
+        
+        // ✅ تسجيل البيانات للتحقق
+        console.log('🔍 WebAuthn Credentials Response:', data);
 
         if (data.success) {
             // ✅ إصلاح: البيانات تأتي في data.data.credentials وليس data.credentials
-            userCredentials = data.data?.credentials || data.credentials || [];
+            const credentials = data.data?.credentials || data.credentials || [];
+            userCredentials = Array.isArray(credentials) ? credentials : [];
+            console.log('✅ تم تحميل البصمات:', userCredentials.length, 'بصمة');
         } else {
-            console.error('خطأ في تحميل البصمات:', data.message || data.error || 'خطأ غير معروف');
+            console.error('❌ خطأ في تحميل البصمات:', data.message || data.error || 'خطأ غير معروف');
             userCredentials = [];
         }
     } catch (error) {
-        console.error('خطأ في تحميل البصمات:', error.message || error);
+        console.error('❌ خطأ في تحميل البصمات:', error.message || error);
         userCredentials = [];
     }
 }
