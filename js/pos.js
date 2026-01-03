@@ -3820,14 +3820,14 @@ async function handlePOSQRCodeScanned(decodedText) {
         return;
     }
     
-    // قفل القارئ لمدة 500ms لمنع القراءات المتكررة (تقليل الوقت للسرعة)
+    // قفل القارئ لمدة 1 ثانية (1000ms) لمنع القراءات المتكررة
     posScannerLocked = true;
     
-    // إعادة فتح القارئ بعد 500ms (تقليل من 1000ms للسرعة)
+    // إعادة فتح القارئ بعد 1 ثانية (1000ms)
     setTimeout(() => {
         posScannerLocked = false;
         console.log('✅ [POS Scanner] تم إلغاء قفل القارئ - جاهز للقراءة التالية');
-    }, 500);
+    }, 1000);
     
     // Don't stop scanning - keep camera running for continuous scanning
     const errorDiv = document.getElementById('pos-scanner-error');
