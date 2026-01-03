@@ -143,6 +143,20 @@ const API = {
             
             const fullUrl = API_BASE_URL + endpoint;
             
+            // ✅ Request Deduplication: منع الطلبات المكررة المتزامنة
+            const requestKey = getRequestKey(endpoint, method, data);
+            if (PENDING_REQUESTS.has(requestKey)) {
+                // إذا كان هناك طلب قيد التنفيذ لنفس endpoint، نعيد نفس Promise
+                if (window.location.search.includes('debug=true') || window.location.hostname === 'localhost') {
+                    console.log(`%c🔄 Request deduplication:`, 'color: #9C27B0; font-weight: bold;', endpoint, '- استخدام الطلب الموجود');
+                }
+                const pendingPromise = PENDING_REQUESTS.get(requestKey);
+                return pendingPromise.then(result => {
+                    // نسخ النتيجة لتجنب مشاكل الـ reference
+                    return JSON.parse(JSON.stringify(result));
+                });
+            }
+            
             if (!isSilent && !(isGetMessages && !isChatPage)) {
                 console.log(`%c📡 إرسال طلب ${actualMethod}`, 'color: #2196F3; font-weight: bold;', `إلى: ${fullUrl}`);
             }
@@ -160,10 +174,12 @@ const API = {
             let response;
             const maxRetries = 2;
             
-            try {
-                for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                    try {
-                        response = await fetch(fullUrl, fetchOptions);
+            // ✅ إنشاء Promise للطلب وإضافته إلى PENDING_REQUESTS
+            const requestPromise = (async () => {
+                try {
+                    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                        try {
+                            response = await fetch(fullUrl, fetchOptions);
                         clearTimeout(timeoutId);
                         break; // نجح الطلب
                     } catch (error) {
@@ -279,68 +295,62 @@ const API = {
                 API_CACHE.set(cacheKey, result);
             }
             
-            // ✅ مسح الكاش تلقائياً بعد أي عملية POST/PUT/DELETE ناجحة
-            // لضمان ظهور التغييرات بشكل فوري في جميع الصفحات
-            if ((method === 'POST' || method === 'PUT' || method === 'DELETE' || actualMethod === 'POST') && result.success) {
-                // مسح الكاش بالكامل لضمان تحديث جميع البيانات
-                API_CACHE.clear();
-                console.log('%c🗑️ تم مسح الكاش بعد العملية:', 'color: #FFA500; font-weight: bold;', endpoint);
-            }
-            
-            return result;
-        } catch (error) {
-            console.error('%c❌ خطأ في الاتصال:', 'color: #f44336; font-size: 14px; font-weight: bold;', error);
-            console.error('تفاصيل الخطأ:', {
-                name: error.name,
-                message: error.message,
-                stack: error.stack
-            });
-            
-            // معالجة NetworkError بشكل أفضل
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                // ✅ مسح الكاش تلقائياً بعد أي عملية POST/PUT/DELETE ناجحة
+                // لضمان ظهور التغييرات بشكل فوري في جميع الصفحات
+                if ((method === 'POST' || method === 'PUT' || method === 'DELETE' || actualMethod === 'POST') && result.success) {
+                    // مسح الكاش بالكامل لضمان تحديث جميع البيانات
+                    API_CACHE.clear();
+                    console.log('%c🗑️ تم مسح الكاش بعد العملية:', 'color: #FFA500; font-weight: bold;', endpoint);
+                }
+                
+                return result;
+            } catch (error) {
+                // معالجة الأخطاء داخل Promise
+                console.error('%c❌ خطأ في الاتصال:', 'color: #f44336; font-size: 14px; font-weight: bold;', error);
+                console.error('تفاصيل الخطأ:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                
+                // معالجة NetworkError بشكل أفضل
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    return {
+                        success: false,
+                        message: 'خطأ في الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.',
+                        error: 'NetworkError: ' + error.message,
+                        networkError: true
+                    };
+                }
+                
+                // معالجة NetworkError بشكل أفضل
+                if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+                    return {
+                        success: false,
+                        message: 'خطأ في الاتصال بالخادم. يرجى التحقق من:\n1. اتصال الإنترنت\n2. إعدادات الاستضافة\n3. مسار API صحيح',
+                        error: 'NetworkError: ' + error.message,
+                        networkError: true
+                    };
+                }
+                
+                // إرجاع خطأ عام
                 return {
                     success: false,
-                    message: 'خطأ في الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.',
-                    error: 'NetworkError: ' + error.message,
-                    networkError: true
+                    message: 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
+                    error: error.message || 'Unknown error'
                 };
             }
-            
-            // معالجة NetworkError بشكل أفضل
-            if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
-                return {
-                    success: false,
-                    message: 'خطأ في الاتصال بالخادم. يرجى التحقق من:\n1. اتصال الإنترنت\n2. إعدادات الاستضافة\n3. مسار API صحيح',
-                    error: 'NetworkError: ' + error.message,
-                    networkError: true
-                };
-            }
-            
-            // التحقق إذا كان الخطأ بسبب الإلغاء
-            if (error.name === 'AbortError') {
-                return { 
-                    success: false, 
-                    message: 'انتهت مهلة الاتصال بالخادم. تحقق من اتصال الإنترنت.',
-                    error: 'AbortError',
-                    timeout: true
-                };
-            }
-            
-            // تحديد نوع الخطأ
-            let errorMessage = 'خطأ في الاتصال بالخادم';
-            if (error.name === 'SyntaxError') {
-                errorMessage = 'خطأ في تحليل الاستجابة من الخادم. قد يكون الخادم يعيد HTML بدلاً من JSON.';
-            } else {
-                errorMessage = `خطأ: ${error.message || 'خطأ غير معروف'}`;
-            }
-            
-            return { 
-                success: false, 
-                message: errorMessage,
-                error: error.message,
-                errorName: error.name
-            };
-        }
+        })();
+        
+        // ✅ حفظ Promise في PENDING_REQUESTS
+        PENDING_REQUESTS.set(requestKey, requestPromise);
+        
+        // ✅ حذف من PENDING_REQUESTS بعد اكتمال الطلب (نجاح أو فشل)
+        requestPromise.finally(() => {
+            PENDING_REQUESTS.delete(requestKey);
+        });
+        
+        return requestPromise;
     },
 
     // المصادقة

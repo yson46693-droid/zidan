@@ -151,62 +151,62 @@ if ($method === 'POST') {
     $fromBranch = dbSelectOne("SELECT name FROM branches WHERE id = ?", [$userBranchId]);
     $fromBranchName = $fromBranch ? $fromBranch['name'] : 'فرع غير معروف';
     
+    // قائمة أنواع قطع الغيار
+    $sparePartTypes = [
+        'screen' => 'شاشة',
+        'touch' => 'تاتش',
+        'battery' => 'بطارية',
+        'rear_camera' => 'كاميرا خلفية',
+        'front_camera' => 'كاميرا أمامية',
+        'charging_port' => 'فلاتة شحن',
+        'flex_connector' => 'فلاتة ربط',
+        'power_flex' => 'فلاتة باور',
+        'motherboard' => 'بوردة',
+        'frame' => 'فريم',
+        'housing' => 'هاوسنج',
+        'back_cover' => 'ظهر',
+        'lens' => 'عدسات',
+        'ic' => 'IC',
+        'external_buttons' => 'أزرار خارجية',
+        'earpiece' => 'سماعة مكالمات',
+        'speaker' => 'علبة جرس',
+        'network_wire' => 'واير شبكة',
+        'network_flex' => 'فلاتة شبكة',
+        'other' => 'ملحقات أخرى'
+    ];
+    
+    // بناء رسالة مبسطة
+    $chatMessage = "📦 طلب منتج\n";
+    $chatMessage .= "من: {$fromBranchName}\n";
+    $chatMessage .= "إلى: {$toBranch['name']}\n\n";
+    $chatMessage .= "المنتج: {$itemName}\n";
+    
+    // إذا كانت قطع غيار و items موجودة، عرض تفاصيل القطع
+    if ($itemType === 'spare_part' && is_array($items) && !empty($items)) {
+        $chatMessage .= "\nالقطع المطلوبة:\n";
+        foreach ($items as $item) {
+            $itemTypeName = $sparePartTypes[$item['item_type']] ?? $item['item_type'];
+            $qty = intval($item['quantity'] ?? 0);
+            if ($qty > 0) {
+                $chatMessage .= "• {$itemTypeName}: {$qty}";
+                if (!empty($item['custom_value'])) {
+                    $chatMessage .= " ({$item['custom_value']})";
+                }
+                $chatMessage .= "\n";
+            }
+        }
+        $chatMessage .= "\nإجمالي: {$quantity} قطعة\n";
+    } else {
+        $chatMessage .= "الكمية: {$quantity}\n";
+    }
+    
+    $chatMessage .= "رقم الطلب: {$requestNumber}\n";
+    if (!empty($notes)) {
+        $chatMessage .= "ملاحظات: {$notes}\n";
+    }
+    
     // إرسال رسالة مبسطة في الشات
     try {
-        // قائمة أنواع قطع الغيار
-        $sparePartTypes = [
-            'screen' => 'شاشة',
-            'touch' => 'تاتش',
-            'battery' => 'بطارية',
-            'rear_camera' => 'كاميرا خلفية',
-            'front_camera' => 'كاميرا أمامية',
-            'charging_port' => 'فلاتة شحن',
-            'flex_connector' => 'فلاتة ربط',
-            'power_flex' => 'فلاتة باور',
-            'motherboard' => 'بوردة',
-            'frame' => 'فريم',
-            'housing' => 'هاوسنج',
-            'back_cover' => 'ظهر',
-            'lens' => 'عدسات',
-            'ic' => 'IC',
-            'external_buttons' => 'أزرار خارجية',
-            'earpiece' => 'سماعة مكالمات',
-            'speaker' => 'علبة جرس',
-            'network_wire' => 'واير شبكة',
-            'network_flex' => 'فلاتة شبكة',
-            'other' => 'ملحقات أخرى'
-        ];
-        
-        // بناء رسالة مبسطة
-        $chatMessage = "📦 طلب منتج\n";
-        $chatMessage .= "من: {$fromBranchName}\n";
-        $chatMessage .= "إلى: {$toBranch['name']}\n\n";
-        $chatMessage .= "المنتج: {$itemName}\n";
-        
-        // إذا كانت قطع غيار و items موجودة، عرض تفاصيل القطع
-        if ($itemType === 'spare_part' && is_array($items) && !empty($items)) {
-            $chatMessage .= "\nالقطع المطلوبة:\n";
-            foreach ($items as $item) {
-                $itemTypeName = $sparePartTypes[$item['item_type']] ?? $item['item_type'];
-                $qty = intval($item['quantity'] ?? 0);
-                if ($qty > 0) {
-                    $chatMessage .= "• {$itemTypeName}: {$qty}";
-                    if (!empty($item['custom_value'])) {
-                        $chatMessage .= " ({$item['custom_value']})";
-                    }
-                    $chatMessage .= "\n";
-                }
-            }
-            $chatMessage .= "\nإجمالي: {$quantity} قطعة\n";
-        } else {
-            $chatMessage .= "الكمية: {$quantity}\n";
-        }
-        
-        $chatMessage .= "رقم الطلب: {$requestNumber}\n";
-        if (!empty($notes)) {
-            $chatMessage .= "ملاحظات: {$notes}\n";
-        }
-        
         // حفظ الرسالة في الشات مباشرة
         $messageId = generateId();
         $user = dbSelectOne("SELECT name, username FROM users WHERE id = ?", [$session['user_id']]);
@@ -220,17 +220,79 @@ if ($method === 'POST') {
         error_log('خطأ في إرسال رسالة الشات: ' . $e->getMessage());
     }
     
-    // إرسال إشعار للمدير والمالك في الفرع المطلوب منه
+    // إرسال إشعارات لكل المستخدمين المرتبطين بالفرع الأول (الهانوفيل) والمالك
     try {
-        $managers = dbSelect(
-            "SELECT id FROM users WHERE (role = 'admin' OR role = 'manager') AND (branch_id = ? OR role = 'admin')",
-            [$toBranchId]
-        );
+        // التأكد من وجود جدول notifications
+        if (!dbTableExists('notifications')) {
+            $conn = getDBConnection();
+            if ($conn) {
+                $createNotificationsTableSQL = "
+                    CREATE TABLE IF NOT EXISTS `notifications` (
+                      `id` varchar(50) NOT NULL,
+                      `user_id` varchar(50) NOT NULL,
+                      `type` varchar(50) NOT NULL DEFAULT 'mention',
+                      `title` varchar(255) NOT NULL,
+                      `message` text NOT NULL,
+                      `related_id` varchar(50) DEFAULT NULL,
+                      `is_read` tinyint(1) DEFAULT 0,
+                      `created_at` datetime NOT NULL,
+                      PRIMARY KEY (`id`),
+                      KEY `idx_user_id` (`user_id`),
+                      KEY `idx_type` (`type`),
+                      KEY `idx_is_read` (`is_read`),
+                      KEY `idx_created_at` (`created_at`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ";
+                $conn->query($createNotificationsTableSQL);
+            }
+        }
         
-        if ($managers) {
-            foreach ($managers as $manager) {
-                // يمكن إضافة نظام إشعارات هنا لاحقاً
-                error_log("إشعار للمدير: {$manager['id']} - طلب قطع غيار جديد");
+        // جلب الفرع الأول (الهانوفيل)
+        $firstBranch = dbSelectOne(
+            "SELECT id, code FROM branches ORDER BY created_at ASC, id ASC LIMIT 1"
+        );
+        $firstBranchId = $firstBranch ? $firstBranch['id'] : null;
+        $firstBranchCode = $firstBranch ? ($firstBranch['code'] ?? '') : '';
+        
+        // جلب جميع المستخدمين المرتبطين بالفرع الأول + المالك (admin)
+        $usersToNotify = [];
+        
+        if ($firstBranchId) {
+            // جلب جميع المستخدمين المرتبطين بالفرع الأول
+            $branchUsers = dbSelect(
+                "SELECT id FROM users WHERE branch_id = ?",
+                [$firstBranchId]
+            );
+            if ($branchUsers && is_array($branchUsers)) {
+                foreach ($branchUsers as $user) {
+                    $usersToNotify[$user['id']] = true;
+                }
+            }
+        }
+        
+        // جلب جميع المالكين (admin) حتى لو لم يكونوا مرتبطين بفرع
+        $adminUsers = dbSelect(
+            "SELECT id FROM users WHERE role = 'admin'"
+        );
+        if ($adminUsers && is_array($adminUsers)) {
+            foreach ($adminUsers as $user) {
+                $usersToNotify[$user['id']] = true;
+            }
+        }
+        
+        // إرسال الإشعار لكل مستخدم
+        $notificationTitle = "طلب منتج جديد من {$fromBranchName}";
+        
+        foreach ($usersToNotify as $userId => $value) {
+            try {
+                $notificationId = generateId();
+                dbExecute(
+                    "INSERT INTO notifications (id, user_id, type, title, message, related_id, is_read, created_at) 
+                     VALUES (?, ?, 'inventory_request', ?, ?, ?, 0, NOW())",
+                    [$notificationId, $userId, $notificationTitle, $chatMessage, $requestId]
+                );
+            } catch (Exception $e) {
+                error_log('خطأ في إرسال إشعار للمستخدم ' . $userId . ': ' . $e->getMessage());
             }
         }
     } catch (Exception $e) {
