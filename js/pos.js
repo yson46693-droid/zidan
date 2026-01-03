@@ -3372,10 +3372,26 @@ async function initializePOSQRCodeScannerMobile() {
             fps: 10,
             qrbox: { width: 250, height: 250 }
         },
-        function onScanSuccess(decodedText) {
+        function onScanSuccess(decodedText, decodedResult) {
             // Success callback - تم قراءة QR Code بنجاح (exactly like qr.html)
             console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected ✅✅✅');
-            console.log('📋 [POS Scanner Mobile] Decoded Text:', decodedText);
+            console.log('📋 [POS Scanner Mobile] Decoded Text (Raw):', decodedText);
+            console.log('📋 [POS Scanner Mobile] Decoded Result:', decodedResult);
+            
+            // ✅ تنظيف النص المقروء - إزالة المسافات والأحرف غير المرئية
+            if (!decodedText || typeof decodedText !== 'string') {
+                console.warn('⚠️ [POS Scanner Mobile] Invalid decoded text:', decodedText);
+                return;
+            }
+            
+            // تنظيف النص
+            const cleanedText = decodedText
+                .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
+                .replace(/\s+/g, ' ') // Normalize spaces
+                .trim(); // Remove leading/trailing spaces
+            
+            console.log('📋 [POS Scanner Mobile] Decoded Text (Cleaned):', cleanedText);
+            console.log('📋 [POS Scanner Mobile] Text Length:', cleanedText.length);
             
             // اهتزاز (موبايل)
             if (navigator.vibrate) {
@@ -3383,10 +3399,10 @@ async function initializePOSQRCodeScannerMobile() {
             }
             
             // Handle product using existing function (like desktop scanner)
-            if (decodedText && decodedText.trim()) {
-                handlePOSQRCodeScanned(decodedText.trim());
+            if (cleanedText && cleanedText.length > 0) {
+                handlePOSQRCodeScanned(cleanedText);
             } else {
-                console.warn('⚠️ [POS Scanner Mobile] Empty decoded text');
+                console.warn('⚠️ [POS Scanner Mobile] Empty decoded text after cleaning');
             }
             
             // Continue scanning - don't stop camera (like desktop scanner)
@@ -3573,10 +3589,21 @@ async function initializePOSQRCodeScanner() {
             (decodedText, decodedResult) => {
                 // Success callback - تم قراءة QR Code بنجاح
                 const timestamp = new Date().toISOString();
+                
+                // ✅ تنظيف النص المقروء - إزالة المسافات والأحرف غير المرئية
+                let cleanedText = decodedText;
+                if (decodedText && typeof decodedText === 'string') {
+                    cleanedText = decodedText
+                        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
+                        .replace(/\s+/g, ' ') // Normalize spaces
+                        .trim(); // Remove leading/trailing spaces
+                }
+                
                 const logData = {
                     timestamp: timestamp,
                     success: true,
                     decodedText: decodedText,
+                    cleanedText: cleanedText,
                     decodedResult: decodedResult,
                     scannerId: scannerId,
                     isMobile: isMobile,
@@ -3585,7 +3612,8 @@ async function initializePOSQRCodeScanner() {
                 
                 // Log مفصل في console
                 console.log('✅✅✅ [POS Scanner] تم قراءة QR Code بنجاح ✅✅✅');
-                console.log('📋 [POS Scanner] البيانات المقروءة:', decodedText);
+                console.log('📋 [POS Scanner] البيانات المقروءة (Raw):', decodedText);
+                console.log('📋 [POS Scanner] البيانات المقروءة (Cleaned):', cleanedText);
                 console.log('📊 [POS Scanner] تفاصيل القراءة:', decodedResult);
                 console.log('📱 [POS Scanner] نوع الجهاز:', isMobile ? 'هاتف' : 'كمبيوتر');
                 console.log('📷 [POS Scanner] إعدادات الكاميرا:', cameraConfig);
@@ -3594,14 +3622,18 @@ async function initializePOSQRCodeScanner() {
                 
                 // Log في error log أيضاً
                 try {
-                    const logMessage = `[POS QR Scanner SUCCESS] ${timestamp} - Text: ${decodedText} - Device: ${isMobile ? 'Mobile' : 'Desktop'} - Camera: ${JSON.stringify(cameraConfig)}`;
+                    const logMessage = `[POS QR Scanner SUCCESS] ${timestamp} - Text: ${cleanedText} (Original: ${decodedText}) - Device: ${isMobile ? 'Mobile' : 'Desktop'} - Camera: ${JSON.stringify(cameraConfig)}`;
                     console.error(logMessage); // استخدام console.error للظهور في error logs
                 } catch (e) {
                     console.error('خطأ في تسجيل log:', e);
                 }
                 
-                // معالجة QR Code المقروء - بدون إيقاف الماسح
-                handlePOSQRCodeScanned(decodedText);
+                // معالجة QR Code المقروء باستخدام النص المنظف - بدون إيقاف الماسح
+                if (cleanedText && cleanedText.length > 0) {
+                    handlePOSQRCodeScanned(cleanedText);
+                } else {
+                    console.warn('⚠️ [POS Scanner] نص QR Code فارغ بعد التنظيف');
+                }
             },
             (errorMessage) => {
                 // Error callback - تسجيل جميع الأخطاء للمساعدة في التشخيص
@@ -3802,10 +3834,46 @@ async function handlePOSQRCodeScanned(decodedText) {
     
     if (errorDiv) errorDiv.style.display = 'none';
     
+    // ✅ تحسين معالجة النص المقروء - إزالة المسافات والأحرف غير المرئية
+    const normalizeText = (text) => {
+        if (!text) return '';
+        // تحويل إلى نص وإزالة المسافات من البداية والنهاية
+        let normalized = text.toString().trim();
+        // إزالة أي أحرف غير مرئية أو مسافات زائدة
+        normalized = normalized.replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width characters
+        normalized = normalized.replace(/\s+/g, ' ').trim(); // Normalize spaces
+        return normalized;
+    };
+    
+    const originalText = decodedText;
+    const cleanedText = normalizeText(decodedText);
+    
+    console.log('🔍 [POS Scanner] قراءة QR Code:', {
+        original: originalText,
+        cleaned: cleanedText,
+        length: cleanedText.length,
+        charCodes: cleanedText.split('').map(c => c.charCodeAt(0))
+    });
+    
+    // ✅ التحقق من أن المنتجات تم تحميلها
+    if (!allProducts || allProducts.length === 0) {
+        console.error('❌ [POS Scanner] المنتجات غير محملة بعد - انتظر قليلاً...');
+        // محاولة إعادة تحميل المنتجات
+        try {
+            await loadAllProducts();
+            console.log('✅ [POS Scanner] تم تحميل المنتجات - عدد المنتجات:', allProducts.length);
+        } catch (e) {
+            console.error('❌ [POS Scanner] فشل تحميل المنتجات:', e);
+            showMessage('❌ المنتجات غير محملة. يرجى المحاولة مرة أخرى بعد قليل.', 'error');
+            return;
+        }
+    }
+    
     let product = null;
     let productId = null;
     
-    console.log('🔍 [POS Scanner] قراءة QR Code:', decodedText);
+    // ✅ استخدام النص المنظف للبحث
+    decodedText = cleanedText;
     
     // Try to parse QR code as JSON (inventory card format for spare parts, phones, and accessories)
     try {
@@ -3839,46 +3907,63 @@ async function handlePOSQRCodeScanned(decodedText) {
     // If not found, try finding by barcode (for phones and accessories)
     // This handles simple text QR codes used for phones and accessories
     if (!product) {
-        const decodedTextStr = decodedText.toString().trim();
+        const decodedTextStr = normalizeText(decodedText);
         console.log('🔍 [POS Scanner] البحث في جميع المنتجات عن:', decodedTextStr);
         console.log('📦 [POS Scanner] إجمالي المنتجات المتاحة:', allProducts.length);
         
         // Log first few products for debugging
         if (allProducts.length > 0) {
-            console.log('📋 [POS Scanner] أمثلة على المنتجات:', allProducts.slice(0, 3).map(p => ({
+            const sampleProducts = allProducts.slice(0, 5).map(p => ({
                 id: p.id,
                 name: p.name,
                 type: p.type,
                 barcode: p.barcode,
-                code: p.code
-            })));
+                code: p.code,
+                normalizedBarcode: normalizeText(p.barcode || ''),
+                normalizedCode: normalizeText(p.code || ''),
+                normalizedId: normalizeText(p.id?.toString() || '')
+            }));
+            console.log('📋 [POS Scanner] أمثلة على المنتجات (مع النصوص المنظفة):', sampleProducts);
         }
         
         // Search in all product types: phones, accessories, spare_parts
         product = allProducts.find(p => {
-            // Try ID match first (exact match)
-            if (p.id && p.id.toString().trim() === decodedTextStr) {
+            // Normalize all comparison values
+            const normalizedId = normalizeText(p.id?.toString() || '');
+            const normalizedBarcode = normalizeText(p.barcode || '');
+            const normalizedCode = normalizeText(p.code || '');
+            
+            // Try ID match first (exact match after normalization)
+            if (normalizedId && normalizedId === decodedTextStr) {
                 console.log('✅ [POS Scanner] تطابق ID:', p.id, '=', decodedTextStr);
                 return true;
             }
             
-            // Try barcode match (exact match)
-            const productBarcode = (p.barcode || '').toString().trim();
-            if (productBarcode && productBarcode === decodedTextStr) {
-                console.log('✅ [POS Scanner] تطابق Barcode:', productBarcode, '=', decodedTextStr);
+            // Try barcode match (exact match after normalization)
+            if (normalizedBarcode && normalizedBarcode === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق Barcode:', p.barcode, '=', decodedTextStr);
                 return true;
             }
             
-            // Try code match (exact match)
-            const productCode = (p.code || '').toString().trim();
-            if (productCode && productCode === decodedTextStr) {
-                console.log('✅ [POS Scanner] تطابق Code:', productCode, '=', decodedTextStr);
+            // Try code match (exact match after normalization)
+            if (normalizedCode && normalizedCode === decodedTextStr) {
+                console.log('✅ [POS Scanner] تطابق Code:', p.code, '=', decodedTextStr);
                 return true;
             }
             
-            // Try ID as fallback (without trim, in case of formatting issues)
-            if (p.id && p.id.toString() === decodedText) {
-                console.log('✅ [POS Scanner] تطابق ID (بدون trim):', p.id);
+            // Try without normalization (in case original text matches)
+            if (p.id && p.id.toString() === originalText) {
+                console.log('✅ [POS Scanner] تطابق ID (Original):', p.id);
+                return true;
+            }
+            
+            if (p.barcode && p.barcode.toString() === originalText) {
+                console.log('✅ [POS Scanner] تطابق Barcode (Original):', p.barcode);
+                return true;
+            }
+            
+            if (p.code && p.code.toString() === originalText) {
+                console.log('✅ [POS Scanner] تطابق Code (Original):', p.code);
                 return true;
             }
             
@@ -3894,16 +3979,18 @@ async function handlePOSQRCodeScanned(decodedText) {
     
     // If still not found, try partial match (in case of extra spaces or formatting)
     if (!product) {
-        const decodedTextStr = decodedText.toString().trim();
-        console.log('🔍 [POS Scanner] محاولة البحث الجزئي عن:', decodedTextStr);
+        const decodedTextStr = normalizeText(decodedText);
+        console.log('🔍 [POS Scanner] محاولة البحث الجزئي (بدون مسافات) عن:', decodedTextStr);
+        
+        // Remove all spaces for comparison
+        const decodedNoSpaces = decodedTextStr.replace(/\s+/g, '').toLowerCase();
         
         product = allProducts.find(p => {
-            const productBarcode = (p.barcode || p.code || p.id?.toString() || '').toString().trim();
+            const productBarcode = normalizeText(p.barcode || p.code || p.id?.toString() || '');
             const normalizedBarcode = productBarcode.replace(/\s+/g, '').toLowerCase();
-            const normalizedDecoded = decodedTextStr.replace(/\s+/g, '').toLowerCase();
             
-            if (productBarcode && normalizedBarcode === normalizedDecoded) {
-                console.log('✅ [POS Scanner] تطابق جزئي:', productBarcode, '=', decodedTextStr);
+            if (productBarcode && normalizedBarcode === decodedNoSpaces) {
+                console.log('✅ [POS Scanner] تطابق جزئي (بدون مسافات):', productBarcode, '=', decodedTextStr);
                 return true;
             }
             
@@ -3915,6 +4002,12 @@ async function handlePOSQRCodeScanned(decodedText) {
         } else {
             console.log('❌ [POS Scanner] لم يتم العثور على المنتج بعد البحث الجزئي');
             console.log('💡 [POS Scanner] نصيحه: تحقق من أن QR Code يحتوي على نفس القيمة المخزنة في barcode أو code أو id');
+            console.log('💡 [POS Scanner] نص مقروء:', {
+                original: originalText,
+                cleaned: cleanedText,
+                noSpaces: decodedNoSpaces,
+                length: cleanedText.length
+            });
         }
     }
     
@@ -3924,7 +4017,7 @@ async function handlePOSQRCodeScanned(decodedText) {
         if (errorDivMobile) {
             const errorMessageMobile = document.getElementById('pos-scanner-error-message-mobile');
             if (errorMessageMobile) {
-                errorMessageMobile.textContent = `❌ المنتج غير موجود. QR Code: ${decodedText}`;
+                errorMessageMobile.textContent = `❌ المنتج غير موجود. QR Code: ${cleanedText}`;
             }
             errorDivMobile.style.display = 'block';
             
@@ -3940,13 +4033,13 @@ async function handlePOSQRCodeScanned(decodedText) {
         if (errorDiv) {
             const errorMessage = document.getElementById('pos-scanner-error-message');
             if (errorMessage) {
-                errorMessage.textContent = `❌ المنتج غير موجود في قائمة المنتجات. يرجى التحقق من QR Code والمحاولة مرة أخرى. QR Code: ${decodedText}`;
+                errorMessage.textContent = `❌ المنتج غير موجود في قائمة المنتجات. يرجى التحقق من QR Code والمحاولة مرة أخرى. QR Code: ${cleanedText}`;
             }
             errorDiv.style.display = 'block';
         }
         
         // Show user-friendly message
-        showMessage(`❌ المنتج غير موجود. يرجى التحقق من QR Code: ${decodedText}`, 'error');
+        showMessage(`❌ المنتج غير موجود. QR Code المقروء: "${cleanedText}". تحقق من أن QR Code يحتوي على ID أو Barcode صحيح للمنتج.`, 'error');
         
         // Restart scanner after 2 seconds
         setTimeout(() => {

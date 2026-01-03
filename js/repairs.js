@@ -6654,13 +6654,13 @@ async function openLossBarcodeScanner() {
     scannerModal.className = 'modal';
     scannerModal.style.display = 'flex';
     scannerModal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>مسح QR Code من فاتورة الصيانة</h3>
+        <div class="modal-content" style="width: fit-content; max-width: 90vw; padding: 0;">
+            <div class="modal-header" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; font-size: 1.2em;">مسح QR Code من فاتورة الصيانة</h3>
                 <button onclick="closeLossBarcodeScanner()" class="btn-close">&times;</button>
             </div>
             <div style="padding: 20px;">
-                <div id="loss-scanner-area" style="width: 100%; min-height: 400px; background: var(--light-bg); border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+                <div id="loss-scanner-area" style="width: 100%; min-height: 400px; max-height: 70vh; background: var(--light-bg); border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
                     <div id="loss-scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; color: var(--text-dark);">
                         <i class="bi bi-camera" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block; animation: pulse 2s infinite;"></i>
                         <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">جاري تحميل قارئ QR Code...</p>
@@ -6685,18 +6685,64 @@ async function openLossBarcodeScanner() {
 
 // إغلاق QR Scanner للخسارة
 function closeLossBarcodeScanner() {
+    // إيقاف جميع تدفقات الكاميرا أولاً
+    try {
+        // إيقاف stream المحفوظ
+        if (window.lossScannerStream) {
+            window.lossScannerStream.getTracks().forEach(track => {
+                track.stop();
+                console.log('✅ [Loss Scanner] تم إيقاف track:', track.kind);
+            });
+            window.lossScannerStream = null;
+        }
+        
+        // إيقاف stream من video element
+        const scannerArea = document.getElementById('loss-scanner-area');
+        if (scannerArea) {
+            const videoElement = scannerArea.querySelector('video');
+            if (videoElement && videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => {
+                    track.stop();
+                    console.log('✅ [Loss Scanner] تم إيقاف track من video element:', track.kind);
+                });
+                videoElement.srcObject = null;
+            }
+        }
+    } catch (error) {
+        console.log('⚠️ [Loss Scanner] خطأ في إيقاف streams:', error);
+    }
+    
+    // إيقاف QR Scanner instance
     if (lossQRScannerInstance) {
         try {
             lossQRScannerInstance.stop().then(() => {
+                console.log('✅ [Loss Scanner] تم إيقاف QR Scanner بنجاح');
+                try {
+                    if (lossQRScannerInstance.clear) {
+                        lossQRScannerInstance.clear();
+                    }
+                } catch (clearErr) {
+                    console.log('⚠️ [Loss Scanner] خطأ في clear:', clearErr);
+                }
                 lossQRScannerInstance = null;
-            }).catch(() => {
+            }).catch((err) => {
+                console.log('⚠️ [Loss Scanner] تم إيقاف QR Scanner بالفعل أو خطأ في الإيقاف:', err);
+                try {
+                    if (lossQRScannerInstance.clear) {
+                        lossQRScannerInstance.clear();
+                    }
+                } catch (clearErr) {
+                    console.log('⚠️ [Loss Scanner] خطأ في clear:', clearErr);
+                }
                 lossQRScannerInstance = null;
             });
         } catch (error) {
+            console.error('❌ [Loss Scanner] خطأ في إيقاف QR Scanner:', error);
             lossQRScannerInstance = null;
         }
     }
     
+    // إزالة النموذج
     const modal = document.getElementById('lossBarcodeScannerModal');
     if (modal) {
         modal.remove();
@@ -6753,6 +6799,16 @@ async function initializeLossQRCodeScanner() {
         }
         
         console.log('✅ [Loss Scanner] تم بدء قارئ QR Code بنجاح');
+        
+        // حفظ مرجع stream لإيقافه لاحقاً
+        try {
+            const videoElement = scannerArea.querySelector('video');
+            if (videoElement && videoElement.srcObject) {
+                window.lossScannerStream = videoElement.srcObject;
+            }
+        } catch (err) {
+            console.log('⚠️ [Loss Scanner] لا يمكن حفظ مرجع stream:', err);
+        }
         
     } catch (error) {
         console.error('❌ [Loss Scanner] خطأ في بدء قارئ QR Code:', error);

@@ -3953,10 +3953,22 @@ body {
 }
 
 /* أنماط QR Scanner للخسارة */
+#lossBarcodeScannerModal .modal-content {
+    width: fit-content !important;
+    max-width: 90vw !important;
+    padding: 0 !important;
+}
+
+#lossBarcodeScannerModal .modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
 #loss-scanner-area {
     position: relative;
     width: 100%;
     min-height: 400px;
+    max-height: 70vh;
     overflow: hidden;
 }
 
