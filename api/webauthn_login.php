@@ -157,7 +157,17 @@ try {
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
                 
+                // ✅ تسجيلات مفصلة لحالة الجلسة
                 error_log("WebAuthn Login API - Session created for user: " . $user['id'] . " - branch_id: " . ($user['branch_id'] ?? 'null'));
+                error_log("WebAuthn Login API - Session ID: " . session_id());
+                error_log("WebAuthn Login API - Session status: " . session_status() . " (PHP_SESSION_ACTIVE=" . PHP_SESSION_ACTIVE . ")");
+                error_log("WebAuthn Login API - Headers sent before session_write_close: " . (headers_sent() ? 'YES' : 'NO'));
+                if (headers_sent()) {
+                    error_log("WebAuthn Login API - Headers sent file: " . (function_exists('headers_sent') ? (headers_sent($file, $line) ? "$file:$line" : 'unknown') : 'unknown'));
+                }
+                
+                // ✅ تسجيل cookies قبل حفظ الجلسة
+                error_log("WebAuthn Login API - Cookies before session_write_close: " . json_encode($_COOKIE));
                 
                 // ✅ CRITICAL: إغلاق الجلسة قبل إرسال headers و output
                 // وضمان حفظ الجلسة بشكل صحيح في cookies
@@ -166,10 +176,20 @@ try {
                     if (!headers_sent()) {
                         session_write_close();
                         error_log("WebAuthn Login API - Session written to cookies successfully");
+                        error_log("WebAuthn Login API - Session ID after write_close: " . session_id());
                     } else {
                         error_log("WebAuthn Login API - WARNING: Headers already sent, session may not be saved!");
+                        error_log("WebAuthn Login API - Attempting to write session anyway...");
+                        // محاولة حفظ الجلسة حتى لو تم إرسال headers
+                        @session_write_close();
                     }
+                } else {
+                    error_log("WebAuthn Login API - ERROR: Session is not active! Status: " . session_status());
                 }
+                
+                // ✅ تسجيل cookies بعد حفظ الجلسة
+                error_log("WebAuthn Login API - Cookies after session_write_close: " . json_encode($_COOKIE));
+                error_log("WebAuthn Login API - Headers sent after session_write_close: " . (headers_sent() ? 'YES' : 'NO'));
                 
                 // ✅ CRITICAL: إرسال headers بعد حفظ الجلسة
                 if (!headers_sent()) {

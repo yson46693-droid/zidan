@@ -693,15 +693,30 @@ class SimpleWebAuthn {
 
             const verifyData = await verifyResponse.json();
             console.log('WebAuthn Login - Verify data:', verifyData);
+            console.log('🔍 WebAuthn Login - Cookies before saving user data:', document.cookie);
 
             if (verifyData.success) {
+                console.log('✅ WebAuthn Login - Verification successful');
+                console.log('🔍 WebAuthn Login - verifyData.data:', verifyData.data);
+                
                 // حفظ بيانات المستخدم في localStorage
                 if (verifyData.data) {
+                    console.log('🔍 WebAuthn Login - Clearing localStorage and sessionStorage...');
                     localStorage.clear();
                     sessionStorage.clear();
+                    
+                    console.log('🔍 WebAuthn Login - Saving user data to localStorage:', verifyData.data);
                     localStorage.setItem('currentUser', JSON.stringify(verifyData.data));
+                    
                     // إضافة علامة تسجيل دخول حديث (مثل تسجيل الدخول العادي)
-                    sessionStorage.setItem('just_logged_in_time', Date.now().toString());
+                    const loginTime = Date.now().toString();
+                    sessionStorage.setItem('just_logged_in_time', loginTime);
+                    console.log('🔍 WebAuthn Login - Saved just_logged_in_time:', loginTime);
+                    console.log('🔍 WebAuthn Login - Cookies after saving user data:', document.cookie);
+                    console.log('🔍 WebAuthn Login - localStorage currentUser:', localStorage.getItem('currentUser'));
+                    console.log('🔍 WebAuthn Login - sessionStorage just_logged_in_time:', sessionStorage.getItem('just_logged_in_time'));
+                } else {
+                    console.warn('⚠️ WebAuthn Login - verifyData.data is missing!');
                 }
                 
                 // ✅ تحديد الصفحة المستهدفة للتوجيه
@@ -726,6 +741,9 @@ class SimpleWebAuthn {
                 }
                 
                 console.log('✅ تسجيل الدخول WebAuthn ناجح - التوجيه إلى', redirectUrl);
+                console.log('🔍 WebAuthn Login - Final cookies before redirect:', document.cookie);
+                console.log('🔍 WebAuthn Login - Final localStorage currentUser:', localStorage.getItem('currentUser'));
+                console.log('🔍 WebAuthn Login - Final sessionStorage just_logged_in_time:', sessionStorage.getItem('just_logged_in_time'));
                 
                 // ✅ وضع علامة للصفحة المستهدفة لاستدعاء ensureCSSAndIconsLoaded
                 sessionStorage.setItem('after_login_fix_css', 'true');
@@ -733,15 +751,19 @@ class SimpleWebAuthn {
                 // ✅ التوجيه مباشرة بعد حفظ البيانات
                 // استخدام window.location.href لضمان التوجيه في جميع المتصفحات
                 try {
+                    console.log('🔍 WebAuthn Login - Attempting redirect to:', redirectUrl);
                     window.location.href = redirectUrl;
+                    console.log('✅ WebAuthn Login - Redirect initiated successfully');
                 } catch (error) {
                     console.error('❌ خطأ في التوجيه:', error);
                     // محاولة بديلة باستخدام replace
                     try {
+                        console.log('🔍 WebAuthn Login - Attempting redirect with replace...');
                         window.location.replace(redirectUrl);
                     } catch (replaceError) {
                         console.error('❌ خطأ في التوجيه البديل:', replaceError);
                         // آخر محاولة - استخدام assign
+                        console.log('🔍 WebAuthn Login - Attempting redirect with assign...');
                         window.location.assign(redirectUrl);
                     }
                 }

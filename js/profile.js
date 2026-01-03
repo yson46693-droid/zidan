@@ -791,18 +791,55 @@ async function updateCredentialsList() {
         // إعادة تحميل البصمات من API
         await loadCredentials();
         
-        // العثور على عنصر قائمة البصمات
-        const credentialsList = document.getElementById('credentials-list');
-        const credentialsHeader = document.querySelector('.credentials-list-section h4');
+        // العثور على عنصر قائمة البصمات - البحث في عدة أماكن محتملة
+        let credentialsList = document.getElementById('credentials-list');
+        if (!credentialsList) {
+            // محاولة البحث في قسم إدارة البصمة
+            const biometricSection = document.querySelector('[data-cursor-element-id]');
+            if (biometricSection) {
+                credentialsList = biometricSection.querySelector('#credentials-list');
+            }
+            // محاولة البحث بشكل عام
+            if (!credentialsList) {
+                credentialsList = document.querySelector('#credentials-list');
+            }
+        }
+        
+        // البحث عن العنوان بعدة طرق
+        let credentialsHeader = document.querySelector('.credentials-list-section h4');
+        if (!credentialsHeader) {
+            const listSection = credentialsList.closest('.credentials-list-section');
+            if (listSection) {
+                credentialsHeader = listSection.querySelector('h4');
+            }
+        }
+        if (!credentialsHeader) {
+            // البحث في قسم إدارة البصمة
+            const biometricSection = document.querySelector('[data-cursor-element-id]');
+            if (biometricSection) {
+                credentialsHeader = biometricSection.querySelector('h4');
+            }
+        }
         
         if (!credentialsList) {
             console.warn('⚠️ عنصر credentials-list غير موجود');
+            // إعادة المحاولة بعد 500ms
+            setTimeout(async () => {
+                await updateCredentialsList();
+            }, 500);
             return;
         }
         
         // تحديث العنوان
         if (credentialsHeader) {
             credentialsHeader.innerHTML = `<i class="bi bi-list-check"></i> البصمات المسجلة (${userCredentials.length})`;
+        }
+        
+        // ✅ التأكد من أن userCredentials هو array
+        if (!Array.isArray(userCredentials)) {
+            console.error('❌ userCredentials ليس array:', typeof userCredentials, userCredentials);
+            credentialsList.innerHTML = '<p style="text-align: center; color: #f44336; padding: 20px;">خطأ في تحميل البصمات</p>';
+            return;
         }
         
         // تحديث القائمة

@@ -62,9 +62,20 @@ async function checkLogin() {
     lastCheckLoginTime = now;
     
     try {
+        // ✅ تسجيل حالة التحقق
+        console.log('🔍 checkLogin - Starting checkAuth...');
+        console.log('🔍 checkLogin - Cookies:', document.cookie);
+        console.log('🔍 checkLogin - localStorage currentUser:', localStorage.getItem('currentUser'));
+        console.log('🔍 checkLogin - sessionStorage just_logged_in_time:', sessionStorage.getItem('just_logged_in_time'));
+        
         const result = await API.checkAuth(true); // ✅ استخدام silent: true لتجنب عرض loading overlay
         
+        console.log('🔍 checkLogin - checkAuth result:', result);
+        console.log('🔍 checkLogin - result.success:', result?.success);
+        console.log('🔍 checkLogin - result.data:', result?.data);
+        
         if (!result || !result.success) {
+            console.log('❌ checkLogin - checkAuth failed:', result);
             // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
             if (result && result.networkError) {
                 console.warn('⚠️ خطأ في الشبكة - محاولة استخدام البيانات المحفوظة');

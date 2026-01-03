@@ -292,11 +292,24 @@ if ($method === 'POST') {
 
 // التحقق من الجلسة
 if ($method === 'GET') {
+    // ✅ تسجيلات مفصلة لحالة الجلسة عند التحقق
+    error_log("Auth API - checkAuth called");
+    error_log("Auth API - Session status before start: " . session_status());
+    error_log("Auth API - Cookies received: " . json_encode($_COOKIE));
+    
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
+        error_log("Auth API - Session started. Session ID: " . session_id());
+    } else {
+        error_log("Auth API - Session already active. Session ID: " . session_id());
     }
     
+    error_log("Auth API - Session status after start: " . session_status());
+    error_log("Auth API - Session data: " . json_encode($_SESSION));
+    
     if (isset($_SESSION['user_id'])) {
+        error_log("Auth API - User ID found in session: " . $_SESSION['user_id']);
+        
         // جلب اسم الفرع إذا كان branch_id موجوداً
         $branchName = null;
         if (isset($_SESSION['branch_id']) && $_SESSION['branch_id']) {
@@ -305,6 +318,8 @@ if ($method === 'GET') {
                 $branchName = $branch['name'];
             }
         }
+        
+        error_log("Auth API - Returning user data: id=" . $_SESSION['user_id'] . ", username=" . ($_SESSION['username'] ?? 'null') . ", role=" . ($_SESSION['role'] ?? 'null'));
         
         response(true, 'الجلسة نشطة', [
             'id' => $_SESSION['user_id'],
@@ -315,6 +330,8 @@ if ($method === 'GET') {
             'branch_name' => $branchName
         ]);
     } else {
+        error_log("Auth API - No user_id in session. Session keys: " . implode(', ', array_keys($_SESSION)));
+        error_log("Auth API - Full session data: " . json_encode($_SESSION));
         response(false, 'لا توجد جلسة نشطة', null, 401);
     }
 }

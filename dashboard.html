@@ -727,27 +727,39 @@
                     return;
                 }
                 
+                // ✅ تسجيلات مفصلة لحالة التحقق في protectPage
+                console.log('🔍 Dashboard - protectPage - Starting authentication check');
+                console.log('🔍 Dashboard - protectPage - Cookies:', document.cookie);
+                console.log('🔍 Dashboard - protectPage - localStorage currentUser:', localStorage.getItem('currentUser'));
+                console.log('🔍 Dashboard - protectPage - sessionStorage just_logged_in_time:', sessionStorage.getItem('just_logged_in_time'));
+                
                 // ✅ استخدام performAuthCheck بدلاً من checkLogin مباشرة لتجنب الاستدعاءات المتعددة
                 if (typeof performAuthCheck === 'function') {
+                    console.log('🔍 Dashboard - protectPage - Using performAuthCheck');
                     const user = await performAuthCheck();
+                    console.log('🔍 Dashboard - protectPage - performAuthCheck returned:', user);
                     if (!user) {
-                        console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+                        console.log('❌ Dashboard - protectPage - No user returned, redirecting to index.html');
+                        console.log('❌ Dashboard - protectPage - Cookies at redirect:', document.cookie);
                         window.location.replace('index.html');
                         window.protectPageInProgress = false;
                         return;
                     }
                 } else {
+                    console.log('🔍 Dashboard - protectPage - Using checkLogin (fallback)');
                     // Fallback: استخدام checkLogin إذا لم يكن performAuthCheck متاحاً
                     const user = await checkLogin();
+                    console.log('🔍 Dashboard - protectPage - checkLogin returned:', user);
                     if (!user) {
-                        console.log('❌ المستخدم غير مسجل دخول - إعادة التوجيه...');
+                        console.log('❌ Dashboard - protectPage - No user returned, redirecting to index.html');
+                        console.log('❌ Dashboard - protectPage - Cookies at redirect:', document.cookie);
                         window.location.replace('index.html');
                         window.protectPageInProgress = false;
                         return;
                     }
                 }
                 
-                console.log('✅ تم التحقق من تسجيل الدخول بنجاح');
+                console.log('✅ Dashboard - protectPage - Authentication check successful');
                 window.protectPageInProgress = false;
             } catch (error) {
                 console.error('❌ خطأ في فحص تسجيل الدخول:', error);
@@ -1133,9 +1145,21 @@
         let cachedUser = null;
         
         async function performAuthCheck() {
+            // ✅ تسجيلات مفصلة لحالة التحقق في dashboard
+            console.log('🔍 Dashboard - performAuthCheck called');
+            console.log('🔍 Dashboard - Cookies:', document.cookie);
+            console.log('🔍 Dashboard - localStorage currentUser:', localStorage.getItem('currentUser'));
+            console.log('🔍 Dashboard - sessionStorage just_logged_in_time:', sessionStorage.getItem('just_logged_in_time'));
+            console.log('🔍 Dashboard - authCheckInProgress:', authCheckInProgress);
+            console.log('🔍 Dashboard - authChecked:', authChecked);
+            console.log('🔍 Dashboard - cachedUser:', cachedUser);
+            
             // 🔧 الحل 5: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
             const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
             const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 15000;
+            
+            console.log('🔍 Dashboard - justLoggedInTime:', justLoggedInTime);
+            console.log('🔍 Dashboard - isRecentLogin:', isRecentLogin);
             
             if (isRecentLogin) {
                 console.log('⏳ تسجيل دخول حديث في dashboard - استخدام البيانات المحفوظة أولاً...');
@@ -1144,7 +1168,7 @@
                     const savedUser = localStorage.getItem('currentUser');
                     if (savedUser) {
                         const user = JSON.parse(savedUser);
-                        console.log('✅ استخدام بيانات المستخدم المحفوظة بعد تسجيل الدخول');
+                        console.log('✅ استخدام بيانات المستخدم المحفوظة بعد تسجيل الدخول:', user);
                         cachedUser = user;
                         authChecked = true;
                         // مسح العلامة بعد النجاح
@@ -1155,32 +1179,39 @@
                     console.warn('⚠️ خطأ في قراءة البيانات المحفوظة:', e);
                 }
                 // انتظار إضافي للجلسة قبل التحقق من الخادم
+                console.log('⏳ Dashboard - Waiting 1 second for session to be ready...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             
             // منع الطلبات المتكررة - إذا كان هناك طلب قيد التنفيذ، انتظر
             if (authCheckInProgress) {
+                console.log('⏸️ Dashboard - Auth check already in progress, waiting...');
                 // انتظار حتى ينتهي الطلب الحالي (بحد أقصى 5 ثوان)
                 let waitTime = 0;
                 while (authCheckInProgress && waitTime < 5000) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     waitTime += 100;
                 }
+                console.log('⏸️ Dashboard - Auth check finished, returning cached user:', cachedUser);
                 return cachedUser;
             }
             
             // إذا تم التحقق بالفعل وكان هناك مستخدم محفوظ، أرجع المستخدم
             if (authChecked && cachedUser) {
+                console.log('✅ Dashboard - Using cached user:', cachedUser);
                 return cachedUser;
             }
             
             authCheckInProgress = true;
+            console.log('🔍 Dashboard - Starting checkLogin...');
             try {
                 const user = await checkLogin();
+                console.log('🔍 Dashboard - checkLogin returned:', user);
                 authCheckInProgress = false;
                 authChecked = true;
                 
                 if (!user) {
+                    console.log('❌ Dashboard - No user returned from checkLogin');
                     cachedUser = null;
                     
                     // 🔧 الحل 6: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
