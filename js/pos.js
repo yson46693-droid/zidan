@@ -3366,14 +3366,18 @@ async function initializePOSQRCodeScannerMobile() {
     posScannerOpen = true;
     
     // Start scanner with optimized config for better performance and recognition
+    // ✅ استخدام الكاميرا الخلفية بشكل صريح (environment) للهواتف
     posQRCodeScannerInstance.start(
-        { facingMode: "environment" }, // الكاميرا الخلفية
+        { 
+            facingMode: "environment" // الكاميرا الخلفية - مهم جداً للهواتف
+        },
         {
             fps: 30, // زيادة FPS للسرعة (من 10 إلى 30)
             qrbox: { width: 280, height: 280 }, // زيادة حجم صندوق القراءة (من 250 إلى 280)
             aspectRatio: 1.0,
             disableFlip: false,
             videoConstraints: {
+                facingMode: "environment", // ✅ إضافة facingMode هنا أيضاً لضمان استخدام الكاميرا الخلفية
                 aspectRatio: 1.0,
                 focusMode: "continuous" // تحسين التركيز التلقائي
             }
@@ -3558,6 +3562,7 @@ async function initializePOSQRCodeScanner() {
             aspectRatio: 1.0,
             disableFlip: false,
             videoConstraints: {
+                facingMode: isMobile ? "environment" : undefined, // ✅ للهواتف: استخدام الكاميرا الخلفية
                 aspectRatio: 1.0,
                 focusMode: "continuous" // تحسين التركيز التلقائي
             }
@@ -3585,13 +3590,19 @@ async function initializePOSQRCodeScanner() {
             }
         }
         
-        // على الهواتف: استخدام الكاميرا الخلفية مباشرة (مثل repairs.js)
+        // ✅ على الهواتف: استخدام الكاميرا الخلفية مباشرة (environment) - مهم جداً
         // على سطح المكتب: يمكن استخدام الكاميرا المناسبة
         const cameraConfig = isMobile 
             ? { facingMode: "environment" }  // للهواتف: الكاميرا الخلفية مباشرة
             : (posCurrentCameraFacing ? { facingMode: posCurrentCameraFacing } : { facingMode: "environment" });
         
+        // ✅ إضافة facingMode إلى videoConstraints في config لضمان استخدام الكاميرا الخلفية
+        if (isMobile && config.videoConstraints) {
+            config.videoConstraints.facingMode = "environment";
+        }
+        
         console.log(`🎥 [POS Scanner] استخدام الكاميرا:`, cameraConfig);
+        console.log(`🎥 [POS Scanner] إعدادات الفيديو:`, config.videoConstraints);
         
         await posQRCodeScannerInstance.start(
             cameraConfig,
@@ -3697,7 +3708,12 @@ async function initializePOSQRCodeScanner() {
                 fps: 25, // زيادة FPS للمحاولة الثانية
                 qrbox: isMobile ? { width: 280, height: 280 } : { width: 350, height: 350 },
                 aspectRatio: 1.0,
-                disableFlip: false
+                disableFlip: false,
+                videoConstraints: {
+                    facingMode: isMobile ? "environment" : undefined, // ✅ للهواتف: استخدام الكاميرا الخلفية
+                    aspectRatio: 1.0,
+                    focusMode: "continuous"
+                }
             };
             
             if (typeof Html5QrcodeScanType !== 'undefined') {
@@ -3767,7 +3783,12 @@ async function initializePOSQRCodeScanner() {
                                 fps: 20, // زيادة FPS للمحاولة الأخيرة
                                 qrbox: isMobile ? { width: 280, height: 280 } : { width: 350, height: 350 },
                                 aspectRatio: 1.0,
-                                disableFlip: false
+                                disableFlip: false,
+                                videoConstraints: {
+                                    facingMode: isMobile ? "environment" : undefined, // ✅ للهواتف: استخدام الكاميرا الخلفية
+                                    aspectRatio: 1.0,
+                                    focusMode: "continuous"
+                                }
                             };
                             
                             if (typeof Html5QrcodeScanType !== 'undefined') {
