@@ -2981,11 +2981,11 @@ async function openPOSBarcodeScanner() {
                             <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا</p>
                         </div>
                         <div id="pos-scanner-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;">
-                            <!-- مربع المسح الرئيسي مع حدود واضحة -->
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 280px; border: 4px solid var(--primary-color); border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 40px rgba(33, 150, 243, 0.6), inset 0 0 20px rgba(33, 150, 243, 0.2); background: rgba(255,255,255,0.05);"></div>
+                            <!-- مربع المسح الرئيسي - أوسع للباركود -->
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; height: 200px; border: 4px solid var(--primary-color); border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 40px rgba(33, 150, 243, 0.6), inset 0 0 20px rgba(33, 150, 243, 0.2); background: rgba(255,255,255,0.05);"></div>
                             
                             <!-- زوايا المربع - أكثر وضوحاً -->
-                            <div style="position: absolute; top: calc(50% - 140px); left: calc(50% - 140px); width: 280px; height: 280px;">
+                            <div style="position: absolute; top: calc(50% - 100px); left: calc(50% - 175px); width: 350px; height: 200px;">
                                 <!-- الزاوية العلوية اليسرى -->
                                 <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; border-top: 5px solid var(--success-color); border-left: 5px solid var(--success-color); border-radius: 8px 0 0 0; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
                                 <!-- الزاوية العلوية اليمنى -->
@@ -2997,13 +2997,13 @@ async function openPOSBarcodeScanner() {
                             </div>
                             
                             <!-- نص إرشادي داخل المربع -->
-                            <div style="position: absolute; top: calc(50% + 160px); left: 50%; transform: translateX(-50%); text-align: center; color: var(--white); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 0.85em; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                            <div style="position: absolute; top: calc(50% + 120px); left: 50%; transform: translateX(-50%); text-align: center; color: var(--white); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 0.85em; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
                                 <i class="bi bi-arrows-move" style="margin-left: 5px; font-size: 1.1em;"></i>
-                                ضع QR Code داخل المربع
+                                ضع الباركود داخل الإطار
                             </div>
                             
                             <!-- خطوط إرشادية داخل المربع -->
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; height: 280px; opacity: 0.3;">
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; height: 200px; opacity: 0.3;">
                                 <!-- خط أفقي في المنتصف -->
                                 <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: linear-gradient(to right, transparent, var(--primary-color), transparent);"></div>
                                 <!-- خط عمودي في المنتصف -->
@@ -3185,17 +3185,6 @@ async function openPOSBarcodeScanner() {
             fileInput.addEventListener('change', handlePOSImageFileSelected);
         }
         
-        // إظهار زر التقاط صورة في القارئ المدمج (للهواتف)
-        const scanImageBtnMobile = document.getElementById('pos-scan-image-btn-mobile');
-        if (scanImageBtnMobile && isMobileDevice) {
-            scanImageBtnMobile.style.display = 'block';
-        }
-        
-        // إضافة event listener لـ file input (في القارئ المدمج)
-        const fileInputMobile = document.getElementById('pos-qr-image-input-mobile');
-        if (fileInputMobile) {
-            fileInputMobile.addEventListener('change', handlePOSImageFileSelectedMobile);
-        }
     }, 300);
 }
 
@@ -3383,13 +3372,17 @@ async function initializePOSQRCodeScanner() {
         const scannerId = isMobile ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
         posQRCodeScannerInstance = new Html5Qrcode(scannerId);
         
-        // إعدادات المسح - مطابقة تماماً لـ repairs.js الذي يعمل بشكل جيد
+        // إعدادات المسح - دعم QR Code والباركود (إطار أوسع للباركود)
         const config = {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
+            qrbox: isMobile ? { width: 320, height: 180 } : { width: 300, height: 300 },
             disableFlip: false
         };
+        
+        // على سطح المكتب فقط: إضافة aspectRatio للمربع
+        if (!isMobile) {
+            config.aspectRatio = 1.0;
+        }
         
         // Add supportedScanTypes if available (newer versions)
         if (typeof Html5QrcodeScanType !== 'undefined') {
@@ -3504,13 +3497,17 @@ async function initializePOSQRCodeScanner() {
         // محاولة إضافية - استخدام facingMode: environment مباشرة (مثل repairs.js)
         console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: environment مباشرة...`);
         try {
-            // إعدادات مبسطة للمحاولة الثانية - مطابقة لـ repairs.js
+            // إعدادات مبسطة للمحاولة الثانية - دعم الباركود
             const fallbackConfig = {
                 fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
+                qrbox: isMobile ? { width: 320, height: 180 } : { width: 300, height: 300 },
                 disableFlip: false
             };
+            
+            // على سطح المكتب فقط: إضافة aspectRatio
+            if (!isMobile) {
+                fallbackConfig.aspectRatio = 1.0;
+            }
             
             if (typeof Html5QrcodeScanType !== 'undefined') {
                 fallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
@@ -3574,13 +3571,17 @@ async function initializePOSQRCodeScanner() {
                         }
                         
                         try {
-                            // استخدام إعدادات مبسطة للمحاولة الأخيرة - مطابقة لـ repairs.js
+                            // استخدام إعدادات مبسطة للمحاولة الأخيرة - دعم الباركود
                             const finalFallbackConfig = {
                                 fps: 10,
-                                qrbox: { width: 250, height: 250 },
-                                aspectRatio: 1.0,
+                                qrbox: isMobile ? { width: 320, height: 180 } : { width: 300, height: 300 },
                                 disableFlip: false
                             };
+                            
+                            // على سطح المكتب فقط: إضافة aspectRatio
+                            if (!isMobile) {
+                                finalFallbackConfig.aspectRatio = 1.0;
+                            }
                             
                             if (typeof Html5QrcodeScanType !== 'undefined') {
                                 finalFallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
