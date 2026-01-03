@@ -295,16 +295,16 @@ const API = {
                 API_CACHE.set(cacheKey, result);
             }
             
-                // ✅ مسح الكاش تلقائياً بعد أي عملية POST/PUT/DELETE ناجحة
-                // لضمان ظهور التغييرات بشكل فوري في جميع الصفحات
-                if ((method === 'POST' || method === 'PUT' || method === 'DELETE' || actualMethod === 'POST') && result.success) {
-                    // مسح الكاش بالكامل لضمان تحديث جميع البيانات
-                    API_CACHE.clear();
-                    console.log('%c🗑️ تم مسح الكاش بعد العملية:', 'color: #FFA500; font-weight: bold;', endpoint);
-                }
-                
-                return result;
-            } catch (error) {
+            // ✅ مسح الكاش تلقائياً بعد أي عملية POST/PUT/DELETE ناجحة
+            // لضمان ظهور التغييرات بشكل فوري في جميع الصفحات
+            if ((method === 'POST' || method === 'PUT' || method === 'DELETE' || actualMethod === 'POST') && result.success) {
+                // مسح الكاش بالكامل لضمان تحديث جميع البيانات
+                API_CACHE.clear();
+                console.log('%c🗑️ تم مسح الكاش بعد العملية:', 'color: #FFA500; font-weight: bold;', endpoint);
+            }
+            
+            return result;
+        } catch (error) {
                 // معالجة الأخطاء داخل Promise
                 console.error('%c❌ خطأ في الاتصال:', 'color: #f44336; font-size: 14px; font-weight: bold;', error);
                 console.error('تفاصيل الخطأ:', {
