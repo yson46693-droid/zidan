@@ -3365,19 +3365,15 @@ async function initializePOSQRCodeScannerMobile() {
     posQRCodeScannerInstance = new Html5Qrcode('pos-qr-reader-mobile');
     posScannerOpen = true;
      
-    // Start scanner with optimized config for better performance and recognition
-    // ✅ استخدام الكاميرا الأمامية (user) لأنها كانت تعمل بشكل أفضل
-    // إذا أردت تجربة الكاميرا الخلفية، غيّر facingMode إلى "environment"
+    // Start scanner with same config as qr.html
+    // ✅ استخدام الكاميرا الخلفية (environment) - نفس إعدادات qr.html
     posQRCodeScannerInstance.start(
         { 
-            facingMode: "user" // الكاميرا الأمامية - كانت تعمل بشكل أفضل في التجربة
+            facingMode: "environment" // الكاميرا الخلفية - نفس إعدادات qr.html
         },
         {
-            fps: 30, // زيادة FPS للسرعة (من 10 إلى 30)
-            qrbox: { width: 280, height: 280 }, // زيادة حجم صندوق القراءة (من 250 إلى 280)
-            aspectRatio: 1.0,
-            disableFlip: false
-            // ✅ لا نستخدم videoConstraints هنا لأنها تسبب تضارب مع facingMode في cameraConfig
+            fps: 10, // نفس إعدادات qr.html
+            qrbox: { width: 250, height: 250 } // نفس إعدادات qr.html
         },
         function onScanSuccess(decodedText, decodedResult) {
             // Success callback - تم قراءة QR Code بنجاح (exactly like qr.html)
@@ -3429,10 +3425,8 @@ async function initializePOSQRCodeScannerMobile() {
                     facingMode: "user" // الكاميرا الأمامية كبديل
                 },
                 {
-                    fps: 30,
-                    qrbox: { width: 280, height: 280 },
-                    aspectRatio: 1.0,
-                    disableFlip: false
+                    fps: 10, // نفس إعدادات qr.html
+                    qrbox: { width: 250, height: 250 } // نفس إعدادات qr.html
                 },
                 function onScanSuccess(decodedText, decodedResult) {
                     console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected (Front Camera) ✅✅✅');
