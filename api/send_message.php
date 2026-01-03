@@ -336,7 +336,17 @@ function saveChatFile($fileData, $fileType, $fileName, $userId) {
         // إنشاء اسم الملف
         $extension = '';
         if ($fileType === 'image') {
-            $extension = '.jpg';
+            // ✅ دعم جميع أنواع الصور (jpg, png, gif, webp)
+            if ($fileName) {
+                $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
+                if (in_array(strtolower($fileExtension), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                    $extension = '.' . strtolower($fileExtension);
+                } else {
+                    $extension = '.jpg'; // افتراضي
+                }
+            } else {
+                $extension = '.jpg'; // افتراضي
+            }
         } elseif ($fileType === 'audio') {
             // ✅ دعم تنسيقات صوتية متعددة (mp3, m4a, mp4, webm, wav)
             if ($fileName) {

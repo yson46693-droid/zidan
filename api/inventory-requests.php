@@ -151,7 +151,7 @@ if ($method === 'POST') {
     $fromBranch = dbSelectOne("SELECT name FROM branches WHERE id = ?", [$userBranchId]);
     $fromBranchName = $fromBranch ? $fromBranch['name'] : 'فرع غير معروف';
     
-    // إرسال رسالة مميزة في الشات على شكل أوردر
+    // إرسال رسالة مبسطة في الشات
     try {
         // قائمة أنواع قطع الغيار
         $sparePartTypes = [
@@ -177,43 +177,35 @@ if ($method === 'POST') {
             'other' => 'ملحقات أخرى'
         ];
         
-        // بناء رسالة الأوردر بشكل مميز
-        $chatMessage = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        $chatMessage .= "📦 *طلب منتج جديد*\n";
-        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-        $chatMessage .= "📍 *من:* {$fromBranchName}\n";
-        $chatMessage .= "📍 *إلى:* {$toBranch['name']}\n\n";
-        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        $chatMessage .= "📋 *تفاصيل الطلب:*\n";
-        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-        $chatMessage .= "🛍️ *المنتج:* {$itemName}\n";
+        // بناء رسالة مبسطة
+        $chatMessage = "📦 طلب منتج\n";
+        $chatMessage .= "من: {$fromBranchName}\n";
+        $chatMessage .= "إلى: {$toBranch['name']}\n\n";
+        $chatMessage .= "المنتج: {$itemName}\n";
         
         // إذا كانت قطع غيار و items موجودة، عرض تفاصيل القطع
         if ($itemType === 'spare_part' && is_array($items) && !empty($items)) {
-            $chatMessage .= "\n📦 *القطع المطلوبة:*\n";
+            $chatMessage .= "\nالقطع المطلوبة:\n";
             foreach ($items as $item) {
                 $itemTypeName = $sparePartTypes[$item['item_type']] ?? $item['item_type'];
                 $qty = intval($item['quantity'] ?? 0);
                 if ($qty > 0) {
-                    $chatMessage .= "  • {$itemTypeName}: {$qty}";
+                    $chatMessage .= "• {$itemTypeName}: {$qty}";
                     if (!empty($item['custom_value'])) {
                         $chatMessage .= " ({$item['custom_value']})";
                     }
                     $chatMessage .= "\n";
                 }
             }
-            $chatMessage .= "\n🔢 *إجمالي الكمية:* {$quantity}\n";
+            $chatMessage .= "\nإجمالي: {$quantity} قطعة\n";
         } else {
-            $chatMessage .= "🔢 *الكمية:* {$quantity}\n";
+            $chatMessage .= "الكمية: {$quantity}\n";
         }
         
-        $chatMessage .= "🔖 *رقم الطلب:* {$requestNumber}\n";
+        $chatMessage .= "رقم الطلب: {$requestNumber}\n";
         if (!empty($notes)) {
-            $chatMessage .= "📝 *ملاحظات:* {$notes}\n";
+            $chatMessage .= "ملاحظات: {$notes}\n";
         }
-        $chatMessage .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        $chatMessage .= "⏰ *التاريخ:* " . date('Y-m-d H:i:s') . "\n";
-        $chatMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
         
         // حفظ الرسالة في الشات مباشرة
         $messageId = generateId();

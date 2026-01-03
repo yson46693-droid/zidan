@@ -38,6 +38,13 @@ const API_CACHE = {
     }
 };
 
+// ✅ نظام Request Deduplication - منع الطلبات المكررة المتزامنة
+const PENDING_REQUESTS = new Map();
+
+function getRequestKey(endpoint, method, data) {
+    return `${method}:${endpoint}:${JSON.stringify(data || {})}`;
+}
+
 // تنظيف الـ cache كل 10 دقائق
 setInterval(() => API_CACHE.cleanup(), 10 * 60 * 1000);
 
@@ -57,6 +64,16 @@ const API = {
                 }
                 return cached;
             }
+        }
+        
+        // ✅ Request Deduplication: منع الطلبات المكررة المتزامنة
+        const requestKey = getRequestKey(endpoint, method, data);
+        if (PENDING_REQUESTS.has(requestKey)) {
+            // إذا كان هناك طلب قيد التنفيذ لنفس endpoint، نعيد نفس Promise
+            if (window.location.search.includes('debug=true') || window.location.hostname === 'localhost') {
+                console.log(`%c🔄 Request deduplication:`, 'color: #9C27B0; font-weight: bold;', endpoint, '- استخدام الطلب الموجود');
+            }
+            return PENDING_REQUESTS.get(requestKey);
         }
         
         // تحويل PUT/DELETE إلى POST للتوافق مع الاستضافات المجانية
