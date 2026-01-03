@@ -3342,9 +3342,27 @@ async function initializePOSQRCodeScanner() {
                     console.log('Scanner already running');
                     if (loadingDiv) loadingDiv.style.display = 'none';
                     return;
+                } else {
+                    // Scanner exists but not running, clear it before creating new instance
+                    console.log('🔄 [POS Scanner] الماسح موجود ولكن غير نشط، إعادة إنشاء...');
+                    try {
+                        await posQRCodeScannerInstance.stop().catch(() => {});
+                        await posQRCodeScannerInstance.clear().catch(() => {});
+                    } catch (e) {
+                        // Ignore errors
+                    }
+                    posQRCodeScannerInstance = null;
                 }
             } catch (e) {
-                // Scanner not running, continue initialization
+                // Scanner not running or error checking state, clear it
+                console.log('🔄 [POS Scanner] خطأ في التحقق من حالة الماسح، إعادة إنشاء...');
+                try {
+                    await posQRCodeScannerInstance.stop().catch(() => {});
+                    await posQRCodeScannerInstance.clear().catch(() => {});
+                } catch (clearError) {
+                    // Ignore errors
+                }
+                posQRCodeScannerInstance = null;
             }
         }
         
@@ -3808,10 +3826,29 @@ async function togglePOSCamera() {
         return;
     }
     
+    // حفظ القيمة السابقة للكاميرا
+    const previousCameraFacing = posCurrentCameraFacing;
+    const previousCameraId = posCurrentCameraId;
+    
     try {
-        // إيقاف الماسح الحالي
-        await posQRCodeScannerInstance.stop();
-        await posQRCodeScannerInstance.clear();
+        // إيقاف الماسح الحالي بشكل كامل
+        try {
+            await posQRCodeScannerInstance.stop();
+        } catch (stopError) {
+            console.warn('⚠️ [POS Scanner] خطأ في إيقاف الماسح (قد يكون متوقفاً بالفعل):', stopError);
+        }
+        
+        try {
+            await posQRCodeScannerInstance.clear();
+        } catch (clearError) {
+            console.warn('⚠️ [POS Scanner] خطأ في مسح الماسح:', clearError);
+        }
+        
+        // إعادة تعيين المثيل إلى null لإجبار إنشاء مثيل جديد
+        posQRCodeScannerInstance = null;
+        
+        // انتظار قليل لضمان إيقاف الكاميرا بالكامل
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // تبديل الكاميرا
         posCurrentCameraFacing = posCurrentCameraFacing === 'environment' ? 'user' : 'environment';
@@ -3827,12 +3864,20 @@ async function togglePOSCamera() {
         console.error('❌ [POS Scanner] خطأ في التبديل بين الكاميرات:', error);
         showMessage('❌ فشل التبديل بين الكاميرات. يرجى المحاولة مرة أخرى.', 'error');
         
+        // إعادة تعيين القيم السابقة
+        posCurrentCameraFacing = previousCameraFacing;
+        posCurrentCameraId = previousCameraId;
+        
+        // إعادة تعيين المثيل
+        posQRCodeScannerInstance = null;
+        
         // محاولة إعادة تشغيل الماسح بالكاميرا السابقة
         try {
-            posCurrentCameraFacing = posCurrentCameraFacing === 'environment' ? 'user' : 'environment';
+            await new Promise(resolve => setTimeout(resolve, 500));
             await initializePOSQRCodeScanner();
         } catch (retryError) {
             console.error('❌ [POS Scanner] فشلت محاولة الاستعادة:', retryError);
+            posQRCodeScannerInstance = null;
         }
     }
 }
