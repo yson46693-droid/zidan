@@ -3912,6 +3912,46 @@ body {
     }
 }
 
+/* أنماط رقم العملية القابل للنسخ */
+.repair-number-copyable {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    user-select: none;
+    position: relative;
+}
+
+.repair-number-copyable:hover {
+    background: var(--light-bg) !important;
+    color: var(--primary-color) !important;
+}
+
+.repair-number-copyable:active {
+    transform: scale(0.95);
+}
+
+.repair-number-copyable i {
+    font-size: 0.85em;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+}
+
+.repair-number-copyable:hover i {
+    opacity: 1;
+}
+
+/* معلومات Pagination */
+.pagination-info {
+    margin-top: 15px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.9em;
+}
+
 /* أنماط QR Scanner للخسارة */
 #loss-scanner-area {
     position: relative;

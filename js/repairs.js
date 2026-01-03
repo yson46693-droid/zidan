@@ -1872,9 +1872,23 @@ function displayRepairs(repairs) {
             </a>` : 
             '<span>-</span>';
 
+        // رقم العملية قابل للنسخ
+        const repairNumber = repair.repair_number || '-';
+        const repairNumberCell = repairNumber !== '-' ? `
+            <span class="repair-number-copyable" 
+                  onclick="copyRepairNumber('${repairNumber}', this)" 
+                  title="اضغط للنسخ: ${repairNumber}"
+                  style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; user-select: none;"
+                  onmouseover="this.style.background='var(--light-bg)'; this.style.color='var(--primary-color)'"
+                  onmouseout="this.style.background='transparent'; this.style.color='inherit'">
+                <strong>${repairNumber}</strong>
+                <i class="bi bi-copy" style="font-size: 0.85em; opacity: 0.6;"></i>
+            </span>
+        ` : '<strong>-</strong>';
+        
         return `
             <tr data-repair-id="${repair.id}">
-                <td><strong>${repair.repair_number || '-'}</strong></td>
+                <td>${repairNumberCell}</td>
                 <td>${repair.customer_name || '-'}</td>
                 <td>${phoneButton}</td>
                 <td>${repair.device_type || ''} ${repair.device_model || ''}</td>
@@ -1888,20 +1902,122 @@ function displayRepairs(repairs) {
         `;
     }).join('');
 
-    createPaginationButtons(
-        document.getElementById('repairsPagination'),
-        paginated.totalPages,
-        currentRepairPage,
-        (page) => {
-            currentRepairPage = page;
-            filterRepairs();
+    // إنشاء pagination مع معلومات إضافية
+    const paginationContainer = document.getElementById('repairsPagination');
+    if (paginationContainer) {
+        // إضافة معلومات عن عدد العناصر المعروضة
+        const startItem = ((currentRepairPage - 1) * repairsPerPage) + 1;
+        const endItem = Math.min(currentRepairPage * repairsPerPage, paginated.totalItems);
+        
+        createPaginationButtons(
+            paginationContainer,
+            paginated.totalPages,
+            currentRepairPage,
+            (page) => {
+                currentRepairPage = page;
+                filterRepairs();
+                
+                // Scroll to top of table
+                const tableContainer = document.querySelector('.table-container');
+                if (tableContainer) {
+                    tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        );
+        
+        // إضافة معلومات Pagination (إزالة القديم أولاً إذا كان موجوداً)
+        const existingInfo = paginationContainer.querySelector('.pagination-info');
+        if (existingInfo) {
+            existingInfo.remove();
         }
-    );
+        
+        if (paginated.totalPages > 1) {
+            const paginationInfo = document.createElement('div');
+            paginationInfo.className = 'pagination-info';
+            paginationInfo.style.cssText = 'margin-top: 15px; text-align: center; color: var(--text-light); font-size: 0.9em;';
+            paginationInfo.textContent = `عرض ${startItem}-${endItem} من ${paginated.totalItems} عملية`;
+            paginationContainer.appendChild(paginationInfo);
+        }
+    }
 
     hideByPermission();
     
     // ✅ إعداد event delegation لإغلاق القوائم المنسدلة عند النقر خارجها
     setupActionsDropdownListeners();
+}
+
+// ✅ دالة نسخ رقم العملية
+function copyRepairNumber(repairNumber, element) {
+    if (!repairNumber || repairNumber === '-') {
+        return;
+    }
+    
+    try {
+        // استخدام Clipboard API إذا كان متاحاً
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(repairNumber).then(() => {
+                showMessage(`تم نسخ رقم العملية: ${repairNumber}`, 'success');
+                
+                // تغيير الأيقونة مؤقتاً
+                if (element) {
+                    const icon = element.querySelector('i');
+                    if (icon) {
+                        const originalClass = icon.className;
+                        icon.className = 'bi bi-check-circle';
+                        icon.style.color = 'var(--success-color)';
+                        
+                        setTimeout(() => {
+                            icon.className = originalClass;
+                            icon.style.color = '';
+                        }, 2000);
+                    }
+                }
+            }).catch(err => {
+                console.error('خطأ في النسخ:', err);
+                fallbackCopyRepairNumber(repairNumber);
+            });
+        } else {
+            // استخدام طريقة احتياطية
+            fallbackCopyRepairNumber(repairNumber);
+        }
+    } catch (error) {
+        console.error('خطأ في نسخ رقم العملية:', error);
+        fallbackCopyRepairNumber(repairNumber);
+    }
+}
+
+// دالة نسخ احتياطية
+function fallbackCopyRepairNumber(repairNumber) {
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = repairNumber;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.width = '2em';
+        textArea.style.height = '2em';
+        textArea.style.padding = '0';
+        textArea.style.border = 'none';
+        textArea.style.outline = 'none';
+        textArea.style.boxShadow = 'none';
+        textArea.style.background = 'transparent';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+            showMessage(`تم نسخ رقم العملية: ${repairNumber}`, 'success');
+        } else {
+            showMessage('فشل نسخ رقم العملية', 'error');
+        }
+    } catch (err) {
+        console.error('خطأ في النسخ الاحتياطي:', err);
+        showMessage('فشل نسخ رقم العملية', 'error');
+    }
 }
 
 // ✅ دوال إدارة قائمة الإجراءات المنسدلة
@@ -6711,4 +6827,5 @@ window.openLossBarcodeScanner = openLossBarcodeScanner;
 window.closeLossBarcodeScanner = closeLossBarcodeScanner;
 window.retryLossBarcodeScanner = retryLossBarcodeScanner;
 window.saveLossOperation = saveLossOperation;
+window.copyRepairNumber = copyRepairNumber;
 
