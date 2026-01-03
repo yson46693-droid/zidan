@@ -2933,7 +2933,7 @@
                 await new Promise(resolve => setTimeout(resolve, 600));
             }
             
-            // ✅ تحسين: تحميل الـ scripts أولاً قبل استدعاء الدوال
+            // ✅ تحسين: تأجيل تحميل الـ scripts حتى بعد تحميل dashboard (lazy loading)
             const loadScriptsFirst = async () => {
                 const scriptsToLoad = [
                     { name: 'repairs', script: 'js/repairs.js', func: 'loadRepairsSection' },
@@ -2964,8 +2964,17 @@
                 );
             };
             
-            // تحميل الـ scripts أولاً
-            await loadScriptsFirst();
+            // ✅ تحسين: تأجيل تحميل الـ scripts حتى بعد تحميل dashboard لتقليل الطلبات الفورية
+            // إذا كان القسم المطلوب هو dashboard، ننتظر حتى بعد تحميله
+            if (sectionToShow === 'dashboard') {
+                // تأجيل تحميل scripts بعد 2 ثانية من تحميل dashboard
+                setTimeout(() => {
+                    loadScriptsFirst().catch(() => {});
+                }, 2000);
+            } else {
+                // إذا كان القسم المطلوب ليس dashboard، نحمّل scripts فوراً (مطلوبة للقسم)
+                await loadScriptsFirst();
+            }
             
             // ✅ تحسين الأداء: تحميل القسم النشط فقط بدلاً من جميع الأقسام
             // savedSection تم تعريفه بالفعل في السطر 1982

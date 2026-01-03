@@ -273,7 +273,8 @@
     // إنشاء instance واحد فقط
     window.MessagePollingManager = window.MessagePollingManager || new MessagePollingManager();
 
-    // ✅ بدء polling تلقائياً عند تحميل الصفحة (بعد 2 ثانية) - فقط إذا لم تكن صفحة تسجيل الدخول
+    // ✅ بدء polling تلقائياً عند تحميل الصفحة (بعد 5 ثواني) - فقط إذا لم تكن صفحة تسجيل الدخول
+    // ✅ تحسين: زيادة التأخير لتقليل الطلبات الفورية
     const pathname = window.location.pathname;
     const isLoginPage = pathname.includes('index.html') || pathname === '/' || pathname.endsWith('/');
     
@@ -282,12 +283,12 @@
             document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     window.MessagePollingManager.start();
-                }, 2000);
+                }, 5000); // ✅ زيادة من 2 إلى 5 ثواني
             });
         } else {
             setTimeout(() => {
                 window.MessagePollingManager.start();
-            }, 2000);
+            }, 5000); // ✅ زيادة من 2 إلى 5 ثواني
         }
     } else {
         console.log('[Message Polling] صفحة تسجيل الدخول - لن يتم بدء polling');

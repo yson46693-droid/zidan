@@ -49,8 +49,19 @@ function canEditInventory() {
             return false;
         }
         
-        // ✅ فقط المالك والمدير يمكنهم التعديل
-        return user.role === 'admin' || user.role === 'manager';
+        // المالك له كامل الصلاحيات
+        if (user.role === 'admin' || user.is_owner === true || user.is_owner === 'true') {
+            return true;
+        }
+        
+        // المدير: فقط من الفرع الأول (HANOVIL) يمكنه التعديل
+        if (user.role === 'manager') {
+            const branchCode = user.branch_code || localStorage.getItem('branch_code');
+            // فقط الفرع الأول يمكنه التعديل
+            return branchCode === 'HANOVIL';
+        }
+        
+        return false;
     } catch (e) {
         console.error('خطأ في التحقق من صلاحيات المخزن:', e);
         return false;

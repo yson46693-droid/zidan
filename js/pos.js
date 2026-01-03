@@ -3302,41 +3302,20 @@ async function initializePOSQRCodeScanner() {
         const scannerId = isMobile ? 'pos-qr-reader-mobile' : 'pos-qr-reader';
         posQRCodeScannerInstance = new Html5Qrcode(scannerId);
         
-        // Configuration for QR code scanning - إعدادات محسّنة للسرعة والأداء
-        const qrReaderElement = document.getElementById(scannerId);
-        const containerWidth = qrReaderElement ? qrReaderElement.offsetWidth : 400;
-        const containerHeight = qrReaderElement ? qrReaderElement.offsetHeight : 300;
-        
-        // حساب حجم qrbox بناءً على حجم الحاوية
-        const qrboxSize = isMobile 
-            ? Math.min(containerWidth * 0.9, containerHeight * 0.9, 250) // حجم معتدل للهواتف
-            : Math.min(containerWidth * 0.95, containerHeight * 0.95, 350);
-        
-        // إعدادات config مبسطة - videoConstraints يجب أن تكون فقط في start() method وليس في config
+        // إعدادات المسح - مطابقة تماماً لـ repairs.js الذي يعمل بشكل جيد
         const config = {
-            fps: isMobile ? 10 : 10, // fps أقل للهواتف لتحسين الأداء والاستقرار
-            qrbox: { width: qrboxSize, height: qrboxSize },
-            // استخدام aspectRatio ثابت للهواتف
-            aspectRatio: isMobile ? 1.0 : (containerWidth / containerHeight),
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
             disableFlip: false
         };
-        
-        // تحديد أنواع QR codes المطلوبة فقط (تحسين الأداء) - إذا كان متوفراً
-        if (typeof Html5QrcodeSupportedFormats !== 'undefined' && Html5QrcodeSupportedFormats.QR_CODE) {
-            config.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
-        }
         
         // Add supportedScanTypes if available (newer versions)
         if (typeof Html5QrcodeScanType !== 'undefined') {
             config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
         }
         
-        
         console.log('🔍 [POS Scanner] بدء المسح مع الإعدادات:', config);
-        console.log('📐 [POS Scanner] حجم العنصر:', {
-            width: qrReader.offsetWidth,
-            height: qrReader.offsetHeight
-        });
         
         // ✅ التحقق من صلاحية الكاميرا قبل البدء (لتجنب طلب الصلاحية مرة أخرى)
         if (typeof window.checkCameraPermission === 'function') {
@@ -3353,87 +3332,13 @@ async function initializePOSQRCodeScanner() {
             }
         }
         
-        // استخدام الكاميرا المحددة (الخلفية أو الأمامية)
-        // على الهواتف: إجبار استخدام الكاميرا الخلفية فقط
-        const isMobileDevice = window.innerWidth <= 767.98;
-        if (isMobileDevice) {
-            posCurrentCameraFacing = 'environment'; // إجبار الكاميرا الخلفية على الهواتف
-        }
+        // على الهواتف: استخدام الكاميرا الخلفية مباشرة (مثل repairs.js)
+        // على سطح المكتب: يمكن استخدام الكاميرا المناسبة
+        const cameraConfig = isMobile 
+            ? { facingMode: "environment" }  // للهواتف: الكاميرا الخلفية مباشرة
+            : (posCurrentCameraFacing ? { facingMode: posCurrentCameraFacing } : { facingMode: "environment" });
         
-        let cameraConfig = { facingMode: posCurrentCameraFacing };
-        let cameraId = posCurrentCameraId;
-        
-        // محاولة الحصول على قائمة الكاميرات للعثور على الكاميرا المطلوبة بشكل دقيق
-        try {
-            const cameras = await Html5Qrcode.getCameras();
-            console.log('📷 [POS Scanner] الكاميرات المتاحة:', cameras.length);
-            
-            if (cameras && cameras.length > 0) {
-                // إذا كان هناك ID كاميرا محفوظ، استخدمه
-                if (cameraId) {
-                    const savedCamera = cameras.find(cam => cam.id === cameraId);
-                    if (savedCamera) {
-                        cameraConfig = cameraId;
-                        console.log('📷 [POS Scanner] استخدام الكاميرا المحفوظة:', cameraId, savedCamera.label);
-                    } else {
-                        // الكاميرا المحفوظة غير متاحة، البحث عن كاميرا مناسبة
-                        cameraId = null;
-                    }
-                }
-                
-                // إذا لم يكن هناك ID كاميرا، البحث عن الكاميرا المناسبة
-                if (!cameraId) {
-                    const targetCamera = cameras.find(cam => {
-                        const label = (cam.label || '').toLowerCase();
-                        const facingMode = cam.facingMode || '';
-                        
-                        if (posCurrentCameraFacing === 'environment') {
-                            // البحث عن الكاميرا الخلفية
-                            return label.includes('back') || 
-                                   label.includes('rear') || 
-                                   label.includes('environment') ||
-                                   label.includes('خلفي') ||
-                                   label.includes('خلفية') ||
-                                   label.includes('back camera') ||
-                                   label.includes('rear camera') ||
-                                   label.includes('camera2') || // Android camera2 API
-                                   label.includes('camera 1') || // عادة الكاميرا الخلفية
-                                   (facingMode === 'environment');
-                        } else {
-                            // البحث عن الكاميرا الأمامية
-                            return label.includes('front') || 
-                                   label.includes('user') || 
-                                   label.includes('facing') && label.includes('user') ||
-                                   label.includes('أمامي') || 
-                                   label.includes('أمامية') ||
-                                   label.includes('selfie') ||
-                                   (facingMode === 'user');
-                        }
-                    });
-                    
-                    if (targetCamera) {
-                        cameraId = targetCamera.id;
-                        cameraConfig = cameraId; // استخدام ID الكاميرا مباشرة
-                        posCurrentCameraId = cameraId; // حفظ ID الكاميرا
-                        console.log(`📷 [POS Scanner] تم العثور على الكاميرا ${posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية'}:`, cameraId, targetCamera.label);
-                        localStorage.setItem('pos_last_camera_id', cameraId);
-                    } else {
-                        // إذا لم نجد كاميرا محددة، استخدم facingMode
-                        console.log(`📷 [POS Scanner] لم يتم العثور على كاميرا ${posCurrentCameraFacing === 'environment' ? 'خلفية' : 'أمامية'} بوضوح، استخدام facingMode: ${posCurrentCameraFacing}`);
-                        cameraConfig = { facingMode: posCurrentCameraFacing };
-                    }
-                }
-            }
-        } catch (camError) {
-            console.warn(`⚠️ [POS Scanner] لا يمكن الحصول على قائمة الكاميرات، استخدام facingMode: ${posCurrentCameraFacing}:`, camError);
-            // في حالة الخطأ، استخدم facingMode المحدد
-            cameraConfig = { facingMode: posCurrentCameraFacing };
-        }
-        
-        console.log(`🎥 [POS Scanner] إعدادات الكاميرا (${posCurrentCameraFacing === 'environment' ? 'الخلفية' : 'الأمامية'}):`, cameraConfig);
-        
-        // في html5-qrcode، videoConstraints يجب أن تكون في start() method وليس في config
-        // لذلك نستخدم config كما هو بدون videoConstraints
+        console.log(`🎥 [POS Scanner] استخدام الكاميرا:`, cameraConfig);
         
         await posQRCodeScannerInstance.start(
             cameraConfig,
@@ -3470,17 +3375,13 @@ async function initializePOSQRCodeScanner() {
         // محاولة إضافية - استخدام facingMode المحدد مباشرة مع إعدادات مبسطة
         console.log(`🔄 [POS Scanner] محاولة استخدام facingMode: ${posCurrentCameraFacing} مباشرة...`);
         try {
-            // إعدادات مبسطة للمحاولة الثانية
+            // إعدادات مبسطة للمحاولة الثانية - مطابقة لـ repairs.js
             const fallbackConfig = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
                 disableFlip: false
             };
-            
-            if (typeof Html5QrcodeSupportedFormats !== 'undefined' && Html5QrcodeSupportedFormats.QR_CODE) {
-                fallbackConfig.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
-            }
             
             if (typeof Html5QrcodeScanType !== 'undefined') {
                 fallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
@@ -3544,17 +3445,13 @@ async function initializePOSQRCodeScanner() {
                         }
                         
                         try {
-                            // استخدام إعدادات مبسطة للمحاولة الأخيرة
+                            // استخدام إعدادات مبسطة للمحاولة الأخيرة - مطابقة لـ repairs.js
                             const finalFallbackConfig = {
                                 fps: 10,
                                 qrbox: { width: 250, height: 250 },
                                 aspectRatio: 1.0,
                                 disableFlip: false
                             };
-                            
-                            if (typeof Html5QrcodeSupportedFormats !== 'undefined' && Html5QrcodeSupportedFormats.QR_CODE) {
-                                finalFallbackConfig.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
-                            }
                             
                             if (typeof Html5QrcodeScanType !== 'undefined') {
                                 finalFallbackConfig.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
