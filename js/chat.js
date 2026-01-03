@@ -997,92 +997,78 @@ function setupEventListeners() {
         attachBtn.addEventListener('click', toggleAttachMenu);
     }
     
-    // زر التسجيل الصوتي
+    // زر التسجيل الصوتي - استخدام نظام toggle (اضغط لبدء، اضغط مرة أخرى لإيقاف)
     const audioBtn = document.getElementById('audioBtn');
     if (audioBtn) {
-        // ✅ استخدام click بدلاً من mousedown/mouseup لتجنب المشاكل
-        audioBtn.addEventListener('mousedown', function(e) {
+        // ✅ استخدام click للكمبيوتر (toggle)
+        audioBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            startAudioRecording(e);
-        });
-        
-        audioBtn.addEventListener('mouseup', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            stopAudioRecording(e);
-        });
-        
-        audioBtn.addEventListener('mouseleave', function(e) {
+            
             if (isRecording) {
+                // إذا كان التسجيل قيد التنفيذ، أوقفه
                 stopAudioRecording(e);
+            } else {
+                // إذا لم يكن هناك تسجيل، ابدأ التسجيل
+                startAudioRecording(e);
             }
         });
         
-        // ✅ معالجة touch events بشكل أفضل لمنع الإيقاف الفوري
-        let touchStartTime = 0;
-        let touchStartPosition = null;
-        let isTouchMoving = false;
+        // ✅ معالجة touch events للموبايل - استخدام toggle أيضاً
+        let lastTouchTime = 0;
+        let isTouching = false;
         
         audioBtn.addEventListener('touchstart', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            touchStartTime = Date.now();
-            touchStartPosition = {
-                x: e.touches[0].clientX,
-                y: e.touches[0].clientY
-            };
-            isTouchMoving = false;
-            console.log('👆 touchstart - بدء التسجيل');
-            startAudioRecording(e);
-        }, { passive: false });
-        
-        // ✅ تتبع حركة اللمس - إذا تحرك المستخدم، لا نوقف التسجيل
-        audioBtn.addEventListener('touchmove', function(e) {
-            if (touchStartPosition && e.touches.length > 0) {
-                const moveX = Math.abs(e.touches[0].clientX - touchStartPosition.x);
-                const moveY = Math.abs(e.touches[0].clientY - touchStartPosition.y);
-                // إذا تحرك أكثر من 10 بكسل، نعتبره حركة
-                if (moveX > 10 || moveY > 10) {
-                    isTouchMoving = true;
-                }
-            }
-        }, { passive: true });
-        
-        audioBtn.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
             
-            const touchDuration = Date.now() - touchStartTime;
-            
-            // ✅ منع إيقاف التسجيل إذا كان قد بدأ للتو (أقل من 500ms) أو إذا كان المستخدم يتحرك
-            if (touchDuration < 500) {
-                console.log('⚠️ تم منع إيقاف التسجيل - المدة قصيرة جداً:', touchDuration, 'ms');
+            const now = Date.now();
+            // ✅ منع النقرات المتكررة (أقل من 300ms)
+            if (now - lastTouchTime < 300) {
+                console.log('⚠️ تم منع النقرة المتكررة');
                 return;
             }
             
-            if (isTouchMoving) {
-                console.log('⚠️ تم منع إيقاف التسجيل - المستخدم يتحرك');
-                isTouchMoving = false;
-                return;
-            }
+            lastTouchTime = now;
+            isTouching = true;
             
-            console.log('👆 touchend - إيقاف التسجيل بعد', touchDuration, 'ms');
-            stopAudioRecording(e);
-            touchStartTime = 0;
-            touchStartPosition = null;
+            // ✅ toggle: إذا كان التسجيل قيد التنفيذ، أوقفه. وإلا ابدأ التسجيل
+            if (isRecording) {
+                console.log('👆 touchstart - إيقاف التسجيل');
+                // تأخير بسيط قبل الإيقاف للتأكد من أن المستخدم يريد الإيقاف
+                setTimeout(() => {
+                    if (isTouching && isRecording) {
+                        stopAudioRecording(e);
+                    }
+                    isTouching = false;
+                }, 100);
+            } else {
+                console.log('👆 touchstart - بدء التسجيل');
+                startAudioRecording(e);
+                // ✅ بعد بدء التسجيل، نتحقق من touchend لإيقاف التسجيل
+                const handleTouchEnd = function(endEvent) {
+                    endEvent.preventDefault();
+                    endEvent.stopPropagation();
+                    
+                    if (isRecording) {
+                        console.log('👆 touchend - إيقاف التسجيل بعد الضغط');
+                        stopAudioRecording(endEvent);
+                    }
+                    
+                    audioBtn.removeEventListener('touchend', handleTouchEnd);
+                    isTouching = false;
+                };
+                
+                // ✅ إضافة listener مؤقت لـ touchend
+                audioBtn.addEventListener('touchend', handleTouchEnd, { once: true, passive: false });
+            }
         }, { passive: false });
         
         audioBtn.addEventListener('touchcancel', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('👆 touchcancel - إلغاء التسجيل');
-            if (isRecording) {
-                stopAudioRecording(e);
-            }
-            touchStartTime = 0;
-            touchStartPosition = null;
-            isTouchMoving = false;
+            console.log('👆 touchcancel - إلغاء اللمس');
+            isTouching = false;
         }, { passive: false });
     }
     

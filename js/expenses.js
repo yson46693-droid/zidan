@@ -35,8 +35,8 @@ function loadExpensesSection() {
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
     const isManager = currentUser && (currentUser.role === 'manager');
     const showAdvancedFeatures = isOwner || isManager;
-    // إظهار المستحقات للمالك والموظفين (للمالك: لإدارة رواتب الموظفين، للموظفين: لرؤية مستحقاتهم)
-    const showSalariesSection = isOwner || (!isOwner && !isManager);
+    // إظهار المستحقات للمالك فقط (لإدارة رواتب الموظفين في خزنة الفرع)
+    const showSalariesSection = isOwner;
     
     // جميع المستخدمين يستخدمون الصفحة الجديدة (لرؤية سجل المعاملات)
     // لكن الميزات المتقدمة (مثل اختيار الفرع) تظهر فقط للمالك والمدير
