@@ -174,6 +174,7 @@ try {
     
     // ✅ إشعار جميع المستخدمين المسجلين دخولهم بتحديث الشات فوراً
     // استدعاء API تحديث الشات - مقترن تماماً بإرسال الرسائل
+    define('NOTIFY_CHAT_UPDATE_SKIP_HTTP', true);
     require_once __DIR__ . '/notify-chat-update.php';
     notifyAllUsersForChatUpdate($messageId, $userId);
     

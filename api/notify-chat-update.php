@@ -5,54 +5,65 @@
  * 
  * هذا API مقترن تماماً بنظام الرسائل - يتم استدعاؤه من send_message.php
  * مباشرة بعد حفظ الرسالة في قاعدة البيانات
+ * 
+ * يمكن استخدامه بطريقتين:
+ * 1. استدعاء مباشر للدالة notifyAllUsersForChatUpdate() من PHP
+ * 2. HTTP request إلى api/notify-chat-update.php
  */
 require_once __DIR__ . '/config.php';
 
-try {
-    // التحقق من أن الطلب POST (للأمان)
-    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    
-    // السماح بالاستدعاء المباشر من PHP أو HTTP request
-    // إذا كان HTTP request، التحقق من authentication
-    if ($method === 'POST' || isset($_GET['message_id'])) {
-        // الحصول على message_id من الطلب
-        $messageId = $_POST['message_id'] ?? $_GET['message_id'] ?? '';
-        $senderId = $_POST['sender_id'] ?? $_GET['sender_id'] ?? '';
+// ✅ التحقق من أن الملف يتم تنفيذه كـ HTTP request وليس function call
+// إذا كان لا يتم تنفيذ مباشرة من PHP (مثل require_once)، تخطي HTTP handling
+if (!defined('NOTIFY_CHAT_UPDATE_SKIP_HTTP') && php_sapi_name() !== 'cli') {
+    try {
+        // التحقق من أن الطلب POST أو GET (للأمان)
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         
-        if (empty($messageId)) {
-            response(false, 'معرف الرسالة مطلوب', null, 400);
-        }
-        
+        // السماح بالاستدعاء المباشر من PHP أو HTTP request
         // إذا كان HTTP request، التحقق من authentication
-        if ($method === 'POST') {
-            try {
-                $session = checkAuth();
-                $currentUserId = $session['user_id'];
-                // يمكن استخدام $currentUserId للتأكد من أن المستخدم مسجل دخول
-            } catch (Exception $e) {
-                // إذا فشل authentication، السماح بالاستدعاء إذا كان هناك server key
-                $serverKey = $_POST['server_key'] ?? $_GET['server_key'] ?? '';
-                $expectedKey = md5('chat_update_' . date('Y-m-d-H'));
-                if ($serverKey !== $expectedKey) {
-                    response(false, 'غير مصرح بالوصول', null, 403);
+        if ($method === 'POST' || isset($_GET['message_id'])) {
+            // الحصول على message_id من الطلب
+            $messageId = $_POST['message_id'] ?? $_GET['message_id'] ?? '';
+            $senderId = $_POST['sender_id'] ?? $_GET['sender_id'] ?? '';
+            
+            if (empty($messageId)) {
+                response(false, 'معرف الرسالة مطلوب', null, 400);
+            }
+            
+            // إذا كان HTTP request، التحقق من authentication
+            if ($method === 'POST') {
+                try {
+                    $session = checkAuth();
+                    $currentUserId = $session['user_id'];
+                    // يمكن استخدام $currentUserId للتأكد من أن المستخدم مسجل دخول
+                } catch (Exception $e) {
+                    // إذا فشل authentication، السماح بالاستدعاء إذا كان هناك server key
+                    $serverKey = $_POST['server_key'] ?? $_GET['server_key'] ?? '';
+                    $expectedKey = md5('chat_update_' . date('Y-m-d-H'));
+                    if ($serverKey !== $expectedKey) {
+                        response(false, 'غير مصرح بالوصول', null, 403);
+                    }
                 }
             }
+            
+            // استدعاء الدالة لتحديث الشات لجميع المستخدمين
+            $result = notifyAllUsersForChatUpdate($messageId, $senderId);
+            
+            response(true, 'تم تحديث الشات لجميع المستخدمين بنجاح', $result);
+        } else {
+            response(false, 'طريقة الطلب غير مدعومة', null, 405);
         }
         
-        // استدعاء الدالة لتحديث الشات لجميع المستخدمين
-        $result = notifyAllUsersForChatUpdate($messageId, $senderId);
-        
-        response(true, 'تم تحديث الشات لجميع المستخدمين بنجاح', $result);
-    } else {
-        response(false, 'طريقة الطلب غير مدعومة', null, 405);
+    } catch (Exception $e) {
+        error_log('خطأ في notify-chat-update.php: ' . $e->getMessage());
+        response(false, 'حدث خطأ في تحديث الشات: ' . $e->getMessage(), null, 500);
+    } catch (Error $e) {
+        error_log('خطأ قاتل في notify-chat-update.php: ' . $e->getMessage());
+        response(false, 'حدث خطأ قاتل في تحديث الشات', null, 500);
     }
     
-} catch (Exception $e) {
-    error_log('خطأ في notify-chat-update.php: ' . $e->getMessage());
-    response(false, 'حدث خطأ في تحديث الشات: ' . $e->getMessage(), null, 500);
-} catch (Error $e) {
-    error_log('خطأ قاتل في notify-chat-update.php: ' . $e->getMessage());
-    response(false, 'حدث خطأ قاتل في تحديث الشات', null, 500);
+    // ✅ إيقاف التنفيذ بعد معالجة HTTP request
+    exit;
 }
 
 /**
