@@ -639,8 +639,8 @@
     transform: translate(-50%, -50%);
     width: 75%;
     height: 75%;
-    max-width: 280px;
-    max-height: 280px;
+    max-width: 250px;
+    max-height: 250px;
     border: 4px solid var(--primary-color);
     border-radius: 15px;
     box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 40px rgba(33, 150, 243, 0.6), inset 0 0 20px rgba(33, 150, 243, 0.2);
@@ -655,8 +655,8 @@
     transform: translate(-50%, -50%);
     width: 75%;
     height: 75%;
-    max-width: 280px;
-    max-height: 280px;
+    max-width: 250px;
+    max-height: 250px;
     pointer-events: none;
 }
 
