@@ -185,6 +185,7 @@ async function loadProfileSection() {
         // تحميل البصمات المسجلة
         await loadCredentials();
         console.log('🔍 بعد تحميل البصمات - عدد البصمات:', userCredentials.length);
+        console.log('🔍 بيانات البصمات:', JSON.stringify(userCredentials, null, 2));
         
         // جلب تقييم الفني إذا كان المستخدم فني
         let technicianRating = null;
@@ -541,32 +542,53 @@ async function loadProfileSection() {
                     </h4>
                     
                     <div id="credentials-list" class="credentials-list">
-                        ${userCredentials.length === 0 
-                            ? '<p style="text-align: center; color: #999; padding: 20px;">لا توجد بصمات مسجلة بعد</p>'
-                            : userCredentials.map(cred => `
-                                <div class="credential-item" data-credential-id="${cred.id}">
-                                    <div class="credential-info">
-                                        <div class="credential-icon">
-                                            <i class="bi bi-device-hdd"></i>
-                                        </div>
-                                        <div class="credential-details">
-                                            <div class="credential-name">${cred.device_name || 'جهاز غير معروف'}</div>
-                                            <div class="credential-meta">
-                                                <span><i class="bi bi-calendar"></i> تم التسجيل: ${formatDate(cred.created_at)}</span>
-                                                ${cred.last_used ? `<span style="margin-right: 15px;"><i class="bi bi-clock-history"></i> آخر استخدام: ${formatDate(cred.last_used)}</span>` : '<span style="margin-right: 15px;"><i class="bi bi-clock-history"></i> لم يُستخدم بعد</span>'}
+                        ${(() => {
+                            // ✅ تسجيل البيانات قبل العرض
+                            console.log('🔍 عرض البصمات - عدد البصمات:', userCredentials.length);
+                            console.log('🔍 بيانات البصمات للعرض:', userCredentials);
+                            
+                            if (userCredentials.length === 0) {
+                                return '<p style="text-align: center; color: #999; padding: 20px;">لا توجد بصمات مسجلة بعد</p>';
+                            }
+                            
+                            // ✅ التأكد من أن userCredentials هو array
+                            if (!Array.isArray(userCredentials)) {
+                                console.error('❌ userCredentials ليس array:', typeof userCredentials, userCredentials);
+                                return '<p style="text-align: center; color: #f44336; padding: 20px;">خطأ في تحميل البصمات</p>';
+                            }
+                            
+                            // ✅ عرض البصمات
+                            return userCredentials.map(cred => {
+                                if (!cred || !cred.id) {
+                                    console.warn('⚠️ بصمة غير صحيحة:', cred);
+                                    return '';
+                                }
+                                
+                                return `
+                                    <div class="credential-item" data-credential-id="${cred.id}">
+                                        <div class="credential-info">
+                                            <div class="credential-icon">
+                                                <i class="bi bi-device-hdd"></i>
+                                            </div>
+                                            <div class="credential-details">
+                                                <div class="credential-name">${escapeHtml(cred.device_name || 'جهاز غير معروف')}</div>
+                                                <div class="credential-meta">
+                                                    <span><i class="bi bi-calendar"></i> تم التسجيل: ${formatDate(cred.created_at)}</span>
+                                                    ${cred.last_used ? `<span style="margin-right: 15px;"><i class="bi bi-clock-history"></i> آخر استخدام: ${formatDate(cred.last_used)}</span>` : '<span style="margin-right: 15px;"><i class="bi bi-clock-history"></i> لم يُستخدم بعد</span>'}
+                                                </div>
                                             </div>
                                         </div>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteCredential(${cred.id})" style="
+                                            padding: 8px 15px;
+                                            border-radius: 6px;
+                                            font-size: 14px;
+                                        ">
+                                            <i class="bi bi-trash"></i> حذف
+                                        </button>
                                     </div>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteCredential(${cred.id})" style="
-                                        padding: 8px 15px;
-                                        border-radius: 6px;
-                                        font-size: 14px;
-                                    ">
-                                        <i class="bi bi-trash"></i> حذف
-                                    </button>
-                                </div>
-                            `).join('')
-                        }
+                                `;
+                            }).filter(html => html !== '').join('') || '<p style="text-align: center; color: #999; padding: 20px;">لا توجد بصمات صحيحة للعرض</p>';
+                        })()}
                     </div>
                 </div>
             </div>
@@ -641,6 +663,12 @@ async function loadCredentials() {
             const credentials = data.data?.credentials || data.credentials || [];
             userCredentials = Array.isArray(credentials) ? credentials : [];
             console.log('✅ تم تحميل البصمات:', userCredentials.length, 'بصمة');
+            console.log('✅ بيانات البصمات المحملة:', JSON.stringify(userCredentials, null, 2));
+            
+            // ✅ التحقق من أن البيانات صحيحة
+            if (userCredentials.length > 0) {
+                console.log('✅ أول بصمة:', userCredentials[0]);
+            }
         } else {
             console.error('❌ خطأ في تحميل البصمات:', data.message || data.error || 'خطأ غير معروف');
             userCredentials = [];
