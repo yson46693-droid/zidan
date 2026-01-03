@@ -197,11 +197,24 @@ class GlobalNotificationManager {
     // تحميل آخر معرف رسالة من localStorage
     loadLastMessageId() {
         try {
-            const lastId = localStorage.getItem('lastChatMessageId');
-            if (lastId) {
-                this.lastMessageId = lastId;
+            // ✅ استخدام lastReadMessageId أولاً (الأكثر دقة)
+            const lastReadId = localStorage.getItem('lastReadMessageId');
+            const lastChatId = localStorage.getItem('lastChatMessageId');
+            
+            // استخدام أكبر قيمة بين lastReadMessageId و lastChatMessageId
+            if (lastReadId && lastChatId) {
+                this.lastMessageId = lastReadId > lastChatId ? lastReadId : lastChatId;
+            } else if (lastReadId) {
+                this.lastMessageId = lastReadId;
+            } else if (lastChatId) {
+                this.lastMessageId = lastChatId;
             } else {
                 this.lastMessageId = '0';
+            }
+            
+            // ✅ تحديث lastChatMessageId ليتطابق مع lastReadMessageId إذا كان أكبر
+            if (lastReadId && lastReadId > this.lastMessageId) {
+                this.saveLastMessageId(lastReadId);
             }
         } catch (error) {
             console.error('خطأ في تحميل آخر معرف رسالة:', error);
@@ -239,15 +252,16 @@ class GlobalNotificationManager {
             interval: this.checkIntervalMs
         });
         
-        // فحص فوري للإشعارات المحفوظة عند التحميل
-        setTimeout(() => {
-            this.checkForNewMessages();
-        }, 1000);
+        // ✅ تحديث lastMessageId من lastReadMessageId قبل الفحص الأول
+        this.loadLastMessageId();
         
-        // فحص الإشعارات المحفوظة مرة أخرى بعد 3 ثواني (لضمان جلب جميع الإشعارات)
+        // فحص فوري للإشعارات المحفوظة عند التحميل
+        // ✅ زيادة التأخير لتجنب إرسال إشعارات للرسائل المقروءة
         setTimeout(() => {
+            // ✅ تحديث lastMessageId مرة أخرى قبل الفحص
+            this.loadLastMessageId();
             this.checkForNewMessages();
-        }, 3000);
+        }, 2000);
 
         // الاستماع لحدث إرسال رسالة لإجراء فحص فوري
         window.addEventListener('messageSent', () => {
@@ -353,11 +367,27 @@ class GlobalNotificationManager {
         let maxMessageId = this.lastMessageId;
         let hasNewMessages = false;
         
+        // ✅ تحميل lastReadMessageId من localStorage للتأكد من دقة الفحص
+        let lastReadMessageId = '';
+        try {
+            lastReadMessageId = localStorage.getItem('lastReadMessageId') || '';
+        } catch (e) {
+            console.error('خطأ في قراءة lastReadMessageId:', e);
+        }
+        
+        // ✅ استخدام أكبر قيمة بين lastMessageId و lastReadMessageId
+        const effectiveLastMessageId = lastReadMessageId && lastReadMessageId > this.lastMessageId 
+            ? lastReadMessageId 
+            : this.lastMessageId;
+        
         messages.forEach(message => {
             // التحقق من أن الرسالة ليست من المستخدم الحالي (المرسل)
             if (message.user_id !== this.currentUser.id) {
-                // التحقق من أن الرسالة جديدة (أكبر من lastMessageId)
-                if (this.lastMessageId === '0' || (message.id && message.id > this.lastMessageId)) {
+                // ✅ التحقق من أن الرسالة جديدة (أكبر من effectiveLastMessageId)
+                // ✅ التحقق أيضاً من أن الرسالة لم يتم قراءتها بالفعل
+                if (message.id && 
+                    (effectiveLastMessageId === '0' || message.id > effectiveLastMessageId) &&
+                    (lastReadMessageId === '' || message.id > lastReadMessageId)) {
                     this.showNotification(message);
                     hasNewMessages = true;
                 }
@@ -372,8 +402,11 @@ class GlobalNotificationManager {
         
         // تحديث lastMessageId لجميع الرسائل (حتى المرسلة من المستخدم نفسه)
         // هذا يضمن عدم فحص نفس الرسائل مرة أخرى
+        // ✅ لكن لا نحدث إذا كانت lastReadMessageId أكبر (لأنها الأكثر دقة)
         if (maxMessageId !== this.lastMessageId && maxMessageId !== '0') {
-            this.saveLastMessageId(maxMessageId);
+            if (!lastReadMessageId || maxMessageId > lastReadMessageId) {
+                this.saveLastMessageId(maxMessageId);
+            }
         }
         
         this.cachedResult = { hasNewMessages };
@@ -382,6 +415,17 @@ class GlobalNotificationManager {
 
     // عرض إشعار للمستخدم
     showNotification(message) {
+        // ✅ التحقق من أن الرسالة لم يتم قراءتها بالفعل
+        try {
+            const lastReadMessageId = localStorage.getItem('lastReadMessageId') || '';
+            if (lastReadMessageId && message.id && message.id <= lastReadMessageId) {
+                console.log('⚠️ تم تخطي إشعار الرسالة المقروءة بالفعل:', message.id);
+                return;
+            }
+        } catch (e) {
+            console.error('خطأ في التحقق من lastReadMessageId:', e);
+        }
+        
         // التحقق من عدم تكرار الإشعار (نفس message.id)
         const notificationKey = `notification_${message.id}`;
         const lastShownTime = localStorage.getItem(notificationKey);

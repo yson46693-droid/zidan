@@ -3151,17 +3151,29 @@ async function openPOSBarcodeScanner() {
         
         initializePOSQRCodeScanner();
         
-        // إظهار زر التقاط صورة على الهواتف فقط
+        // إظهار زر التقاط صورة على الهواتف فقط (في modal)
         const isMobileDevice = window.innerWidth <= 767.98;
         const scanImageBtn = document.getElementById('pos-scan-image-btn');
         if (scanImageBtn && isMobileDevice) {
             scanImageBtn.style.display = 'inline-block';
         }
         
-        // إضافة event listener لـ file input
+        // إضافة event listener لـ file input (في modal)
         const fileInput = document.getElementById('pos-qr-image-input');
         if (fileInput) {
             fileInput.addEventListener('change', handlePOSImageFileSelected);
+        }
+        
+        // إظهار زر التقاط صورة في القارئ المدمج (للهواتف)
+        const scanImageBtnMobile = document.getElementById('pos-scan-image-btn-mobile');
+        if (scanImageBtnMobile && isMobileDevice) {
+            scanImageBtnMobile.style.display = 'block';
+        }
+        
+        // إضافة event listener لـ file input (في القارئ المدمج)
+        const fileInputMobile = document.getElementById('pos-qr-image-input-mobile');
+        if (fileInputMobile) {
+            fileInputMobile.addEventListener('change', handlePOSImageFileSelectedMobile);
         }
     }, 300);
 }
@@ -3849,8 +3861,18 @@ async function openPOSImageScanner() {
     }
 }
 
-// معالج اختيار صورة من file input
+// معالج اختيار صورة من file input (للـ modal)
 async function handlePOSImageFileSelected(event) {
+    await handlePOSImageFileSelectedCommon(event, 'pos-scanner-loading', 'pos-scanner-error', 'pos-scanner-error-message');
+}
+
+// معالج اختيار صورة من file input (للقارئ المدمج)
+async function handlePOSImageFileSelectedMobile(event) {
+    await handlePOSImageFileSelectedCommon(event, 'pos-scanner-loading-mobile', 'pos-scanner-error-mobile', 'pos-scanner-error-message-mobile');
+}
+
+// دالة مشتركة لمعالجة اختيار الصورة
+async function handlePOSImageFileSelectedCommon(event, loadingDivId, errorDivId, errorMessageId) {
     const file = event.target.files?.[0];
     if (!file) {
         return;
@@ -3864,7 +3886,7 @@ async function handlePOSImageFileSelected(event) {
     
     try {
         // إخفاء loading وإظهار رسالة معالجة
-        const loadingDiv = document.getElementById('pos-scanner-loading');
+        const loadingDiv = document.getElementById(loadingDivId);
         if (loadingDiv) {
             loadingDiv.style.display = 'block';
             loadingDiv.innerHTML = `
@@ -3912,9 +3934,9 @@ async function handlePOSImageFileSelected(event) {
     } catch (error) {
         console.error('❌ [POS Scanner] خطأ في قراءة QR Code من الصورة:', error);
         
-        const loadingDiv = document.getElementById('pos-scanner-loading');
-        const errorDiv = document.getElementById('pos-scanner-error');
-        const errorMessageEl = document.getElementById('pos-scanner-error-message');
+        const loadingDiv = document.getElementById(loadingDivId);
+        const errorDiv = document.getElementById(errorDivId);
+        const errorMessageEl = document.getElementById(errorMessageId);
         
         if (loadingDiv) {
             loadingDiv.style.display = 'none';
@@ -3980,3 +4002,5 @@ window.closePOSBarcodeScanner = closePOSBarcodeScanner;
 window.togglePOSCamera = togglePOSCamera;
 window.stopPOSQRCodeScannerMobile = stopPOSQRCodeScannerMobile;
 window.initializePOSQRCodeScannerAuto = initializePOSQRCodeScannerAuto;
+window.openPOSImageScanner = openPOSImageScanner;
+window.openPOSImageScannerMobile = openPOSImageScannerMobile;

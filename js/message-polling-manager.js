@@ -168,8 +168,15 @@
             this.lastPollTime = now;
 
             try {
+                // ✅ تحديث lastMessageId من localStorage قبل الطلب
+                this.loadLastMessageId();
+                
+                // ✅ إرسال lastReadMessageId في الطلب لاستبعاد الرسائل المقروءة
+                const lastReadMessageId = this.lastMessageId || '0';
+                const url = `get_chat_notifications.php?last_read_message_id=${encodeURIComponent(lastReadMessageId)}`;
+                
                 // جلب الإشعارات المحفوظة مباشرة من get_chat_notifications.php
-                const result = await API.request('get_chat_notifications.php', 'GET', null, { silent: true });
+                const result = await API.request(url, 'GET', null, { silent: true });
 
                 // ✅ تجاهل خطأ 401 (غير مصرح) - يعني أن المستخدم غير مسجل دخول
                 if (result && result.status === 401) {
@@ -181,19 +188,35 @@
                 if (result && result.success && result.data) {
                     const messages = result.data || [];
                     
-                    // تحديث lastMessageId
-                    if (messages.length > 0) {
-                        const lastMessage = messages[messages.length - 1];
+                    // ✅ تحميل lastReadMessageId من localStorage
+                    this.loadLastMessageId();
+                    
+                    // ✅ تصفية الرسائل المقروءة بالفعل
+                    const unreadMessages = messages.filter(message => {
+                        if (!message.id) return false;
+                        // ✅ التحقق من أن الرسالة لم يتم قراءتها
+                        if (this.lastMessageId && this.lastMessageId !== '0' && message.id <= this.lastMessageId) {
+                            return false;
+                        }
+                        return true;
+                    });
+                    
+                    // تحديث lastMessageId فقط للرسائل غير المقروءة
+                    if (unreadMessages.length > 0) {
+                        const lastMessage = unreadMessages[unreadMessages.length - 1];
                         if (lastMessage && lastMessage.id) {
-                            this.lastMessageId = lastMessage.id;
-                            this.saveLastMessageId(this.lastMessageId);
+                            // ✅ تحديث فقط إذا كانت الرسالة أكبر من lastMessageId الحالي
+                            if (this.lastMessageId === '0' || lastMessage.id > this.lastMessageId) {
+                                this.lastMessageId = lastMessage.id;
+                                this.saveLastMessageId(this.lastMessageId);
+                            }
                         }
                     }
 
-                    // حفظ في cache
+                    // حفظ في cache (فقط الرسائل غير المقروءة)
                     this.cachedResult = {
-                        messages: messages,
-                        hasNewMessages: messages.length > 0,
+                        messages: unreadMessages,
+                        hasNewMessages: unreadMessages.length > 0,
                         timestamp: now
                     };
                     this.cacheExpiry = now + this.CACHE_DURATION;

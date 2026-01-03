@@ -15,8 +15,11 @@ try {
         exit;
     }
     
-    // جلب الإشعارات المعلقة للمستخدم
-    $pendingNotifications = dbSelect("
+    // ✅ جلب lastReadMessageId للمستخدم من localStorage (يتم إرساله في الطلب)
+    $lastReadMessageId = $_GET['last_read_message_id'] ?? null;
+    
+    // ✅ بناء استعلام يتضمن التحقق من lastReadMessageId
+    $query = "
         SELECT 
             cpn.id,
             cpn.message_id,
@@ -32,9 +35,29 @@ try {
         LEFT JOIN users u ON u.id = cm.user_id
         WHERE cpn.user_id = ?
         AND (cm.deleted_at IS NULL OR cm.deleted_at = '')
-        ORDER BY cpn.created_at DESC
-        LIMIT 50
-    ", [$userId]);
+    ";
+    
+    // ✅ إضافة شرط لاستبعاد الرسائل المقروءة بالفعل
+    $params = [$userId];
+    if (!empty($lastReadMessageId) && $lastReadMessageId !== '0') {
+        $query .= " AND cm.id > ?";
+        $params[] = $lastReadMessageId;
+        
+        // ✅ حذف الإشعارات المقروءة من chat_pending_notifications (تنظيف)
+        try {
+            dbExecute("
+                DELETE FROM chat_pending_notifications 
+                WHERE user_id = ? AND message_id <= ?
+            ", [$userId, $lastReadMessageId]);
+        } catch (Exception $e) {
+            error_log('خطأ في حذف الإشعارات المقروءة: ' . $e->getMessage());
+        }
+    }
+    
+    $query .= " ORDER BY cpn.created_at DESC LIMIT 50";
+    
+    // جلب الإشعارات المعلقة للمستخدم
+    $pendingNotifications = dbSelect($query, $params);
     
     if ($pendingNotifications === false) {
         response(false, 'خطأ في جلب الإشعارات', null, 500);
