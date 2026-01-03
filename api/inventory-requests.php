@@ -14,6 +14,42 @@ function getFirstBranchId() {
     return $firstBranch ? $firstBranch['id'] : null;
 }
 
+// التأكد من وجود جدول inventory_requests
+if (!dbTableExists('inventory_requests')) {
+    $conn = getDBConnection();
+    if ($conn) {
+        $createTableSQL = "CREATE TABLE IF NOT EXISTS `inventory_requests` (
+            `id` varchar(50) NOT NULL,
+            `request_number` varchar(50) NOT NULL,
+            `from_branch_id` varchar(50) DEFAULT NULL,
+            `to_branch_id` varchar(50) NOT NULL,
+            `item_type` enum('inventory','spare_part','accessory') NOT NULL,
+            `item_id` varchar(50) NOT NULL,
+            `item_name` varchar(255) NOT NULL,
+            `quantity` int(11) NOT NULL DEFAULT 1,
+            `items` text DEFAULT NULL,
+            `status` enum('pending','approved','rejected','completed') NOT NULL DEFAULT 'pending',
+            `requested_by` varchar(50) DEFAULT NULL,
+            `approved_by` varchar(50) DEFAULT NULL,
+            `notes` text DEFAULT NULL,
+            `created_at` datetime NOT NULL,
+            `updated_at` datetime DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `request_number` (`request_number`),
+            KEY `idx_from_branch` (`from_branch_id`),
+            KEY `idx_to_branch` (`to_branch_id`),
+            KEY `idx_status` (`status`),
+            KEY `idx_created_at` (`created_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        
+        if ($conn->query($createTableSQL)) {
+            error_log('✅ تم إنشاء جدول inventory_requests بنجاح');
+        } else {
+            error_log('❌ فشل إنشاء جدول inventory_requests: ' . $conn->error);
+        }
+    }
+}
+
 $method = getRequestMethod();
 $data = getRequestData();
 
