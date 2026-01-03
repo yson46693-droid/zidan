@@ -1332,39 +1332,90 @@ async function saveUserField(userId, field, value, cell) {
                         ...updatedUser
                     };
                     
-                    // ✅ إذا تم تغيير الفرع، جلب branch_code من الفروع
+                    // ✅ إذا تم تغيير الفرع، جلب branch_code و branch_name من الفروع
                     if (field === 'branch_id') {
                         try {
                             if (updatedUser.branch_id) {
-                                // جلب branch_code للفرع الجديد
+                                // جلب branch_code و branch_name للفرع الجديد
                                 const branchesResult = await API.request('branches.php', 'GET', null, { skipCache: true });
                                 if (branchesResult && branchesResult.success && branchesResult.data) {
                                     const branch = branchesResult.data.find(b => String(b.id) === String(updatedUser.branch_id));
-                                    if (branch && branch.code) {
-                                        updatedUserData.branch_code = branch.code;
-                                        console.log('✅ تم تحديث branch_code:', branch.code);
+                                    if (branch) {
+                                        if (branch.code) {
+                                            updatedUserData.branch_code = branch.code;
+                                            console.log('✅ تم تحديث branch_code:', branch.code);
+                                        }
+                                        // branch_name موجود في updatedUser من API، لكن نستخدم branch.name كبديل
+                                        updatedUserData.branch_name = updatedUser.branch_name || branch.name || '';
+                                        console.log('✅ تم تحديث branch_name:', updatedUserData.branch_name);
                                     } else {
-                                        // إذا لم يتم العثور على الفرع، إزالة branch_code
+                                        // إذا لم يتم العثور على الفرع، إزالة branch_code و branch_name
                                         delete updatedUserData.branch_code;
-                                        console.log('⚠️ لم يتم العثور على branch_code للفرع:', updatedUser.branch_id);
+                                        updatedUserData.branch_name = '';
+                                        console.log('⚠️ لم يتم العثور على الفرع:', updatedUser.branch_id);
                                     }
                                 }
                             } else {
-                                // إذا تم حذف الفرع (null)، إزالة branch_code
+                                // إذا تم حذف الفرع (null)، إزالة branch_code و branch_name
                                 delete updatedUserData.branch_code;
-                                console.log('✅ تم إزالة branch_code (لا فرع)');
+                                updatedUserData.branch_name = '';
+                                console.log('✅ تم إزالة branch_code و branch_name (لا فرع)');
                             }
                         } catch (e) {
-                            console.warn('لم يتم جلب branch_code:', e);
+                            console.warn('لم يتم جلب بيانات الفرع:', e);
+                            // استخدام البيانات من API كبديل
+                            if (updatedUser.branch_name) {
+                                updatedUserData.branch_name = updatedUser.branch_name;
+                            }
+                        }
+                    } else {
+                        // ✅ إذا تم تغيير الاسم أو اسم المستخدم، تحديثهما مباشرة
+                        if (field === 'name' && updatedUser.name) {
+                            updatedUserData.name = updatedUser.name;
+                        }
+                        if (field === 'username' && updatedUser.username) {
+                            updatedUserData.username = updatedUser.username;
                         }
                     }
                     
+                    // ✅ تحديث localStorage بالبيانات المحدثة
                     localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
                     
-                    // ✅ تحديث الشريط الجانبي
-                    if (typeof displayUserInfo === 'function') {
-                        displayUserInfo();
-                    }
+                    console.log('✅ تم تحديث localStorage:', {
+                        id: updatedUserData.id,
+                        name: updatedUserData.name,
+                        username: updatedUserData.username,
+                        branch_id: updatedUserData.branch_id,
+                        branch_name: updatedUserData.branch_name,
+                        branch_code: updatedUserData.branch_code
+                    });
+                    
+                    // ✅ التحقق من أن البيانات تم حفظها بشكل صحيح
+                    const verifyUser = getCurrentUser();
+                    console.log('🔍 التحقق من البيانات المحفوظة:', {
+                        name: verifyUser?.name,
+                        branch_name: verifyUser?.branch_name,
+                        branch_id: verifyUser?.branch_id
+                    });
+                    
+                    // ✅ تحديث الشريط الجانبي - استدعاء فوري بعد تحديث localStorage
+                    // استخدام setTimeout متعدد لضمان تحديث DOM
+                    setTimeout(() => {
+                        if (typeof displayUserInfo === 'function') {
+                            displayUserInfo();
+                            console.log('✅ تم استدعاء displayUserInfo() لتحديث الشريط الجانبي');
+                            
+                            // استدعاء إضافي بعد تأخير قصير للتأكد
+                            setTimeout(() => {
+                                if (typeof displayUserInfo === 'function') {
+                                    displayUserInfo();
+                                    console.log('✅ تم استدعاء displayUserInfo() مرة أخرى للتأكد');
+                                }
+                            }, 100);
+                        } else {
+                            console.error('❌ دالة displayUserInfo غير متوفرة');
+                        }
+                    }, 50);
                     
                     // ✅ تحديث الصلاحيات في الشريط الجانبي
                     if (typeof hideByPermission === 'function') {

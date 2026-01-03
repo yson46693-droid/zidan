@@ -823,7 +823,19 @@ function setupPermissionObserver() {
 // عرض معلومات المستخدم في الواجهة
 function displayUserInfo() {
     const user = getCurrentUser();
-    if (!user) return;
+    if (!user) {
+        console.warn('⚠️ displayUserInfo: لا يوجد مستخدم في localStorage');
+        return;
+    }
+    
+    console.log('🔄 displayUserInfo - تحديث الشريط الجانبي:', {
+        name: user.name,
+        username: user.username,
+        role: user.role,
+        branch_id: user.branch_id,
+        branch_name: user.branch_name,
+        branch_code: user.branch_code
+    });
     
     const userNameElement = document.getElementById('userName');
     const userRoleElement = document.getElementById('userRole');
@@ -833,11 +845,18 @@ function displayUserInfo() {
     const userBranchTextElement = document.getElementById('userBranchText');
     
     if (userNameElement) {
-        userNameElement.textContent = user.name;
+        userNameElement.textContent = user.name || '';
+        console.log('✅ تم تحديث الاسم في الشريط الجانبي:', user.name);
+    } else {
+        console.warn('⚠️ العنصر userName غير موجود في DOM');
     }
     
     if (userRoleElement) {
-        userRoleElement.textContent = getRoleText(user.role);
+        const roleText = typeof getRoleText === 'function' ? getRoleText(user.role) : user.role;
+        userRoleElement.textContent = roleText;
+        console.log('✅ تم تحديث الدور في الشريط الجانبي:', roleText);
+    } else {
+        console.warn('⚠️ العنصر userRole غير موجود في DOM');
     }
     
     // عرض التخصص للفنيين فقط
@@ -857,8 +876,11 @@ function displayUserInfo() {
     if (user.role !== 'admin' && userBranchElement && userBranchTextElement) {
         let branchName = user.branch_name || user.branchName || '';
         
+        console.log('🔍 عرض الفرع:', { branchName, branch_id: user.branch_id, role: user.role });
+        
         // إذا لم يكن branch_name موجوداً، جلبها من API بشكل غير متزامن
         if (!branchName && user.branch_id) {
+            console.log('🔄 جلب branch_name من API...');
             // جلب branch_name بشكل غير متزامن بدون منع عرض باقي المعلومات
             API.request('profile.php', 'GET').then(result => {
                 if (result && result.success && result.data && result.data.branch_name) {
@@ -872,6 +894,7 @@ function displayUserInfo() {
                     // تحديث البيانات المحفوظة
                     user.branch_name = branchName;
                     localStorage.setItem('currentUser', JSON.stringify(user));
+                    console.log('✅ تم تحديث branch_name من API:', branchName);
                 }
             }).catch(error => {
                 console.warn('لم يتم جلب اسم الفرع:', error);
@@ -881,11 +904,18 @@ function displayUserInfo() {
         if (branchName) {
             userBranchTextElement.textContent = branchName;
             userBranchElement.style.display = 'block';
+            console.log('✅ تم عرض الفرع في الشريط الجانبي:', branchName);
         } else {
             userBranchElement.style.display = 'none';
+            console.log('⚠️ لا يوجد فرع للعرض');
         }
     } else if (userBranchElement) {
         userBranchElement.style.display = 'none';
+        if (user.role === 'admin') {
+            console.log('ℹ️ المستخدم من نوع admin - لا يتم عرض الفرع');
+        }
+    } else {
+        console.warn('⚠️ العناصر sidebarUserBranch أو userBranchText غير موجودة في DOM');
     }
     
     // تحديث معلومات المستخدم في الـ top-bar للهواتف
