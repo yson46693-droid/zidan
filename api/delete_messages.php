@@ -72,6 +72,8 @@ try {
     $imageFilesDeleted = 0;
     $otherFilesDeleted = 0;
     
+    error_log("🔍 بدء حذف الملفات - عدد الرسائل: " . count($messagesToDelete) . " من $fromDateFormatted إلى $toDateFormatted");
+    
     if (!empty($messagesToDelete)) {
         foreach ($messagesToDelete as $msg) {
             $filePath = $msg['file_path'] ?? null; // النظام القديم
@@ -95,11 +97,15 @@ try {
                             } else {
                                 $otherFilesDeleted++;
                             }
-                            error_log("تم حذف الملف: $fullPath");
+                            error_log("✅ تم حذف الملف: $fullPath");
+                        } else {
+                            error_log("⚠️ فشل حذف الملف: $fullPath (unlink returned false)");
                         }
                     } catch (Exception $fileError) {
-                        error_log("خطأ في حذف الملف $fullPath: " . $fileError->getMessage());
+                        error_log("❌ خطأ في حذف الملف $fullPath: " . $fileError->getMessage());
                     }
+                } else {
+                    error_log("⚠️ الملف غير موجود: $fullPath (file_path في قاعدة البيانات: $filePath)");
                 }
             }
             
@@ -125,13 +131,90 @@ try {
                             } else {
                                 $otherFilesDeleted++;
                             }
-                            error_log("تم حذف الملف: $fullPath");
+                            error_log("✅ تم حذف الملف: $fullPath");
+                        } else {
+                            error_log("⚠️ فشل حذف الملف: $fullPath (unlink returned false)");
                         }
                     } catch (Exception $fileError) {
-                        error_log("خطأ في حذف الملف $fullPath: " . $fileError->getMessage());
+                        error_log("❌ خطأ في حذف الملف $fullPath: " . $fileError->getMessage());
+                    }
+                } else {
+                    error_log("⚠️ الملف غير موجود: $fullPath (file_path: $filePath, file_url: $fileUrl)");
+                }
+            }
+        }
+    }
+    
+    // ✅ حذف جميع الملفات من المجلدات بناءً على تاريخ الإنشاء
+    // هذا يضمن حذف الملفات حتى لو لم تكن مرتبطة برسائل في قاعدة البيانات
+    $chatDirs = [
+        'images' => __DIR__ . '/../chat/images/',
+        'audio' => __DIR__ . '/../chat/audio/',
+        'files' => __DIR__ . '/../chat/files/'
+    ];
+    
+    // جمع معرفات الرسائل المراد حذفها للبحث عن الملفات المرتبطة
+    $messageIds = [];
+    if (!empty($messagesToDelete)) {
+        $messageIds = array_column($messagesToDelete, 'id');
+    }
+    
+    foreach ($chatDirs as $dirType => $dirPath) {
+        if (is_dir($dirPath)) {
+            $files = glob($dirPath . '*.*');
+            if (!empty($files)) {
+                error_log("🔍 فحص مجلد $dirType: " . count($files) . " ملف");
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        $shouldDelete = false;
+                        $deleteReason = '';
+                        
+                        // 1. التحقق من تاريخ الملف
+                        $fileTime = filemtime($file);
+                        $fileDate = date('Y-m-d H:i:s', $fileTime);
+                        if ($fileDate >= $fromDateFormatted && $fileDate <= $toDateFormatted) {
+                            $shouldDelete = true;
+                            $deleteReason = "تاريخ الملف ($fileDate) في الفترة المحددة";
+                        }
+                        
+                        // 2. التحقق من أن الملف مرتبط برسالة محذوفة (إذا كان الاسم يحتوي على معرف الرسالة)
+                        if (!$shouldDelete && !empty($messageIds)) {
+                            $fileName = basename($file);
+                            foreach ($messageIds as $msgId) {
+                                // البحث عن معرف الرسالة في اسم الملف (للملفات التي تبدأ بـ chat_)
+                                if (strpos($fileName, $msgId) !== false) {
+                                    $shouldDelete = true;
+                                    $deleteReason = "الملف مرتبط برسالة محذوفة (ID: $msgId)";
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if ($shouldDelete) {
+                            try {
+                                if (unlink($file)) {
+                                    $deletedFilesCount++;
+                                    // تصنيف الملفات
+                                    if ($dirType === 'audio') {
+                                        $audioFilesDeleted++;
+                                    } elseif ($dirType === 'images') {
+                                        $imageFilesDeleted++;
+                                    } else {
+                                        $otherFilesDeleted++;
+                                    }
+                                    error_log("✅ تم حذف الملف من المجلد: $file ($deleteReason)");
+                                } else {
+                                    error_log("⚠️ فشل حذف الملف من المجلد: $file");
+                                }
+                            } catch (Exception $fileError) {
+                                error_log("❌ خطأ في حذف الملف من المجلد $file: " . $fileError->getMessage());
+                            }
+                        }
                     }
                 }
             }
+        } else {
+            error_log("⚠️ المجلد غير موجود: $dirPath");
         }
     }
     

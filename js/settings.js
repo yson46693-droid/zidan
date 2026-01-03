@@ -942,11 +942,42 @@ function displayUsers(users) {
             </button>
         `;
         
+        // ✅ بناء الخلايا القابلة للتعديل (للمالك فقط)
+        let usernameCell, nameCell, roleCell, branchCell;
+        
+        if (isOwner) {
+            // اسم المستخدم - قابل للتعديل
+            usernameCell = `<td class="editable-cell" data-field="username" data-user-id="${userIdRaw}" data-value="${usernameRaw}" style="cursor: pointer; position: relative;">
+                <span class="cell-content">${username}</span>
+            </td>`;
+            
+            // الاسم - قابل للتعديل
+            nameCell = `<td class="editable-cell" data-field="name" data-user-id="${userIdRaw}" data-value="${nameRaw}" style="cursor: pointer; position: relative;">
+                <span class="cell-content">${name}</span>
+            </td>`;
+            
+            // الدور - قابل للتعديل (dropdown)
+            roleCell = `<td class="editable-cell" data-field="role" data-user-id="${userIdRaw}" data-value="${roleRaw}" style="cursor: pointer; position: relative;">
+                <span class="cell-content">${getRoleTextFunc(roleRaw)}</span>
+            </td>`;
+            
+            // الفرع - قابل للتعديل (dropdown)
+            branchCell = `<td class="editable-cell" data-field="branch_id" data-user-id="${userIdRaw}" data-value="${branchIdRaw}" style="cursor: pointer; position: relative;">
+                <span class="cell-content">${branchName || (roleRaw === 'admin' ? 'كل الفروع' : 'غير محدد')}</span>
+            </td>`;
+        } else {
+            // للمستخدمين غير المالكين - عرض عادي
+            usernameCell = `<td>${username}</td>`;
+            nameCell = `<td>${name}</td>`;
+            roleCell = `<td>${getRoleTextFunc(roleRaw)}</td>`;
+            branchCell = `<td>${branchName || (roleRaw === 'admin' ? 'كل الفروع' : 'غير محدد')}</td>`;
+        }
+        
         tr.innerHTML = `
-            <td>${username}</td>
-            <td>${name}</td>
-            <td>${getRoleTextFunc(roleRaw)}</td>
-            <td>${branchName || (roleRaw === 'admin' ? 'كل الفروع' : 'غير محدد')}</td>
+            ${usernameCell}
+            ${nameCell}
+            ${roleCell}
+            ${branchCell}
             <td>
                 ${actionsHTML}
             </td>
@@ -988,10 +1019,33 @@ function setupUsersTableEventListeners() {
         // ✅ إنشاء handler جديد
         const clickHandler = async (event) => {
             try {
+                // ✅ التحقق من النقر على خلية قابلة للتعديل
+                const editableCell = event.target.closest('.editable-cell');
+                if (editableCell && !editableCell.querySelector('input, select')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const field = editableCell.getAttribute('data-field');
+                    const userId = editableCell.getAttribute('data-user-id');
+                    const currentValue = editableCell.getAttribute('data-value') || '';
+                    
+                    if (!field || !userId) return;
+                    
+                    // فتح حقل التعديل حسب نوع الحقل
+                    if (field === 'role') {
+                        await showRoleDropdown(editableCell, userId, currentValue);
+                    } else if (field === 'branch_id') {
+                        await showBranchDropdown(editableCell, userId, currentValue);
+                    } else if (field === 'name' || field === 'username') {
+                        showTextInput(editableCell, userId, field, currentValue);
+                    }
+                    return;
+                }
+                
                 const target = event.target.closest('button');
                 if (!target) return;
                 
-                // زر التعديل
+                // زر التعديل (تغيير كلمة المرور)
                 if (target.classList.contains('edit-user-btn')) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1003,7 +1057,7 @@ function setupUsersTableEventListeners() {
                         return;
                     }
                     
-                    // استدعاء دالة التعديل
+                    // استدعاء دالة تغيير كلمة المرور
                     await showEditUserModal(userId);
                     return;
                 }
@@ -1048,6 +1102,254 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ✅ دالة لعرض dropdown للدور
+async function showRoleDropdown(cell, userId, currentValue) {
+    try {
+        const roles = [
+            { value: 'employee', text: 'موظف' },
+            { value: 'technician', text: 'فني صيانة' },
+            { value: 'manager', text: 'مدير' },
+            { value: 'admin', text: 'مالك' }
+        ];
+        
+        const select = document.createElement('select');
+        select.className = 'inline-edit-select';
+        select.style.cssText = 'width: 100%; padding: 5px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--white);';
+        
+        roles.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.value;
+            option.textContent = role.text;
+            if (role.value === currentValue) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+        
+        const cellContent = cell.querySelector('.cell-content');
+        if (cellContent) {
+            cellContent.style.display = 'none';
+        }
+        cell.innerHTML = '';
+        cell.appendChild(select);
+        select.focus();
+        
+        // حفظ عند تغيير القيمة
+        const saveHandler = async () => {
+            const newValue = select.value;
+            if (newValue !== currentValue) {
+                await saveUserField(userId, 'role', newValue, cell);
+            } else {
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        };
+        
+        // حفظ عند الضغط على Enter أو فقدان التركيز
+        select.addEventListener('change', saveHandler);
+        select.addEventListener('blur', saveHandler);
+        select.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveHandler();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في showRoleDropdown:', error);
+        showMessage('حدث خطأ أثناء فتح قائمة الأدوار', 'error');
+    }
+}
+
+// ✅ دالة لعرض dropdown للفرع
+async function showBranchDropdown(cell, userId, currentValue) {
+    try {
+        // جلب الفروع
+        const result = await API.request('branches.php', 'GET', null, { skipCache: true });
+        
+        if (!result || !result.success || !result.data || !Array.isArray(result.data)) {
+            showMessage('فشل تحميل قائمة الفروع', 'error');
+            return;
+        }
+        
+        const select = document.createElement('select');
+        select.className = 'inline-edit-select';
+        select.style.cssText = 'width: 100%; padding: 5px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--white);';
+        
+        // إضافة خيار "لا فرع"
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = 'لا فرع';
+        if (!currentValue) {
+            emptyOption.selected = true;
+        }
+        select.appendChild(emptyOption);
+        
+        result.data.forEach(branch => {
+            if (branch && branch.id && branch.name) {
+                const option = document.createElement('option');
+                option.value = String(branch.id);
+                option.textContent = String(branch.name);
+                if (String(branch.id) === currentValue) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            }
+        });
+        
+        const cellContent = cell.querySelector('.cell-content');
+        if (cellContent) {
+            cellContent.style.display = 'none';
+        }
+        cell.innerHTML = '';
+        cell.appendChild(select);
+        select.focus();
+        
+        // حفظ عند تغيير القيمة
+        const saveHandler = async () => {
+            const newValue = select.value;
+            if (newValue !== currentValue) {
+                await saveUserField(userId, 'branch_id', newValue || null, cell);
+            } else {
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        };
+        
+        // حفظ عند الضغط على Enter أو فقدان التركيز
+        select.addEventListener('change', saveHandler);
+        select.addEventListener('blur', saveHandler);
+        select.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveHandler();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في showBranchDropdown:', error);
+        showMessage('حدث خطأ أثناء فتح قائمة الفروع', 'error');
+    }
+}
+
+// ✅ دالة لعرض حقل إدخال نص
+function showTextInput(cell, userId, field, currentValue) {
+    try {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'inline-edit-input';
+        input.value = currentValue;
+        input.style.cssText = 'width: 100%; padding: 5px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--white);';
+        
+        const cellContent = cell.querySelector('.cell-content');
+        if (cellContent) {
+            cellContent.style.display = 'none';
+        }
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+        
+        // حفظ عند الضغط على Enter أو فقدان التركيز
+        const saveHandler = async () => {
+            const newValue = input.value.trim();
+            if (newValue !== currentValue && newValue.length > 0) {
+                // التحقق من صحة اسم المستخدم
+                if (field === 'username') {
+                    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+                    if (!usernameRegex.test(newValue)) {
+                        showMessage('اسم المستخدم يجب أن يحتوي على حروف إنجليزية وأرقام وشرطة سفلية (_) فقط', 'error');
+                        input.focus();
+                        return;
+                    }
+                    if (newValue.length < 3) {
+                        showMessage('اسم المستخدم يجب أن يكون على الأقل 3 أحرف', 'error');
+                        input.focus();
+                        return;
+                    }
+                }
+                
+                if (field === 'name' && newValue.length < 2) {
+                    showMessage('الاسم يجب أن يكون على الأقل حرفين', 'error');
+                    input.focus();
+                    return;
+                }
+                
+                await saveUserField(userId, field, newValue, cell);
+            } else {
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        };
+        
+        input.addEventListener('blur', saveHandler);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveHandler();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في showTextInput:', error);
+        showMessage('حدث خطأ أثناء فتح حقل الإدخال', 'error');
+    }
+}
+
+// ✅ دالة لحفظ حقل المستخدم
+async function saveUserField(userId, field, value, cell) {
+    try {
+        const updateData = { [field]: value };
+        
+        const result = await API.updateUser(userId, updateData);
+        
+        if (result && result.success) {
+            showMessage('تم تحديث البيانات بنجاح', 'success');
+            
+            // تحديث الخلية
+            const fieldName = field === 'branch_id' ? 'branch_name' : field;
+            const displayValue = result.data?.[fieldName] || value;
+            
+            // تحديث النص المعروض
+            let displayText = displayValue;
+            if (field === 'role') {
+                const roles = {
+                    'admin': 'مالك',
+                    'manager': 'مدير',
+                    'technician': 'فني صيانة',
+                    'employee': 'موظف'
+                };
+                displayText = roles[value] || value;
+            } else if (field === 'branch_id') {
+                displayText = displayValue || (value ? 'غير محدد' : 'لا فرع');
+            }
+            
+            cell.innerHTML = `<span class="cell-content">${escapeHtml(displayText)}</span>`;
+            cell.setAttribute('data-value', value || '');
+            
+            // إعادة تحميل الجدول لإظهار التحديثات
+            await loadUsers(true);
+        } else {
+            showMessage(result?.message || 'فشل تحديث البيانات', 'error');
+            // إعادة تحميل الجدول لإعادة القيمة القديمة
+            await loadUsers(true);
+        }
+    } catch (error) {
+        console.error('خطأ في saveUserField:', error);
+        showMessage('حدث خطأ أثناء حفظ التعديلات', 'error');
+        // إعادة تحميل الجدول
+        await loadUsers(true);
+    }
+}
+
+// ✅ دالة لإلغاء التعديل
+function cancelEdit(cell, originalText) {
+    cell.innerHTML = `<span class="cell-content">${escapeHtml(originalText)}</span>`;
 }
 
 async function showAddUserModal() {
@@ -1157,14 +1459,18 @@ async function showEditUserModal(userId) {
         const usernameField = document.getElementById('userUsername');
         const passwordField = document.getElementById('userPassword');
         const roleField = document.getElementById('userRole');
+        const branchGroup = document.getElementById('userBranchGroup');
+        const nameGroup = nameField?.closest('.form-group');
+        const usernameGroup = usernameField?.closest('.form-group');
+        const roleGroup = roleField?.closest('.form-group');
         const passwordGroup = passwordField?.closest('.form-group');
 
-        if (!form || !titleElement || !nameField || !usernameField || !passwordField || !roleField) {
+        if (!form || !titleElement || !passwordField) {
             showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
             return;
         }
 
-        // جلب بيانات المستخدم
+        // جلب بيانات المستخدم لعرض اسمه
         const result = await API.getUser(userId);
         if (!result || !result.success || !result.data) {
             showMessage(result?.message || 'فشل تحميل بيانات المستخدم', 'error');
@@ -1172,142 +1478,38 @@ async function showEditUserModal(userId) {
         }
 
         const user = result.data;
-        
-        // ✅ تسجيل البيانات للتشخيص
-        console.log('📥 بيانات المستخدم المستلمة:', user);
-        console.log('📥 تفاصيل البيانات:', {
-            id: user.id,
-            name: user.name,
-            username: user.username,
-            role: user.role,
-            branch_id: user.branch_id,
-            branch_name: user.branch_name
-        });
-
-        // ✅ التحقق من وجود البيانات الأساسية
-        if (!user.name && !user.username) {
-            console.error('❌ بيانات المستخدم غير كاملة:', user);
-            showMessage('خطأ: بيانات المستخدم غير كاملة. يرجى المحاولة مرة أخرى.', 'error');
-            return;
-        }
 
         // تعيين عنوان النموذج
-        titleElement.textContent = 'تعديل مستخدم';
+        titleElement.textContent = `تغيير كلمة مرور: ${user.name || user.username}`;
         
         // حفظ معرف المستخدم في النموذج
         form.dataset.editUserId = userId;
         
-        // ملء الحقول الأساسية أولاً (قبل تحميل الفروع)
-        const userName = user.name || '';
-        const userUsername = user.username || '';
-        const userRole = user.role || 'employee';
+        // ✅ إخفاء جميع الحقول عدا كلمة المرور
+        if (nameGroup) nameGroup.style.display = 'none';
+        if (usernameGroup) usernameGroup.style.display = 'none';
+        if (roleGroup) roleGroup.style.display = 'none';
+        if (branchGroup) branchGroup.style.display = 'none';
         
-        nameField.value = userName;
-        usernameField.value = userUsername;
-        roleField.value = userRole;
-        
-        console.log('✅ تم تعيين الحقول الأساسية:', {
-            name: userName,
-            username: userUsername,
-            role: userRole
-        });
-        
-        // ✅ تحميل الفروع أولاً قبل تعيين قيمة الفرع (لضمان جاهزية القائمة المنسدلة)
-        await loadUserBranches(true);
-        
-        // ✅ انتظار قليل لضمان أن القائمة المنسدلة جاهزة تماماً
-        await new Promise(resolve => setTimeout(resolve, 150));
-        
-        // ✅ إظهار/إخفاء حقل الفرع حسب الدور (قبل تعيين القيمة)
-        toggleBranchField();
-        
-        // ✅ تعيين الفرع بعد تحميل الفروع والتأكد من وجوده (بعد toggleBranchField)
-        const branchField = document.getElementById('userBranch');
-        if (branchField) {
-            // ✅ فقط إذا كان الدور ليس admin (لأن admin لا يجب أن يكون له فرع)
-            if (user.role !== 'admin' && user.branch_id) {
-                const branchIdStr = String(user.branch_id).trim();
-                
-                // التحقق من وجود الخيار في القائمة المنسدلة
-                const optionExists = Array.from(branchField.options).some(opt => opt.value === branchIdStr);
-                
-                if (optionExists) {
-                    branchField.value = branchIdStr;
-                    console.log('✅ تم تعيين الفرع:', branchField.value, 'من', user.branch_id);
-                } else {
-                    console.warn('⚠️ الفرع المحدد غير موجود في القائمة:', branchIdStr);
-                    branchField.value = '';
-                }
-            } else {
-                branchField.value = '';
-                if (user.role === 'admin') {
-                    console.log('✅ المستخدم من نوع admin - لا فرع محدد');
-                }
-            }
-        }
-        
-        // إخفاء حقل كلمة المرور (اختياري في التعديل)
+        // ✅ إظهار حقل كلمة المرور فقط
         if (passwordGroup) {
-            passwordGroup.style.display = 'none';
+            passwordGroup.style.display = 'block';
         }
-        passwordField.required = false;
+        passwordField.required = true;
         passwordField.value = '';
         
-        // تعطيل اسم المستخدم (لا يمكن تغييره)
-        usernameField.disabled = true;
-        
-        // ✅ تسجيل القيم النهائية للتشخيص
-        console.log('✅ الحقول بعد التعبئة:', {
-            name: nameField.value,
-            username: usernameField.value,
-            role: roleField.value,
-            branch: branchField?.value || 'غير محدد'
-        });
-        
-        // ✅ التحقق النهائي من القيم قبل إظهار النموذج
-        if (nameField.value !== userName) {
-            console.warn('⚠️ تحذير: قيمة الاسم تغيرت بعد التعبئة. إعادة التعيين...');
-            nameField.value = userName;
-        }
-        if (usernameField.value !== userUsername) {
-            console.warn('⚠️ تحذير: قيمة اسم المستخدم تغيرت بعد التعبئة. إعادة التعيين...');
-            usernameField.value = userUsername;
-        }
-        if (roleField.value !== userRole) {
-            console.warn('⚠️ تحذير: قيمة الدور تغيرت بعد التعبئة. إعادة التعيين...');
-            roleField.value = userRole;
+        // تحديث label كلمة المرور
+        const passwordLabel = passwordGroup?.querySelector('label');
+        if (passwordLabel) {
+            passwordLabel.textContent = 'كلمة المرور الجديدة *';
         }
 
         // إظهار النموذج
         userModal.style.display = 'flex';
 
-        // التركيز على أول حقل قابل للتعديل
+        // التركيز على حقل كلمة المرور
         setTimeout(() => {
-            // ✅ التحقق مرة أخرى من القيم بعد إظهار النموذج (لضمان عدم تغييرها)
-            if (nameField.value !== userName) {
-                console.warn('⚠️ إعادة تعيين الاسم بعد إظهار النموذج');
-                nameField.value = userName;
-            }
-            if (usernameField.value !== userUsername) {
-                console.warn('⚠️ إعادة تعيين اسم المستخدم بعد إظهار النموذج');
-                usernameField.value = userUsername;
-            }
-            if (roleField.value !== userRole) {
-                console.warn('⚠️ إعادة تعيين الدور بعد إظهار النموذج');
-                roleField.value = userRole;
-            }
-            if (branchField && user.branch_id) {
-                const branchIdStr = String(user.branch_id).trim();
-                if (branchField.value !== branchIdStr) {
-                    const optionExists = Array.from(branchField.options).some(opt => opt.value === branchIdStr);
-                    if (optionExists) {
-                        console.warn('⚠️ إعادة تعيين الفرع بعد إظهار النموذج');
-                        branchField.value = branchIdStr;
-                    }
-                }
-            }
-            
-            nameField.focus();
+            passwordField.focus();
         }, 100);
     } catch (error) {
         console.error('خطأ في showEditUserModal:', error);
@@ -1331,13 +1533,26 @@ function closeUserModal() {
             
             // إعادة تعيين حالة النموذج
             const titleElement = document.getElementById('userModalTitle');
+            const nameField = document.getElementById('userName');
             const usernameField = document.getElementById('userUsername');
             const passwordField = document.getElementById('userPassword');
+            const roleField = document.getElementById('userRole');
+            const branchGroup = document.getElementById('userBranchGroup');
+            const nameGroup = nameField?.closest('.form-group');
+            const usernameGroup = usernameField?.closest('.form-group');
+            const roleGroup = roleField?.closest('.form-group');
             const passwordGroup = passwordField?.closest('.form-group');
             
             if (titleElement) {
                 titleElement.textContent = 'إضافة مستخدم';
             }
+            
+            // إعادة إظهار جميع الحقول
+            if (nameGroup) nameGroup.style.display = 'block';
+            if (usernameGroup) usernameGroup.style.display = 'block';
+            if (roleGroup) roleGroup.style.display = 'block';
+            if (branchGroup) branchGroup.style.display = 'block';
+            if (passwordGroup) passwordGroup.style.display = 'block';
             
             if (usernameField) {
                 usernameField.disabled = false;
@@ -1345,10 +1560,10 @@ function closeUserModal() {
             
             if (passwordField) {
                 passwordField.required = true;
-            }
-            
-            if (passwordGroup) {
-                passwordGroup.style.display = 'block';
+                const passwordLabel = passwordGroup?.querySelector('label');
+                if (passwordLabel) {
+                    passwordLabel.textContent = 'كلمة المرور *';
+                }
             }
             
             // إزالة علامات الخطأ
@@ -1499,10 +1714,11 @@ async function saveUser(event) {
         const isEditMode = userForm.dataset.editUserId ? true : false;
         const editUserId = userForm.dataset.editUserId || null;
 
-        // كلمة المرور مطلوبة فقط في حالة الإضافة (ليس التعديل)
-        if (!isEditMode) {
+        // ✅ في حالة التعديل (تغيير كلمة المرور فقط)
+        if (isEditMode) {
+            // كلمة المرور مطلوبة في وضع التعديل
             if (!password || password.trim().length === 0) {
-                showMessage('كلمة المرور مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
+                showMessage('كلمة المرور الجديدة مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
                 if (passwordElement) {
                     passwordElement.focus();
                     passwordElement.style.borderColor = 'var(--danger-color)';
@@ -1511,7 +1727,7 @@ async function saveUser(event) {
             }
 
             // التحقق من طول كلمة المرور
-            if (password && password.trim().length < 6) {
+            if (password.trim().length < 6) {
                 showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
                 if (passwordElement) {
                     passwordElement.focus();
@@ -1519,16 +1735,37 @@ async function saveUser(event) {
                 }
                 return;
             }
-        } else {
-            // في حالة التعديل، التحقق من كلمة المرور فقط إذا تم إدخالها
-            if (password && password.trim().length > 0 && password.trim().length < 6) {
-                showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف (أو اتركها فارغة للحفاظ على كلمة المرور الحالية)', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
+            
+            // ✅ حفظ كلمة المرور فقط
+            const result = await API.updateUser(editUserId, { password: password.trim() });
+            
+            if (result && result.success) {
+                showMessage('تم تغيير كلمة المرور بنجاح', 'success');
+                closeUserModal();
+            } else {
+                showMessage(result?.message || 'فشل تغيير كلمة المرور', 'error');
             }
+            return;
+        }
+
+        // ✅ في حالة الإضافة (جميع الحقول مطلوبة)
+        if (!password || password.trim().length === 0) {
+            showMessage('كلمة المرور مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
+            if (passwordElement) {
+                passwordElement.focus();
+                passwordElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
+        }
+
+        // التحقق من طول كلمة المرور
+        if (password && password.trim().length < 6) {
+            showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
+            if (passwordElement) {
+                passwordElement.focus();
+                passwordElement.style.borderColor = 'var(--danger-color)';
+            }
+            return;
         }
 
         // ✅ التحقق من أن role ليس فارغاً قبل الإرسال
@@ -1561,23 +1798,14 @@ async function saveUser(event) {
 
         const branchId = userForm.querySelector('#userBranch')?.value || null;
         
-        // ✅ بناء بيانات المستخدم حسب الحالة (إضافة أو تعديل)
+        // ✅ بناء بيانات المستخدم للإضافة فقط
         const userData = {
             name: name.trim(),
+            username: username.trim(),
+            password: password.trim(),
             role: finalRole,
             branch_id: branchId || null
         };
-        
-        // في حالة التعديل، لا نرسل username (لأنه معطل ولا يمكن تغييره)
-        if (!isEditMode) {
-            userData.username = username.trim();
-            userData.password = password ? password.trim() : '';
-        } else {
-            // في حالة التعديل، نرسل كلمة المرور فقط إذا تم إدخالها
-            if (password && password.trim().length > 0) {
-                userData.password = password.trim();
-            }
-        }
         
         // التحقق من الفرع (مطلوب لجميع الأدوار عدا المالك)
         if (finalRole !== 'admin' && !branchId) {
@@ -1590,35 +1818,9 @@ async function saveUser(event) {
             return;
         }
 
-        // ✅ في حالة الإضافة، التأكد من أن كلمة المرور موجودة وصحيحة
-        if (!isEditMode) {
-            if (!userData.password || userData.password.trim().length === 0) {
-                showMessage('كلمة المرور مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-            if (userData.password.trim().length < 6) {
-                showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-        }
-
-        // ✅ إرسال الطلب حسب الحالة (إضافة أو تعديل)
-        let result;
-        if (isEditMode) {
-            console.log('📤 تحديث مستخدم:', { userId: editUserId, ...userData, password: userData.password ? '***' : '(unchanged)' });
-            result = await API.updateUser(editUserId, userData);
-        } else {
-            console.log('📤 إضافة مستخدم جديد:', { ...userData, password: '***' });
-            result = await API.addUser(userData);
-        }
+        // ✅ إرسال طلب إضافة مستخدم جديد
+        console.log('📤 إضافة مستخدم جديد:', { ...userData, password: '***' });
+        const result = await API.addUser(userData);
 
         if (result && result.success) {
             showMessage(result.message || (isEditMode ? 'تم تحديث المستخدم بنجاح' : 'تم إضافة المستخدم بنجاح'));
