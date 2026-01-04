@@ -281,7 +281,7 @@ const API = {
             }
             
             return result;
-        } catch (error) {
+            } catch (error) {
                 // معالجة الأخطاء داخل Promise
                 console.error('%c❌ خطأ في الاتصال:', 'color: #f44336; font-size: 14px; font-weight: bold;', error);
                 console.error('تفاصيل الخطأ:', {
@@ -290,33 +290,77 @@ const API = {
                     stack: error.stack
                 });
                 
+                // ✅ تحسين: التحقق من وجود cache للطلبات GET عند فشل الاتصال
+                if (method === 'GET' && !requestOptions.skipCache) {
+                    const cacheKey = `${endpoint}_${JSON.stringify(data || {})}`;
+                    const cached = API_CACHE.get(cacheKey);
+                    if (cached) {
+                        console.log(`%c📦 استخدام cache بعد فشل الاتصال:`, 'color: #FFA500; font-weight: bold;', endpoint);
+                        // ✅ إضافة علامة offline للنتيجة
+                        return {
+                            ...cached,
+                            offline: true,
+                            message: cached.message || 'تم تحميل البيانات من الذاكرة المؤقتة (وضع عدم الاتصال)'
+                        };
+                    }
+                }
+                
                 // معالجة AbortError (timeout)
                 if (error.name === 'AbortError') {
+                    // ✅ محاولة استخدام cache قبل إرجاع الخطأ
+                    if (method === 'GET' && !requestOptions.skipCache) {
+                        const cacheKey = `${endpoint}_${JSON.stringify(data || {})}`;
+                        const cached = API_CACHE.get(cacheKey);
+                        if (cached) {
+                            console.log(`%c📦 استخدام cache بعد timeout:`, 'color: #FFA500; font-weight: bold;', endpoint);
+                            return {
+                                ...cached,
+                                offline: true,
+                                message: cached.message || 'تم تحميل البيانات من الذاكرة المؤقتة (انتهت مهلة الطلب)'
+                            };
+                        }
+                    }
                     return {
                         success: false,
                         message: 'انتهت مهلة الطلب. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.',
                         error: 'Request timeout',
-                        status: 408
+                        status: 408,
+                        offline: true
                     };
                 }
                 
                 // معالجة NetworkError بشكل أفضل
-                if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    return {
-                        success: false,
-                        message: 'خطأ في الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.',
-                        error: 'NetworkError: ' + error.message,
-                        networkError: true
-                    };
-                }
+                const isNetworkError = error.name === 'TypeError' || 
+                                     error.name === 'NetworkError' ||
+                                     (error.message && (
+                                         error.message.includes('fetch') || 
+                                         error.message.includes('NetworkError') ||
+                                         error.message.includes('Network request failed') ||
+                                         error.message.includes('Failed to fetch') ||
+                                         error.message.includes('Load failed')
+                                     ));
                 
-                // معالجة NetworkError بشكل أفضل
-                if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('NetworkError'))) {
+                if (isNetworkError) {
+                    // ✅ محاولة استخدام cache قبل إرجاع الخطأ
+                    if (method === 'GET' && !requestOptions.skipCache) {
+                        const cacheKey = `${endpoint}_${JSON.stringify(data || {})}`;
+                        const cached = API_CACHE.get(cacheKey);
+                        if (cached) {
+                            console.log(`%c📦 استخدام cache بعد فشل الشبكة:`, 'color: #FFA500; font-weight: bold;', endpoint);
+                            return {
+                                ...cached,
+                                offline: true,
+                                message: cached.message || 'تم تحميل البيانات من الذاكرة المؤقتة (لا يوجد اتصال بالإنترنت)'
+                            };
+                        }
+                    }
+                    
                     return {
                         success: false,
-                        message: 'خطأ في الاتصال بالخادم. يرجى التحقق من:\n1. اتصال الإنترنت\n2. إعدادات الاستضافة\n3. مسار API صحيح',
+                        message: 'لا يوجد اتصال بالإنترنت. تم عرض البيانات المحفوظة محلياً إن وجدت.',
                         error: 'NetworkError: ' + error.message,
-                        networkError: true
+                        networkError: true,
+                        offline: true
                     };
                 }
                 
@@ -324,7 +368,8 @@ const API = {
                 return {
                     success: false,
                     message: 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
-                    error: error.message || 'Unknown error'
+                    error: error.message || 'Unknown error',
+                    offline: false
                 };
             }
         })();

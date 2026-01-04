@@ -101,7 +101,7 @@ async function loadRepairsSection() {
         </div>
 
         <!-- حاوية البطاقات للهواتف -->
-        <div class="repairs-mobile-container" id="repairsMobileContainer" style="display: none;"></div>
+        <div class="repairs-mobile-container" id="repairsMobileContainer"></div>
 
         <div class="pagination" id="repairsPagination"></div>
 
@@ -1656,10 +1656,24 @@ async function loadRepairs(force = false) {
         } else {
             // ✅ التعامل مع حالة فشل API - عرض رسالة خطأ وتعيين قائمة فارغة
             console.error('❌ [Repairs] فشل تحميل العمليات:', repairsResult.message || 'خطأ غير معروف');
-            if (repairsResult.message) {
-                showMessage(repairsResult.message, 'error');
+            
+            // ✅ تحسين: إذا كانت البيانات من cache (offline mode)، نعرض رسالة مختلفة
+            if (repairsResult.offline) {
+                // إذا كانت هناك بيانات محفوظة، نستخدمها
+                if (repairsResult.data && Array.isArray(repairsResult.data) && repairsResult.data.length > 0) {
+                    allRepairs = repairsResult.data;
+                    showMessage('تم تحميل البيانات من الذاكرة المؤقتة (وضع عدم الاتصال)', 'warning');
+                } else {
+                    allRepairs = [];
+                    showMessage('لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة محلياً', 'warning');
+                }
+            } else {
+                // خطأ عادي (ليس offline)
+                if (repairsResult.message) {
+                    showMessage(repairsResult.message, 'error');
+                }
+                allRepairs = [];
             }
-            allRepairs = [];
         }
         
         // ✅ إزالة استدعاء API.getUsers() لأن technician_name يأتي من API.getRepairs مباشرة

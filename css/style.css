@@ -791,6 +791,40 @@ body {
     transform: scale(0.95);
 }
 
+/* ✅ مؤشر حالة الاتصال */
+.connection-indicator {
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 0.85em;
+    margin-left: 10px;
+    color: var(--white);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--success-color);
+}
+
+.connection-indicator.offline {
+    background: var(--warning-color);
+}
+
+.connection-indicator.offline .connection-text::after {
+    content: ' (وضع عدم الاتصال)';
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.connection-indicator:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+}
+
+.connection-indicator:active {
+    transform: scale(0.95);
+}
+
 .content {
     padding: 30px;
 }
@@ -3903,7 +3937,19 @@ body {
     gap: 10px;
 }
 
+/* إخفاء حاوية البطاقات على الشاشات الكبيرة */
 @media (min-width: 576px) {
+    #repairs-section .repairs-mobile-container {
+        display: none !important;
+    }
+}
+
+@media (min-width: 576px) {
+    /* إخفاء حاوية البطاقات على الشاشات الكبيرة */
+    #repairs-section .repairs-mobile-container {
+        display: none !important;
+    }
+    
     #lossRepairInfo > div {
         grid-template-columns: 1fr 1fr;
     }
@@ -5290,7 +5336,7 @@ body {
     
     /* حاوية البطاقات للهواتف */
     #repairs-section .repairs-mobile-container {
-        display: block;
+        display: block !important;
     }
     
     /* إخفاء حاوية الجدول على الهواتف */

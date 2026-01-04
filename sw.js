@@ -385,15 +385,39 @@ self.addEventListener('fetch', event => {
                         // محاولة جلب من cache
                         return caches.match(request).then(cachedResponse => {
                             if (cachedResponse) {
-                                console.log('[SW] استخدام API response من cache:', request.url);
-                                return cachedResponse;
+                                console.log('[SW] ✅ استخدام API response من cache:', request.url);
+                                // ✅ محاولة إضافة علامة offline للاستجابة المحفوظة
+                                return cachedResponse.json().then(data => {
+                                    // ✅ إضافة علامة offline للبيانات المحفوظة
+                                    const offlineData = {
+                                        ...data,
+                                        offline: true,
+                                        message: data.message || 'تم تحميل البيانات من الذاكرة المؤقتة (وضع عدم الاتصال)'
+                                    };
+                                    return new Response(
+                                        JSON.stringify(offlineData),
+                                        {
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Cache-Control': 'no-cache'
+                                            },
+                                            status: cachedResponse.status,
+                                            statusText: cachedResponse.statusText
+                                        }
+                                    );
+                                }).catch(() => {
+                    // إذا فشل تحليل JSON، نعيد الاستجابة الأصلية
+                                    return cachedResponse;
+                                });
                             }
                             
-                            // إذا لم يكن في cache، نعيد رسالة عدم الاتصال
+                            // ✅ إذا لم يكن في cache، نعيد رسالة عدم الاتصال مع بيانات فارغة بدلاً من خطأ
+                            // هذا يسمح للتطبيق بالعمل حتى لو لم تكن هناك بيانات محفوظة
                             return new Response(
                                 JSON.stringify({ 
                                     success: false, 
-                                    message: 'لا يوجد اتصال بالإنترنت. يرجى المحاولة لاحقاً.',
+                                    message: 'لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة محلياً.',
+                                    data: [], // ✅ إرجاع مصفوفة فارغة بدلاً من عدم إرجاع شيء
                                     offline: true
                                 }),
                                 { 

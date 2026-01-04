@@ -1,5 +1,78 @@
 // دوال مساعدة
 
+// ✅ إدارة مؤشر حالة الاتصال
+(function() {
+    let connectionIndicator = null;
+    let isOnline = navigator.onLine;
+    
+    function updateConnectionIndicator() {
+        if (!connectionIndicator) {
+            connectionIndicator = document.getElementById('connectionIndicator');
+        }
+        
+        if (!connectionIndicator) return;
+        
+        if (isOnline) {
+            connectionIndicator.classList.remove('offline');
+            connectionIndicator.style.display = 'inline-flex';
+            const text = connectionIndicator.querySelector('.connection-text');
+            if (text) text.textContent = 'متصل';
+        } else {
+            connectionIndicator.classList.add('offline');
+            connectionIndicator.style.display = 'inline-flex';
+            const text = connectionIndicator.querySelector('.connection-text');
+            if (text) text.textContent = 'غير متصل';
+        }
+    }
+    
+    // تحديث عند تغيير حالة الاتصال
+    window.addEventListener('online', () => {
+        isOnline = true;
+        updateConnectionIndicator();
+        console.log('✅ تم استعادة الاتصال بالإنترنت');
+    });
+    
+    window.addEventListener('offline', () => {
+        isOnline = false;
+        updateConnectionIndicator();
+        console.warn('⚠️ تم فقدان الاتصال بالإنترنت');
+    });
+    
+    // تحديث عند تحميل الصفحة
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateConnectionIndicator);
+    } else {
+        updateConnectionIndicator();
+    }
+    
+    // تحديث دوري (كل 5 ثوان) للتحقق من حالة الاتصال
+    setInterval(() => {
+        // محاولة fetch صغيرة للتحقق من الاتصال
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // timeout 2 ثانية
+        
+        fetch('/api/config.php', { 
+            method: 'HEAD', 
+            cache: 'no-cache',
+            signal: controller.signal
+        })
+        .then(() => {
+            clearTimeout(timeoutId);
+            if (!isOnline) {
+                isOnline = true;
+                updateConnectionIndicator();
+            }
+        })
+        .catch(() => {
+            clearTimeout(timeoutId);
+            if (isOnline) {
+                isOnline = false;
+                updateConnectionIndicator();
+            }
+        });
+    }, 5000);
+})();
+
 /**
  * الحصول على المسار الأساسي للتطبيق (يعمل مع المجلدات الفرعية)
  * @returns {string} المسار الأساسي (مثل: '' أو '/z')
