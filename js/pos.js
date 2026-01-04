@@ -3381,9 +3381,45 @@ async function initializePOSQRCodeScannerMobile() {
             console.log('📋 [POS Scanner Mobile] Decoded Text (Raw):', decodedText);
             console.log('📋 [POS Scanner Mobile] Decoded Result:', decodedResult);
             
+            // ✅ عرض تنبيه فوري على الشاشة
+            try {
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(33, 150, 243, 0.95);
+                    color: white;
+                    padding: 20px 30px;
+                    border-radius: 15px;
+                    z-index: 999999;
+                    font-size: 18px;
+                    font-weight: bold;
+                    text-align: center;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                    animation: pulse 0.5s ease;
+                `;
+                alertDiv.innerHTML = `
+                    <div style="font-size: 40px; margin-bottom: 10px;">📱</div>
+                    <div>تم قراءة QR Code!</div>
+                    <div style="font-size: 14px; margin-top: 10px; font-family: monospace; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; word-break: break-all;">${decodedText}</div>
+                `;
+                document.body.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    alertDiv.style.opacity = '0';
+                    alertDiv.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => alertDiv.remove(), 300);
+                }, 2000);
+            } catch (e) {
+                console.error('Error showing alert:', e);
+            }
+            
             // ✅ تنظيف النص المقروء - إزالة المسافات والأحرف غير المرئية
             if (!decodedText || typeof decodedText !== 'string') {
                 console.warn('⚠️ [POS Scanner Mobile] Invalid decoded text:', decodedText);
+                alert('❌ نص غير صالح: ' + decodedText);
                 return;
             }
             
@@ -3403,9 +3439,17 @@ async function initializePOSQRCodeScannerMobile() {
             
             // Handle product using existing function (like desktop scanner)
             if (cleanedText && cleanedText.length > 0) {
-                handlePOSQRCodeScanned(cleanedText);
+                console.log('🔄 [POS Scanner Mobile] استدعاء handlePOSQRCodeScanned...');
+                try {
+                    handlePOSQRCodeScanned(cleanedText);
+                    console.log('✅ [POS Scanner Mobile] تم استدعاء handlePOSQRCodeScanned بنجاح');
+                } catch (error) {
+                    console.error('❌ [POS Scanner Mobile] خطأ في handlePOSQRCodeScanned:', error);
+                    alert('❌ خطأ في معالجة QR Code: ' + error.message);
+                }
             } else {
                 console.warn('⚠️ [POS Scanner Mobile] Empty decoded text after cleaning');
+                alert('⚠️ النص المقروء فارغ بعد التنظيف');
             }
             
             // Continue scanning - don't stop camera (like desktop scanner)
@@ -3887,6 +3931,39 @@ async function initializePOSQRCodeScanner() {
 
 // Handle scanned QR code in POS
 async function handlePOSQRCodeScanned(decodedText) {
+    // ✅ تنبيه فوري - تم استدعاء الدالة
+    console.log('🚀🚀🚀 [handlePOSQRCodeScanned] تم استدعاء الدالة!');
+    console.log('📥 [handlePOSQRCodeScanned] القيمة المستلمة:', decodedText);
+    
+    // عرض تنبيه على الشاشة
+    try {
+        const processAlert = document.createElement('div');
+        processAlert.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(76, 175, 80, 0.95);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            z-index: 999998;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        `;
+        processAlert.textContent = '⚙️ جاري معالجة QR Code...';
+        document.body.appendChild(processAlert);
+        
+        setTimeout(() => {
+            if (document.body.contains(processAlert)) {
+                processAlert.remove();
+            }
+        }, 3000);
+    } catch (e) {
+        console.error('Error showing process alert:', e);
+    }
+    
     // منع القراءات المتكررة - إذا كان القارئ مقفل، تجاهل القراءة
     if (posScannerLocked) {
         console.log('⏳ [POS Scanner] القارئ مقفل مؤقتاً، تجاهل القراءة المتكررة');
