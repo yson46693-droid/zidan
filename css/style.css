@@ -6832,9 +6832,10 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--text-light);
-    overflow: visible;
+    overflow: hidden;
     padding: 15px;
     box-sizing: border-box;
+    position: relative;
 }
 
 .inventory-card-image img {
@@ -6842,8 +6843,8 @@ body {
     max-height: 100%;
     width: auto;
     height: auto;
-    object-fit: contain;
-    object-position: center;
+    object-fit: contain !important;
+    object-position: center !important;
     border-radius: 10px;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
@@ -6874,6 +6875,10 @@ body {
 .inventory-card-image img {
     object-fit: contain !important;
     object-position: center !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
 }
 
 .inventory-card-price {
@@ -7623,7 +7628,13 @@ body {
     }
     
     .inventory-card-image {
-        height: 220px;
+        min-height: 200px;
+        max-height: 280px;
+    }
+    
+    .inventory-card-image img {
+        max-width: 100% !important;
+        max-height: 100% !important;
     }
     
     .preview-modal {

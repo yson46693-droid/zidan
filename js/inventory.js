@@ -941,9 +941,7 @@ function displayAccessories(accessories) {
                                  alt="${cleanName}" 
                                  loading="lazy" 
                                  decoding="async" 
-                                 width="200" 
-                                 height="200" 
-                                 style="object-fit: contain;"
+                                 style="object-fit: contain; object-position: center; width: 100%; height: 100%;"
                                  onerror="handleAccessoryImageError(this, '${cleanAccessoryId}');">
                         </div>
                     ` : `
@@ -1300,9 +1298,7 @@ function displayPhones(phones) {
                                  alt="${cleanBrand} ${cleanModel}" 
                                  loading="lazy" 
                                  decoding="async"
-                                 width="200"
-                                 height="200"
-                                 style="object-fit: contain;"
+                                 style="object-fit: contain; object-position: center; width: 100%; height: 100%;"
                                  onerror="handlePhoneImageError(this, '${cleanPhoneId}');">
                         </div>
                     ` : `
@@ -1817,8 +1813,8 @@ function createInventoryModals() {
                                 <i class="bi bi-camera"></i> كاميرا
                             </button>
                         </div>
-                        <div id="accessoryImagePreview" style="margin-top: 10px; display: none;">
-                            <img id="accessoryImagePreviewImg" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid var(--border-color);">
+                        <div id="accessoryImagePreview" style="margin-top: 10px; display: none; width: 100%; max-width: 400px; background: var(--light-bg); border-radius: 8px; padding: 10px; border: 2px solid var(--border-color);">
+                            <img id="accessoryImagePreviewImg" src="" style="width: 100%; height: auto; max-height: 300px; object-fit: contain; object-position: center; border-radius: 6px; display: block;">
                         </div>
                     </div>
                     
@@ -1875,8 +1871,8 @@ function createInventoryModals() {
                                 <i class="bi bi-camera"></i> كاميرا
                             </button>
                         </div>
-                        <div id="phoneImagePreview" style="margin-top: 10px; display: none;">
-                            <img id="phoneImagePreviewImg" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid var(--border-color);">
+                        <div id="phoneImagePreview" style="margin-top: 10px; display: none; width: 100%; max-width: 400px; background: var(--light-bg); border-radius: 8px; padding: 10px; border: 2px solid var(--border-color);">
+                            <img id="phoneImagePreviewImg" src="" style="width: 100%; height: auto; max-height: 300px; object-fit: contain; object-position: center; border-radius: 6px; display: block;">
                         </div>
                     </div>
                     
@@ -2668,14 +2664,19 @@ async function handleAccessoryImageUpload(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
         try {
-            const compressedImage = await compressImage(file);
+            // ضغط الصورة بحجم مناسب للبطاقات
+            const compressedImage = await compressImage(file, 600, 0.85);
             document.getElementById('accessoryImage').value = compressedImage;
             
             // عرض المعاينة
             const preview = document.getElementById('accessoryImagePreview');
             const previewImg = document.getElementById('accessoryImagePreviewImg');
-            previewImg.src = compressedImage;
-            preview.style.display = 'block';
+            if (preview && previewImg) {
+                previewImg.src = compressedImage;
+                previewImg.style.objectFit = 'contain';
+                previewImg.style.objectPosition = 'center';
+                preview.style.display = 'block';
+            }
         } catch (error) {
             console.error('خطأ في معالجة الصورة:', error);
             showMessage('حدث خطأ في معالجة الصورة', 'error');
@@ -2687,14 +2688,19 @@ async function handlePhoneImageUpload(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
         try {
-            const compressedImage = await compressImage(file);
+            // ضغط الصورة بحجم مناسب للبطاقات
+            const compressedImage = await compressImage(file, 600, 0.85);
             document.getElementById('phoneImage').value = compressedImage;
             
             // عرض المعاينة
             const preview = document.getElementById('phoneImagePreview');
             const previewImg = document.getElementById('phoneImagePreviewImg');
-            previewImg.src = compressedImage;
-            preview.style.display = 'block';
+            if (preview && previewImg) {
+                previewImg.src = compressedImage;
+                previewImg.style.objectFit = 'contain';
+                previewImg.style.objectPosition = 'center';
+                preview.style.display = 'block';
+            }
         } catch (error) {
             console.error('خطأ في معالجة الصورة:', error);
             showMessage('حدث خطأ في معالجة الصورة', 'error');
@@ -2890,7 +2896,7 @@ function getImageOrientation(file) {
 }
 
 // دالة ضغط الصور مع معالجة اتجاه EXIF
-function compressImage(file, maxWidth = 800, quality = 0.8) {
+function compressImage(file, maxWidth = 600, quality = 0.85) {
     return new Promise(async (resolve, reject) => {
         try {
             // معالجة المعاملات - إذا كان المعامل الثاني بين 0 و 1، فهو quality وليس maxWidth
