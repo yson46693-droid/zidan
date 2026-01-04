@@ -744,7 +744,13 @@ function loadExpensesSection() {
                     setTimeout(() => {
                         loadTreasuryData(defaultBranchId).catch(error => {
                             console.error('خطأ في تحميل بيانات الخزنة:', error);
-                            showMessage('حدث خطأ أثناء تحميل بيانات الخزنة', 'error');
+                            // ✅ إخفاء الإشعار للفني
+                            const userStr = localStorage.getItem('currentUser');
+                            const user = userStr ? JSON.parse(userStr) : null;
+                            const isTechnician = user && user.role === 'technician';
+                            if (!isTechnician) {
+                                showMessage('حدث خطأ أثناء تحميل بيانات الخزنة', 'error');
+                            }
                         });
                     }, 150);
                 });
@@ -3788,7 +3794,13 @@ async function loadTreasuryData(branchId, skipTransactions = false) {
         }
     } catch (error) {
         console.error('خطأ في تحميل بيانات الخزنة:', error);
-        showMessage('حدث خطأ أثناء تحميل بيانات الخزنة', 'error');
+        // ✅ إخفاء الإشعار للفني
+        const userStr = localStorage.getItem('currentUser');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const isTechnician = user && user.role === 'technician';
+        if (!isTechnician) {
+            showMessage('حدث خطأ أثناء تحميل بيانات الخزنة', 'error');
+        }
     }
 }
 
@@ -3875,11 +3887,23 @@ async function loadBranch1TreasuryData() {
             await loadExpensesForBranch(currentTreasuryBranchId);
             await loadSalariesForBranch(currentTreasuryBranchId);
         } else {
-            showMessage(result?.message || 'حدث خطأ أثناء تحميل البيانات', 'error');
+            // ✅ إخفاء الإشعار للفني
+            const userStr = localStorage.getItem('currentUser');
+            const user = userStr ? JSON.parse(userStr) : null;
+            const isTechnician = user && user.role === 'technician';
+            if (!isTechnician) {
+                showMessage(result?.message || 'حدث خطأ أثناء تحميل البيانات', 'error');
+            }
         }
     } catch (error) {
         console.error('خطأ في تحميل بيانات الفرع الأول:', error);
-        showMessage('حدث خطأ أثناء تحميل بيانات الفرع الأول', 'error');
+        // ✅ إخفاء الإشعار للفني
+        const userStr = localStorage.getItem('currentUser');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const isTechnician = user && user.role === 'technician';
+        if (!isTechnician) {
+            showMessage('حدث خطأ أثناء تحميل بيانات الفرع الأول', 'error');
+        }
     }
 }
 
@@ -3932,11 +3956,23 @@ async function loadBranch2TreasuryData() {
             await loadExpensesForBranch(currentTreasuryBranchId, '2');
             await loadSalariesForBranch(currentTreasuryBranchId, '2');
         } else {
-            showMessage(result?.message || 'حدث خطأ أثناء تحميل البيانات', 'error');
+            // ✅ إخفاء الإشعار للفني
+            const userStr = localStorage.getItem('currentUser');
+            const user = userStr ? JSON.parse(userStr) : null;
+            const isTechnician = user && user.role === 'technician';
+            if (!isTechnician) {
+                showMessage(result?.message || 'حدث خطأ أثناء تحميل البيانات', 'error');
+            }
         }
     } catch (error) {
         console.error('خطأ في تحميل بيانات الفرع الثاني:', error);
-        showMessage('حدث خطأ أثناء تحميل بيانات الفرع الثاني', 'error');
+        // ✅ إخفاء الإشعار للفني
+        const userStr = localStorage.getItem('currentUser');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const isTechnician = user && user.role === 'technician';
+        if (!isTechnician) {
+            showMessage('حدث خطأ أثناء تحميل بيانات الفرع الثاني', 'error');
+        }
     }
 }
 
