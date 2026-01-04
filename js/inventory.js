@@ -2366,10 +2366,11 @@ async function saveAccessory(event) {
     const imageFile = document.getElementById('accessoryImageFile').files[0];
     if (imageFile) {
         try {
-            const compressedImage = await compressImage(imageFile);
-            image = compressedImage;
+            // اقتصاص الصورة بأبعاد مناسبة للبطاقة (400x300)
+            const croppedImage = await cropImageForCard(imageFile, 400, 300, 0.85);
+            image = croppedImage;
         } catch (error) {
-            console.error('خطأ في ضغط الصورة:', error);
+            console.error('خطأ في معالجة الصورة:', error);
             showMessage('حدث خطأ في معالجة الصورة', 'warning');
         }
     }
@@ -2592,10 +2593,11 @@ async function savePhone(event) {
     const imageFile = document.getElementById('phoneImageFile').files[0];
     if (imageFile) {
         try {
-            const compressedImage = await compressImage(imageFile);
-            image = compressedImage;
+            // اقتصاص الصورة بأبعاد مناسبة للبطاقة (400x300)
+            const croppedImage = await cropImageForCard(imageFile, 400, 300, 0.85);
+            image = croppedImage;
         } catch (error) {
-            console.error('خطأ في ضغط الصورة:', error);
+            console.error('خطأ في معالجة الصورة:', error);
             showMessage('حدث خطأ في معالجة الصورة', 'warning');
         }
     }
@@ -2664,15 +2666,15 @@ async function handleAccessoryImageUpload(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
         try {
-            // ضغط الصورة بحجم مناسب للبطاقات
-            const compressedImage = await compressImage(file, 600, 0.85);
-            document.getElementById('accessoryImage').value = compressedImage;
+            // اقتصاص الصورة بأبعاد مناسبة للبطاقة (400x300)
+            const croppedImage = await cropImageForCard(file, 400, 300, 0.85);
+            document.getElementById('accessoryImage').value = croppedImage;
             
             // عرض المعاينة
             const preview = document.getElementById('accessoryImagePreview');
             const previewImg = document.getElementById('accessoryImagePreviewImg');
             if (preview && previewImg) {
-                previewImg.src = compressedImage;
+                previewImg.src = croppedImage;
                 previewImg.style.objectFit = 'contain';
                 previewImg.style.objectPosition = 'center';
                 preview.style.display = 'block';
@@ -2688,15 +2690,15 @@ async function handlePhoneImageUpload(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
         try {
-            // ضغط الصورة بحجم مناسب للبطاقات
-            const compressedImage = await compressImage(file, 600, 0.85);
-            document.getElementById('phoneImage').value = compressedImage;
+            // اقتصاص الصورة بأبعاد مناسبة للبطاقة (400x300)
+            const croppedImage = await cropImageForCard(file, 400, 300, 0.85);
+            document.getElementById('phoneImage').value = croppedImage;
             
             // عرض المعاينة
             const preview = document.getElementById('phoneImagePreview');
             const previewImg = document.getElementById('phoneImagePreviewImg');
             if (preview && previewImg) {
-                previewImg.src = compressedImage;
+                previewImg.src = croppedImage;
                 previewImg.style.objectFit = 'contain';
                 previewImg.style.objectPosition = 'center';
                 preview.style.display = 'block';
@@ -2891,6 +2893,163 @@ function getImageOrientation(file) {
             reader.readAsArrayBuffer(slice);
         } else {
             resolve(-1);
+        }
+    });
+}
+
+// دالة اقتصاص الصورة لتناسب أبعاد البطاقة
+function cropImageForCard(file, targetWidth = 400, targetHeight = 300, quality = 0.85) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            // التحقق من نوع المدخل
+            let imageSource;
+            let orientation = -1;
+            
+            if (typeof file === 'string') {
+                imageSource = file;
+                try {
+                    orientation = await getImageOrientation(file);
+                } catch (error) {
+                    orientation = -1;
+                }
+            } else if (file instanceof Blob || file instanceof File) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        imageSource = e.target.result;
+                        orientation = await getImageOrientation(file);
+                        processImage();
+                    } catch (error) {
+                        console.error('خطأ في قراءة اتجاه EXIF:', error);
+                        orientation = -1;
+                        processImage();
+                    }
+                };
+                reader.onerror = (error) => {
+                    console.error('خطأ في قراءة الملف:', error);
+                    reject(new Error('فشل قراءة الملف'));
+                };
+                reader.readAsDataURL(file);
+                return;
+            } else {
+                reject(new Error('نوع ملف غير مدعوم'));
+                return;
+            }
+            
+            function processImage() {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        // تحديد الأبعاد الفعلية للصورة بعد التدوير
+                        const needsRotation = orientation >= 5 && orientation <= 8;
+                        let sourceWidth = needsRotation ? img.height : img.width;
+                        let sourceHeight = needsRotation ? img.width : img.height;
+                        
+                        // حساب نسبة الاقتصاص (center crop)
+                        const targetRatio = targetWidth / targetHeight;
+                        const imageRatio = sourceWidth / sourceHeight;
+                        
+                        let cropWidth, cropHeight, cropX, cropY;
+                        
+                        if (imageRatio > targetRatio) {
+                            // الصورة أوسع - اقتصاص من الجانبين
+                            cropHeight = sourceHeight;
+                            cropWidth = cropHeight * targetRatio;
+                            cropX = (sourceWidth - cropWidth) / 2;
+                            cropY = 0;
+                        } else {
+                            // الصورة أطول - اقتصاص من الأعلى والأسفل
+                            cropWidth = sourceWidth;
+                            cropHeight = cropWidth / targetRatio;
+                            cropX = 0;
+                            cropY = (sourceHeight - cropHeight) / 2;
+                        }
+                        
+                        // إنشاء canvas للاقتصاص
+                        const cropCanvas = document.createElement('canvas');
+                        cropCanvas.width = cropWidth;
+                        cropCanvas.height = cropHeight;
+                        const cropCtx = cropCanvas.getContext('2d');
+                        cropCtx.imageSmoothingEnabled = true;
+                        cropCtx.imageSmoothingQuality = 'high';
+                        
+                        // رسم الصورة مع الاقتصاص (قبل التدوير)
+                        cropCtx.drawImage(
+                            img,
+                            cropX, cropY, cropWidth, cropHeight,
+                            0, 0, cropWidth, cropHeight
+                        );
+                        
+                        // إنشاء canvas نهائي للتدوير والتحويلات
+                        const finalCanvas = document.createElement('canvas');
+                        finalCanvas.width = targetWidth;
+                        finalCanvas.height = targetHeight;
+                        const finalCtx = finalCanvas.getContext('2d');
+                        finalCtx.imageSmoothingEnabled = true;
+                        finalCtx.imageSmoothingQuality = 'high';
+                        
+                        // تطبيق التحويلات بناءً على اتجاه EXIF
+                        finalCtx.save();
+                        
+                        switch (orientation) {
+                            case 2:
+                                finalCtx.translate(targetWidth, 0);
+                                finalCtx.scale(-1, 1);
+                                break;
+                            case 3:
+                                finalCtx.translate(targetWidth, targetHeight);
+                                finalCtx.rotate(Math.PI);
+                                break;
+                            case 4:
+                                finalCtx.translate(0, targetHeight);
+                                finalCtx.scale(1, -1);
+                                break;
+                            case 5:
+                                finalCtx.translate(targetWidth, 0);
+                                finalCtx.rotate(Math.PI / 2);
+                                finalCtx.scale(-1, 1);
+                                break;
+                            case 6:
+                                finalCtx.translate(targetWidth, 0);
+                                finalCtx.rotate(Math.PI / 2);
+                                break;
+                            case 7:
+                                finalCtx.translate(0, targetHeight);
+                                finalCtx.rotate(-Math.PI / 2);
+                                finalCtx.scale(-1, 1);
+                                break;
+                            case 8:
+                                finalCtx.translate(0, targetHeight);
+                                finalCtx.rotate(-Math.PI / 2);
+                                break;
+                            default:
+                                break;
+                        }
+                        
+                        // رسم الصورة المقتطعة بعد التحويلات
+                        finalCtx.drawImage(cropCanvas, 0, 0, targetWidth, targetHeight);
+                        finalCtx.restore();
+                        
+                        const cropped = finalCanvas.toDataURL('image/jpeg', quality);
+                        resolve(cropped);
+                    } catch (error) {
+                        console.error('خطأ في اقتصاص الصورة:', error);
+                        reject(error);
+                    }
+                };
+                img.onerror = (error) => {
+                    console.error('خطأ في تحميل الصورة:', error);
+                    reject(new Error('فشل تحميل الصورة'));
+                };
+                img.src = imageSource;
+            }
+            
+            if (typeof file === 'string') {
+                processImage();
+            }
+        } catch (error) {
+            console.error('خطأ في معالجة الصورة:', error);
+            reject(error);
         }
     });
 }

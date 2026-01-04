@@ -636,21 +636,61 @@
             // جعل الدالة متاحة عالمياً
             window.toggleMobileQRScanner = toggleMobileQRScanner;
             
-            // ربط زر تفعيل الكاميرا للهواتف - معطل (الميزة قيد التطوير)
+            // ربط زر تفعيل الكاميرا للهواتف
             const enableCamMobile = document.getElementById('enableCamMobile');
             if (enableCamMobile) {
-                enableCamMobile.addEventListener('click', function(e) {
+                enableCamMobile.addEventListener('click', async function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // إظهار رسالة أن الميزة قيد التطوير
-                    if (typeof showMessage === 'function') {
-                        showMessage('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد', 'info');
-                    } else {
-                        alert('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد');
+                    // التحقق من أننا على هاتف
+                    if (window.innerWidth > 767.98) {
+                        return; // على سطح المكتب، لا نفعل شيئاً
                     }
-                    // عدم فتح الكاميرا أو الماسح
-                    return;
+                    
+                    // إخفاء الزر
+                    enableCamMobile.style.display = 'none';
+                    
+                    // إظهار loading
+                    const loadingDiv = document.getElementById('pos-scanner-loading-mobile');
+                    if (loadingDiv) {
+                        loadingDiv.style.display = 'block';
+                    }
+                    
+                    // تهيئة الماسح
+                    try {
+                        if (typeof window.initializePOSQRCodeScannerMobile === 'function') {
+                            await window.initializePOSQRCodeScannerMobile();
+                        } else {
+                            // انتظار تحميل الدالة
+                            let attempts = 0;
+                            const checkFunction = setInterval(() => {
+                                attempts++;
+                                if (window.initializePOSQRCodeScannerMobile) {
+                                    clearInterval(checkFunction);
+                                    window.initializePOSQRCodeScannerMobile();
+                                } else if (attempts > 50) {
+                                    clearInterval(checkFunction);
+                                    if (loadingDiv) {
+                                        loadingDiv.innerHTML = `
+                                            <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
+                                            <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">فشل تحميل الماسح</p>
+                                        `;
+                                    }
+                                }
+                            }, 100);
+                        }
+                    } catch (error) {
+                        console.error('Error initializing mobile scanner:', error);
+                        if (loadingDiv) {
+                            loadingDiv.innerHTML = `
+                                <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
+                                <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">خطأ في تحميل الماسح</p>
+                            `;
+                        }
+                        // إعادة إظهار الزر
+                        enableCamMobile.style.display = 'flex';
+                    }
                 });
             }
         });

@@ -3192,9 +3192,10 @@ async function openPOSBarcodeScanner() {
 async function initializePOSQRCodeScannerAuto() {
     const isMobile = window.innerWidth <= 767.98;
     
-    // للهواتف: تعطيل الماسح (الميزة قيد التطوير)
+    // للهواتف: استخدام الماسح المدمج (يتم تفعيله يدوياً عبر الزر)
     if (isMobile) {
-        console.log('ℹ️ [POS Scanner] Scanner disabled on mobile devices - Feature under development');
+        // على الهواتف، الماسح يتم تفعيله يدوياً عبر زر enableCamMobile
+        // لا نقوم بتهيئته تلقائياً
         return;
     }
     
@@ -3280,291 +3281,129 @@ async function initializePOSQRCodeScannerAuto() {
     }
 }
 
-// Initialize POS QR Code Scanner for Mobile (Simplified - based on qr.html)
+// Initialize POS QR Code Scanner for Mobile (Simplified - based on product-returns.js)
 async function initializePOSQRCodeScannerMobile() {
-    // Check if scanner is already started
-    if (posQRCodeScannerInstance && posScannerOpen) {
-        try {
-            const state = posQRCodeScannerInstance.getState();
-            if (state === 2 || state === 'SCANNING') {
-                console.log('✅ [POS Scanner Mobile] Scanner already running');
-                return;
-            }
-        } catch (e) {
-            // Scanner exists but not running, reset it
-            posQRCodeScannerInstance = null;
-            posScannerOpen = false;
-        }
-    }
-    
     const qrReader = document.getElementById('pos-qr-reader-mobile');
     const loadingDiv = document.getElementById('pos-scanner-loading-mobile');
     const errorDiv = document.getElementById('pos-scanner-error-mobile');
     
-    if (!qrReader) {
-        console.warn('⚠️ [POS Scanner Mobile] QR Scanner container not found');
+    if (!qrReader) return;
+    
+    // Hide error initially
+    if (errorDiv) errorDiv.style.display = 'none';
+    
+    // Check if Html5Qrcode is loaded
+    if (typeof Html5Qrcode === 'undefined') {
+        if (loadingDiv) {
+            loadingDiv.innerHTML = '<i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i><p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">خطأ: مكتبة QR Code غير متاحة</p>';
+        }
         return;
     }
     
-    // Wait a bit to ensure element is fully rendered
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Hide error initially
-    if (errorDiv) {
-        errorDiv.style.display = 'none';
-    }
-    
-    // Show loading
-    if (loadingDiv) {
-        loadingDiv.style.display = 'block';
-    }
-    
-    // Check if html5-qrcode library is loaded
-    if (typeof Html5Qrcode === 'undefined') {
-        console.log('📚 [POS Scanner Mobile] Loading html5-qrcode library...');
-        if (typeof window.loadHtml5Qrcode === 'function') {
-            try {
-                await window.loadHtml5Qrcode();
-                await new Promise(resolve => setTimeout(resolve, 300));
-            } catch (error) {
-                console.error('❌ [POS Scanner Mobile] Error loading html5-qrcode:', error);
-                if (loadingDiv) {
-                    loadingDiv.innerHTML = `
-                        <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                        <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">فشل تحميل مكتبة QR Code</p>
-                        <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">يرجى تحديث الصفحة</p>
-                    `;
-                }
-                return;
-            }
-        } else {
-            console.error('❌ [POS Scanner Mobile] html5-qrcode library not available');
-            if (loadingDiv) {
-                loadingDiv.innerHTML = `
-                    <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                    <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">مكتبة QR Code غير متاحة</p>
-                    <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">يرجى تحديث الصفحة</p>
-                `;
-            }
-            return;
-        }
-    }
-    
-    // Stop existing scanner if any
-    if (posQRCodeScannerInstance) {
-        try {
-            await posQRCodeScannerInstance.stop().catch(() => {});
-            await posQRCodeScannerInstance.clear().catch(() => {});
-        } catch (e) {
-            // Ignore errors
-        }
-        posQRCodeScannerInstance = null;
-    }
-    
-    // Create new scanner instance (exactly like qr.html)
-    posQRCodeScannerInstance = new Html5Qrcode('pos-qr-reader-mobile');
-    posScannerOpen = true;
-     
-    // Start scanner with same config as qr.html
-    // ✅ استخدام الكاميرا الخلفية (environment) - نفس إعدادات qr.html
-    posQRCodeScannerInstance.start(
-        { 
-            facingMode: "environment" // الكاميرا الخلفية - نفس إعدادات qr.html
-        },
-        {
-            fps: 10, // نفس إعدادات qr.html
-            qrbox: { width: 250, height: 250 } // نفس إعدادات qr.html
-        },
-        function onScanSuccess(decodedText, decodedResult) {
-            // Success callback - تم قراءة QR Code بنجاح (exactly like qr.html)
-            console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected ✅✅✅');
-            console.log('📋 [POS Scanner Mobile] Decoded Text (Raw):', decodedText);
-            console.log('📋 [POS Scanner Mobile] Decoded Result:', decodedResult);
-            
-            // ✅ عرض تنبيه فوري على الشاشة
-            try {
-                const alertDiv = document.createElement('div');
-                alertDiv.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(33, 150, 243, 0.95);
-                    color: white;
-                    padding: 20px 30px;
-                    border-radius: 15px;
-                    z-index: 999999;
-                    font-size: 18px;
-                    font-weight: bold;
-                    text-align: center;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-                    animation: pulse 0.5s ease;
-                `;
-                alertDiv.innerHTML = `
-                    <div style="font-size: 40px; margin-bottom: 10px;">📱</div>
-                    <div>تم قراءة QR Code!</div>
-                    <div style="font-size: 14px; margin-top: 10px; font-family: monospace; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; word-break: break-all;">${decodedText}</div>
-                `;
-                document.body.appendChild(alertDiv);
-                
-                setTimeout(() => {
-                    alertDiv.style.opacity = '0';
-                    alertDiv.style.transition = 'opacity 0.3s ease';
-                    setTimeout(() => alertDiv.remove(), 300);
-                }, 2000);
-            } catch (e) {
-                console.error('Error showing alert:', e);
-            }
-            
-            // ✅ تنظيف النص المقروء - إزالة المسافات والأحرف غير المرئية
-            if (!decodedText || typeof decodedText !== 'string') {
-                console.warn('⚠️ [POS Scanner Mobile] Invalid decoded text:', decodedText);
-                alert('❌ نص غير صالح: ' + decodedText);
-                return;
-            }
-            
-            // تنظيف النص
-            const cleanedText = decodedText
-                .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
-                .replace(/\s+/g, ' ') // Normalize spaces
-                .trim(); // Remove leading/trailing spaces
-            
-            console.log('📋 [POS Scanner Mobile] Decoded Text (Cleaned):', cleanedText);
-            console.log('📋 [POS Scanner Mobile] Text Length:', cleanedText.length);
-            
-            // اهتزاز (موبايل)
-            if (navigator.vibrate) {
-                navigator.vibrate(200);
-            }
-            
-            // Handle product using existing function (like desktop scanner)
-            if (cleanedText && cleanedText.length > 0) {
-                console.log('🔄 [POS Scanner Mobile] استدعاء handlePOSQRCodeScanned...');
-                try {
-                    handlePOSQRCodeScanned(cleanedText);
-                    console.log('✅ [POS Scanner Mobile] تم استدعاء handlePOSQRCodeScanned بنجاح');
-                } catch (error) {
-                    console.error('❌ [POS Scanner Mobile] خطأ في handlePOSQRCodeScanned:', error);
-                    alert('❌ خطأ في معالجة QR Code: ' + error.message);
-                }
-            } else {
-                console.warn('⚠️ [POS Scanner Mobile] Empty decoded text after cleaning');
-                alert('⚠️ النص المقروء فارغ بعد التنظيف');
-            }
-            
-            // Continue scanning - don't stop camera (like desktop scanner)
-        },
-        function onScanError(error) {
-            // Error callback - تجاهل أخطاء القراءة (exactly like qr.html)
-            // Ignore scanning errors - this is normal during scanning
-        }
-    ).catch(err => {
-        // ✅ إذا فشلت الكاميرا الخلفية، جرب الكاميرا الأمامية
-        console.warn('⚠️ [POS Scanner Mobile] فشل استخدام الكاميرا الخلفية، محاولة الكاميرا الأمامية...', err);
-        
-        // محاولة استخدام الكاميرا الأمامية كبديل
+    try {
+        // Stop existing scanner if any
         if (posQRCodeScannerInstance) {
-            posQRCodeScannerInstance.start(
-                { 
-                    facingMode: "user" // الكاميرا الأمامية كبديل
-                },
-                {
-                    fps: 10, // نفس إعدادات qr.html
-                    qrbox: { width: 250, height: 250 } // نفس إعدادات qr.html
-                },
-                function onScanSuccess(decodedText, decodedResult) {
-                    console.log('✅✅✅ [POS Scanner Mobile] QR Code Detected (Front Camera) ✅✅✅');
-                    console.log('📋 [POS Scanner Mobile] Decoded Text (Raw):', decodedText);
-                    
-                    if (!decodedText || typeof decodedText !== 'string') {
-                        console.warn('⚠️ [POS Scanner Mobile] Invalid decoded text:', decodedText);
-                        return;
-                    }
-                    
-                    const cleanedText = decodedText
-                        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-                        .replace(/\s+/g, ' ')
-                        .trim();
-                    
-                    if (navigator.vibrate) {
-                        navigator.vibrate(200);
-                    }
-                    
-                    if (cleanedText && cleanedText.length > 0) {
-                        handlePOSQRCodeScanned(cleanedText);
-                    }
-                },
-                function onScanError(error) {
-                    // تجاهل أخطاء القراءة
-                }
-            ).catch(frontCameraErr => {
-                // فشلت الكاميرا الأمامية أيضاً
-                console.error('❌ [POS Scanner Mobile] فشل استخدام الكاميرا الأمامية أيضاً:', frontCameraErr);
-                const errorMessage = frontCameraErr?.message || 'لا يمكن تشغيل الكاميرا';
-                
+            try {
+                await posQRCodeScannerInstance.stop().catch(() => {});
+                await posQRCodeScannerInstance.clear().catch(() => {});
+            } catch (e) {
+                // Ignore errors
+            }
+            posQRCodeScannerInstance = null;
+        }
+        
+        // Create scanner instance (same as product-returns.js)
+        posQRCodeScannerInstance = new Html5Qrcode("pos-qr-reader-mobile");
+        posScannerOpen = true;
+        
+        // Configuration for QR code scanning (same as product-returns.js)
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            disableFlip: false
+        };
+        
+        // Add supportedScanTypes if available (newer versions)
+        if (typeof Html5QrcodeScanType !== 'undefined') {
+            config.supportedScanTypes = [Html5QrcodeScanType.SCAN_TYPE_CAMERA];
+        }
+        
+        // ✅ التحقق من صلاحية الكاميرا قبل البدء (لتجنب طلب الصلاحية مرة أخرى)
+        if (typeof window.checkCameraPermission === 'function') {
+            const permissionState = await window.checkCameraPermission();
+            if (permissionState === 'denied') {
                 if (loadingDiv) {
                     loadingDiv.innerHTML = `
-                        <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                        <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">❌ ${errorMessage}</p>
-                        <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
-                            إعادة المحاولة
-                        </button>
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">تم رفض صلاحية الكاميرا</p>
+                        <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا في إعدادات المتصفح</p>
                     `;
                 }
-                
-                if (errorDiv) {
-                    errorDiv.style.display = 'block';
-                    const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
-                    if (errorMessageEl) {
-                        errorMessageEl.textContent = `❌ ${errorMessage}`;
-                    }
-                }
-                
-                posQRCodeScannerInstance = null;
-                posScannerOpen = false;
-            });
-        } else {
-            // إذا لم يكن هناك instance، عرض رسالة خطأ
-            console.error('❌ [POS Scanner Mobile] Error starting scanner:', err);
-            const errorMessage = err?.message || 'لا يمكن تشغيل الكاميرا';
-            
-            if (loadingDiv) {
-                loadingDiv.innerHTML = `
-                    <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                    <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">❌ ${errorMessage}</p>
-                    <button onclick="window.initializePOSQRCodeScannerMobile()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
-                        إعادة المحاولة
-                    </button>
-                `;
-            }
-            
-            if (errorDiv) {
-                errorDiv.style.display = 'block';
-                const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
-                if (errorMessageEl) {
-                    errorMessageEl.textContent = `❌ ${errorMessage}`;
-                }
-            }
-            
-            posQRCodeScannerInstance = null;
-            posScannerOpen = false;
-        }
-    });
-    
-    // Hide loading indicator once scanner starts (after a short delay to ensure it started)
-    setTimeout(() => {
-        if (loadingDiv && posQRCodeScannerInstance) {
-            try {
-                const state = posQRCodeScannerInstance.getState();
-                if (state === 2 || state === 'SCANNING') {
-                    loadingDiv.style.display = 'none';
-                    console.log('✅ [POS Scanner Mobile] Scanner started successfully');
-                }
-            } catch (e) {
-                // Scanner might not be ready yet, keep loading visible
+                return;
             }
         }
-    }, 500);
+        
+        // Start scanning (same as product-returns.js)
+        await posQRCodeScannerInstance.start(
+            { facingMode: "environment" }, // Use back camera
+            config,
+            (decodedText, decodedResult) => {
+                // Success callback - تنظيف النص ومعالجته
+                if (!decodedText || typeof decodedText !== 'string') {
+                    return;
+                }
+                
+                // تنظيف النص المقروء - إزالة المسافات والأحرف غير المرئية
+                const cleanedText = decodedText
+                    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
+                    .replace(/\s+/g, ' ') // Normalize spaces
+                    .trim(); // Remove leading/trailing spaces
+                
+                if (!cleanedText || cleanedText.length === 0) {
+                    return;
+                }
+                
+                // اهتزاز (موبايل)
+                if (navigator.vibrate) {
+                    navigator.vibrate(200);
+                }
+                
+                // معالجة QR Code المقروء - استمرار المسح (لا نوقف الكاميرا)
+                handlePOSQRCodeScanned(cleanedText);
+            },
+            (errorMessage) => {
+                // Error callback (ignore continuous errors while scanning)
+                // Only show errors for actual failures, not during normal scanning
+            }
+        );
+        
+        // Hide loading indicator once scanner starts
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+        
+    } catch (error) {
+        if (loadingDiv) {
+            loadingDiv.innerHTML = `
+                <i class="bi bi-exclamation-triangle" style="font-size: 3em; color: var(--danger-color); margin-bottom: 15px; display: block;"></i>
+                <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">خطأ في بدء الكاميرا</p>
+                <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">${error.message || 'يرجى التحقق من أذونات الكاميرا'}</p>
+            `;
+        }
+        
+        if (errorDiv) {
+            const errorMessageEl = document.getElementById('pos-scanner-error-message-mobile');
+            if (errorMessageEl) {
+                errorMessageEl.textContent = error.message || 'فشل في الوصول إلى الكاميرا. يرجى التحقق من الأذونات والمحاولة مرة أخرى.';
+            }
+            errorDiv.style.display = 'block';
+        }
+        
+        // Reset instance on error
+        posQRCodeScannerInstance = null;
+        posScannerOpen = false;
+    }
 }
 
 // Initialize POS QR Code Scanner
