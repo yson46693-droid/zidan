@@ -691,36 +691,31 @@ if ($method === 'POST') {
         response(false, 'خطأ في إضافة عملية الصيانة', null, 500);
     }
     
-    // ✅ إضافة المبلغ المدفوع مقدماً إلى الخزنة (لعميل محل فقط)
-    if ($paid_amount > 0 && $customer_id) {
-        // جلب نوع العميل
-        $customer = dbSelectOne("SELECT customer_type FROM customers WHERE id = ?", [$customer_id]);
-        if ($customer && ($customer['customer_type'] ?? 'retail') === 'retail') {
-            // فقط لعميل محل: إضافة المبلغ المدفوع مقدماً إلى الخزنة
-            if (dbTableExists('treasury_transactions')) {
-                // التحقق من عدم وجود معاملة مسجلة مسبقاً
-                $existingTransaction = dbSelectOne(
-                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'deposit' AND description LIKE ?",
-                    [$repairId, '%مبلغ مدفوع مقدماً%']
+    // ✅ إضافة المبلغ المدفوع مقدماً إلى الخزنة تلقائياً لجميع أنواع العملاء
+    if ($paid_amount > 0 && $repairBranchId) {
+        if (dbTableExists('treasury_transactions')) {
+            // التحقق من عدم وجود معاملة مسجلة مسبقاً
+            $existingTransaction = dbSelectOne(
+                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'deposit' AND description LIKE ?",
+                [$repairId, '%مبلغ مدفوع مقدماً%']
+            );
+            
+            if (!$existingTransaction) {
+                $transactionId = generateId();
+                $transactionDescription = "مبلغ مدفوع مقدماً - عملية صيانة رقم: {$repairNumber}";
+                
+                $transactionResult = dbExecute(
+                    "INSERT INTO treasury_transactions (
+                        id, branch_id, transaction_type, amount, description, 
+                        reference_id, reference_type, created_at, created_by
+                    ) VALUES (?, ?, 'deposit', ?, ?, ?, 'repair', NOW(), ?)",
+                    [$transactionId, $repairBranchId, $paid_amount, $transactionDescription, $repairId, $session['user_id']]
                 );
                 
-                if (!$existingTransaction) {
-                    $transactionId = generateId();
-                    $transactionDescription = "مبلغ مدفوع مقدماً - عملية صيانة رقم: {$repairNumber}";
-                    
-                    $transactionResult = dbExecute(
-                        "INSERT INTO treasury_transactions (
-                            id, branch_id, transaction_type, amount, description, 
-                            reference_id, reference_type, created_at, created_by
-                        ) VALUES (?, ?, 'deposit', ?, ?, ?, 'repair', NOW(), ?)",
-                        [$transactionId, $repairBranchId, $paid_amount, $transactionDescription, $repairId, $session['user_id']]
-                    );
-                    
-                    if ($transactionResult !== false) {
-                        error_log("✅ [Repairs API] تم إضافة المبلغ المدفوع مقدماً ({$paid_amount} ج.م) إلى الخزنة للعملية {$repairNumber}");
-                    } else {
-                        error_log("⚠️ [Repairs API] فشل إضافة المبلغ المدفوع مقدماً إلى الخزنة");
-                    }
+                if ($transactionResult !== false) {
+                    error_log("✅ [Repairs API] تم إضافة المبلغ المدفوع مقدماً ({$paid_amount} ج.م) إلى الخزنة للعملية {$repairNumber}");
+                } else {
+                    error_log("⚠️ [Repairs API] فشل إضافة المبلغ المدفوع مقدماً إلى الخزنة");
                 }
             }
         }
