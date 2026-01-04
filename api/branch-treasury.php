@@ -14,9 +14,11 @@ if ($method === 'GET') {
     $userBranchId = $session['branch_id'] ?? null;
     $isOwner = ($userRole === 'admin' || $userRole === 'owner');
     $isManager = ($userRole === 'manager');
+    $isTechnician = ($userRole === 'technician');
     
-    // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم رؤية بيانات الخزنة
-    if (!$isOwner && !$isManager) {
+    // التحقق من الصلاحيات - المالك والمدير وفني الصيانة يمكنهم رؤية بيانات الخزنة
+    // فني الصيانة يمكنه رؤية بيانات فرعه فقط
+    if (!$isOwner && !$isManager && !$isTechnician) {
         response(false, 'ليس لديك صلاحية لعرض بيانات الخزنة', null, 403);
     }
     
@@ -25,7 +27,7 @@ if ($method === 'GET') {
     $endDate = $_GET['end_date'] ?? null;
     $filterType = $_GET['filter_type'] ?? 'month'; // 'today', 'month', 'custom'
     
-    // إذا لم يكن المستخدم مالك، يجب أن يطلب فرعه فقط
+    // إذا لم يكن المستخدم مالك، يجب أن يطلب فرعه فقط (يشمل المدير وفني الصيانة)
     if (!$isOwner) {
         if (!$userBranchId) {
             response(false, 'المستخدم غير مرتبط بفرع', null, 403);
