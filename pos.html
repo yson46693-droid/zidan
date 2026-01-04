@@ -592,21 +592,15 @@
             }
             
             if (qrHeaderBtnMobile && posQrScannerMobile) {
-                // على الهواتف: تعطيل الماسح وإظهار رسالة التطوير
+                // على الهواتف: تفعيل الماسح المدمج
                 qrHeaderBtnMobile.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
                     // التحقق من أننا على هاتف
                     if (window.innerWidth <= 767.98) {
-                        // إظهار رسالة أن الميزة قيد التطوير
-                        if (typeof showMessage === 'function') {
-                            showMessage('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد', 'info');
-                        } else {
-                            alert('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد');
-                        }
-                        // عدم فتح الماسح أو الكاميرا
-                        return;
+                        // تفعيل الماسح المدمج
+                        toggleMobileQRScanner();
                     } else {
                         // على سطح المكتب: استخدام السلوك العادي (فتح modal)
                         if (qrHeaderBtn) {
@@ -620,16 +614,22 @@
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // على الهواتف: إظهار رسالة التطوير
+                    // على الهواتف: محاولة تفعيل الماسح المدمج
                     if (window.innerWidth <= 767.98) {
-                        if (typeof showMessage === 'function') {
-                            showMessage('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد', 'info');
+                        if (posQrScannerMobile) {
+                            toggleMobileQRScanner();
                         } else {
-                            alert('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد');
+                            // إذا لم يوجد الماسح المدمج، فتح modal
+                            if (qrHeaderBtn) {
+                                qrHeaderBtn.click();
+                            }
                         }
-                        return;
+                    } else {
+                        // على سطح المكتب: فتح modal
+                        if (qrHeaderBtn) {
+                            qrHeaderBtn.click();
+                        }
                     }
-                    qrHeaderBtn.click();
                 });
             }
             

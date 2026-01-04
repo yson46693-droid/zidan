@@ -3192,10 +3192,20 @@ async function openPOSBarcodeScanner() {
 async function initializePOSQRCodeScannerAuto() {
     const isMobile = window.innerWidth <= 767.98;
     
-    // للهواتف: استخدام الماسح المدمج (يتم تفعيله يدوياً عبر الزر)
+    // للهواتف: استخدام الماسح المدمج
     if (isMobile) {
-        // على الهواتف، الماسح يتم تفعيله يدوياً عبر زر enableCamMobile
-        // لا نقوم بتهيئته تلقائياً
+        // على الهواتف، تهيئة الماسح المدمج
+        const qrReader = document.getElementById('pos-qr-reader-mobile');
+        if (!qrReader) {
+            // Retry after 200ms
+            setTimeout(() => {
+                initializePOSQRCodeScannerAuto();
+            }, 200);
+            return;
+        }
+        
+        // تهيئة الماسح للهواتف
+        await initializePOSQRCodeScannerMobile();
         return;
     }
     
