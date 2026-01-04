@@ -702,12 +702,22 @@ if ($method === 'POST') {
     }
     
     // ✅ إضافة المبلغ المدفوع مقدماً إلى الخزنة تلقائياً لجميع أنواع العملاء
+    // ✅ تسجيل المبلغ حسب نوع الفرع: repair_profit للفرع الأول، deposit للفرع الثاني
     if ($paid_amount > 0 && $repairBranchId) {
         if (dbTableExists('treasury_transactions')) {
+            // تحديد نوع الفرع (الأول أو الثاني)
+            $branch = dbSelectOne("SELECT id, name, created_at FROM branches WHERE id = ?", [$repairBranchId]);
+            $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
+            $isFirstBranch = $branch && $firstBranch && $branch['id'] === $firstBranch['id'];
+            
+            // تحديد نوع المعاملة: repair_profit للفرع الأول، deposit للفرع الثاني
+            $transactionType = $isFirstBranch ? 'repair_profit' : 'deposit';
+            $transactionTypeLabel = $isFirstBranch ? 'أرباح الصيانة' : 'إيرادات';
+            
             // التحقق من عدم وجود معاملة مسجلة مسبقاً
             $existingTransaction = dbSelectOne(
-                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'deposit' AND description LIKE ?",
-                [$repairId, '%مبلغ مدفوع مقدماً%']
+                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = ? AND description LIKE ?",
+                [$repairId, $transactionType, '%مبلغ مدفوع مقدماً%']
             );
             
             if (!$existingTransaction) {
@@ -718,12 +728,12 @@ if ($method === 'POST') {
                     "INSERT INTO treasury_transactions (
                         id, branch_id, transaction_type, amount, description, 
                         reference_id, reference_type, created_at, created_by
-                    ) VALUES (?, ?, 'deposit', ?, ?, ?, 'repair', NOW(), ?)",
-                    [$transactionId, $repairBranchId, $paid_amount, $transactionDescription, $repairId, $session['user_id']]
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'repair', NOW(), ?)",
+                    [$transactionId, $repairBranchId, $transactionType, $paid_amount, $transactionDescription, $repairId, $session['user_id']]
                 );
                 
                 if ($transactionResult !== false) {
-                    error_log("✅ [Repairs API] تم إضافة المبلغ المدفوع مقدماً ({$paid_amount} ج.م) إلى الخزنة للعملية {$repairNumber}");
+                    error_log("✅ [Repairs API] تم إضافة المبلغ المدفوع مقدماً ({$paid_amount} ج.م) إلى الخزنة كـ {$transactionTypeLabel} للعملية {$repairNumber}");
                 } else {
                     error_log("⚠️ [Repairs API] فشل إضافة المبلغ المدفوع مقدماً إلى الخزنة");
                 }

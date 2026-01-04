@@ -626,6 +626,13 @@ const API = {
         return `images/repair_${repairId}.jpg`;
     },
 
+    // تنظيف الصور القديمة (أكثر من 6 أشهر)
+    async cleanupOldImages() {
+        return await this.request('images.php', 'POST', {
+            action: 'cleanup_old_images'
+        });
+    },
+
     // التحقق من وجود الصورة
     async checkImageExists(repairId) {
         try {

@@ -21,6 +21,8 @@ if ($method === 'POST') {
     $data = getRequestData();
     
     if (isset($data['action']) && $data['action'] === 'upload_image') {
+        checkAuth();
+        
         $repairId = $data['repair_id'] ?? '';
         $imageData = $data['image_data'] ?? '';
         
@@ -48,6 +50,8 @@ if ($method === 'POST') {
     
     // حذف صورة
     if (isset($data['action']) && $data['action'] === 'delete_image') {
+        checkAuth();
+        
         $repairId = $data['repair_id'] ?? '';
         
         if (empty($repairId)) {
@@ -65,6 +69,29 @@ if ($method === 'POST') {
             
         } catch (Exception $e) {
             response(false, 'خطأ في حذف الصورة: ' . $e->getMessage(), null, 500);
+        }
+    }
+    
+    // تنظيف الصور القديمة (أكثر من 6 أشهر)
+    if (isset($data['action']) && $data['action'] === 'cleanup_old_images') {
+        checkAuth();
+        
+        try {
+            $result = cleanupOldImages(6); // 6 أشهر
+            
+            if ($result['success']) {
+                response(true, $result['message'], [
+                    'deleted_count' => $result['deleted_count'],
+                    'total_size_freed' => $result['total_size_freed'],
+                    'files' => $result['files']
+                ]);
+            } else {
+                response(false, $result['message'], null, 500);
+            }
+            
+        } catch (Exception $e) {
+            error_log('خطأ في تنظيف الصور القديمة: ' . $e->getMessage());
+            response(false, 'خطأ في تنظيف الصور القديمة: ' . $e->getMessage(), null, 500);
         }
     }
 }
@@ -253,6 +280,143 @@ function getImageInfo($repairId) {
         'mime' => $imageInfo['mime'],
         'created_at' => date('Y-m-d H:i:s', filemtime($imagePath))
     ];
+}
+
+/**
+ * تنظيف الصور القديمة (أكثر من عدد محدد من الأشهر)
+ * @param int $months - عدد الأشهر (افتراضي: 6)
+ * @return array - نتائج العملية
+ */
+function cleanupOldImages($months = 6) {
+    try {
+        if (!is_dir(IMAGES_DIR)) {
+            return [
+                'success' => false,
+                'message' => 'مجلد الصور غير موجود',
+                'deleted_count' => 0,
+                'total_size_freed' => 0,
+                'files' => []
+            ];
+        }
+        
+        // حساب التاريخ المحدد (قبل 6 أشهر)
+        $cutoffDate = strtotime("-{$months} months");
+        $deletedCount = 0;
+        $totalSizeFreed = 0;
+        $deletedFiles = [];
+        $errors = [];
+        
+        // قراءة جميع الملفات في مجلد الصور
+        $files = scandir(IMAGES_DIR);
+        
+        if ($files === false) {
+            return [
+                'success' => false,
+                'message' => 'فشل في قراءة مجلد الصور',
+                'deleted_count' => 0,
+                'total_size_freed' => 0,
+                'files' => []
+            ];
+        }
+        
+        // تصفية الملفات - فقط ملفات repair_*.jpg
+        foreach ($files as $file) {
+            // التحقق من أن الملف هو صورة عملية صيانة
+            if (!preg_match('/^repair_.+\.jpg$/i', $file)) {
+                continue;
+            }
+            
+            $filepath = IMAGES_DIR . $file;
+            
+            // التحقق من أن الملف موجود ويمكن قراءته
+            if (!is_file($filepath) || !is_readable($filepath)) {
+                continue;
+            }
+            
+            // الحصول على تاريخ آخر تعديل للملف
+            $fileModificationTime = filemtime($filepath);
+            
+            if ($fileModificationTime === false) {
+                $errors[] = "لا يمكن الحصول على تاريخ الملف: {$file}";
+                continue;
+            }
+            
+            // التحقق إذا كان الملف أقدم من التاريخ المحدد
+            if ($fileModificationTime < $cutoffDate) {
+                $fileSize = filesize($filepath);
+                
+                // محاولة حذف الملف
+                if (@unlink($filepath)) {
+                    $deletedCount++;
+                    $totalSizeFreed += $fileSize;
+                    $fileAgeDays = round((time() - $fileModificationTime) / 86400);
+                    $deletedFiles[] = [
+                        'filename' => $file,
+                        'size' => $fileSize,
+                        'deleted_at' => date('Y-m-d H:i:s'),
+                        'file_age_days' => $fileAgeDays
+                    ];
+                    
+                    // تسجيل عملية الحذف
+                    error_log("تم حذف صورة قديمة: {$file} (عمر الملف: {$fileAgeDays} يوم)");
+                } else {
+                    $errors[] = "فشل في حذف الملف: {$file}";
+                }
+            }
+        }
+        
+        // بناء رسالة النتيجة
+        $message = "تم حذف {$deletedCount} صورة قديمة";
+        if ($totalSizeFreed > 0) {
+            $message .= " وتحرير " . formatBytes($totalSizeFreed) . " من المساحة";
+        }
+        
+        if (!empty($errors)) {
+            $message .= ". حدثت " . count($errors) . " أخطاء أثناء العملية";
+            error_log("أخطاء أثناء تنظيف الصور القديمة: " . implode(", ", $errors));
+        }
+        
+        return [
+            'success' => true,
+            'message' => $message,
+            'deleted_count' => $deletedCount,
+            'total_size_freed' => $totalSizeFreed,
+            'files' => $deletedFiles,
+            'errors' => $errors
+        ];
+        
+    } catch (Exception $e) {
+        error_log('خطأ في تنظيف الصور القديمة: ' . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'خطأ في تنظيف الصور القديمة: ' . $e->getMessage(),
+            'deleted_count' => 0,
+            'total_size_freed' => 0,
+            'files' => []
+        ];
+    }
+}
+
+/**
+ * تحويل البايتات إلى تنسيق قابل للقراءة
+ * @param int $bytes - حجم الملف بالبايت
+ * @param int $precision - دقة الأرقام العشرية
+ * @return string - الحجم بصيغة قابلة للقراءة
+ */
+function formatBytes($bytes, $precision = 2) {
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    
+    if ($bytes == 0) {
+        return '0 B';
+    }
+    
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    
+    $bytes /= pow(1024, $pow);
+    
+    return round($bytes, $precision) . ' ' . $units[$pow];
 }
 ?>
 
