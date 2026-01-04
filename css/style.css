@@ -5283,14 +5283,54 @@ body {
         box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
     }
     
-    /* إخفاء جدول عمليات الصيانة بالكامل على الهواتف */
+    /* عرض بديل للهواتف - بطاقات بدلاً من الجدول */
     #repairsTable {
         display: none !important;
     }
     
-    /* إخفاء حاوية الجدول في قسم الصيانة على الهواتف */
+    /* حاوية البطاقات للهواتف */
+    #repairs-section .repairs-mobile-container {
+        display: block;
+    }
+    
+    /* إخفاء حاوية الجدول على الهواتف */
     #repairs-section .table-container {
         display: none !important;
+    }
+    
+    /* تحسين قائمة الإجراءات على الهواتف */
+    .actions-dropdown-menu {
+        z-index: 10002 !important;
+    }
+    
+    .actions-dropdown-menu.show {
+        z-index: 10002 !important;
+    }
+    
+    /* تحسين البطاقات على الهواتف */
+    .repair-mobile-card {
+        position: relative;
+        overflow: visible;
+    }
+    
+    .repair-mobile-card .actions-dropdown {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .repair-mobile-card .actions-dropdown-menu {
+        position: fixed !important;
+        z-index: 10002 !important;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    /* تحسين زر الإجراءات على الهواتف */
+    .repair-mobile-card .actions-dropdown-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 10px;
+        font-size: 0.95em;
     }
     
     /* الجداول */

@@ -100,6 +100,9 @@ async function loadRepairsSection() {
             </table>
         </div>
 
+        <!-- حاوية البطاقات للهواتف -->
+        <div class="repairs-mobile-container" id="repairsMobileContainer" style="display: none;"></div>
+
         <div class="pagination" id="repairsPagination"></div>
 
         <!-- نموذج إضافة/تعديل عملية -->
@@ -1861,8 +1864,16 @@ function displayRepairs(repairs) {
         return;
     }
 
+    // ✅ التحقق من حجم الشاشة لعرض البطاقات على الهواتف
+    const isMobile = window.innerWidth <= 575.98;
+    const mobileContainer = document.getElementById('repairsMobileContainer');
+    
     if (paginated.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">لا توجد عمليات</td></tr>';
+        if (isMobile && mobileContainer) {
+            mobileContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-light);">لا توجد عمليات</div>';
+        } else if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">لا توجد عمليات</td></tr>';
+        }
         return;
     }
 
@@ -1870,7 +1881,7 @@ function displayRepairs(repairs) {
     const currentUser = getCurrentUser();
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
 
-    tbody.innerHTML = paginated.data.map(repair => {
+    const tableRowsHTML = paginated.data.map(repair => {
         // ✅ إصلاح: التأكد من وجود حالة افتراضية
         const repairStatus = repair.status || 'received';
         // ✅ تسجيل الحالة للتحقق من التحديث - تسجيل جميع الحالات للتحقق
@@ -1993,6 +2004,131 @@ function displayRepairs(repairs) {
             </tr>
         `;
     }).join('');
+    
+    // ✅ عرض البطاقات على الهواتف
+    if (isMobile && mobileContainer) {
+        const mobileCardsHTML = paginated.data.map(repair => {
+            const repairStatus = repair.status || 'received';
+            const statusBadge = `<span class="status-badge" style="background: ${getStatusColor(repairStatus)}; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; color: white;">${getStatusText(repairStatus)}</span>`;
+            const repairCost = repair.customer_price || repair.cost || 0;
+            const phoneNumber = repair.customer_phone || '';
+            const cleanPhoneNumber = phoneNumber.replace(/\D/g, '');
+            const phoneButton = phoneNumber ? 
+                `<a href="tel:${cleanPhoneNumber}" class="btn btn-sm btn-success" style="display: inline-flex; align-items: center; gap: 5px; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 0.9em;">
+                    <i class="bi bi-telephone-fill"></i> اتصال
+                </a>` : '';
+            const canEditCancelled = repairStatus === 'cancelled';
+            const canEdit = isOwner || (repairStatus !== 'cancelled' && repairStatus !== 'delivered') || canEditCancelled;
+            
+            // ✅ إنشاء قائمة الإجراءات للبطاقات
+            const deleteButtonHTML = hasPermission('manager') ? `
+                <div class="actions-dropdown-item delete-item" onclick="deleteRepair('${repair.id}'); closeActionsDropdown(event);">
+                    <i class="bi bi-trash3"></i>
+                    <div class="actions-dropdown-item-text">
+                        <span class="actions-dropdown-item-title">حذف</span>
+                        <span class="actions-dropdown-item-desc">حذف العملية من النظام</span>
+                    </div>
+                </div>
+            ` : '';
+            
+            const actionButtons = `
+                <div class="actions-dropdown">
+                    <button type="button" class="actions-dropdown-btn" onclick="toggleActionsDropdown(event, '${repair.id}')">
+                        <i class="bi bi-list"></i>
+                        <span>الإجراءات</span>
+                        <i class="bi bi-chevron-down" style="font-size: 0.8em;"></i>
+                    </button>
+                    <div class="actions-dropdown-menu" id="actions-menu-${repair.id}">
+                        <div class="actions-dropdown-item" onclick="printRepairReceipt('${repair.id}'); closeActionsDropdown(event);">
+                            <i class="bi bi-receipt"></i>
+                            <div class="actions-dropdown-item-text">
+                                <span class="actions-dropdown-item-title">طباعة الإيصال</span>
+                                <span class="actions-dropdown-item-desc">طباعة إيصال استلام العملية</span>
+                            </div>
+                        </div>
+                        <div class="actions-dropdown-item" onclick="generateBarcodeLabel('${repair.id}'); closeActionsDropdown(event);">
+                            <i class="bi bi-upc-scan"></i>
+                            <div class="actions-dropdown-item-text">
+                                <span class="actions-dropdown-item-title">باركود وملصق</span>
+                                <span class="actions-dropdown-item-desc">إنشاء وطباعة باركود وملصق</span>
+                            </div>
+                        </div>
+                        <div class="actions-dropdown-item" onclick="openTrackingLinkForRepair('${repair.id}'); closeActionsDropdown(event);">
+                            <i class="bi bi-link-45deg"></i>
+                            <div class="actions-dropdown-item-text">
+                                <span class="actions-dropdown-item-title">رابط المتابعة</span>
+                                <span class="actions-dropdown-item-desc">إرسال رابط متابعة العملية للعميل</span>
+                            </div>
+                        </div>
+                        ${canEdit ? `
+                        <div class="actions-dropdown-item" onclick="editRepair('${repair.id}'); closeActionsDropdown(event);">
+                            <i class="bi bi-pencil-square"></i>
+                            <div class="actions-dropdown-item-text">
+                                <span class="actions-dropdown-item-title">تعديل</span>
+                                <span class="actions-dropdown-item-desc">تعديل بيانات العملية</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="actions-dropdown-item" onclick="showRepairImage('${repair.id}'); closeActionsDropdown(event);">
+                            <i class="bi bi-image"></i>
+                            <div class="actions-dropdown-item-text">
+                                <span class="actions-dropdown-item-title">صورة الجهاز</span>
+                                <span class="actions-dropdown-item-desc">عرض صورة الجهاز الملتقطة أو المحفوظة</span>
+                            </div>
+                        </div>
+                        ${deleteButtonHTML}
+                    </div>
+                </div>
+            `;
+            
+            return `
+                <div class="repair-mobile-card" data-repair-id="${repair.id}" style="background: var(--white); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: var(--shadow);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; font-size: 1.1em; color: var(--primary-color); margin-bottom: 5px;">
+                                ${repair.repair_number || '-'}
+                            </div>
+                            <div style="font-size: 0.95em; color: var(--text-dark); margin-bottom: 5px;">
+                                ${repair.customer_name || '-'}
+                            </div>
+                            ${phoneButton ? `<div style="margin-top: 8px;">${phoneButton}</div>` : ''}
+                        </div>
+                        <div style="text-align: left;">
+                            ${statusBadge}
+                        </div>
+                    </div>
+                    
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px;">
+                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
+                            <strong>الجهاز:</strong> ${repair.device_type || ''} ${repair.device_model || ''}
+                        </div>
+                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
+                            <strong>المشكلة:</strong> ${repair.problem || '-'}
+                        </div>
+                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
+                            <strong>التكلفة:</strong> <span style="color: var(--primary-color); font-weight: bold;">${formatCurrency(repairCost)}</span>
+                        </div>
+                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
+                            <strong>الفني:</strong> ${repair.technician_name || getTechnicianName(repair.created_by) || 'غير محدد'}
+                        </div>
+                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 12px;">
+                            <strong>التاريخ:</strong> ${formatDate(repair.created_at)}
+                        </div>
+                        
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                            ${actionButtons}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        mobileContainer.innerHTML = mobileCardsHTML;
+        // ✅ إعداد event delegation لإغلاق القوائم المنسدلة عند النقر خارجها
+        setupActionsDropdownListeners();
+    } else if (tbody) {
+        tbody.innerHTML = tableRowsHTML;
+    }
 
     // إنشاء pagination مع معلومات إضافية
     const paginationContainer = document.getElementById('repairsPagination');
