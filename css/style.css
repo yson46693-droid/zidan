@@ -6839,11 +6839,9 @@ body {
 }
 
 .inventory-card-image img {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain !important;
+    width: 100%;
+    height: 100%;
+    object-fit: cover !important;
     object-position: center !important;
     border-radius: 10px;
     image-rendering: -webkit-optimize-contrast;
@@ -6855,7 +6853,6 @@ body {
     will-change: transform;
     transition: transform 0.3s ease, opacity 0.3s ease;
     display: block;
-    margin: 0 auto;
 }
 
 .inventory-card:hover .inventory-card-image img {
@@ -6871,14 +6868,12 @@ body {
     opacity: 1;
 }
 
-/* ضمان عرض الصورة كاملة بدون قطع */
+/* ضمان عرض الصورة المقتطعة بشكل صحيح */
 .inventory-card-image img {
-    object-fit: contain !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
     object-position: center !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
-    width: auto !important;
-    height: auto !important;
 }
 
 .inventory-card-price {
@@ -7633,8 +7628,9 @@ body {
     }
     
     .inventory-card-image img {
-        max-width: 100% !important;
-        max-height: 100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
     }
     
     .preview-modal {

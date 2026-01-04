@@ -941,7 +941,7 @@ function displayAccessories(accessories) {
                                  alt="${cleanName}" 
                                  loading="lazy" 
                                  decoding="async" 
-                                 style="object-fit: contain; object-position: center; width: 100%; height: 100%;"
+                                 style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
                                  onerror="handleAccessoryImageError(this, '${cleanAccessoryId}');">
                         </div>
                     ` : `
@@ -1298,7 +1298,7 @@ function displayPhones(phones) {
                                  alt="${cleanBrand} ${cleanModel}" 
                                  loading="lazy" 
                                  decoding="async"
-                                 style="object-fit: contain; object-position: center; width: 100%; height: 100%;"
+                                 style="width: 100%; height: 100%; object-fit: cover; object-position: center;"
                                  onerror="handlePhoneImageError(this, '${cleanPhoneId}');">
                         </div>
                     ` : `
