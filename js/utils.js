@@ -1,9 +1,11 @@
 // دوال مساعدة
 
-// ✅ إدارة مؤشر حالة الاتصال
+// ✅ إدارة مؤشر حالة الاتصال (بدون استدعاءات مكررة)
 (function() {
     let connectionIndicator = null;
     let isOnline = navigator.onLine;
+    let lastCheckTime = 0;
+    const CHECK_INTERVAL = 30000; // 30 ثانية فقط (بدلاً من 5 ثوان)
     
     function updateConnectionIndicator() {
         if (!connectionIndicator) {
@@ -25,15 +27,17 @@
         }
     }
     
-    // تحديث عند تغيير حالة الاتصال
+    // ✅ تحديث عند تغيير حالة الاتصال (استخدام navigator.onLine فقط)
     window.addEventListener('online', () => {
         isOnline = true;
+        lastCheckTime = Date.now();
         updateConnectionIndicator();
         console.log('✅ تم استعادة الاتصال بالإنترنت');
     });
     
     window.addEventListener('offline', () => {
         isOnline = false;
+        lastCheckTime = Date.now();
         updateConnectionIndicator();
         console.warn('⚠️ تم فقدان الاتصال بالإنترنت');
     });
@@ -45,32 +49,9 @@
         updateConnectionIndicator();
     }
     
-    // تحديث دوري (كل 5 ثوان) للتحقق من حالة الاتصال
-    setInterval(() => {
-        // محاولة fetch صغيرة للتحقق من الاتصال
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // timeout 2 ثانية
-        
-        fetch('/api/config.php', { 
-            method: 'HEAD', 
-            cache: 'no-cache',
-            signal: controller.signal
-        })
-        .then(() => {
-            clearTimeout(timeoutId);
-            if (!isOnline) {
-                isOnline = true;
-                updateConnectionIndicator();
-            }
-        })
-        .catch(() => {
-            clearTimeout(timeoutId);
-            if (isOnline) {
-                isOnline = false;
-                updateConnectionIndicator();
-            }
-        });
-    }, 5000);
+    // ✅ إزالة الاستدعاءات المكررة لـ config.php
+    // نستخدم navigator.onLine فقط مع event listeners
+    // لا حاجة لاستدعاءات fetch دورية
 })();
 
 /**
