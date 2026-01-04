@@ -963,6 +963,10 @@ function addSparePartItemToCart(index) {
         closeSparePartItemsModal();
         showMessage(`تم اضافة المنتج بنجاح : ${itemName}`, 'success');
         playSuccessSound(); // تشغيل صوت النجاح
+        // اهتزاز خفيف بعد المسح الناجح (موبايل)
+        if (navigator.vibrate) {
+            navigator.vibrate(100); // اهتزاز خفيف (100ms)
+        }
         return;
     }
     
@@ -1000,6 +1004,10 @@ function addSparePartItemToCart(index) {
     closeSparePartItemsModal();
     showMessage(`تم اضافة المنتج بنجاح : ${itemName}`, 'success');
     playSuccessSound(); // تشغيل صوت النجاح
+    // اهتزاز خفيف بعد المسح الناجح (موبايل)
+    if (navigator.vibrate) {
+        navigator.vibrate(100); // اهتزاز خفيف (100ms)
+    }
 }
 
 // Add to Cart
@@ -1082,6 +1090,10 @@ async function addToCart(product, showMessageFlag = true) {
     if (showMessageFlag) {
         showMessage(`تم اضافة المنتج بنجاح : ${product.name}`, 'success');
         playSuccessSound(); // تشغيل صوت النجاح
+        // اهتزاز خفيف بعد المسح الناجح (موبايل)
+        if (navigator.vibrate) {
+            navigator.vibrate(100); // اهتزاز خفيف (100ms)
+        }
     }
 }
 
@@ -3378,9 +3390,9 @@ async function initializePOSQRCodeScannerMobile() {
                     return;
                 }
                 
-                // اهتزاز (موبايل)
+                // اهتزاز خفيف (موبايل) عند قراءة QR Code
                 if (navigator.vibrate) {
-                    navigator.vibrate(200);
+                    navigator.vibrate(100); // اهتزاز خفيف (100ms)
                 }
                 
                 // معالجة QR Code المقروء - استمرار المسح (لا نوقف الكاميرا)
@@ -3898,36 +3910,6 @@ async function handlePOSQRCodeScanned(decodedText) {
     
     const searchValue = cleanedText.toLowerCase().trim();
     
-    // ✅ عرض معلومات البحث على الشاشة للتشخيص
-    const showDebugInfo = (message, type = 'info') => {
-        const debugDiv = document.createElement('div');
-        debugDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: ${type === 'error' ? 'var(--danger-color)' : type === 'success' ? 'var(--success-color)' : 'var(--primary-color)'};
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            z-index: 99999;
-            max-width: 90%;
-            text-align: center;
-            font-size: 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            animation: slideDown 0.3s ease;
-        `;
-        debugDiv.innerHTML = message;
-        document.body.appendChild(debugDiv);
-        
-        setTimeout(() => {
-            debugDiv.style.opacity = '0';
-            debugDiv.style.transform = 'translateX(-50%) translateY(-20px)';
-            debugDiv.style.transition = 'all 0.3s ease';
-            setTimeout(() => debugDiv.remove(), 300);
-        }, 3000);
-    };
-    
     product = allProducts.find(p => {
         // البحث في جميع الحقول بشكل مباشر (case-insensitive)
         const id = (p.id || '').toString().toLowerCase().trim();
@@ -3943,10 +3925,8 @@ async function handlePOSQRCodeScanned(decodedText) {
     
     if (product) {
         console.log('🎉 [Step 0] تم العثور على المنتج بالبحث البسيط:', product.name);
-        showDebugInfo(`✅ تم العثور: ${product.name}`, 'success');
     } else {
         console.log('⚠️ [Step 0] لم يتم العثور على المنتج بالبحث البسيط، سنحاول البحث المتقدم...');
-        showDebugInfo(`🔍 البحث عن: "${cleanedText}"...`, 'info');
     }
     
     // ═══════════════════════════════════════════════════════
@@ -4332,6 +4312,10 @@ async function handlePOSQRCodeScanned(decodedText) {
         showMessage(`تم اضافة المنتج بنجاح : ${product.name}`, 'success');
         // تشغيل صوت النجاح
         playSuccessSound();
+        // اهتزاز خفيف بعد المسح الناجح (موبايل)
+        if (navigator.vibrate) {
+            navigator.vibrate(100); // اهتزاز خفيف (100ms)
+        }
     }
     
     // Continue scanning - don't stop camera
