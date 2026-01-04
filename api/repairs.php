@@ -1062,7 +1062,7 @@ if ($method === 'PUT') {
     }
     
     // ✅ التحقق من تحديث الحالة بشكل صحيح
-    $updatedRepair = dbSelectOne("SELECT status, customer_price, repair_cost, branch_id, remaining_amount, paid_amount, customer_id, repair_number FROM repairs WHERE id = ?", [$id]);
+    $updatedRepair = dbSelectOne("SELECT status, customer_price, repair_cost, inspection_cost, branch_id, remaining_amount, paid_amount, customer_id, repair_number FROM repairs WHERE id = ?", [$id]);
     if ($updatedRepair) {
         error_log("✅ [Repairs API] الحالة بعد التحديث: " . $updatedRepair['status']);
         $branchId = $updatedRepair['branch_id'] ?? null;
@@ -1173,16 +1173,45 @@ if ($method === 'PUT') {
         }
         
         // ✅ معالجة تحديث inspection_cost للعمليات الملغاة
-        if ($currentStatus === 'cancelled' && isset($data['inspection_cost'])) {
+        // التحقق من أن العملية ملغاة (من قاعدة البيانات بعد التحديث)
+        $updatedStatus = $updatedRepair['status'] ?? '';
+        if ($updatedStatus === 'cancelled' && isset($data['inspection_cost'])) {
             $inspectionCost = floatval($data['inspection_cost']);
             $paidAmount = floatval($updatedRepair['paid_amount'] ?? 0);
             
-            // إذا تم تحديث تكلفة الكشف وكانت أكبر من المبلغ المدفوع، إضافة الفرق كإيرادات
             if ($inspectionCost >= 0 && $paidAmount > 0 && $branchId && dbTableExists('treasury_transactions')) {
-                $amountToAdd = $inspectionCost - $paidAmount;
+                $session = checkAuth();
                 
-                // فقط إذا كان الناتج موجباً (تكلفة الكشف أكبر من المبلغ المدفوع)
-                if ($amountToAdd > 0) {
+                // ✅ 1. خصم المبلغ المدفوع مقدماً من الخزنة (إذا لم يتم خصمه مسبقاً)
+                $existingWithdrawal = dbSelectOne(
+                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'withdrawal' AND description LIKE ?",
+                    [$id, '%استرجاع مبلغ مدفوع مقدماً%']
+                );
+                
+                if (!$existingWithdrawal) {
+                    $withdrawalId = generateId();
+                    $withdrawalDescription = "استرجاع مبلغ مدفوع مقدماً - عملية صيانة ملغية رقم: {$repairNumberText}";
+                    
+                    $withdrawalResult = dbExecute(
+                        "INSERT INTO treasury_transactions (
+                            id, branch_id, transaction_type, amount, description, 
+                            reference_id, reference_type, created_at, created_by
+                        ) VALUES (?, ?, 'withdrawal', ?, ?, ?, 'repair', NOW(), ?)",
+                        [$withdrawalId, $branchId, $paidAmount, $withdrawalDescription, $id, $session['user_id']]
+                    );
+                    
+                    if ($withdrawalResult !== false) {
+                        error_log("✅ [Repairs API] تم خصم المبلغ المدفوع مقدماً ({$paidAmount} ج.م) من خزنة الفرع للعملية الملغية {$repairNumberText}");
+                    } else {
+                        error_log("⚠️ [Repairs API] فشل خصم المبلغ المدفوع مقدماً من خزنة الفرع");
+                    }
+                } else {
+                    error_log("ℹ️ [Repairs API] تم بالفعل خصم المبلغ المدفوع مقدماً للعملية الملغية {$repairNumberText}");
+                }
+                
+                // ✅ 2. إضافة تكلفة الكشف إلى الخزنة كإيرادات
+                // نضيف تكلفة الكشف بالكامل كإيرادات (حتى لو كانت أقل من المبلغ المدفوع)
+                if ($inspectionCost > 0) {
                     // تحديد نوع الفرع (الأول أو الثاني)
                     $branch = dbSelectOne("SELECT id, name, created_at FROM branches WHERE id = ?", [$branchId]);
                     $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
@@ -1199,26 +1228,33 @@ if ($method === 'PUT') {
                     );
                     
                     if (!$existingTransaction) {
-                        $session = checkAuth();
                         $transactionId = generateId();
-                        $transactionDescription = "تكلفة الكشف - عملية صيانة ملغية رقم: {$repairNumberText} ({$transactionTypeLabel}: {$inspectionCost} - المدفوع: {$paidAmount})";
+                        $transactionDescription = "تكلفة الكشف - عملية صيانة ملغية رقم: {$repairNumberText} (المبلغ المدفوع: {$paidAmount} ج.م)";
                         
                         $transactionResult = dbExecute(
                             "INSERT INTO treasury_transactions (
                                 id, branch_id, transaction_type, amount, description, 
                                 reference_id, reference_type, created_at, created_by
                             ) VALUES (?, ?, ?, ?, ?, ?, 'repair', NOW(), ?)",
-                            [$transactionId, $branchId, $transactionType, $amountToAdd, $transactionDescription, $id, $session['user_id']]
+                            [$transactionId, $branchId, $transactionType, $inspectionCost, $transactionDescription, $id, $session['user_id']]
                         );
                         
                         if ($transactionResult !== false) {
-                            error_log("✅ [Repairs API] تم إضافة {$transactionTypeLabel} ({$amountToAdd} ج.م) إلى الخزنة للعملية الملغية {$repairNumberText}");
+                            error_log("✅ [Repairs API] تم إضافة {$transactionTypeLabel} ({$inspectionCost} ج.م) إلى الخزنة للعملية الملغية {$repairNumberText}");
                         } else {
                             error_log("⚠️ [Repairs API] فشل إضافة {$transactionTypeLabel} إلى الخزنة");
                         }
+                    } else {
+                        error_log("ℹ️ [Repairs API] تم بالفعل إضافة تكلفة الكشف للعملية الملغية {$repairNumberText}");
                     }
-                } else if ($amountToAdd <= 0) {
-                    error_log("ℹ️ [Repairs API] المبلغ المدفوع مقدماً ({$paidAmount}) أكبر من أو يساوي تكلفة الكشف ({$inspectionCost}) - لا يتم إضافة شيء");
+                } else {
+                    error_log("ℹ️ [Repairs API] تكلفة الكشف ({$inspectionCost}) غير صالحة - لا يتم إضافة شيء");
+                }
+            } else {
+                if ($paidAmount <= 0) {
+                    error_log("ℹ️ [Repairs API] لا يوجد مبلغ مدفوع مقدماً للعملية الملغية {$repairNumberText}");
+                } else if (!$branchId) {
+                    error_log("⚠️ [Repairs API] لا يمكن معالجة تكلفة الكشف: branchId غير متاح");
                 }
             }
         }
