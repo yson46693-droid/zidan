@@ -1163,39 +1163,48 @@ if ($method === 'PUT') {
             $inspectionCost = floatval($data['inspection_cost']);
             $paidAmount = floatval($updatedRepair['paid_amount'] ?? 0);
             
-            // إذا تم تحديث تكلفة الكشف وكانت أكبر من المبلغ المدفوع، خصم الفرق
+            // إذا تم تحديث تكلفة الكشف وكانت أكبر من المبلغ المدفوع، إضافة الفرق كإيرادات
             if ($inspectionCost >= 0 && $paidAmount > 0 && $branchId && dbTableExists('treasury_transactions')) {
-                $amountToDeduct = $inspectionCost - $paidAmount;
+                $amountToAdd = $inspectionCost - $paidAmount;
                 
                 // فقط إذا كان الناتج موجباً (تكلفة الكشف أكبر من المبلغ المدفوع)
-                if ($amountToDeduct > 0) {
+                if ($amountToAdd > 0) {
+                    // تحديد نوع الفرع (الأول أو الثاني)
+                    $branch = dbSelectOne("SELECT id, name, created_at FROM branches WHERE id = ?", [$branchId]);
+                    $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
+                    $isFirstBranch = $branch && $firstBranch && $branch['id'] === $firstBranch['id'];
+                    
+                    // تحديد نوع المعاملة: repair_profit للفرع الأول، deposit للفرع الثاني
+                    $transactionType = $isFirstBranch ? 'repair_profit' : 'deposit';
+                    $transactionTypeLabel = $isFirstBranch ? 'أرباح الصيانة' : 'إيرادات';
+                    
                     // التحقق من عدم وجود معاملة مسجلة مسبقاً
                     $existingTransaction = dbSelectOne(
-                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'expense' AND description LIKE ?",
-                        [$id, '%تكلفة الكشف - عملية صيانة ملغية%']
+                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = ? AND description LIKE ?",
+                        [$id, $transactionType, '%تكلفة الكشف - عملية صيانة ملغية%']
                     );
                     
                     if (!$existingTransaction) {
                         $session = checkAuth();
                         $transactionId = generateId();
-                        $transactionDescription = "تكلفة الكشف - عملية صيانة ملغية رقم: {$repairNumberText} (تكلفة الكشف: {$inspectionCost} - المدفوع: {$paidAmount})";
+                        $transactionDescription = "تكلفة الكشف - عملية صيانة ملغية رقم: {$repairNumberText} ({$transactionTypeLabel}: {$inspectionCost} - المدفوع: {$paidAmount})";
                         
                         $transactionResult = dbExecute(
                             "INSERT INTO treasury_transactions (
                                 id, branch_id, transaction_type, amount, description, 
                                 reference_id, reference_type, created_at, created_by
-                            ) VALUES (?, ?, 'expense', ?, ?, ?, 'repair', NOW(), ?)",
-                            [$transactionId, $branchId, $amountToDeduct, $transactionDescription, $id, $session['user_id']]
+                            ) VALUES (?, ?, ?, ?, ?, ?, 'repair', NOW(), ?)",
+                            [$transactionId, $branchId, $transactionType, $amountToAdd, $transactionDescription, $id, $session['user_id']]
                         );
                         
                         if ($transactionResult !== false) {
-                            error_log("✅ [Repairs API] تم خصم تكلفة الكشف ({$amountToDeduct} ج.م) من الخزنة للعملية الملغية {$repairNumberText}");
+                            error_log("✅ [Repairs API] تم إضافة {$transactionTypeLabel} ({$amountToAdd} ج.م) إلى الخزنة للعملية الملغية {$repairNumberText}");
                         } else {
-                            error_log("⚠️ [Repairs API] فشل خصم تكلفة الكشف من الخزنة");
+                            error_log("⚠️ [Repairs API] فشل إضافة {$transactionTypeLabel} إلى الخزنة");
                         }
                     }
-                } else if ($amountToDeduct <= 0) {
-                    error_log("ℹ️ [Repairs API] المبلغ المدفوع مقدماً ({$paidAmount}) أكبر من أو يساوي تكلفة الكشف ({$inspectionCost}) - لا يتم خصم شيء");
+                } else if ($amountToAdd <= 0) {
+                    error_log("ℹ️ [Repairs API] المبلغ المدفوع مقدماً ({$paidAmount}) أكبر من أو يساوي تكلفة الكشف ({$inspectionCost}) - لا يتم إضافة شيء");
                 }
             }
         }
