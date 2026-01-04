@@ -279,71 +279,114 @@ if ($method === 'GET') {
     $totalExpenses = floatval($expensesResult['total'] ?? 0);
     
     // 2. جلب تكاليف عمليات الصيانة المرتبطة بالفرع
-    // ✅ إصلاح: تضمين الحالات الفارغة أو NULL إذا كان لديها delivery_date
-    $repairCostsQuery = "SELECT SUM(repair_cost) as total FROM repairs WHERE branch_id = ? 
-                         AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
-                         AND (
-                             (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                             OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
-                             OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
-                         )";
-    $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
-    $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
-    
-    // 3. جلب أرباح عمليات الصيانة المرتبطة بالفرع
-    // ✅ إصلاح: تضمين الحالات الفارغة أو NULL إذا كان لديها delivery_date
-    $repairProfitsQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
-                           WHERE branch_id = ? 
-                           AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
-                           AND (
-                               (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                               OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
-                               OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
-                           )";
-    $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
-    $totalRepairProfits = floatval($repairProfitsResult['total'] ?? 0);
-    
-    // ✅ إذا كانت النتيجة 0، نتحقق باستخدام استعلام بديل أبسط (بدون فلترة التاريخ أولاً)
-    if ($totalRepairProfits == 0) {
-        // جلب إجمالي الأرباح بدون فلترة التاريخ للتحقق (بما في ذلك الحالات الفارغة مع delivery_date)
-        $altQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
-                     WHERE branch_id = ? 
-                     AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)";
-        $altResult = dbSelectOne($altQuery, [$branchId]);
-        $altTotal = floatval($altResult['total'] ?? 0);
-        
-        if ($altTotal > 0) {
-            error_log("⚠️ [Branch Treasury] يوجد {$altTotal} أرباح للفرع ولكن خارج الفترة المحددة ({$startDate} - {$endDate})");
-            
-            // محاولة استخدام استعلام أكثر مرونة - أي عملية تم تحديثها في الفترة
-            $flexibleQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
-                             WHERE branch_id = ? 
+    $totalRepairCosts = 0;
+    if ($isFirstBranch) {
+        // الفرع الأول: من جدول repairs مباشرة (النظام القديم)
+        $repairCostsQuery = "SELECT SUM(repair_cost) as total FROM repairs WHERE branch_id = ? 
                              AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
-                             AND (DATE(delivery_date) BETWEEN ? AND ? 
-                                  OR DATE(updated_at) BETWEEN ? AND ?
-                                  OR DATE(created_at) BETWEEN ? AND ?)";
-            $flexibleResult = dbSelectOne($flexibleQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
-            $flexibleTotal = floatval($flexibleResult['total'] ?? 0);
-            
-            if ($flexibleTotal > 0) {
-                $totalRepairProfits = $flexibleTotal;
-                error_log("✅ [Branch Treasury] تم استخدام استعلام مرن - الأرباح: {$flexibleTotal}");
+                             AND (
+                                 (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
+                                 OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
+                                 OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
+                             )";
+        $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
+        $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
+    } else {
+        // الفرع الثاني: من treasury_transactions فقط (يتم تسجيله عند تغيير الحالة إلى 'ready_for_delivery')
+        if (dbTableExists('treasury_transactions')) {
+            $repairCostsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
+                                 WHERE branch_id = ? AND transaction_type = 'repair_cost' 
+                                 AND DATE(created_at) BETWEEN ? AND ?";
+            $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate]);
+            $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
+            if ($totalRepairCosts === null) {
+                $totalRepairCosts = 0;
             }
         }
     }
     
-    // ✅ تسجيل للتحقق - جلب عدد العمليات للتحقق (بما في ذلك الحالات الفارغة مع delivery_date)
-    $countQuery = "SELECT COUNT(*) as count FROM repairs 
-                   WHERE branch_id = ? 
-                   AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
-                   AND (
-                       (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
-                       OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
-                       OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
-                   )";
-    $countResult = dbSelectOne($countQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
-    $repairsCount = intval($countResult['count'] ?? 0);
-    error_log("✅ [Branch Treasury] أرباح عمليات الصيانة للفرع {$branchId}: {$totalRepairProfits} (من {$startDate} إلى {$endDate}) - عدد العمليات: {$repairsCount}");
+    // 3. جلب أرباح عمليات الصيانة المرتبطة بالفرع
+    $totalRepairProfits = 0;
+    if ($isFirstBranch) {
+        // الفرع الأول: من جدول repairs مباشرة (النظام القديم)
+        $repairProfitsQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
+                               WHERE branch_id = ? 
+                               AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
+                               AND (
+                                   (delivery_date IS NOT NULL AND DATE(delivery_date) BETWEEN ? AND ?)
+                                   OR (delivery_date IS NULL AND updated_at IS NOT NULL AND DATE(updated_at) BETWEEN ? AND ?)
+                                   OR (delivery_date IS NULL AND updated_at IS NULL AND DATE(created_at) BETWEEN ? AND ?)
+                               )";
+        $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
+        $totalRepairProfits = floatval($repairProfitsResult['total'] ?? 0);
+        
+        // ✅ إذا كانت النتيجة 0، نتحقق باستخدام استعلام بديل أبسط (بدون فلترة التاريخ أولاً)
+        if ($totalRepairProfits == 0) {
+            $altQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
+                         WHERE branch_id = ? 
+                         AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)";
+            $altResult = dbSelectOne($altQuery, [$branchId]);
+            $altTotal = floatval($altResult['total'] ?? 0);
+            
+            if ($altTotal > 0) {
+                error_log("⚠️ [Branch Treasury] يوجد {$altTotal} أرباح للفرع ولكن خارج الفترة المحددة ({$startDate} - {$endDate})");
+                
+                $flexibleQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
+                                 WHERE branch_id = ? 
+                                 AND (status = 'delivered' OR (status IS NULL OR status = '' OR status = ' ') AND delivery_date IS NOT NULL)
+                                 AND (DATE(delivery_date) BETWEEN ? AND ? 
+                                      OR DATE(updated_at) BETWEEN ? AND ?
+                                      OR DATE(created_at) BETWEEN ? AND ?)";
+                $flexibleResult = dbSelectOne($flexibleQuery, [$branchId, $startDate, $endDate, $startDate, $endDate, $startDate, $endDate]);
+                $flexibleTotal = floatval($flexibleResult['total'] ?? 0);
+                
+                if ($flexibleTotal > 0) {
+                    $totalRepairProfits = $flexibleTotal;
+                    error_log("✅ [Branch Treasury] تم استخدام استعلام مرن - الأرباح: {$flexibleTotal}");
+                }
+            }
+        }
+    } else {
+        // الفرع الثاني: إيرادات = (إجمالي المدفوع مقدماً + إجمالي المتبقي)
+        // المدفوع مقدماً: يُحسب مباشرة من treasury_transactions (deposit - مبلغ مدفوع مقدماً)
+        // المتبقي: يُحسب من treasury_transactions (deposit - المبلغ المتبقي) لكن فقط للعملاء retail (ليس commercial)
+        $totalRepairProfits = 0;
+        
+        if (dbTableExists('treasury_transactions')) {
+            // 1. جلب المدفوع مقدماً (جميع العملاء)
+            $paidAmountQuery = "SELECT SUM(tt.amount) as total FROM treasury_transactions tt
+                               INNER JOIN repairs r ON tt.reference_id = r.id
+                               WHERE tt.branch_id = ? 
+                               AND tt.transaction_type = 'deposit'
+                               AND tt.reference_type = 'repair'
+                               AND tt.description LIKE '%مبلغ مدفوع مقدماً%'
+                               AND DATE(tt.created_at) BETWEEN ? AND ?";
+            $paidAmountResult = dbSelectOne($paidAmountQuery, [$branchId, $startDate, $endDate]);
+            $totalPaidAmount = floatval($paidAmountResult['total'] ?? 0);
+            if ($totalPaidAmount === null) {
+                $totalPaidAmount = 0;
+            }
+            
+            // 2. جلب المتبقي (فقط للعملاء retail - ليس commercial)
+            $remainingAmountQuery = "SELECT SUM(tt.amount) as total FROM treasury_transactions tt
+                                    INNER JOIN repairs r ON tt.reference_id = r.id
+                                    LEFT JOIN customers c ON r.customer_id = c.id
+                                    WHERE tt.branch_id = ? 
+                                    AND tt.transaction_type = 'deposit'
+                                    AND tt.reference_type = 'repair'
+                                    AND tt.description LIKE '%المبلغ المتبقي%'
+                                    AND (c.customer_type IS NULL OR c.customer_type = 'retail' OR c.customer_type != 'commercial')
+                                    AND DATE(tt.created_at) BETWEEN ? AND ?";
+            $remainingAmountResult = dbSelectOne($remainingAmountQuery, [$branchId, $startDate, $endDate]);
+            $totalRemainingAmount = floatval($remainingAmountResult['total'] ?? 0);
+            if ($totalRemainingAmount === null) {
+                $totalRemainingAmount = 0;
+            }
+            
+            // إجمالي الإيرادات = المدفوع مقدماً + المتبقي (لكن فقط من retail)
+            $totalRepairProfits = $totalPaidAmount + $totalRemainingAmount;
+        }
+    }
     
     // 4. جلب العمليات الخاسرة المرتبطة بالفرع
     // ملاحظة: جدول loss_operations لا يحتوي على branch_id حالياً
@@ -577,9 +620,16 @@ if ($method === 'GET') {
     }
     
     // حساب صافي رصيد الخزنة
-    // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإيداعات) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي السحوبات + إجمالي المرتجعات التالفة + إجمالي المرتجعات السليمة)
-    // قيمة إيجابية تعني ربح، قيمة سالبة تعني خسارة
-    $netBalance = ($totalRevenue + $totalDeposits) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
+    if ($isFirstBranch) {
+        // الفرع الأول: المعادلة القديمة (المحافظة على التوافق)
+        // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإيداعات) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي السحوبات + إجمالي المرتجعات التالفة + إجمالي المرتجعات السليمة)
+        $netBalance = ($totalRevenue + $totalDeposits) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
+    } else {
+        // الفرع الثاني: المعادلة الجديدة
+        // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإضافات + إجمالي تحصيلات الدين) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي المسحوبات + سحوبات من الخزنة)
+        // قيمة إيجابية تعني ربح، قيمة سالبة تعني خسارة
+        $netBalance = ($totalRevenue + $totalDeposits + $totalDebtCollections) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalSalaryWithdrawals + $totalTreasuryWithdrawals);
+    }
     
     $data = [
         'branch_id' => $branchId,

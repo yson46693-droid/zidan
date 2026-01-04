@@ -100,19 +100,77 @@ if ($method === 'POST') {
         $totalExpenses = floatval($expensesResult['total'] ?? 0);
         
         // 2. جلب تكاليف عمليات الصيانة
-        // ✅ تحسين: استخدام COALESCE للحصول على أول قيمة غير NULL لتحديد التاريخ المناسب للفلترة
-        $repairCostsQuery = "SELECT SUM(repair_cost) as total FROM repairs WHERE branch_id = ? AND status = 'delivered' 
-                             AND DATE(COALESCE(delivery_date, updated_at, created_at)) BETWEEN ? AND ?";
-        $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate]);
-        $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
+        $totalRepairCosts = 0;
+        if ($isFirstBranch) {
+            // الفرع الأول: من جدول repairs مباشرة (النظام القديم)
+            $repairCostsQuery = "SELECT SUM(repair_cost) as total FROM repairs WHERE branch_id = ? AND status = 'delivered' 
+                                 AND DATE(COALESCE(delivery_date, updated_at, created_at)) BETWEEN ? AND ?";
+            $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate]);
+            $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
+        } else {
+            // الفرع الثاني: من treasury_transactions فقط (يتم تسجيله عند تغيير الحالة إلى 'ready_for_delivery')
+            if (dbTableExists('treasury_transactions')) {
+                $repairCostsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
+                                     WHERE branch_id = ? AND transaction_type = 'repair_cost' 
+                                     AND DATE(created_at) BETWEEN ? AND ?";
+                $repairCostsResult = dbSelectOne($repairCostsQuery, [$branchId, $startDate, $endDate]);
+                $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
+                if ($totalRepairCosts === null) {
+                    $totalRepairCosts = 0;
+                }
+            }
+        }
         
         // 3. جلب أرباح عمليات الصيانة
-        // ✅ تحسين: استخدام COALESCE للحصول على أول قيمة غير NULL لتحديد التاريخ المناسب للفلترة
-        $repairProfitsQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
-                               WHERE branch_id = ? AND status = 'delivered' 
-                               AND DATE(COALESCE(delivery_date, updated_at, created_at)) BETWEEN ? AND ?";
-        $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate]);
-        $totalRepairProfits = floatval($repairProfitsResult['total'] ?? 0);
+        $totalRepairProfits = 0;
+        if ($isFirstBranch) {
+            // الفرع الأول: من جدول repairs مباشرة (النظام القديم)
+            $repairProfitsQuery = "SELECT SUM(customer_price - repair_cost) as total FROM repairs 
+                                   WHERE branch_id = ? AND status = 'delivered' 
+                                   AND DATE(COALESCE(delivery_date, updated_at, created_at)) BETWEEN ? AND ?";
+            $repairProfitsResult = dbSelectOne($repairProfitsQuery, [$branchId, $startDate, $endDate]);
+            $totalRepairProfits = floatval($repairProfitsResult['total'] ?? 0);
+        } else {
+            // الفرع الثاني: إيرادات = (إجمالي المدفوع مقدماً + إجمالي المتبقي)
+            // المدفوع مقدماً: يُحسب مباشرة من treasury_transactions (deposit - مبلغ مدفوع مقدماً)
+            // المتبقي: يُحسب من treasury_transactions (deposit - المبلغ المتبقي) لكن فقط للعملاء retail (ليس commercial)
+            $totalRepairProfits = 0;
+            
+            if (dbTableExists('treasury_transactions')) {
+                // 1. جلب المدفوع مقدماً (جميع العملاء)
+                $paidAmountQuery = "SELECT SUM(tt.amount) as total FROM treasury_transactions tt
+                                   INNER JOIN repairs r ON tt.reference_id = r.id
+                                   WHERE tt.branch_id = ? 
+                                   AND tt.transaction_type = 'deposit'
+                                   AND tt.reference_type = 'repair'
+                                   AND tt.description LIKE '%مبلغ مدفوع مقدماً%'
+                                   AND DATE(tt.created_at) BETWEEN ? AND ?";
+                $paidAmountResult = dbSelectOne($paidAmountQuery, [$branchId, $startDate, $endDate]);
+                $totalPaidAmount = floatval($paidAmountResult['total'] ?? 0);
+                if ($totalPaidAmount === null) {
+                    $totalPaidAmount = 0;
+                }
+                
+                // 2. جلب المتبقي (فقط للعملاء retail - ليس commercial)
+                $remainingAmountQuery = "SELECT SUM(tt.amount) as total FROM treasury_transactions tt
+                                        INNER JOIN repairs r ON tt.reference_id = r.id
+                                        LEFT JOIN customers c ON r.customer_id = c.id
+                                        WHERE tt.branch_id = ? 
+                                        AND tt.transaction_type = 'deposit'
+                                        AND tt.reference_type = 'repair'
+                                        AND tt.description LIKE '%المبلغ المتبقي%'
+                                        AND (c.customer_type IS NULL OR c.customer_type = 'retail' OR c.customer_type != 'commercial')
+                                        AND DATE(tt.created_at) BETWEEN ? AND ?";
+                $remainingAmountResult = dbSelectOne($remainingAmountQuery, [$branchId, $startDate, $endDate]);
+                $totalRemainingAmount = floatval($remainingAmountResult['total'] ?? 0);
+                if ($totalRemainingAmount === null) {
+                    $totalRemainingAmount = 0;
+                }
+                
+                // إجمالي الإيرادات = المدفوع مقدماً + المتبقي (لكن فقط من retail)
+                $totalRepairProfits = $totalPaidAmount + $totalRemainingAmount;
+            }
+        }
         
         // 4. جلب العمليات الخاسرة
         $lossQuery = "SELECT SUM(lo.loss_amount) as total 
@@ -125,19 +183,22 @@ if ($method === 'POST') {
             $totalLosses = 0;
         }
         
-        // 5. جلب السحوبات العادية من الخزنة (باستثناء المسحوبات/الخصومات من الرواتب)
-        // نستبعد المسحوبات من الرواتب لأننا سنجلبها مباشرة من salary_deductions
-        $withdrawalsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
-                              WHERE branch_id = ? AND transaction_type = 'withdrawal' 
-                              AND (reference_type IS NULL OR reference_type != 'salary_deduction')
-                              AND DATE(created_at) BETWEEN ? AND ?";
-        $withdrawalsResult = dbSelectOne($withdrawalsQuery, [$branchId, $startDate, $endDate]);
-        $totalWithdrawals = floatval($withdrawalsResult['total'] ?? 0);
-        if ($totalWithdrawals === null) {
-            $totalWithdrawals = 0;
+        // 5. جلب السحوبات من الخزنة (من نموذج سحب من الخزنة)
+        // هذه السحوبات من treasury_transactions (transaction_type = 'withdrawal' و reference_type != 'salary_deduction')
+        $treasuryWithdrawalsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
+                                     WHERE branch_id = ? AND transaction_type = 'withdrawal' 
+                                     AND (reference_type IS NULL OR reference_type != 'salary_deduction')
+                                     AND DATE(created_at) BETWEEN ? AND ?";
+        $treasuryWithdrawalsResult = dbSelectOne($treasuryWithdrawalsQuery, [$branchId, $startDate, $endDate]);
+        $totalTreasuryWithdrawals = floatval($treasuryWithdrawalsResult['total'] ?? 0);
+        if ($totalTreasuryWithdrawals === null) {
+            $totalTreasuryWithdrawals = 0;
         }
         
-        // 5.0.1. جلب المسحوبات فقط (type='withdrawal') من الرواتب مباشرة من salary_deductions
+        // إجمالي السحوبات = سحوبات الخزنة + مسحوبات الرواتب
+        $totalWithdrawals = $totalTreasuryWithdrawals;
+        
+        // 5.1. جلب المسحوبات فقط (type='withdrawal') من الرواتب مباشرة من salary_deductions
         // هذا يضمن حساب جميع المسحوبات حتى القديمة التي لم تُسجل في treasury_transactions
         $totalSalaryWithdrawals = 0;
         if (dbTableExists('salary_deductions')) {
@@ -160,10 +221,10 @@ if ($method === 'POST') {
             }
         }
         
-        // إضافة المسحوبات من الرواتب إلى إجمالي السحوبات
+        // إضافة المسحوبات من الرواتب إلى إجمالي السحوبات (لحساب صافي رصيد الخزنة)
         $totalWithdrawals += $totalSalaryWithdrawals;
         
-        // 5.1. جلب الإيداعات السابقة
+        // 5.1. جلب الإيداعات إلى الخزنة
         $depositsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
                           WHERE branch_id = ? AND transaction_type = 'deposit' 
                           AND DATE(created_at) BETWEEN ? AND ?";
@@ -171,6 +232,16 @@ if ($method === 'POST') {
         $totalDeposits = floatval($depositsResult['total'] ?? 0);
         if ($totalDeposits === null) {
             $totalDeposits = 0;
+        }
+        
+        // 5.2. جلب تحصيلات الدين من العملاء التجاريين
+        $debtCollectionsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
+                                 WHERE branch_id = ? AND transaction_type = 'debt_collection' 
+                                 AND DATE(created_at) BETWEEN ? AND ?";
+        $debtCollectionsResult = dbSelectOne($debtCollectionsQuery, [$branchId, $startDate, $endDate]);
+        $totalDebtCollections = floatval($debtCollectionsResult['total'] ?? 0);
+        if ($totalDebtCollections === null) {
+            $totalDebtCollections = 0;
         }
         
         // 5.2. جلب المرتجعات التالفة
@@ -320,9 +391,16 @@ if ($method === 'POST') {
         }
         
         // حساب صافي رصيد الخزنة الحالي (بدون السحب الجديد)
-        // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإيداعات) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي السحوبات + إجمالي المرتجعات التالفة + إجمالي المرتجعات السليمة)
-        // قيمة إيجابية تعني ربح، قيمة سالبة تعني خسارة
-        $currentNetBalance = ($totalRevenue + $totalDeposits) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
+        if ($isFirstBranch) {
+            // الفرع الأول: المعادلة القديمة (المحافظة على التوافق)
+            // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإيداعات) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي السحوبات + إجمالي المرتجعات التالفة + إجمالي المرتجعات السليمة)
+            $currentNetBalance = ($totalRevenue + $totalDeposits) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
+        } else {
+            // الفرع الثاني: المعادلة الجديدة
+            // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإضافات + إجمالي تحصيلات الدين) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي المسحوبات + سحوبات من الخزنة)
+            // قيمة إيجابية تعني ربح، قيمة سالبة تعني خسارة
+            $currentNetBalance = ($totalRevenue + $totalDeposits + $totalDebtCollections) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalSalaryWithdrawals + $totalTreasuryWithdrawals);
+        }
         
         // التحقق من أن الرصيد كافٍ للسحب (يجب أن يكون الرصيد أكبر أو يساوي المبلغ المطلوب سحبه)
         if ($currentNetBalance < $amount) {

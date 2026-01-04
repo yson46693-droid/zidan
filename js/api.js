@@ -258,7 +258,20 @@ const API = {
                 if (result.success) {
                     console.log('%c✅ نجح الطلب:', 'color: #4CAF50; font-weight: bold;', result);
                 } else {
-                    console.error('%c❌ فشل الطلب:', 'color: #f44336; font-weight: bold;', result);
+                    // ✅ إخفاء رسالة الخطأ للوظائف المعطلة (loss-operations.php)
+                    const isDisabledFeature = result.message && (
+                        result.message.includes('غير متاحة حالياً') ||
+                        result.message.includes('غير متاح')
+                    );
+                    
+                    if (!isDisabledFeature) {
+                        console.error('%c❌ فشل الطلب:', 'color: #f44336; font-weight: bold;', result);
+                    } else {
+                        // ✅ فقط log عادي بدون error للوظائف المعطلة
+                        if (window.location.search.includes('debug=true') || window.location.hostname === 'localhost') {
+                            console.log('%cℹ️ الوظيفة معطلة:', 'color: #9E9E9E; font-weight: normal;', result.message);
+                        }
+                    }
                 }
             } else {
                 console.warn('%c⚠️ الاستجابة لا تحتوي على success:', 'color: #ff9800; font-weight: bold;', result);

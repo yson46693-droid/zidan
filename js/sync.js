@@ -425,7 +425,15 @@ class SyncManager {
             }
             
             const result = await API.request('loss-operations.php', 'GET', null, { silent: true });
-            if (result.success) {
+            
+            // ✅ التحقق من أن الملف غير معطل (إذا كان success = false و message = 'هذه الوظيفة غير متاحة حالياً')
+            if (!result.success && result.message && result.message.includes('غير متاحة حالياً')) {
+                // الملف معطل - لا نطبع خطأ، فقط نستخدم cache إن وجد
+                console.log('[Sync] ملف loss-operations.php معطل - استخدام cache إن وجد');
+                return; // إرجاع فوري بدون معالجة
+            }
+            
+            if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
                 localStorage.setItem('loss_operations_cache', JSON.stringify(result.data));
                 localStorage.setItem(cacheKey, now.toString());
                 
@@ -453,6 +461,36 @@ class SyncManager {
                     const statusFilterElement = document.getElementById('statusFilter');
                     if (statusFilterElement && typeof filterRepairs === 'function') {
                         filterRepairs();
+                    }
+                }
+            } else if (result.success && (!result.data || result.data.length === 0)) {
+                // ✅ إذا كانت الاستجابة ناجحة لكن البيانات فارغة، نستخدم cache إن وجد
+                const cached = localStorage.getItem('loss_operations_cache');
+                if (cached) {
+                    try {
+                        const data = JSON.parse(cached);
+                        if (typeof allRepairs !== 'undefined' && data && data.length > 0) {
+                            const lossOperations = data.map(loss => ({
+                                id: loss.id,
+                                repair_number: loss.repair_number,
+                                customer_name: loss.customer_name,
+                                customer_phone: '',
+                                device_type: loss.device_type,
+                                device_model: '',
+                                problem: loss.problem,
+                                cost: loss.loss_amount,
+                                status: 'lost',
+                                created_by: '',
+                                created_at: loss.created_at,
+                                loss_reason: loss.loss_reason,
+                                loss_notes: loss.notes,
+                                is_loss_operation: true
+                            }));
+                            const existingRepairs = allRepairs.filter(r => !r.is_loss_operation);
+                            allRepairs = [...existingRepairs, ...lossOperations];
+                        }
+                    } catch (e) {
+                        // تجاهل خطأ parsing cache
                     }
                 }
             }

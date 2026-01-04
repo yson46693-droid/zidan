@@ -1080,8 +1080,10 @@ if ($method === 'PUT') {
         
         // ✅ إضافة المبلغ المتبقي إلى الخزنة عند تغيير الحالة إلى "delivered"
         // ✅ تسجيل المبلغ حسب نوع الفرع: repair_profit للفرع الأول، deposit للفرع الثاني
+        // ✅ للفرع الثاني: المبلغ المتبقي يُضاف للإيرادات فقط إذا كان العميل من نوع retail (محل)، وليس commercial (تجاري)
         if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
             $remainingAmount = floatval($updatedRepair['remaining_amount'] ?? 0);
+            $customerId = $updatedRepair['customer_id'] ?? null;
             
             if ($remainingAmount > 0 && $branchId && dbTableExists('treasury_transactions')) {
                 // تحديد نوع الفرع (الأول أو الثاني)
@@ -1089,36 +1091,48 @@ if ($method === 'PUT') {
                 $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
                 $isFirstBranch = $branch && $firstBranch && $branch['id'] === $firstBranch['id'];
                 
-                // تحديد نوع المعاملة: repair_profit للفرع الأول، deposit للفرع الثاني
-                $transactionType = $isFirstBranch ? 'repair_profit' : 'deposit';
-                $transactionTypeLabel = $isFirstBranch ? 'أرباح الصيانة' : 'إيرادات';
+                // للفرع الثاني: التحقق من نوع العميل - إذا كان commercial فلا يُضاف للإيرادات
+                $shouldAddToRevenue = true;
+                if (!$isFirstBranch && $customerId) {
+                    $customer = dbSelectOne("SELECT customer_type FROM customers WHERE id = ?", [$customerId]);
+                    if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial') {
+                        $shouldAddToRevenue = false;
+                        error_log("ℹ️ [Repairs API] المبلغ المتبقي ({$remainingAmount} ج.م) لا يُضاف للإيرادات للفرع الثاني لأن العميل تجاري (commercial) - العملية {$repairNumberText}");
+                    }
+                }
                 
-                // التحقق من عدم وجود معاملة مسجلة مسبقاً
-                $existingTransaction = dbSelectOne(
-                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = ? AND description LIKE ?",
-                    [$id, $transactionType, '%المبلغ المتبقي%']
-                );
-                
-                if (!$existingTransaction) {
-                    $session = checkAuth();
-                    $transactionId = generateId();
-                    $transactionDescription = "المبلغ المتبقي - عملية صيانة رقم: {$repairNumberText}";
+                if ($shouldAddToRevenue) {
+                    // تحديد نوع المعاملة: repair_profit للفرع الأول، deposit للفرع الثاني
+                    $transactionType = $isFirstBranch ? 'repair_profit' : 'deposit';
+                    $transactionTypeLabel = $isFirstBranch ? 'أرباح الصيانة' : 'إيرادات';
                     
-                    $transactionResult = dbExecute(
-                        "INSERT INTO treasury_transactions (
-                            id, branch_id, transaction_type, amount, description, 
-                            reference_id, reference_type, created_at, created_by
-                        ) VALUES (?, ?, ?, ?, ?, ?, 'repair', NOW(), ?)",
-                        [$transactionId, $branchId, $transactionType, $remainingAmount, $transactionDescription, $id, $session['user_id']]
+                    // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                    $existingTransaction = dbSelectOne(
+                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = ? AND description LIKE ?",
+                        [$id, $transactionType, '%المبلغ المتبقي%']
                     );
                     
-                    if ($transactionResult !== false) {
-                        error_log("✅ [Repairs API] تم إضافة المبلغ المتبقي ({$remainingAmount} ج.م) إلى الخزنة كـ {$transactionTypeLabel} للعملية {$repairNumberText}");
+                    if (!$existingTransaction) {
+                        $session = checkAuth();
+                        $transactionId = generateId();
+                        $transactionDescription = "المبلغ المتبقي - عملية صيانة رقم: {$repairNumberText}";
+                        
+                        $transactionResult = dbExecute(
+                            "INSERT INTO treasury_transactions (
+                                id, branch_id, transaction_type, amount, description, 
+                                reference_id, reference_type, created_at, created_by
+                            ) VALUES (?, ?, ?, ?, ?, ?, 'repair', NOW(), ?)",
+                            [$transactionId, $branchId, $transactionType, $remainingAmount, $transactionDescription, $id, $session['user_id']]
+                        );
+                        
+                        if ($transactionResult !== false) {
+                            error_log("✅ [Repairs API] تم إضافة المبلغ المتبقي ({$remainingAmount} ج.م) إلى الخزنة كـ {$transactionTypeLabel} للعملية {$repairNumberText}");
+                        } else {
+                            error_log("⚠️ [Repairs API] فشل إضافة المبلغ المتبقي إلى الخزنة");
+                        }
                     } else {
-                        error_log("⚠️ [Repairs API] فشل إضافة المبلغ المتبقي إلى الخزنة");
+                        error_log("ℹ️ [Repairs API] تم بالفعل إضافة المبلغ المتبقي للعملية {$repairNumberText}");
                     }
-                } else {
-                    error_log("ℹ️ [Repairs API] تم بالفعل إضافة المبلغ المتبقي للعملية {$repairNumberText}");
                 }
             }
         }
