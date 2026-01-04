@@ -2530,7 +2530,7 @@ body {
 .modal form {
     padding: 25px;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     flex: 1;
     min-height: 0;
     max-height: calc(90vh - 140px);
@@ -2541,7 +2541,8 @@ body {
 
 /* تحسين شريط التمرير لمتصفحات Webkit (Chrome, Safari, Edge) */
 .modal form::-webkit-scrollbar {
-    width: 10px;
+    width: 12px;
+    height: 12px;
 }
 
 .modal form::-webkit-scrollbar-track {
@@ -2556,6 +2557,21 @@ body {
 }
 
 .modal form::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
+
+/* شريط السحب الأفقي (السفلي) */
+.modal form::-webkit-scrollbar:horizontal {
+    height: 12px;
+}
+
+.modal form::-webkit-scrollbar-thumb:horizontal {
+    background: var(--primary-color);
+    border-radius: 10px;
+    border: 2px solid var(--light-bg);
+}
+
+.modal form::-webkit-scrollbar-thumb:horizontal:hover {
     background: var(--secondary-color);
 }
 

@@ -503,7 +503,8 @@ if ($method === 'GET') {
     if ($isFirstBranch) {
         $hasCustomerIdColumn = dbColumnExists('sales', 'customer_id');
         
-        $salesQuery = "SELECT s.id FROM sales s 
+        // ✅ إصلاح: جلب final_amount من جدول sales مباشرة (بعد خصم الخصم)
+        $salesQuery = "SELECT s.id, s.final_amount FROM sales s 
                        INNER JOIN users u ON s.created_by = u.id";
         if ($hasCustomerIdColumn) {
             $salesQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
@@ -525,6 +526,11 @@ if ($method === 'GET') {
         
         if ($sales !== false && is_array($sales)) {
             foreach ($sales as $sale) {
+                // ✅ إصلاح: استخدام final_amount من جدول sales (بعد خصم الخصم)
+                $finalAmount = floatval($sale['final_amount'] ?? 0);
+                $totalSalesRevenue += $finalAmount;
+                
+                // حساب التكلفة من sale_items (التكلفة لا تتأثر بالخصم)
                 $saleItems = dbSelect("SELECT * FROM sale_items WHERE sale_id = ?", [$sale['id']]);
                 
                 if ($saleItems !== false && is_array($saleItems)) {
@@ -532,9 +538,6 @@ if ($method === 'GET') {
                         $itemType = $item['item_type'] ?? '';
                         $itemId = $item['item_id'] ?? '';
                         $quantity = intval($item['quantity'] ?? 1);
-                        $unitPrice = floatval($item['unit_price'] ?? 0);
-                        
-                        $totalSalesRevenue += ($unitPrice * $quantity);
                         
                         // جلب سعر التكلفة
                         $purchasePrice = 0;
