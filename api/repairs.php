@@ -1079,14 +1079,24 @@ if ($method === 'PUT') {
         $repairNumberText = $updatedRepair['repair_number'] ?? $id;
         
         // ✅ إضافة المبلغ المتبقي إلى الخزنة عند تغيير الحالة إلى "delivered"
+        // ✅ تسجيل المبلغ حسب نوع الفرع: repair_profit للفرع الأول، deposit للفرع الثاني
         if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
             $remainingAmount = floatval($updatedRepair['remaining_amount'] ?? 0);
             
             if ($remainingAmount > 0 && $branchId && dbTableExists('treasury_transactions')) {
+                // تحديد نوع الفرع (الأول أو الثاني)
+                $branch = dbSelectOne("SELECT id, name, created_at FROM branches WHERE id = ?", [$branchId]);
+                $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
+                $isFirstBranch = $branch && $firstBranch && $branch['id'] === $firstBranch['id'];
+                
+                // تحديد نوع المعاملة: repair_profit للفرع الأول، deposit للفرع الثاني
+                $transactionType = $isFirstBranch ? 'repair_profit' : 'deposit';
+                $transactionTypeLabel = $isFirstBranch ? 'أرباح الصيانة' : 'إيرادات';
+                
                 // التحقق من عدم وجود معاملة مسجلة مسبقاً
                 $existingTransaction = dbSelectOne(
-                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'deposit' AND description LIKE ?",
-                    [$id, '%المبلغ المتبقي%']
+                    "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = ? AND description LIKE ?",
+                    [$id, $transactionType, '%المبلغ المتبقي%']
                 );
                 
                 if (!$existingTransaction) {
@@ -1098,15 +1108,17 @@ if ($method === 'PUT') {
                         "INSERT INTO treasury_transactions (
                             id, branch_id, transaction_type, amount, description, 
                             reference_id, reference_type, created_at, created_by
-                        ) VALUES (?, ?, 'deposit', ?, ?, ?, 'repair', NOW(), ?)",
-                        [$transactionId, $branchId, $remainingAmount, $transactionDescription, $id, $session['user_id']]
+                        ) VALUES (?, ?, ?, ?, ?, ?, 'repair', NOW(), ?)",
+                        [$transactionId, $branchId, $transactionType, $remainingAmount, $transactionDescription, $id, $session['user_id']]
                     );
                     
                     if ($transactionResult !== false) {
-                        error_log("✅ [Repairs API] تم إضافة المبلغ المتبقي ({$remainingAmount} ج.م) إلى الخزنة للعملية {$repairNumberText}");
+                        error_log("✅ [Repairs API] تم إضافة المبلغ المتبقي ({$remainingAmount} ج.م) إلى الخزنة كـ {$transactionTypeLabel} للعملية {$repairNumberText}");
                     } else {
                         error_log("⚠️ [Repairs API] فشل إضافة المبلغ المتبقي إلى الخزنة");
                     }
+                } else {
+                    error_log("ℹ️ [Repairs API] تم بالفعل إضافة المبلغ المتبقي للعملية {$repairNumberText}");
                 }
             }
         }
