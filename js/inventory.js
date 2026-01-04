@@ -2965,22 +2965,57 @@ function cropImageForCard(file, targetWidth = 400, targetHeight = 300, quality =
                             cropY = (sourceHeight - cropHeight) / 2;
                         }
                         
-                        // إنشاء canvas للاقتصاص
-                        const cropCanvas = document.createElement('canvas');
-                        cropCanvas.width = cropWidth;
-                        cropCanvas.height = cropHeight;
-                        const cropCtx = cropCanvas.getContext('2d');
-                        cropCtx.imageSmoothingEnabled = true;
-                        cropCtx.imageSmoothingQuality = 'high';
+                        // إنشاء canvas للصورة بعد التحويلات
+                        const rotatedCanvas = document.createElement('canvas');
+                        rotatedCanvas.width = sourceWidth;
+                        rotatedCanvas.height = sourceHeight;
+                        const rotatedCtx = rotatedCanvas.getContext('2d');
+                        rotatedCtx.imageSmoothingEnabled = true;
+                        rotatedCtx.imageSmoothingQuality = 'high';
                         
-                        // رسم الصورة مع الاقتصاص (قبل التدوير)
-                        cropCtx.drawImage(
-                            img,
-                            cropX, cropY, cropWidth, cropHeight,
-                            0, 0, cropWidth, cropHeight
-                        );
+                        // تطبيق التحويلات بناءً على اتجاه EXIF
+                        rotatedCtx.save();
                         
-                        // إنشاء canvas نهائي للتدوير والتحويلات
+                        switch (orientation) {
+                            case 2:
+                                rotatedCtx.translate(sourceWidth, 0);
+                                rotatedCtx.scale(-1, 1);
+                                break;
+                            case 3:
+                                rotatedCtx.translate(sourceWidth, sourceHeight);
+                                rotatedCtx.rotate(Math.PI);
+                                break;
+                            case 4:
+                                rotatedCtx.translate(0, sourceHeight);
+                                rotatedCtx.scale(1, -1);
+                                break;
+                            case 5:
+                                rotatedCtx.translate(sourceWidth, 0);
+                                rotatedCtx.rotate(Math.PI / 2);
+                                rotatedCtx.scale(-1, 1);
+                                break;
+                            case 6:
+                                rotatedCtx.translate(sourceWidth, 0);
+                                rotatedCtx.rotate(Math.PI / 2);
+                                break;
+                            case 7:
+                                rotatedCtx.translate(0, sourceHeight);
+                                rotatedCtx.rotate(-Math.PI / 2);
+                                rotatedCtx.scale(-1, 1);
+                                break;
+                            case 8:
+                                rotatedCtx.translate(0, sourceHeight);
+                                rotatedCtx.rotate(-Math.PI / 2);
+                                break;
+                            default:
+                                break;
+                        }
+                        
+                        // رسم الصورة الأصلية مع التحويلات
+                        rotatedCtx.drawImage(img, 0, 0);
+                        rotatedCtx.restore();
+                        
+                        // إنشاء canvas نهائي للاقتصاص
                         const finalCanvas = document.createElement('canvas');
                         finalCanvas.width = targetWidth;
                         finalCanvas.height = targetHeight;
@@ -2988,47 +3023,12 @@ function cropImageForCard(file, targetWidth = 400, targetHeight = 300, quality =
                         finalCtx.imageSmoothingEnabled = true;
                         finalCtx.imageSmoothingQuality = 'high';
                         
-                        // تطبيق التحويلات بناءً على اتجاه EXIF
-                        finalCtx.save();
-                        
-                        switch (orientation) {
-                            case 2:
-                                finalCtx.translate(targetWidth, 0);
-                                finalCtx.scale(-1, 1);
-                                break;
-                            case 3:
-                                finalCtx.translate(targetWidth, targetHeight);
-                                finalCtx.rotate(Math.PI);
-                                break;
-                            case 4:
-                                finalCtx.translate(0, targetHeight);
-                                finalCtx.scale(1, -1);
-                                break;
-                            case 5:
-                                finalCtx.translate(targetWidth, 0);
-                                finalCtx.rotate(Math.PI / 2);
-                                finalCtx.scale(-1, 1);
-                                break;
-                            case 6:
-                                finalCtx.translate(targetWidth, 0);
-                                finalCtx.rotate(Math.PI / 2);
-                                break;
-                            case 7:
-                                finalCtx.translate(0, targetHeight);
-                                finalCtx.rotate(-Math.PI / 2);
-                                finalCtx.scale(-1, 1);
-                                break;
-                            case 8:
-                                finalCtx.translate(0, targetHeight);
-                                finalCtx.rotate(-Math.PI / 2);
-                                break;
-                            default:
-                                break;
-                        }
-                        
-                        // رسم الصورة المقتطعة بعد التحويلات
-                        finalCtx.drawImage(cropCanvas, 0, 0, targetWidth, targetHeight);
-                        finalCtx.restore();
+                        // رسم الصورة المقتطعة
+                        finalCtx.drawImage(
+                            rotatedCanvas,
+                            cropX, cropY, cropWidth, cropHeight,
+                            0, 0, targetWidth, targetHeight
+                        );
                         
                         const cropped = finalCanvas.toDataURL('image/jpeg', quality);
                         resolve(cropped);
