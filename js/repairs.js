@@ -1597,22 +1597,43 @@ async function loadRepairs(force = false) {
         if (repairsResult.success) {
             let repairs = repairsResult.data || [];
             
-            // ✅ تحسين: فلترة إضافية محلية حسب branch_id (مطلوبة دائماً للمالك)
-            if (isOwner && branchId) {
-                const branchIdStr = String(branchId);
+            // ✅ فلترة قطعية حسب branch_id - منع ظهور عمليات من فروع أخرى
+            const branchIdStr = branchId ? String(branchId) : null;
+            if (branchIdStr) {
                 console.log('🔍 [Repairs] فلترة العمليات حسب branch_id:', branchIdStr);
                 console.log('📊 [Repairs] قبل الفلترة:', repairs.length);
                 
                 repairs = repairs.filter(repair => {
                     const repairBranchId = repair.branch_id ? String(repair.branch_id) : null;
                     const matches = repairBranchId === branchIdStr;
-                    if (!matches && repairBranchId) {
-                        console.log(`  ⏭️ [Repairs] تخطي عملية ${repair.id} (branch_id: ${repairBranchId} !== ${branchIdStr})`);
+                    if (!matches) {
+                        if (repairBranchId) {
+                            console.log(`  ⏭️ [Repairs] تخطي عملية ${repair.id} (branch_id: ${repairBranchId} !== ${branchIdStr})`);
+                        } else {
+                            console.log(`  ⏭️ [Repairs] تخطي عملية ${repair.id} (لا يوجد branch_id)`);
+                        }
                     }
                     return matches;
                 });
                 
                 console.log('📊 [Repairs] بعد الفلترة:', repairs.length);
+            } else if (isOwner) {
+                // ✅ للمالك: إذا لم يكن هناك branchId، لا نعرض أي عمليات
+                console.warn('⚠️ [Repairs] لا يمكن عرض العمليات بدون branch_id للمالك');
+                repairs = [];
+            } else {
+                // ✅ للمستخدمين العاديين: فلترة حسب فرعهم
+                const currentUser = getCurrentUser();
+                const userBranchId = currentUser && currentUser.branch_id ? String(currentUser.branch_id) : null;
+                if (userBranchId) {
+                    repairs = repairs.filter(repair => {
+                        const repairBranchId = repair.branch_id ? String(repair.branch_id) : null;
+                        return repairBranchId === userBranchId;
+                    });
+                } else {
+                    // ✅ إذا لم يكن للمستخدم فرع، لا نعرض أي عمليات
+                    repairs = [];
+                }
             }
             
             // ✅ تسجيل الحالات للتحقق من التحديث
@@ -1725,7 +1746,45 @@ function filterRepairs() {
     
     let filtered = allRepairs;
 
-    // فلترة حسب نوع الصيانة أولاً
+    // ✅ فلترة قطعية حسب branch_id - منع ظهور عمليات من فروع أخرى
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    let targetBranchId = null;
+    
+    if (isOwner) {
+        // للمالك: استخدام الفرع المحدد
+        const branchFilter = document.getElementById('repairBranchFilter');
+        if (branchFilter && branchFilter.value) {
+            targetBranchId = String(branchFilter.value);
+        } else if (selectedRepairBranchId) {
+            targetBranchId = String(selectedRepairBranchId);
+        } else if (repairFirstBranchId) {
+            targetBranchId = String(repairFirstBranchId);
+        }
+    } else {
+        // للمستخدمين العاديين: استخدام فرعهم
+        targetBranchId = currentUser && currentUser.branch_id ? String(currentUser.branch_id) : null;
+    }
+    
+    if (targetBranchId) {
+        filtered = filtered.filter(r => {
+            const repairBranchId = r.branch_id ? String(r.branch_id) : null;
+            if (repairBranchId !== targetBranchId) {
+                console.warn(`⚠️ [Repairs] فلترة: تخطي عملية ${r.id} (branch_id: ${repairBranchId} !== ${targetBranchId})`);
+                return false;
+            }
+            return true;
+        });
+    } else if (isOwner) {
+        // ✅ للمالك: إذا لم يكن هناك branchId، لا نعرض أي عمليات
+        console.warn('⚠️ [Repairs] فلترة: لا يمكن عرض العمليات بدون branch_id للمالك');
+        filtered = [];
+    } else {
+        // ✅ للمستخدمين العاديين: إذا لم يكن لهم فرع، لا نعرض أي عمليات
+        filtered = [];
+    }
+
+    // فلترة حسب نوع الصيانة
     filtered = filtered.filter(r => {
         return (r.repair_type || 'soft') === currentRepairType;
     });

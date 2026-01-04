@@ -5283,14 +5283,14 @@ body {
         box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
     }
     
-    /* الجداول - إخفاء الأعمدة (الحالة، الفني المستلم، التاريخ) على الهاتف */
-    #repairsTable thead th:nth-child(7),
-    #repairsTable thead th:nth-child(8),
-    #repairsTable thead th:nth-child(9),
-    #repairsTable tbody td:nth-child(7),
-    #repairsTable tbody td:nth-child(8),
-    #repairsTable tbody td:nth-child(9) {
-        display: none;
+    /* إخفاء جدول عمليات الصيانة بالكامل على الهواتف */
+    #repairsTable {
+        display: none !important;
+    }
+    
+    /* إخفاء حاوية الجدول في قسم الصيانة على الهواتف */
+    #repairs-section .table-container {
+        display: none !important;
     }
     
     /* الجداول */

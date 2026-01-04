@@ -253,18 +253,28 @@ if ($method === 'GET') {
     // فلترة حسب الفرع (فقط إذا لم يكن هناك repair_number - للداشبورد)
     if (!$isPublicTracking) {
         if ($userRole === 'admin') {
-            // المالك: يمكنه فلترة حسب branch_id من query parameter
+            // ✅ المالك: يجب تمرير branch_id دائماً - منع عرض عمليات من فروع أخرى
             $filterBranchId = $_GET['branch_id'] ?? null;
             if ($filterBranchId && $filterBranchId !== '') {
                 $query .= " AND r.branch_id = ?";
                 $params[] = $filterBranchId;
+            } else {
+                // ✅ إذا لم يتم تمرير branch_id للمالك، نرفض الطلب لمنع عرض جميع العمليات
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'يجب تحديد branch_id لعرض عمليات الصيانة'
+                ]);
+                exit;
             }
-            // إذا لم يتم تمرير branch_id، عرض جميع العمليات
         } else {
             // المستخدم العادي: فلترة تلقائية حسب فرعه
             if ($userBranchId) {
                 $query .= " AND r.branch_id = ?";
                 $params[] = $userBranchId;
+            } else {
+                // ✅ إذا لم يكن للمستخدم فرع، لا نعرض أي عمليات
+                $query .= " AND 1=0"; // شرط مستحيل - لا يعرض أي عمليات
             }
         }
     }
