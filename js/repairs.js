@@ -3084,6 +3084,7 @@ async function saveRepair(event) {
                 showMessage('حقل تكلفة الكشف مطلوب', 'error');
                 return;
             }
+            // ✅ للعمليات الملغاة: لا نرسل أي حقول أخرى
         } else {
             // ✅ الحقول القابلة للتعديل فقط:
             // 1. الفني المستلم
@@ -3108,38 +3109,38 @@ async function saveRepair(event) {
             if (inspectionCostInput) {
                 repairData.inspection_cost = inspectionCostInput.value ? parseFloat(inspectionCostInput.value) : 0;
             }
-        }
-        
-        // 5. اسم محل قطع الغيار - إرساله دائماً (حتى لو فارغ)
-        const partsStore = document.getElementById('partsStore').value.trim();
-        repairData.parts_store = partsStore || '';
-        
-        // 5. أرقام فواتير قطع الغيار - إرسالها دائماً
-        const sparePartsInvoices = getSparePartsInvoices();
-        repairData.spare_parts_invoices = (sparePartsInvoices && sparePartsInvoices.length > 0) ? sparePartsInvoices : [];
-        
-        // 6. تاريخ التسليم - إرساله دائماً (حتى لو فارغ)
-        const deliveryDate = document.getElementById('deliveryDate').value;
-        repairData.delivery_date = deliveryDate || null;
-        
-        // 7. الحالة (مهم جداً!) - إرسالها دائماً
-        const statusSelect = document.getElementById('status');
-        if (statusSelect && statusSelect.value) {
-            repairData.status = statusSelect.value;
-        } else {
-            // ✅ إرسال حالة افتراضية إذا لم يتم تحديدها
-            repairData.status = 'received';
-        }
-        console.log('✅ [Repairs] إرسال الحالة للتحديث:', repairData.status);
-        
-        // 8. Serial Number - إرساله دائماً (حتى لو فارغ)
-        const serialNumber = document.getElementById('serialNumber').value.trim();
-        repairData.serial_number = serialNumber || '';
-        
-        // 9. تقرير الفحص - إرساله دائماً (حتى لو فارغ)
-        const inspectionReportField = document.getElementById('inspectionReport');
-        if (inspectionReportField) {
-            repairData.inspection_report = inspectionReportField.value.trim() || null;
+            
+            // 5. اسم محل قطع الغيار - إرساله دائماً (حتى لو فارغ)
+            const partsStore = document.getElementById('partsStore').value.trim();
+            repairData.parts_store = partsStore || '';
+            
+            // 5. أرقام فواتير قطع الغيار - إرسالها دائماً
+            const sparePartsInvoices = getSparePartsInvoices();
+            repairData.spare_parts_invoices = (sparePartsInvoices && sparePartsInvoices.length > 0) ? sparePartsInvoices : [];
+            
+            // 6. تاريخ التسليم - إرساله دائماً (حتى لو فارغ)
+            const deliveryDate = document.getElementById('deliveryDate').value;
+            repairData.delivery_date = deliveryDate || null;
+            
+            // 7. الحالة (مهم جداً!) - إرسالها دائماً
+            const statusSelect = document.getElementById('status');
+            if (statusSelect && statusSelect.value) {
+                repairData.status = statusSelect.value;
+            } else {
+                // ✅ إرسال حالة افتراضية إذا لم يتم تحديدها
+                repairData.status = 'received';
+            }
+            console.log('✅ [Repairs] إرسال الحالة للتحديث:', repairData.status);
+            
+            // 8. Serial Number - إرساله دائماً (حتى لو فارغ)
+            const serialNumber = document.getElementById('serialNumber').value.trim();
+            repairData.serial_number = serialNumber || '';
+            
+            // 9. تقرير الفحص - إرساله دائماً (حتى لو فارغ)
+            const inspectionReportField = document.getElementById('inspectionReport');
+            if (inspectionReportField) {
+                repairData.inspection_report = inspectionReportField.value.trim() || null;
+            }
         }
         
         // ✅ التحقق من تغيير الحالة إلى "delivered" أو "cancelled" لطلب التقييم
