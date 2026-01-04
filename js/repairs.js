@@ -2129,9 +2129,20 @@ function toggleActionsDropdown(event, repairId) {
         // تبديل حالة القائمة الحالية
         if (menu.classList.contains('show')) {
             menu.classList.remove('show');
+            // ✅ إعادة القائمة إلى مكانها الأصلي إذا كانت في body
+            if (menu._originalParent && menu.parentElement === document.body) {
+                try {
+                    menu._originalParent.appendChild(menu);
+                    delete menu._originalParent;
+                    delete menu.dataset.originalParent;
+                } catch (error) {
+                    console.warn('تعذر إعادة القائمة إلى مكانها الأصلي:', error);
+                }
+            }
             // ✅ إعادة تعيين جميع الأنماط عند الإغلاق
             menu.style.position = '';
             menu.style.top = '';
+            menu.style.bottom = '';
             menu.style.right = '';
             menu.style.left = '';
             menu.style.zIndex = '';
@@ -2139,11 +2150,30 @@ function toggleActionsDropdown(event, repairId) {
             menu.style.overflowY = '';
             menu.style.visibility = '';
             menu.style.display = '';
+            menu.style.width = '';
         } else {
             // ✅ إصلاح: استخدام fixed positioning دائماً مع التحقق من حدود الشاشة
             const dropdown = menu.closest('.actions-dropdown');
             
             if (dropdown) {
+                // ✅ حفظ المرجع الأصلي للقائمة قبل نقلها
+                if (!menu.dataset.originalParent) {
+                    // حفظ العنصر الأصلي مباشرة في dataset
+                    const originalParent = menu.parentElement;
+                    if (originalParent) {
+                        menu.dataset.originalParent = originalParent.id || 
+                            originalParent.className.split(' ')[0] || 
+                            'actions-dropdown';
+                        // حفظ مرجع إضافي للعنصر الأصلي
+                        menu._originalParent = originalParent;
+                    }
+                }
+                
+                // ✅ نقل القائمة إلى body لتجنب مشاكل overflow في الحاويات
+                if (menu.parentElement !== document.body) {
+                    document.body.appendChild(menu);
+                }
+                
                 // ✅ إعادة تعيين جميع الأنماط أولاً لضمان عدم وجود قيم قديمة
                 menu.style.position = '';
                 menu.style.top = '';
@@ -2155,6 +2185,7 @@ function toggleActionsDropdown(event, repairId) {
                 menu.style.overflowY = '';
                 menu.style.visibility = '';
                 menu.style.display = '';
+                menu.style.width = '';
                 
                 // حساب الموضع باستخدام fixed positioning
                 const dropdownRect = dropdown.getBoundingClientRect();
@@ -2164,6 +2195,9 @@ function toggleActionsDropdown(event, repairId) {
                 menu.style.visibility = 'hidden';
                 menu.style.display = 'block';
                 menu.style.position = 'fixed';
+                // ✅ الحفاظ على العرض الأصلي للقائمة
+                const originalWidth = menu.offsetWidth || 220;
+                menu.style.width = originalWidth + 'px';
                 const menuRect = menu.getBoundingClientRect();
                 const menuWidth = menuRect.width || 220;
                 const menuHeight = menuRect.height || 300;
@@ -2182,26 +2216,57 @@ function toggleActionsDropdown(event, repairId) {
                     menu.style.left = 'auto';
                 }
                 
-                // ✅ حساب الموضع العمودي - فتح القائمة إلى الأعلى دائماً
-                let topPosition = dropdownRect.top - menuHeight - 5;
+                // ✅ إصلاح: حساب الموضع العمودي - اختيار الاتجاه بناءً على المساحة المتاحة
+                const spaceAbove = dropdownRect.top - padding;
+                const spaceBelow = window.innerHeight - dropdownRect.bottom - padding;
+                const gap = 5; // المسافة بين الزر والقائمة
                 
-                // التأكد من أن القائمة لا تخرج من الأعلى
-                if (topPosition < padding) {
-                    // إذا لم يكن هناك مساحة كافية في الأعلى، نضعها في أعلى الشاشة
-                    topPosition = padding;
+                let topPosition;
+                let maxHeight;
+                
+                // اختيار الاتجاه بناءً على المساحة المتاحة
+                if (spaceBelow >= menuHeight || spaceBelow >= spaceAbove) {
+                    // ✅ فتح القائمة للأسفل إذا كانت المساحة كافية أو أكبر من الأعلى
+                    topPosition = dropdownRect.bottom + gap;
+                    const availableHeight = window.innerHeight - topPosition - padding;
+                    maxHeight = Math.min(menuHeight, availableHeight);
+                    menu.style.top = topPosition + 'px';
+                    menu.style.bottom = 'auto';
+                } else {
+                    // ✅ فتح القائمة للأعلى إذا كانت المساحة في الأعلى أكبر
+                    topPosition = dropdownRect.top - menuHeight - gap;
+                    
+                    // التأكد من أن القائمة لا تخرج من الأعلى
+                    if (topPosition < padding) {
+                        topPosition = padding;
+                    }
+                    
+                    const availableHeight = dropdownRect.top - topPosition - gap;
+                    maxHeight = Math.min(menuHeight, availableHeight);
+                    menu.style.top = topPosition + 'px';
+                    menu.style.bottom = 'auto';
                 }
                 
                 // ✅ تطبيق الموضع بشكل صريح
                 menu.style.position = 'fixed';
-                menu.style.top = topPosition + 'px';
-                menu.style.bottom = 'auto'; // ✅ التأكد من إزالة bottom
                 menu.style.zIndex = '10001';
-                // ✅ حساب max-height بناءً على المساحة المتاحة في الأعلى
-                const availableHeight = dropdownRect.top - padding;
-                menu.style.maxHeight = Math.min(menuHeight, availableHeight) + 'px';
-                menu.style.overflowY = 'auto';
+                menu.style.maxHeight = maxHeight + 'px';
+                menu.style.overflowY = maxHeight < menuHeight ? 'auto' : 'visible';
             } else {
                 // Fallback: إذا لم يتم العثور على dropdown
+                // ✅ نقل القائمة إلى body حتى في حالة fallback
+                if (menu.parentElement !== document.body) {
+                    if (!menu.dataset.originalParent) {
+                        const originalParent = menu.parentElement;
+                        if (originalParent) {
+                            menu.dataset.originalParent = originalParent.id || 
+                                originalParent.className.split(' ')[0] || 
+                                'actions-dropdown';
+                            menu._originalParent = originalParent;
+                        }
+                    }
+                    document.body.appendChild(menu);
+                }
                 menu.style.position = 'fixed';
                 menu.style.top = '50%';
                 menu.style.right = '50%';
@@ -2234,9 +2299,20 @@ function closeAllActionsDropdowns(exceptMenuId = null) {
                 return; // عدم إغلاق القائمة المحددة
             }
             menu.classList.remove('show');
+            // ✅ إعادة القائمة إلى مكانها الأصلي إذا كانت في body
+            if (menu._originalParent && menu.parentElement === document.body) {
+                try {
+                    menu._originalParent.appendChild(menu);
+                    delete menu._originalParent;
+                    delete menu.dataset.originalParent;
+                } catch (error) {
+                    console.warn('تعذر إعادة القائمة إلى مكانها الأصلي:', error);
+                }
+            }
             // ✅ إعادة تعيين جميع الأنماط عند الإغلاق
             menu.style.position = '';
             menu.style.top = '';
+            menu.style.bottom = '';
             menu.style.right = '';
             menu.style.left = '';
             menu.style.zIndex = '';
@@ -2244,6 +2320,7 @@ function closeAllActionsDropdowns(exceptMenuId = null) {
             menu.style.overflowY = '';
             menu.style.visibility = '';
             menu.style.display = '';
+            menu.style.width = '';
         });
     } catch (error) {
         console.error('خطأ في إغلاق القوائم المنسدلة:', error);
