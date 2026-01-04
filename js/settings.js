@@ -1660,6 +1660,28 @@ async function showAddUserModal() {
     }
 }
 
+// ✅ دالة لتعديل المستخدم - تستدعي نموذج تغيير كلمة المرور
+async function showEditUserModal(userId) {
+    try {
+        // التحقق من الصلاحية
+        if (!hasPermission('admin')) {
+            showMessage('ليس لديك صلاحية لتعديل المستخدمين. يجب أن تكون مالك (admin) للوصول إلى هذه الميزة.', 'error');
+            return;
+        }
+        
+        if (!userId) {
+            showMessage('خطأ: معرف المستخدم غير موجود', 'error');
+            return;
+        }
+        
+        // استدعاء نموذج تغيير كلمة المرور
+        await showChangePasswordModal(userId);
+    } catch (error) {
+        console.error('خطأ في showEditUserModal:', error);
+        showMessage('حدث خطأ أثناء فتح نموذج تعديل المستخدم: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
 // ✅ نموذج منفصل لتغيير كلمة المرور - يحتوي فقط على حقل كلمة المرور
 async function showChangePasswordModal(userId) {
     try {

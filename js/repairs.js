@@ -1785,6 +1785,10 @@ function displayRepairs(repairs) {
         return;
     }
 
+    // ✅ التحقق من صلاحيات المستخدم (مالك)
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+
     tbody.innerHTML = paginated.data.map(repair => {
         // ✅ إصلاح: التأكد من وجود حالة افتراضية
         const repairStatus = repair.status || 'received';
@@ -1794,6 +1798,9 @@ function displayRepairs(repairs) {
         
         // ✅ إصلاح: استخدام customer_price بدلاً من cost
         const repairCost = repair.customer_price || repair.cost || 0;
+        
+        // ✅ التحقق من إمكانية التعديل: يمكن التعديل فقط إذا لم تكن الحالة "cancelled" أو "delivered"، أو إذا كان المستخدم مالك
+        const canEdit = isOwner || (repairStatus !== 'cancelled' && repairStatus !== 'delivered');
         
         // قائمة الإجراءات المنسدلة
         const deleteButtonHTML = hasPermission('manager') ? `
@@ -1835,7 +1842,7 @@ function displayRepairs(repairs) {
                             <span class="actions-dropdown-item-desc">إرسال رابط متابعة العملية للعميل</span>
                         </div>
                     </div>
-                    ${repairStatus !== 'cancelled' ? `
+                    ${canEdit ? `
                     <div class="actions-dropdown-item" onclick="editRepair('${repair.id}'); closeActionsDropdown(event);">
                         <i class="bi bi-pencil-square"></i>
                         <div class="actions-dropdown-item-text">
@@ -3111,6 +3118,15 @@ async function saveRepair(event) {
             repairData.inspection_report = inspectionReportField.value.trim() || null;
         }
         
+        // ✅ التحقق من تغيير الحالة إلى "delivered" أو "cancelled" لطلب التقييم
+        const currentRepair = allRepairs.find(r => r.id === repairId);
+        const oldStatus = currentRepair ? currentRepair.status : null;
+        const newStatus = repairData.status;
+        const shouldRequestRating = (newStatus === 'delivered' || newStatus === 'cancelled') && 
+                                    oldStatus !== newStatus && 
+                                    currentRepair && 
+                                    currentRepair.customer_id;
+        
         // ✅ إرسال التعديلات
         console.log('✅ [Repairs] بيانات التعديل المرسلة:', repairData);
         const result = await API.updateRepair(repairData);
@@ -3129,6 +3145,13 @@ async function saveRepair(event) {
             isLoadingRepairs = false;
             lastRepairsLoadTime = 0;
             await loadRepairs(true);
+            
+            // ✅ طلب التقييم إذا تم تغيير الحالة إلى "delivered" أو "cancelled"
+            if (shouldRequestRating && currentRepair.customer_id) {
+                setTimeout(() => {
+                    showRepairRatingModal(currentRepair.customer_id, repairId, currentRepair.repair_number || '');
+                }, 500); // تأخير بسيط لإغلاق النافذة أولاً
+            }
             
             // تحديث لوحة التحكم
             if (typeof loadDashboardData === 'function') {
@@ -3776,6 +3799,231 @@ function getRepairStatusText(status) {
     return statusMap[status] || status;
 }
 
+// ✅ عرض نافذة التقييم للصيانة
+function showRepairRatingModal(customerId, repairId, repairNumber) {
+    try {
+        // التحقق من صحة customerId
+        if (!customerId || customerId === 'undefined' || customerId === 'null' || String(customerId).trim() === '') {
+            console.warn('showRepairRatingModal: customerId غير صحيح، سيتم تخطي عرض modal التقييم');
+            return;
+        }
+        
+        // إزالة أي modals موجودة مسبقاً
+        const existingRatingModals = document.querySelectorAll('.modal[data-repair-rating-modal]');
+        existingRatingModals.forEach(m => m.remove());
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.setAttribute('data-repair-rating-modal', 'true');
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 20000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 480px; width: 90%; max-height: 90vh; background: var(--white); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: slideUp 0.4s ease; display: flex; flex-direction: column;">
+                <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: var(--white); padding: 25px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: none; flex-shrink: 0;">
+                    <h3 style="margin: 0; font-size: 1.5em; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                        <i class="bi bi-star-fill" style="font-size: 1.3em;"></i> تقييم العميل
+                    </h3>
+                    <button onclick="this.closest('.modal').remove()" class="btn-close" style="background: rgba(255,255,255,0.2); border: none; color: var(--white); font-size: 2em; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; line-height: 1;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='rotate(90deg)';" onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='rotate(0deg)';">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 40px 30px; text-align: center; overflow-y: auto; flex: 1; min-height: 0;">
+                    <div style="margin-bottom: 10px;">
+                        <i class="bi bi-emoji-smile" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block; animation: bounce 2s infinite;"></i>
+                        <h4 style="margin: 0 0 10px 0; color: var(--text-dark); font-size: 1.3em; font-weight: 600;">
+                            كيف تقيم هذا العميل؟
+                        </h4>
+                        <p style="margin: 0; color: var(--text-light); font-size: 0.95em;">
+                            شاركنا تقييمك للعميل لمساعدتنا على التحسين
+                        </p>
+                    </div>
+                    
+                    <div id="repairRatingStarsContainer" style="display: flex; justify-content: center; gap: 10px; font-size: 45px; margin: 35px 0; padding: 20px 0;">
+                        <i class="bi bi-star" data-rating="1" style="cursor: pointer; color: var(--border-color); transition: all 0.3s ease; user-select: none;" 
+                           onmouseover="highlightRepairRatingStars(this, 1)" 
+                           onmouseout="resetRepairRatingStars(this)" 
+                           onclick="selectRepairRatingStar(this, 1, '${customerId}', '${repairId}', '${repairNumber}')"></i>
+                        <i class="bi bi-star" data-rating="2" style="cursor: pointer; color: var(--border-color); transition: all 0.3s ease; user-select: none;" 
+                           onmouseover="highlightRepairRatingStars(this, 2)" 
+                           onmouseout="resetRepairRatingStars(this)" 
+                           onclick="selectRepairRatingStar(this, 2, '${customerId}', '${repairId}', '${repairNumber}')"></i>
+                        <i class="bi bi-star" data-rating="3" style="cursor: pointer; color: var(--border-color); transition: all 0.3s ease; user-select: none;" 
+                           onmouseover="highlightRepairRatingStars(this, 3)" 
+                           onmouseout="resetRepairRatingStars(this)" 
+                           onclick="selectRepairRatingStar(this, 3, '${customerId}', '${repairId}', '${repairNumber}')"></i>
+                        <i class="bi bi-star" data-rating="4" style="cursor: pointer; color: var(--border-color); transition: all 0.3s ease; user-select: none;" 
+                           onmouseover="highlightRepairRatingStars(this, 4)" 
+                           onmouseout="resetRepairRatingStars(this)" 
+                           onclick="selectRepairRatingStar(this, 4, '${customerId}', '${repairId}', '${repairNumber}')"></i>
+                        <i class="bi bi-star" data-rating="5" style="cursor: pointer; color: var(--border-color); transition: all 0.3s ease; user-select: none;" 
+                           onmouseover="highlightRepairRatingStars(this, 5)" 
+                           onmouseout="resetRepairRatingStars(this)" 
+                           onclick="selectRepairRatingStar(this, 5, '${customerId}', '${repairId}', '${repairNumber}')"></i>
+                    </div>
+                    
+                    <div id="repairRatingFeedback" style="min-height: 30px; margin-top: 20px;">
+                        <p style="text-align: center; color: var(--text-light); font-size: 14px; margin: 0;">اختر من <strong style="color: var(--primary-color);">1</strong> إلى <strong style="color: var(--primary-color);">5</strong> نجوم</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // إغلاق عند الضغط خارج الـ modal
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في عرض نافذة التقييم:', error);
+    }
+}
+
+// تحديد نجمة التقييم في الصيانة
+function selectRepairRatingStar(element, rating, customerId, repairId, repairNumber) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    const feedbackDiv = document.getElementById('repairRatingFeedback');
+    
+    // Update feedback text based on rating
+    const feedbackTexts = {
+        1: '<p style="color: var(--danger-color); font-weight: 600; margin: 0;">رديء جداً 😞</p>',
+        2: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">رديء 😐</p>',
+        3: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">متوسط 🙂</p>',
+        4: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">جيد جداً 😊</p>',
+        5: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">ممتاز 😍</p>'
+    };
+    
+    if (feedbackDiv) {
+        feedbackDiv.innerHTML = feedbackTexts[rating] || '';
+    }
+    
+    stars.forEach((star, index) => {
+        const starRating = parseInt(star.dataset.rating);
+        if (starRating <= rating) {
+            star.className = 'bi bi-star-fill';
+            star.style.color = rating <= 2 ? 'var(--danger-color)' : rating <= 3 ? 'var(--warning-color)' : 'var(--success-color)';
+            star.style.filter = `drop-shadow(0 4px 8px ${rating <= 2 ? 'rgba(244, 67, 54, 0.4)' : rating <= 3 ? 'rgba(255, 165, 0, 0.4)' : 'rgba(76, 175, 80, 0.4)'})`;
+            star.style.transform = 'scale(1.2)';
+            
+            // Add animation delay for each star
+            setTimeout(() => {
+                star.style.transform = 'scale(1.1)';
+            }, 100 * (index + 1));
+        } else {
+            star.className = 'bi bi-star';
+            star.style.color = 'var(--border-color)';
+            star.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
+            star.style.transform = 'scale(1)';
+        }
+        star.style.pointerEvents = 'none'; // منع النقر بعد الاختيار
+        star.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+    });
+    
+    // حفظ التقييم بعد تأخير بسيط للسماح بالرسوم المتحركة
+    setTimeout(() => {
+        saveRepairRating(customerId, repairId, repairNumber, rating, container);
+    }, 300);
+}
+
+// تمييز النجوم عند المرور بالماوس في الصيانة
+function highlightRepairRatingStars(element, rating) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    const feedbackDiv = document.getElementById('repairRatingFeedback');
+    
+    // Show preview feedback
+    const feedbackTexts = {
+        1: '<p style="color: var(--danger-color); font-weight: 600; margin: 0;">رديء جداً 😞</p>',
+        2: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">رديء 😐</p>',
+        3: '<p style="color: var(--warning-color); font-weight: 600; margin: 0;">متوسط 🙂</p>',
+        4: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">جيد جداً 😊</p>',
+        5: '<p style="color: var(--success-color); font-weight: 600; margin: 0;">ممتاز 😍</p>'
+    };
+    
+    if (feedbackDiv && !container.querySelector('.bi-star-fill')) {
+        feedbackDiv.innerHTML = feedbackTexts[rating] || '<p style="text-align: center; color: var(--text-light); font-size: 14px; margin: 0;">اختر من <strong style="color: var(--primary-color);">1</strong> إلى <strong style="color: var(--primary-color);">5</strong> نجوم</p>';
+    }
+    
+    stars.forEach((star) => {
+        const starRating = parseInt(star.dataset.rating);
+        if (starRating <= rating && star.className !== 'bi bi-star-fill') {
+            star.style.color = rating <= 2 ? 'var(--danger-color)' : rating <= 3 ? 'var(--warning-color)' : 'var(--success-color)';
+            star.style.transform = 'scale(1.25)';
+            star.style.filter = `drop-shadow(0 4px 8px ${rating <= 2 ? 'rgba(244, 67, 54, 0.3)' : rating <= 3 ? 'rgba(255, 165, 0, 0.3)' : 'rgba(76, 175, 80, 0.3)'})`;
+        }
+    });
+}
+
+// إعادة تعيين النجوم في الصيانة
+function resetRepairRatingStars(element) {
+    const container = element.parentElement;
+    const stars = container.querySelectorAll('[data-rating]');
+    const feedbackDiv = document.getElementById('repairRatingFeedback');
+    const hasSelectedStars = container.querySelector('.bi-star-fill');
+    
+    if (!hasSelectedStars) {
+        stars.forEach((star) => {
+            if (star.className !== 'bi bi-star-fill') {
+                star.style.color = 'var(--border-color)';
+                star.style.transform = 'scale(1)';
+                star.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))';
+            }
+        });
+        
+        if (feedbackDiv) {
+            feedbackDiv.innerHTML = '<p style="text-align: center; color: var(--text-light); font-size: 14px; margin: 0;">اختر من <strong style="color: var(--primary-color);">1</strong> إلى <strong style="color: var(--primary-color);">5</strong> نجوم</p>';
+        }
+    }
+}
+
+// حفظ التقييم في الصيانة
+async function saveRepairRating(customerId, repairId, repairNumber, rating, starsContainer) {
+    try {
+        // حفظ التقييم كتقييم معاملة (transaction rating) للعميل
+        const result = await API.saveCustomerRating(customerId, null, rating);
+        
+        if (result && result.success) {
+            // Show success animation
+            const feedbackDiv = document.getElementById('repairRatingFeedback');
+            if (feedbackDiv) {
+                feedbackDiv.innerHTML = '<p style="color: var(--success-color); font-weight: 600; margin: 0; animation: fadeIn 0.3s ease;"><i class="bi bi-check-circle"></i> شكراً لك! تم حفظ التقييم بنجاح</p>';
+            }
+            
+            showMessage('تم حفظ تقييم العميل بنجاح', 'success');
+            
+            // إغلاق modal بعد ثانية ونصف للسماح برؤية رسالة النجاح
+            setTimeout(() => {
+                const modal = starsContainer.closest('.modal');
+                if (modal) {
+                    modal.style.opacity = '0';
+                    modal.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        modal.remove();
+                    }, 300);
+                }
+            }, 1500);
+        } else {
+            const errorMsg = result?.message || 'خطأ غير معروف';
+            showMessage(`❌ فشل حفظ التقييم: ${errorMsg}.`, 'error');
+            // إعادة تفعيل النجوم في حالة الخطأ
+            const stars = starsContainer.querySelectorAll('[data-rating]');
+            stars.forEach(star => {
+                star.style.pointerEvents = 'auto';
+            });
+        }
+    } catch (error) {
+        console.error('خطأ في حفظ التقييم:', error);
+        const errorMessage = error?.message || 'خطأ غير معروف';
+        showMessage(`❌ فشل حفظ التقييم: ${errorMessage}.`, 'error');
+        // إعادة تفعيل النجوم في حالة الخطأ
+        const stars = starsContainer.querySelectorAll('[data-rating]');
+        stars.forEach(star => {
+            star.style.pointerEvents = 'auto';
+        });
+    }
+}
+
 // ✅ تصدير الدوال إلى window
 window.closeTrackingLinkModal = closeTrackingLinkModal;
 window.copyTrackingLink = copyTrackingLink;
@@ -3784,17 +4032,26 @@ window.sendTrackingLinkToWhatsApp = sendTrackingLinkToWhatsApp;
 window.openTrackingLinkForRepair = openTrackingLinkForRepair;
 window.showAddRepairModal = showAddRepairModal;
 window.switchRepairType = switchRepairType;
+window.showRepairRatingModal = showRepairRatingModal;
+window.selectRepairRatingStar = selectRepairRatingStar;
+window.highlightRepairRatingStars = highlightRepairRatingStars;
+window.resetRepairRatingStars = resetRepairRatingStars;
 
 async function editRepair(id) {
     const repair = allRepairs.find(r => r.id === id);
     if (!repair) return;
     
-    // ✅ منع التعديل على الطلبات الملغاة
-    if (repair.status === 'cancelled') {
+    // ✅ التحقق من صلاحيات المستخدم (مالك)
+    const currentUser = getCurrentUser();
+    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    
+    // ✅ منع التعديل على الطلبات الملغاة أو المسلمة ما عدا المالك
+    if ((repair.status === 'cancelled' || repair.status === 'delivered') && !isOwner) {
+        const statusText = repair.status === 'cancelled' ? 'ملغاة' : 'مسلمة';
         if (typeof showMessage === 'function') {
-            showMessage('لا يمكن تعديل عملية صيانة ملغاة', 'error');
+            showMessage(`لا يمكن تعديل عملية صيانة ${statusText}. فقط المالك يمكنه تعديل العمليات ${statusText === 'ملغاة' ? 'الملغاة' : 'المسلمة'}.`, 'error');
         } else {
-            alert('لا يمكن تعديل عملية صيانة ملغاة');
+            alert(`لا يمكن تعديل عملية صيانة ${statusText}. فقط المالك يمكنه تعديل العمليات ${statusText === 'ملغاة' ? 'الملغاة' : 'المسلمة'}.`);
         }
         return;
     }

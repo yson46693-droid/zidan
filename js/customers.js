@@ -4339,7 +4339,7 @@ function displayRepairsWithPagination(allRepairs) {
                 </td>
                 <td style="text-align: right;">
                     <strong class="invoice-final-amount">
-                        ${formatCurrencyFunc(cost)} <span class="invoice-amount-currency">ج.م</span>
+                        ${formatCurrencyFunc(cost)}
                     </strong>
                 </td>
                 <td>
