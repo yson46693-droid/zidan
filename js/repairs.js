@@ -1584,7 +1584,7 @@ async function loadRepairs(force = false) {
         if (isOwner && !branchId) {
             console.warn('⚠️ [Repairs] يجب تحديد فرع لعرض العمليات');
             allRepairs = [];
-            displayRepairs();
+            filterRepairs(); // ✅ استخدام filterRepairs() بدلاً من displayRepairs() مباشرة
             return;
         }
         
@@ -1650,15 +1650,26 @@ async function loadRepairs(force = false) {
                 }
                 console.log(`✅ [Repairs] تم تحميل ${allRepairs.length} عملية من الفرع ${branchId}`);
             }
+        } else {
+            // ✅ التعامل مع حالة فشل API - عرض رسالة خطأ وتعيين قائمة فارغة
+            console.error('❌ [Repairs] فشل تحميل العمليات:', repairsResult.message || 'خطأ غير معروف');
+            if (repairsResult.message) {
+                showMessage(repairsResult.message, 'error');
+            }
+            allRepairs = [];
         }
         
         // ✅ إزالة استدعاء API.getUsers() لأن technician_name يأتي من API.getRepairs مباشرة
         // وإذا احتجنا لاسم الفني، يمكن استخدام repairTechnicians التي تم تحميلها مسبقاً
         
+        // ✅ التأكد من استدعاء filterRepairs() دائماً لعرض الجدول (حتى لو كان فارغاً)
         filterRepairs();
     } catch (error) {
-        console.error('خطأ في تحميل البيانات:', error);
+        console.error('❌ [Repairs] خطأ في تحميل البيانات:', error);
         showMessage('خطأ في تحميل البيانات', 'error');
+        // ✅ في حالة الخطأ، نعرض جدول فارغ بدلاً من عدم عرض الجدول
+        allRepairs = [];
+        filterRepairs();
     } finally {
         isLoadingRepairs = false;
     }
@@ -1834,10 +1845,21 @@ function filterRepairs() {
 }
 
 function displayRepairs(repairs) {
+    // ✅ التأكد من أن repairs موجودة
+    if (!repairs || !Array.isArray(repairs)) {
+        repairs = [];
+    }
+    
     console.log('عرض العمليات:', repairs);
     
     const paginated = paginate(repairs, currentRepairPage, repairsPerPage);
     const tbody = document.getElementById('repairsTableBody');
+    
+    // ✅ التأكد من وجود tbody قبل التعديل
+    if (!tbody) {
+        console.warn('⚠️ [Repairs] جدول العمليات غير موجود في DOM');
+        return;
+    }
 
     if (paginated.data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">لا توجد عمليات</td></tr>';
