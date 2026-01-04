@@ -3900,12 +3900,14 @@ async function handlePOSQRCodeScanned(decodedText) {
     setTimeout(() => {
         posScannerLocked = false;
         console.log('✅ [POS Scanner] تم إلغاء قفل القارئ - جاهز للقراءة التالية');
-    }, 1000);
+    }, 1500); // زيادة الوقت قليلاً
     
     // Don't stop scanning - keep camera running for continuous scanning
     const errorDiv = document.getElementById('pos-scanner-error');
+    const errorDivMobile = document.getElementById('pos-scanner-error-mobile');
     
     if (errorDiv) errorDiv.style.display = 'none';
+    if (errorDivMobile) errorDivMobile.style.display = 'none';
     
     // ✅ تحسين معالجة النص المقروء - إزالة المسافات والأحرف غير المرئية
     const normalizeText = (text) => {
@@ -3921,14 +3923,22 @@ async function handlePOSQRCodeScanned(decodedText) {
     const originalText = decodedText;
     const cleanedText = normalizeText(decodedText);
     
-    console.log('🔍 [POS Scanner] قراءة QR Code:', {
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🔍 [POS Scanner] بدء معالجة QR Code');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('📋 النص المقروء:', {
         original: originalText,
         cleaned: cleanedText,
         length: cleanedText.length,
-        charCodes: cleanedText.split('').map(c => c.charCodeAt(0))
+        type: typeof cleanedText
     });
     
     // ✅ التحقق من أن المنتجات تم تحميلها
+    console.log('📊 فحص المنتجات المحملة:', {
+        exists: !!allProducts,
+        length: allProducts ? allProducts.length : 0
+    });
+    
     if (!allProducts || allProducts.length === 0) {
         console.error('❌ [POS Scanner] المنتجات غير محملة بعد - انتظر قليلاً...');
         showMessage('⏳ جاري تحميل المنتجات...', 'info');
@@ -3936,6 +3946,9 @@ async function handlePOSQRCodeScanned(decodedText) {
         // محاولة إعادة تحميل المنتجات
         try {
             await loadAllProducts();
+            
+            // انتظر قليلاً للتأكد من اكتمال التحميل
+            await new Promise(resolve => setTimeout(resolve, 500));
             
             if (!allProducts || allProducts.length === 0) {
                 console.error('❌ [POS Scanner] فشل تحميل المنتجات - القائمة فارغة');
@@ -3951,12 +3964,24 @@ async function handlePOSQRCodeScanned(decodedText) {
                 total: allProducts.length
             });
             
+            // عرض عينة من المنتجات مع barcodes
+            console.log('📋 [POS Scanner] عينة من المنتجات (أول 5):');
+            allProducts.slice(0, 5).forEach((p, i) => {
+                console.log(`   ${i+1}. ${p.name} (${p.type})`, {
+                    id: p.id,
+                    barcode: p.barcode,
+                    code: p.code
+                });
+            });
+            
             showMessage('✅ تم تحميل المنتجات. جرب مسح QR Code مرة أخرى.', 'success');
         } catch (e) {
             console.error('❌ [POS Scanner] فشل تحميل المنتجات:', e);
             showMessage('❌ حدث خطأ أثناء تحميل المنتجات. يرجى تحديث الصفحة.', 'error');
             return;
         }
+    } else {
+        console.log('✅ المنتجات محملة:', allProducts.length, 'منتج');
     }
     
     let product = null;
@@ -3965,8 +3990,38 @@ async function handlePOSQRCodeScanned(decodedText) {
     // ✅ استخدام النص المنظف للبحث
     decodedText = cleanedText;
     
-    // ✅ Try to parse QR code as JSON (inventory card format for spare parts, phones, and accessories)
-    // تحسين parsing JSON لقطع الغيار مع معالجة أفضل للأخطاء
+    // ═══════════════════════════════════════════════════════
+    // 🔍 خطوة 0: بحث بسيط ومباشر أولاً (Quick Search)
+    // ═══════════════════════════════════════════════════════
+    console.log('🔍 [Step 0] بحث بسيط ومباشر...');
+    
+    const searchValue = cleanedText.toLowerCase();
+    
+    product = allProducts.find(p => {
+        // البحث في جميع الحقول بشكل مباشر (case-insensitive)
+        const id = (p.id || '').toString().toLowerCase();
+        const barcode = (p.barcode || '').toString().toLowerCase();
+        const code = (p.code || '').toString().toLowerCase();
+        
+        if (id === searchValue || barcode === searchValue || code === searchValue) {
+            console.log('✅ [Step 0] تطابق مباشر!', { product: p.name, field: id === searchValue ? 'id' : barcode === searchValue ? 'barcode' : 'code', value: searchValue });
+            return true;
+        }
+        return false;
+    });
+    
+    if (product) {
+        console.log('🎉 [Step 0] تم العثور على المنتج بالبحث البسيط:', product.name);
+    } else {
+        console.log('⚠️ [Step 0] لم يتم العثور على المنتج بالبحث البسيط، سنحاول البحث المتقدم...');
+    }
+    
+    // ═══════════════════════════════════════════════════════
+    // 🔍 خطوة 1: محاولة parsing JSON (إذا لم ينجح البحث البسيط)
+    // ═══════════════════════════════════════════════════════
+    if (!product) {
+        console.log('🔍 [Step 1] محاولة parsing JSON...');
+    
     try {
         // محاولة تنظيف النص قبل parsing (إزالة أي أحرف غير مرئية)
         const cleanedJsonText = decodedText.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
@@ -4046,13 +4101,15 @@ async function handlePOSQRCodeScanned(decodedText) {
         }
     } catch (e) {
         // Not JSON format - fallback to simple text search (for backward compatibility)
-        console.log('ℹ️ [POS Scanner] QR Code ليس بصيغة JSON (محاولة البحث بالنص البسيط)');
-        console.log('⚠️ [POS Scanner] خطأ parsing JSON:', e.message);
+        console.log('ℹ️ [Step 1] QR Code ليس بصيغة JSON');
+    }
     }
     
-    // If not found, try finding by barcode (for phones and accessories)
-    // This handles simple text QR codes used for phones and accessories
+    // ═══════════════════════════════════════════════════════
+    // 🔍 خطوة 2: بحث متقدم مع تنظيف النص
+    // ═══════════════════════════════════════════════════════
     if (!product) {
+        console.log('🔍 [Step 2] بحث متقدم مع تنظيف النص...');
         const decodedTextStr = normalizeText(decodedText);
         const decodedTextLower = decodedTextStr.toLowerCase();
         console.log('🔍 [POS Scanner] البحث في جميع المنتجات عن:', decodedTextStr);
@@ -4141,16 +4198,18 @@ async function handlePOSQRCodeScanned(decodedText) {
         });
         
         if (product) {
-            console.log('✅ [POS Scanner] تم العثور على المنتج (Barcode/ID):', product.name, 'Type:', product.type, 'ID:', product.id, 'Barcode:', product.barcode);
+            console.log('✅ [Step 2] تم العثور على المنتج:', product.name, 'Type:', product.type);
         } else {
-            console.log('❌ [POS Scanner] لم يتم العثور على المنتج بعد البحث الأول');
+            console.log('⚠️ [Step 2] لم يتم العثور على المنتج');
         }
     }
     
-    // If still not found, try partial match (in case of extra spaces or formatting)
+    // ═══════════════════════════════════════════════════════
+    // 🔍 خطوة 3: بحث جزئي (بدون مسافات وأحرف خاصة)
+    // ═══════════════════════════════════════════════════════
     if (!product) {
         const decodedTextStr = normalizeText(decodedText);
-        console.log('🔍 [POS Scanner] محاولة البحث الجزئي (بدون مسافات) عن:', decodedTextStr);
+        console.log('🔍 [Step 3] بحث جزئي (بدون مسافات/أحرف خاصة)...');
         
         // Remove all spaces and special characters for comparison
         const decodedNoSpaces = decodedTextStr.replace(/[\s\-_]+/g, '').toLowerCase();
@@ -4178,82 +4237,140 @@ async function handlePOSQRCodeScanned(decodedText) {
         });
         
         if (product) {
-            console.log('✅ [POS Scanner] تم العثور على المنتج (Partial Match):', product.name);
+            console.log('✅ [Step 3] تم العثور على المنتج:', product.name);
         } else {
-            console.log('❌ [POS Scanner] لم يتم العثور على المنتج بعد البحث الجزئي');
-            console.log('💡 [POS Scanner] نصيحه: تحقق من أن QR Code يحتوي على نفس القيمة المخزنة في barcode أو code أو id');
-            console.log('💡 [POS Scanner] نص مقروء:', {
-                original: originalText,
-                cleaned: cleanedText,
-                noSpaces: decodedNoSpaces,
-                length: cleanedText.length
-            });
+            console.log('⚠️ [Step 3] لم يتم العثور على المنتج');
             
             // Log some products for comparison
             if (allProducts.length > 0) {
-                console.log('💡 [POS Scanner] أمثلة على المنتجات للمقارنة:');
-                allProducts.slice(0, 10).forEach(p => {
+                console.log('═══════════════════════════════════════════════════════');
+                console.log('📊 عينة من المنتجات للمقارنة (أول 10):');
+                console.log('═══════════════════════════════════════════════════════');
+                allProducts.slice(0, 10).forEach((p, i) => {
                     const normalizedBarcode = normalizeText(p.barcode || '').replace(/[\s\-_]+/g, '').toLowerCase();
                     const normalizedCode = normalizeText(p.code || '').replace(/[\s\-_]+/g, '').toLowerCase();
                     const normalizedId = normalizeText(p.id?.toString() || '').replace(/[\s\-_]+/g, '').toLowerCase();
                     
-                    console.log(`  - ${p.name} (${p.type}):`, {
-                        id: p.id,
-                        normalizedId,
-                        barcode: p.barcode,
-                        normalizedBarcode,
-                        code: p.code,
-                        normalizedCode,
-                        match: normalizedBarcode === decodedNoSpaces || normalizedCode === decodedNoSpaces || normalizedId === decodedNoSpaces
-                    });
+                    const match = normalizedBarcode === decodedNoSpaces || normalizedCode === decodedNoSpaces || normalizedId === decodedNoSpaces;
+                    
+                    console.log(`${i+1}. ${match ? '✅' : '❌'} ${p.name} (${p.type})`);
+                    console.log(`   - ID: ${p.id} (normalized: ${normalizedId})`);
+                    console.log(`   - Barcode: ${p.barcode} (normalized: ${normalizedBarcode})`);
+                    console.log(`   - Code: ${p.code} (normalized: ${normalizedCode})`);
+                    console.log(`   - Match: ${match ? 'نعم ✅' : 'لا ❌'}`);
+                    console.log('');
                 });
+                console.log('═══════════════════════════════════════════════════════');
             }
         }
     }
     
     if (!product) {
-        // Show error message for mobile
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('❌ [POS Scanner] لم يتم العثور على المنتج!');
+        console.log('═══════════════════════════════════════════════════════');
+        
+        // ✅ عرض معلومات تشخيصية شاملة
+        console.log('📊 معلومات التشخيص:');
+        console.log('   - QR Code المقروء:', cleanedText);
+        console.log('   - عدد المنتجات المحملة:', allProducts ? allProducts.length : 0);
+        
+        if (allProducts && allProducts.length > 0) {
+            console.log('   - أول 10 منتجات مع barcodes:', allProducts.slice(0, 10).map(p => ({
+                id: p.id,
+                name: p.name,
+                type: p.type,
+                barcode: p.barcode,
+                code: p.code
+            })));
+        }
+        
+        // ✅ إنشاء رسالة خطأ مفصلة مع اقتراحات
+        let debugInfo = `
+═══════════════════════════════════════
+❌ المنتج غير موجود
+═══════════════════════════════════════
+
+📋 QR Code المقروء: "${cleanedText}"
+📦 عدد المنتجات: ${allProducts ? allProducts.length : 0}
+
+💡 الحلول المقترحة:
+1. تأكد أن المنتج موجود في المخزون
+2. تأكد أن المنتج له barcode أو code في قاعدة البيانات
+3. تحقق من أن QR Code يطابق barcode/code/id المخزن
+4. افتح Console (F12) لعرض المزيد من المعلومات
+`;
+        
+        console.log(debugInfo);
+        
+        // Show error message for mobile with debug info
         const errorDivMobile = document.getElementById('pos-scanner-error-mobile');
         if (errorDivMobile) {
             const errorMessageMobile = document.getElementById('pos-scanner-error-message-mobile');
             if (errorMessageMobile) {
-                errorMessageMobile.textContent = `❌ المنتج غير موجود. QR Code: ${cleanedText}`;
+                errorMessageMobile.innerHTML = `
+                    <div style="text-align: right; direction: rtl;">
+                        <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">❌ المنتج غير موجود</div>
+                        <div style="margin-bottom: 8px;">📋 القيمة المقروءة:</div>
+                        <div style="background: rgba(0,0,0,0.1); padding: 8px; border-radius: 5px; font-family: monospace; word-break: break-all; margin-bottom: 10px;">${cleanedText}</div>
+                        <div style="font-size: 0.9em; color: rgba(255,255,255,0.9);">
+                            📦 المنتجات المحملة: ${allProducts ? allProducts.length : 0}<br>
+                            💡 تحقق من أن المنتج موجود في المخزون
+                        </div>
+                    </div>
+                `;
             }
             errorDivMobile.style.display = 'block';
             
-            // Hide error after 3 seconds
+            // Hide error after 5 seconds
             setTimeout(() => {
                 if (errorDivMobile) {
                     errorDivMobile.style.display = 'none';
                 }
-            }, 3000);
+            }, 5000);
         }
         
-        // Also show error for desktop
+        // Also show error for desktop with debug info
         if (errorDiv) {
             const errorMessage = document.getElementById('pos-scanner-error-message');
             if (errorMessage) {
-                errorMessage.textContent = `❌ المنتج غير موجود في قائمة المنتجات. يرجى التحقق من QR Code والمحاولة مرة أخرى. QR Code: ${cleanedText}`;
+                errorMessage.innerHTML = `
+                    <div style="text-align: right; direction: rtl;">
+                        <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">❌ المنتج غير موجود</div>
+                        <div style="margin-bottom: 8px;">📋 القيمة المقروءة:</div>
+                        <div style="background: rgba(0,0,0,0.1); padding: 8px; border-radius: 5px; font-family: monospace; word-break: break-all; margin-bottom: 10px;">${cleanedText}</div>
+                        <div style="font-size: 0.9em; opacity: 0.9;">
+                            📦 المنتجات المحملة: ${allProducts ? allProducts.length : 0}<br>
+                            💡 تحقق من أن المنتج موجود في المخزون وله barcode صحيح<br>
+                            🔍 افتح Developer Console (F12) للمزيد من التفاصيل
+                        </div>
+                    </div>
+                `;
             }
             errorDiv.style.display = 'block';
         }
         
         // Show user-friendly message
-        showMessage(`❌ المنتج غير موجود. QR Code المقروء: "${cleanedText}". تحقق من أن QR Code يحتوي على ID أو Barcode صحيح للمنتج.`, 'error');
+        showMessage(`❌ المنتج غير موجود. القيمة المقروءة: "${cleanedText}". عدد المنتجات: ${allProducts ? allProducts.length : 0}`, 'error');
         
-        // Restart scanner after 2 seconds
-        setTimeout(() => {
-            if (posQRCodeScannerInstance && typeof Html5Qrcode !== 'undefined') {
-                try {
-                    initializePOSQRCodeScanner();
-                    if (errorDiv) errorDiv.style.display = 'none';
-                } catch (e) {
-                    console.error('Error restarting scanner:', e);
-                }
-            }
-        }, 2000);
+        console.log('═══════════════════════════════════════════════════════');
         return;
     }
+    
+    // ═══════════════════════════════════════════════════════
+    // ✅ تم العثور على المنتج - إضافة إلى السلة
+    // ═══════════════════════════════════════════════════════
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🎉 تم العثور على المنتج بنجاح!');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('📦 معلومات المنتج:');
+    console.log('   - الاسم:', product.name);
+    console.log('   - النوع:', product.type);
+    console.log('   - ID:', product.id);
+    console.log('   - Barcode:', product.barcode);
+    console.log('   - السعر:', product.price);
+    console.log('   - الكمية المتوفرة:', product.quantity);
+    console.log('═══════════════════════════════════════════════════════');
     
     // Play success sound immediately when product is found
     playSuccessSound();
@@ -4269,6 +4386,7 @@ async function handlePOSQRCodeScanned(decodedText) {
     }
     
     // Continue scanning - don't stop camera
+    console.log('📷 الكاميرا ما زالت نشطة - جاهز للمسح التالي');
 }
 
 // Toggle Camera (Switch between front and back camera)

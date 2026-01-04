@@ -1693,10 +1693,23 @@ async function showEditUserModal(userId) {
         form.dataset.editUserId = userId;
         
         // ✅ إخفاء جميع الحقول عدا كلمة المرور
-        if (nameGroup) nameGroup.style.display = 'none';
-        if (usernameGroup) usernameGroup.style.display = 'none';
-        if (roleGroup) roleGroup.style.display = 'none';
-        if (branchGroup) branchGroup.style.display = 'none';
+        if (nameGroup) {
+            nameGroup.style.display = 'none';
+            if (nameField) nameField.required = false;
+        }
+        if (usernameGroup) {
+            usernameGroup.style.display = 'none';
+            if (usernameField) usernameField.required = false;
+        }
+        if (roleGroup) {
+            roleGroup.style.display = 'none';
+            if (roleField) roleField.required = false;
+        }
+        if (branchGroup) {
+            branchGroup.style.display = 'none';
+            const branchField = document.getElementById('userBranch');
+            if (branchField) branchField.required = false;
+        }
         
         // ✅ إظهار حقل كلمة المرور فقط
         if (passwordGroup) {
@@ -1804,31 +1817,82 @@ async function saveUser(event) {
             return;
         }
 
+        // ✅ التحقق من حالة التعديل أولاً
+        const isEditMode = userForm.dataset.editUserId ? true : false;
+        const editUserId = userForm.dataset.editUserId || null;
+
         // قراءة القيم من النموذج مباشرة باستخدام form.elements أو querySelector داخل النموذج
         // هذا يتجنب تضارب IDs مع العناصر الأخرى في الصفحة
+        const passwordElement = userForm.querySelector('#userPassword');
+        
+        // في وضع التعديل، نحتاج فقط إلى حقل كلمة المرور
+        if (isEditMode) {
+            if (!passwordElement) {
+                showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+                console.error('Missing password element in edit mode');
+                return;
+            }
+        } else {
+            // في وضع الإضافة، نحتاج جميع الحقول
+            const nameElement = userForm.querySelector('#userName');
+            const usernameElement = userForm.querySelector('#userUsername');
+            const roleElement = userForm.querySelector('#userRole');
+
+            if (!nameElement || !usernameElement || !passwordElement || !roleElement) {
+                showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+                console.error('Missing form elements:', {
+                    nameElement: !!nameElement,
+                    usernameElement: !!usernameElement,
+                    passwordElement: !!passwordElement,
+                    roleElement: !!roleElement
+                });
+                return;
+            }
+        }
+
+        // ✅ في حالة التعديل (تغيير كلمة المرور فقط)
+        if (isEditMode) {
+            // قراءة كلمة المرور فقط
+            const password = passwordElement && passwordElement.value !== undefined ? String(passwordElement.value) : '';
+            
+            // كلمة المرور مطلوبة في وضع التعديل
+            if (!password || password.trim().length === 0) {
+                showMessage('كلمة المرور الجديدة مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
+                if (passwordElement) {
+                    passwordElement.focus();
+                    passwordElement.style.borderColor = 'var(--danger-color)';
+                }
+                return;
+            }
+
+            // التحقق من طول كلمة المرور
+            if (password.trim().length < 6) {
+                showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
+                if (passwordElement) {
+                    passwordElement.focus();
+                    passwordElement.style.borderColor = 'var(--danger-color)';
+                }
+                return;
+            }
+            
+            // ✅ حفظ كلمة المرور فقط
+            const result = await API.updateUser(editUserId, { password: password.trim() });
+            
+            if (result && result.success) {
+                showMessage('تم تغيير كلمة المرور بنجاح', 'success');
+                closeUserModal();
+            } else {
+                showMessage(result?.message || 'فشل تغيير كلمة المرور', 'error');
+            }
+            return;
+        }
+
+        // ✅ في حالة الإضافة (جميع الحقول مطلوبة)
+        // الحصول على العناصر مرة أخرى (لأنها قد لا تكون معرفة في نطاق isEditMode)
         const nameElement = userForm.querySelector('#userName');
         const usernameElement = userForm.querySelector('#userUsername');
-        const passwordElement = userForm.querySelector('#userPassword');
         const roleElement = userForm.querySelector('#userRole');
-
-        if (!nameElement || !usernameElement || !passwordElement || !roleElement) {
-            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-            console.error('Missing form elements:', {
-                nameElement: !!nameElement,
-                usernameElement: !!usernameElement,
-                passwordElement: !!passwordElement,
-                roleElement: !!roleElement
-            });
-            return;
-        }
-
-        // التحقق من أن العناصر هي حقول إدخال صحيحة
-        if (nameElement.tagName !== 'INPUT' && nameElement.tagName !== 'TEXTAREA') {
-            console.error('nameElement is not an input field:', nameElement.tagName);
-            showMessage('خطأ في نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-            return;
-        }
-
+        
         // قراءة القيم مباشرة من الحقول - استخدام طريقة موثوقة
         const name = nameElement && nameElement.value !== undefined ? String(nameElement.value).trim() : '';
         const username = usernameElement && usernameElement.value !== undefined ? String(usernameElement.value).trim() : '';
@@ -1839,21 +1903,6 @@ async function saveUser(event) {
             : (roleElement && roleElement.selectedIndex >= 0 && roleElement.options[roleElement.selectedIndex] 
                 ? String(roleElement.options[roleElement.selectedIndex].value).trim() 
                 : 'employee');
-
-        // تسجيل القيم للتشخيص
-        console.log('User form values:', { 
-            name, 
-            username, 
-            password: password ? '***' : '(empty)', 
-            role,
-            nameElementType: nameElement?.tagName,
-            nameElementValue: nameElement?.value,
-            nameElementExists: !!nameElement,
-            usernameElementValue: usernameElement?.value,
-            roleElementValue: roleElement?.value,
-            roleElementSelectedIndex: roleElement?.selectedIndex,
-            roleElementOptions: roleElement ? Array.from(roleElement.options).map(opt => ({ value: opt.value, text: opt.text, selected: opt.selected })) : null
-        });
 
         // التحقق من الحقول المطلوبة مع رسائل خطأ محددة وواضحة
         if (!name || name.trim().length === 0) {
@@ -1916,46 +1965,6 @@ async function saveUser(event) {
         if (nameElement) nameElement.style.borderColor = '';
         if (usernameElement) usernameElement.style.borderColor = '';
         if (roleElement) roleElement.style.borderColor = '';
-
-        // ✅ التحقق من حالة التعديل
-        const isEditMode = userForm.dataset.editUserId ? true : false;
-        const editUserId = userForm.dataset.editUserId || null;
-
-        // ✅ في حالة التعديل (تغيير كلمة المرور فقط)
-        if (isEditMode) {
-            // كلمة المرور مطلوبة في وضع التعديل
-            if (!password || password.trim().length === 0) {
-                showMessage('كلمة المرور الجديدة مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-
-            // التحقق من طول كلمة المرور
-            if (password.trim().length < 6) {
-                showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-            
-            // ✅ حفظ كلمة المرور فقط
-            const result = await API.updateUser(editUserId, { password: password.trim() });
-            
-            if (result && result.success) {
-                showMessage('تم تغيير كلمة المرور بنجاح', 'success');
-                closeUserModal();
-            } else {
-                showMessage(result?.message || 'فشل تغيير كلمة المرور', 'error');
-            }
-            return;
-        }
-
-        // ✅ في حالة الإضافة (جميع الحقول مطلوبة)
         if (!password || password.trim().length === 0) {
             showMessage('كلمة المرور مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
             if (passwordElement) {
