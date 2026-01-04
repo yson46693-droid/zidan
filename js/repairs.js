@@ -6646,26 +6646,175 @@ async function openLossBarcodeScanner() {
     scannerModal.id = 'lossBarcodeScannerModal';
     scannerModal.className = 'modal';
     scannerModal.style.display = 'flex';
+    scannerModal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 20000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);';
     scannerModal.innerHTML = `
-        <div class="modal-content" style="width: fit-content; max-width: 90vw; padding: 0;">
-            <div class="modal-header" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
-                <h3 style="margin: 0; font-size: 1.2em;">مسح QR Code من فاتورة الصيانة</h3>
-                <button onclick="closeLossBarcodeScanner()" class="btn-close">&times;</button>
+        <div class="modal-content" style="max-width: 90%; max-width: 600px; width: 100%; max-height: 90vh; background: var(--white); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: modalSlideIn 0.3s ease; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: var(--white); padding: 25px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: none; flex-shrink: 0;">
+                <h2 style="margin: 0; font-size: 1.5em; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <i class="bi bi-qr-code-scan" style="font-size: 1.3em;"></i> مسح QR Code من فاتورة الصيانة
+                </h2>
+                <button onclick="closeLossBarcodeScanner()" class="btn-close" style="background: rgba(255,255,255,0.2); border: none; color: var(--white); font-size: 2em; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; line-height: 1;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='rotate(90deg)';" onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='rotate(0deg)';">&times;</button>
             </div>
-            <div style="padding: 20px;">
-                <div id="loss-scanner-area" style="width: 100%; min-height: 400px; max-height: 70vh; background: var(--light-bg); border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
-                    <div id="loss-scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; color: var(--text-dark);">
-                        <i class="bi bi-camera" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block; animation: pulse 2s infinite;"></i>
-                        <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">جاري تحميل قارئ QR Code...</p>
-                        <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا</p>
+            <div class="modal-body" style="padding: 30px; text-align: center; overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch;">
+                <div id="loss-barcode-scanner-container">
+                    <div id="loss-scanner-area" style="width: 100%; min-height: 400px; border-radius: 15px; overflow: hidden; background: var(--light-bg); position: relative; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
+                        <div id="loss-scanner-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; color: var(--text-dark);">
+                            <i class="bi bi-camera" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block; animation: pulse 2s infinite;"></i>
+                            <p style="font-size: 1.1em; font-weight: 600; color: var(--text-dark);">جاري تحميل قارئ QR Code...</p>
+                            <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">يرجى السماح بالوصول إلى الكاميرا</p>
+                        </div>
+                        <div id="loss-scanner-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;">
+                            <!-- مربع المسح الرئيسي -->
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; border: 4px solid var(--primary-color); border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 40px rgba(33, 150, 243, 0.6), inset 0 0 20px rgba(33, 150, 243, 0.2); background: rgba(255,255,255,0.05);"></div>
+                            
+                            <!-- زوايا المربع -->
+                            <div style="position: absolute; top: calc(50% - 125px); left: calc(50% - 125px); width: 250px; height: 250px;">
+                                <!-- الزاوية العلوية اليسرى -->
+                                <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; border-top: 5px solid var(--success-color); border-left: 5px solid var(--success-color); border-radius: 8px 0 0 0; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                                <!-- الزاوية العلوية اليمنى -->
+                                <div style="position: absolute; top: 0; right: 0; width: 40px; height: 40px; border-top: 5px solid var(--success-color); border-right: 5px solid var(--success-color); border-radius: 0 8px 0 0; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                                <!-- الزاوية السفلية اليسرى -->
+                                <div style="position: absolute; bottom: 0; left: 0; width: 40px; height: 40px; border-bottom: 5px solid var(--success-color); border-left: 5px solid var(--success-color); border-radius: 0 0 0 8px; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                                <!-- الزاوية السفلية اليمنى -->
+                                <div style="position: absolute; bottom: 0; right: 0; width: 40px; height: 40px; border-bottom: 5px solid var(--success-color); border-right: 5px solid var(--success-color); border-radius: 0 0 8px 0; box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);"></div>
+                            </div>
+                            
+                            <!-- نص إرشادي داخل المربع -->
+                            <div style="position: absolute; top: calc(50% + 140px); left: 50%; transform: translateX(-50%); text-align: center; color: var(--white); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 0.85em; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                                <i class="bi bi-arrows-move" style="margin-left: 5px; font-size: 1.1em;"></i>
+                                ضع QR Code داخل الإطار
+                            </div>
+                            
+                            <!-- خطوط إرشادية داخل المربع -->
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; height: 250px; opacity: 0.3;">
+                                <!-- خط أفقي في المنتصف -->
+                                <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: linear-gradient(to right, transparent, var(--primary-color), transparent);"></div>
+                                <!-- خط عمودي في المنتصف -->
+                                <div style="position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, var(--primary-color), transparent);"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="loss-scanner-error" style="margin-top: 25px; display: none; animation: slideDown 0.4s ease;">
+                        <div style="padding: 25px; border-radius: 15px; background: linear-gradient(135deg, var(--danger-color) 0%, #e57373 100%); color: var(--white); border: none; box-shadow: 0 8px 25px rgba(244, 67, 54, 0.4);">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                                <i class="bi bi-exclamation-triangle-fill" style="font-size: 2em;"></i>
+                                <h4 style="margin: 0; font-size: 1.3em; font-weight: 700;">خطأ في المسح</h4>
+                            </div>
+                            <p id="loss-scanner-error-message" style="margin: 0; line-height: 1.8; opacity: 0.95;"></p>
+                            <button onclick="retryLossBarcodeScanner()" class="btn btn-secondary" style="background: var(--white); color: var(--danger-color); border: 2px solid var(--white); padding: 12px 24px; font-weight: 600; border-radius: 10px; margin-top: 15px; width: 100%; transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255,255,255,0.3)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">إعادة المحاولة</button>
+                        </div>
                     </div>
                 </div>
-                <div id="loss-scanner-error" style="display: none; margin-top: 15px; padding: 15px; background: var(--danger-color); color: var(--white); border-radius: 8px;">
-                    <p id="loss-scanner-error-message"></p>
-                    <button onclick="retryLossBarcodeScanner()" class="btn btn-secondary btn-sm" style="margin-top: 10px;">إعادة المحاولة</button>
-                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; padding: 20px 30px; border-top: 1px solid var(--border-color); background: var(--light-bg); flex-shrink: 0;">
+                <button onclick="closeLossBarcodeScanner()" class="btn btn-secondary" style="background: var(--text-light); color: var(--white); border: none; padding: 12px 24px; font-weight: 600; border-radius: 10px; transition: all 0.3s ease;" onmouseover="this.style.background='#555'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 102, 102, 0.4)';" onmouseout="this.style.background='var(--text-light)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">إغلاق</button>
             </div>
         </div>
+        <style>
+            @keyframes modalSlideIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+            
+            @keyframes slideDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+            
+            #loss-scanner-area video {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border-radius: 15px;
+            }
+            
+            #loss-scanner-area canvas {
+                display: none;
+            }
+            
+            /* Scrollbar styling for modal body */
+            #lossBarcodeScannerModal .modal-body::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            #lossBarcodeScannerModal .modal-body::-webkit-scrollbar-track {
+                background: var(--light-bg);
+                border-radius: 4px;
+            }
+            
+            #lossBarcodeScannerModal .modal-body::-webkit-scrollbar-thumb {
+                background: var(--border-color);
+                border-radius: 4px;
+            }
+            
+            #lossBarcodeScannerModal .modal-body::-webkit-scrollbar-thumb:hover {
+                background: var(--text-light);
+            }
+            
+            /* Firefox scrollbar */
+            #lossBarcodeScannerModal .modal-body {
+                scrollbar-width: thin;
+                scrollbar-color: var(--border-color) var(--light-bg);
+            }
+            
+            @media (max-width: 768px) {
+                #lossBarcodeScannerModal .modal-content {
+                    max-width: 95% !important;
+                    max-height: 95vh !important;
+                    margin: 10px;
+                }
+                
+                #lossBarcodeScannerModal .modal-body {
+                    padding: 20px !important;
+                }
+                
+                #lossBarcodeScannerModal .modal-header {
+                    padding: 20px !important;
+                }
+                
+                #lossBarcodeScannerModal .modal-header h2 {
+                    font-size: 1.2em !important;
+                }
+                
+                #lossBarcodeScannerModal .modal-footer {
+                    padding: 15px 20px !important;
+                    flex-wrap: wrap;
+                }
+                
+                #loss-scanner-area {
+                    min-height: 300px !important;
+                }
+                
+                #loss-scanner-overlay > div:first-child {
+                    width: 200px !important;
+                    height: 200px !important;
+                }
+                
+                #loss-scanner-overlay > div:nth-child(2) {
+                    width: 200px !important;
+                    height: 200px !important;
+                    top: calc(50% - 100px) !important;
+                    left: calc(50% - 100px) !important;
+                }
+            }
+        </style>
     `;
     
     document.body.appendChild(scannerModal);
