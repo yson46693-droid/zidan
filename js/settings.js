@@ -306,6 +306,27 @@ function loadSettingsSection() {
                 </form>
             </div>
         </div>
+
+        <!-- نموذج تغيير كلمة المرور (منفصل) -->
+        <div id="changePasswordModal" class="modal">
+            <div class="modal-content modal-sm">
+                <div class="modal-header">
+                    <h3 id="changePasswordModalTitle">تغيير كلمة المرور</h3>
+                    <button onclick="closeChangePasswordModal()" class="btn-close">&times;</button>
+                </div>
+                <form id="changePasswordForm" onsubmit="savePasswordChange(event)">
+                    <div class="form-group">
+                        <label for="newPassword">كلمة المرور الجديدة *</label>
+                        <input type="password" id="newPassword" name="newPassword" required minlength="6" autocomplete="new-password">
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" onclick="closeChangePasswordModal()" class="btn btn-secondary">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">حفظ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     `;
 
             // تحميل البيانات بشكل آمن مع معالجة الأخطاء
@@ -1055,8 +1076,8 @@ function setupUsersTableEventListeners() {
                         return;
                     }
                     
-                    // استدعاء دالة تغيير كلمة المرور
-                    await showEditUserModal(userId);
+                    // استدعاء دالة تغيير كلمة المرور - النموذج المنفصل
+                    await showChangePasswordModal(userId);
                     return;
                 }
                 
@@ -1639,7 +1660,8 @@ async function showAddUserModal() {
     }
 }
 
-async function showEditUserModal(userId) {
+// ✅ نموذج منفصل لتغيير كلمة المرور - يحتوي فقط على حقل كلمة المرور
+async function showChangePasswordModal(userId) {
     try {
         // التحقق من الصلاحية
         if (!hasPermission('admin')) {
@@ -1652,28 +1674,19 @@ async function showEditUserModal(userId) {
             return;
         }
         
-        const userModal = document.getElementById('userModal');
-        if (!userModal) {
-            console.error('userModal not found');
-            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+        const changePasswordModal = document.getElementById('changePasswordModal');
+        if (!changePasswordModal) {
+            console.error('changePasswordModal not found');
+            showMessage('خطأ في تحميل نموذج تغيير كلمة المرور. يرجى إعادة تحميل الصفحة.', 'error');
             return;
         }
 
-        // الحصول على عناصر النموذج
-        const form = document.getElementById('userForm');
-        const titleElement = document.getElementById('userModalTitle');
-        const nameField = document.getElementById('userName');
-        const usernameField = document.getElementById('userUsername');
-        const passwordField = document.getElementById('userPassword');
-        const roleField = document.getElementById('userRole');
-        const branchGroup = document.getElementById('userBranchGroup');
-        const nameGroup = nameField?.closest('.form-group');
-        const usernameGroup = usernameField?.closest('.form-group');
-        const roleGroup = roleField?.closest('.form-group');
-        const passwordGroup = passwordField?.closest('.form-group');
+        const form = document.getElementById('changePasswordForm');
+        const titleElement = document.getElementById('changePasswordModalTitle');
+        const passwordField = document.getElementById('newPassword');
 
         if (!form || !titleElement || !passwordField) {
-            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+            showMessage('خطأ في تحميل نموذج تغيير كلمة المرور. يرجى إعادة تحميل الصفحة.', 'error');
             return;
         }
 
@@ -1690,97 +1703,95 @@ async function showEditUserModal(userId) {
         titleElement.textContent = `تغيير كلمة مرور: ${user.name || user.username}`;
         
         // حفظ معرف المستخدم في النموذج
-        form.dataset.editUserId = userId;
+        form.dataset.userId = userId;
         
-        // ✅ إخفاء جميع الحقول عدا كلمة المرور - استخدام طريقة موثوقة وقوية
-        // إخفاء جميع form-group داخل النموذج باستخدام CSS مباشر
-        const allFormGroups = form.querySelectorAll('.form-group');
-        allFormGroups.forEach(group => {
-            // التحقق إذا كان هذا المجموعة تحتوي على حقل كلمة المرور
-            const passwordInput = group.querySelector('#userPassword');
-            if (!passwordInput) {
-                // إخفاء جميع الحقول عدا حقل كلمة المرور - استخدام عدة طرق للتأكد
-                group.style.setProperty('display', 'none', 'important');
-                group.style.setProperty('visibility', 'hidden', 'important');
-                group.style.setProperty('height', '0', 'important');
-                group.style.setProperty('overflow', 'hidden', 'important');
-                group.style.setProperty('margin', '0', 'important');
-                group.style.setProperty('padding', '0', 'important');
-                group.style.setProperty('opacity', '0', 'important');
-                group.setAttribute('hidden', 'true');
-                
-                // إزالة required من جميع الحقول المخفية
-                const inputs = group.querySelectorAll('input, select, textarea');
-                inputs.forEach(input => {
-                    input.required = false;
-                    input.disabled = true;
-                    input.setAttribute('tabindex', '-1'); // منع الوصول بالكيبورد
-                });
-                
-                // إخفاء labels أيضاً
-                const labels = group.querySelectorAll('label');
-                labels.forEach(label => {
-                    label.style.setProperty('display', 'none', 'important');
-                });
-            }
-        });
-        
-        // ✅ إظهار حقل كلمة المرور فقط
-        if (passwordGroup) {
-            passwordGroup.style.setProperty('display', 'block', 'important');
-            passwordGroup.style.setProperty('visibility', 'visible', 'important');
-            passwordGroup.style.setProperty('height', 'auto', 'important');
-            passwordGroup.style.setProperty('overflow', 'visible', 'important');
-            passwordGroup.style.setProperty('opacity', '1', 'important');
-            passwordGroup.removeAttribute('hidden');
-        }
-        
-        // إزالة required من جميع الحقول عدا كلمة المرور
-        if (nameField) {
-            nameField.required = false;
-            nameField.disabled = true;
-            nameField.setAttribute('tabindex', '-1');
-        }
-        if (usernameField) {
-            usernameField.required = false;
-            usernameField.disabled = true;
-            usernameField.setAttribute('tabindex', '-1');
-        }
-        if (roleField) {
-            roleField.required = false;
-            roleField.disabled = true;
-            roleField.setAttribute('tabindex', '-1');
-        }
-        const branchField = document.getElementById('userBranch');
-        if (branchField) {
-            branchField.required = false;
-            branchField.disabled = true;
-            branchField.setAttribute('tabindex', '-1');
-        }
-        
-        // تفعيل حقل كلمة المرور فقط
-        passwordField.required = true;
-        passwordField.disabled = false;
-        passwordField.removeAttribute('tabindex');
+        // تنظيف حقل كلمة المرور
         passwordField.value = '';
-        
-        // تحديث label كلمة المرور
-        const passwordLabel = passwordGroup?.querySelector('label');
-        if (passwordLabel) {
-            passwordLabel.textContent = 'كلمة المرور الجديدة *';
-            passwordLabel.style.setProperty('display', 'block', 'important');
-        }
 
         // إظهار النموذج
-        userModal.style.display = 'flex';
+        changePasswordModal.style.display = 'flex';
 
         // التركيز على حقل كلمة المرور
         setTimeout(() => {
             passwordField.focus();
         }, 100);
     } catch (error) {
-        console.error('خطأ في showEditUserModal:', error);
-        showMessage('حدث خطأ أثناء فتح نموذج تعديل المستخدم: ' + (error.message || 'خطأ غير معروف'), 'error');
+        console.error('خطأ في showChangePasswordModal:', error);
+        showMessage('حدث خطأ أثناء فتح نموذج تغيير كلمة المرور: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
+function closeChangePasswordModal() {
+    try {
+        const changePasswordModal = document.getElementById('changePasswordModal');
+        if (changePasswordModal) {
+            changePasswordModal.style.display = 'none';
+            
+            const form = document.getElementById('changePasswordForm');
+            if (form) {
+                form.reset();
+                delete form.dataset.userId;
+            }
+        }
+    } catch (error) {
+        console.error('خطأ في closeChangePasswordModal:', error);
+    }
+}
+
+async function savePasswordChange(event) {
+    event.preventDefault();
+
+    try {
+        const form = document.getElementById('changePasswordForm');
+        if (!form) {
+            showMessage('خطأ: نموذج تغيير كلمة المرور غير موجود.', 'error');
+            return;
+        }
+
+        const userId = form.dataset.userId;
+        if (!userId) {
+            showMessage('خطأ: معرف المستخدم غير موجود', 'error');
+            return;
+        }
+
+        const passwordField = document.getElementById('newPassword');
+        if (!passwordField) {
+            showMessage('خطأ: حقل كلمة المرور غير موجود', 'error');
+            return;
+        }
+
+        const password = passwordField.value.trim();
+
+        // التحقق من كلمة المرور
+        if (!password || password.length === 0) {
+            showMessage('كلمة المرور الجديدة مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
+            passwordField.focus();
+            passwordField.style.borderColor = 'var(--danger-color)';
+            return;
+        }
+
+        if (password.length < 6) {
+            showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
+            passwordField.focus();
+            passwordField.style.borderColor = 'var(--danger-color)';
+            return;
+        }
+
+        // إزالة علامة الخطأ
+        passwordField.style.borderColor = '';
+
+        // حفظ كلمة المرور
+        const result = await API.updateUser(userId, { password: password });
+        
+        if (result && result.success) {
+            showMessage('تم تغيير كلمة المرور بنجاح', 'success');
+            closeChangePasswordModal();
+        } else {
+            showMessage(result?.message || 'فشل تغيير كلمة المرور', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في savePasswordChange:', error);
+        showMessage('حدث خطأ أثناء تغيير كلمة المرور: ' + (error.message || 'خطأ غير معروف'), 'error');
     }
 }
 
@@ -1794,77 +1805,12 @@ function closeUserModal() {
             const form = document.getElementById('userForm');
             if (form) {
                 form.reset();
-                // إزالة معرف التعديل
-                delete form.dataset.editUserId;
             }
             
-            // إعادة تعيين حالة النموذج
+            // إعادة تعيين العنوان
             const titleElement = document.getElementById('userModalTitle');
-            const nameField = document.getElementById('userName');
-            const usernameField = document.getElementById('userUsername');
-            const passwordField = document.getElementById('userPassword');
-            const roleField = document.getElementById('userRole');
-            const branchGroup = document.getElementById('userBranchGroup');
-            const nameGroup = nameField?.closest('.form-group');
-            const usernameGroup = usernameField?.closest('.form-group');
-            const roleGroup = roleField?.closest('.form-group');
-            const passwordGroup = passwordField?.closest('.form-group');
-            
             if (titleElement) {
                 titleElement.textContent = 'إضافة مستخدم';
-            }
-            
-            // إعادة إظهار جميع الحقول - إعادة تعيين جميع الأنماط
-            const allFormGroups = form.querySelectorAll('.form-group');
-            allFormGroups.forEach(group => {
-                group.style.removeProperty('display');
-                group.style.removeProperty('visibility');
-                group.style.removeProperty('height');
-                group.style.removeProperty('overflow');
-                group.style.removeProperty('margin');
-                group.style.removeProperty('padding');
-                group.style.removeProperty('opacity');
-                group.removeAttribute('hidden');
-                
-                // إعادة تفعيل جميع الحقول
-                const inputs = group.querySelectorAll('input, select, textarea');
-                inputs.forEach(input => {
-                    input.disabled = false;
-                    input.removeAttribute('tabindex');
-                });
-                
-                // إعادة إظهار labels
-                const labels = group.querySelectorAll('label');
-                labels.forEach(label => {
-                    label.style.removeProperty('display');
-                });
-            });
-            
-            // إعادة تعيين required للحقول
-            if (nameField) {
-                nameField.required = true;
-                nameField.disabled = false;
-            }
-            if (usernameField) {
-                usernameField.required = true;
-                usernameField.disabled = false;
-            }
-            if (roleField) {
-                roleField.required = true;
-                roleField.disabled = false;
-            }
-            const branchField = document.getElementById('userBranch');
-            if (branchField) {
-                branchField.disabled = false;
-            }
-            
-            if (passwordField) {
-                passwordField.required = true;
-                passwordField.disabled = false;
-                const passwordLabel = passwordGroup?.querySelector('label');
-                if (passwordLabel) {
-                    passwordLabel.textContent = 'كلمة المرور *';
-                }
             }
             
             // إزالة علامات الخطأ
@@ -1898,81 +1844,23 @@ async function saveUser(event) {
             return;
         }
 
-        // ✅ التحقق من حالة التعديل أولاً
-        const isEditMode = userForm.dataset.editUserId ? true : false;
-        const editUserId = userForm.dataset.editUserId || null;
-
-        // قراءة القيم من النموذج مباشرة باستخدام form.elements أو querySelector داخل النموذج
-        // هذا يتجنب تضارب IDs مع العناصر الأخرى في الصفحة
-        const passwordElement = userForm.querySelector('#userPassword');
-        
-        // في وضع التعديل، نحتاج فقط إلى حقل كلمة المرور
-        if (isEditMode) {
-            if (!passwordElement) {
-                showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-                console.error('Missing password element in edit mode');
-                return;
-            }
-        } else {
-            // في وضع الإضافة، نحتاج جميع الحقول
-            const nameElement = userForm.querySelector('#userName');
-            const usernameElement = userForm.querySelector('#userUsername');
-            const roleElement = userForm.querySelector('#userRole');
-
-            if (!nameElement || !usernameElement || !passwordElement || !roleElement) {
-                showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
-                console.error('Missing form elements:', {
-                    nameElement: !!nameElement,
-                    usernameElement: !!usernameElement,
-                    passwordElement: !!passwordElement,
-                    roleElement: !!roleElement
-                });
-                return;
-            }
-        }
-
-        // ✅ في حالة التعديل (تغيير كلمة المرور فقط)
-        if (isEditMode) {
-            // قراءة كلمة المرور فقط
-            const password = passwordElement && passwordElement.value !== undefined ? String(passwordElement.value) : '';
-            
-            // كلمة المرور مطلوبة في وضع التعديل
-            if (!password || password.trim().length === 0) {
-                showMessage('كلمة المرور الجديدة مطلوبة (يجب أن تكون على الأقل 6 أحرف)', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-
-            // التحقق من طول كلمة المرور
-            if (password.trim().length < 6) {
-                showMessage('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
-                if (passwordElement) {
-                    passwordElement.focus();
-                    passwordElement.style.borderColor = 'var(--danger-color)';
-                }
-                return;
-            }
-            
-            // ✅ حفظ كلمة المرور فقط
-            const result = await API.updateUser(editUserId, { password: password.trim() });
-            
-            if (result && result.success) {
-                showMessage('تم تغيير كلمة المرور بنجاح', 'success');
-                closeUserModal();
-            } else {
-                showMessage(result?.message || 'فشل تغيير كلمة المرور', 'error');
-            }
-            return;
-        }
-
-        // ✅ في حالة الإضافة (جميع الحقول مطلوبة)
-        // الحصول على العناصر مرة أخرى (لأنها قد لا تكون معرفة في نطاق isEditMode)
+        // ✅ هذا النموذج للإضافة فقط - نموذج تغيير كلمة المرور منفصل
+        // الحصول على جميع الحقول المطلوبة
         const nameElement = userForm.querySelector('#userName');
         const usernameElement = userForm.querySelector('#userUsername');
+        const passwordElement = userForm.querySelector('#userPassword');
         const roleElement = userForm.querySelector('#userRole');
+
+        if (!nameElement || !usernameElement || !passwordElement || !roleElement) {
+            showMessage('خطأ في تحميل نموذج المستخدم. يرجى إعادة تحميل الصفحة.', 'error');
+            console.error('Missing form elements:', {
+                nameElement: !!nameElement,
+                usernameElement: !!usernameElement,
+                passwordElement: !!passwordElement,
+                roleElement: !!roleElement
+            });
+            return;
+        }
         
         // قراءة القيم مباشرة من الحقول - استخدام طريقة موثوقة
         const name = nameElement && nameElement.value !== undefined ? String(nameElement.value).trim() : '';
