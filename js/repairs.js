@@ -937,7 +937,7 @@ async function onCustomerTypeChange() {
             calculateRemaining();
         }
     } else {
-        // للعملاء العاديين: يجب دفع كامل المبلغ
+        // للعملاء العاديين: السماح بالدفع الجزئي
         if (paidAmountLabel) {
             paidAmountLabel.textContent = 'المبلغ المدفوع مقدماً';
         }
@@ -3201,15 +3201,8 @@ async function saveRepair(event) {
     const paidAmount = parseFloat(document.getElementById('paidAmount').value) || 0;
     const customerPriceNum = parseFloat(customerPrice);
     
-    // التحقق من الدفع الجزئي: مسموح فقط للعملاء التجاريين
-    if (customerType !== 'commercial' && paidAmount < customerPriceNum) {
-        showMessage('يجب دفع كامل المبلغ للعملاء العاديين', 'error');
-        return;
-    }
-    
-    // للعملاء التجاريين: السماح بالدفع الجزئي
-    // للعملاء العاديين: التأكد من دفع كامل المبلغ
-    const finalPaidAmount = customerType === 'commercial' ? paidAmount : customerPriceNum;
+    // ✅ السماح بالدفع الجزئي لجميع أنواع العملاء (العاديين والتجاريين)
+    const finalPaidAmount = paidAmount;
     const remainingAmount = Math.max(0, customerPriceNum - finalPaidAmount);
 
     const currentUser = getCurrentUser();
