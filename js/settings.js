@@ -1692,36 +1692,83 @@ async function showEditUserModal(userId) {
         // حفظ معرف المستخدم في النموذج
         form.dataset.editUserId = userId;
         
-        // ✅ إخفاء جميع الحقول عدا كلمة المرور
-        if (nameGroup) {
-            nameGroup.style.display = 'none';
-            if (nameField) nameField.required = false;
-        }
-        if (usernameGroup) {
-            usernameGroup.style.display = 'none';
-            if (usernameField) usernameField.required = false;
-        }
-        if (roleGroup) {
-            roleGroup.style.display = 'none';
-            if (roleField) roleField.required = false;
-        }
-        if (branchGroup) {
-            branchGroup.style.display = 'none';
-            const branchField = document.getElementById('userBranch');
-            if (branchField) branchField.required = false;
-        }
+        // ✅ إخفاء جميع الحقول عدا كلمة المرور - استخدام طريقة موثوقة وقوية
+        // إخفاء جميع form-group داخل النموذج باستخدام CSS مباشر
+        const allFormGroups = form.querySelectorAll('.form-group');
+        allFormGroups.forEach(group => {
+            // التحقق إذا كان هذا المجموعة تحتوي على حقل كلمة المرور
+            const passwordInput = group.querySelector('#userPassword');
+            if (!passwordInput) {
+                // إخفاء جميع الحقول عدا حقل كلمة المرور - استخدام عدة طرق للتأكد
+                group.style.setProperty('display', 'none', 'important');
+                group.style.setProperty('visibility', 'hidden', 'important');
+                group.style.setProperty('height', '0', 'important');
+                group.style.setProperty('overflow', 'hidden', 'important');
+                group.style.setProperty('margin', '0', 'important');
+                group.style.setProperty('padding', '0', 'important');
+                group.style.setProperty('opacity', '0', 'important');
+                group.setAttribute('hidden', 'true');
+                
+                // إزالة required من جميع الحقول المخفية
+                const inputs = group.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    input.required = false;
+                    input.disabled = true;
+                    input.setAttribute('tabindex', '-1'); // منع الوصول بالكيبورد
+                });
+                
+                // إخفاء labels أيضاً
+                const labels = group.querySelectorAll('label');
+                labels.forEach(label => {
+                    label.style.setProperty('display', 'none', 'important');
+                });
+            }
+        });
         
         // ✅ إظهار حقل كلمة المرور فقط
         if (passwordGroup) {
-            passwordGroup.style.display = 'block';
+            passwordGroup.style.setProperty('display', 'block', 'important');
+            passwordGroup.style.setProperty('visibility', 'visible', 'important');
+            passwordGroup.style.setProperty('height', 'auto', 'important');
+            passwordGroup.style.setProperty('overflow', 'visible', 'important');
+            passwordGroup.style.setProperty('opacity', '1', 'important');
+            passwordGroup.removeAttribute('hidden');
         }
+        
+        // إزالة required من جميع الحقول عدا كلمة المرور
+        if (nameField) {
+            nameField.required = false;
+            nameField.disabled = true;
+            nameField.setAttribute('tabindex', '-1');
+        }
+        if (usernameField) {
+            usernameField.required = false;
+            usernameField.disabled = true;
+            usernameField.setAttribute('tabindex', '-1');
+        }
+        if (roleField) {
+            roleField.required = false;
+            roleField.disabled = true;
+            roleField.setAttribute('tabindex', '-1');
+        }
+        const branchField = document.getElementById('userBranch');
+        if (branchField) {
+            branchField.required = false;
+            branchField.disabled = true;
+            branchField.setAttribute('tabindex', '-1');
+        }
+        
+        // تفعيل حقل كلمة المرور فقط
         passwordField.required = true;
+        passwordField.disabled = false;
+        passwordField.removeAttribute('tabindex');
         passwordField.value = '';
         
         // تحديث label كلمة المرور
         const passwordLabel = passwordGroup?.querySelector('label');
         if (passwordLabel) {
             passwordLabel.textContent = 'كلمة المرور الجديدة *';
+            passwordLabel.style.setProperty('display', 'block', 'important');
         }
 
         // إظهار النموذج
@@ -1767,19 +1814,53 @@ function closeUserModal() {
                 titleElement.textContent = 'إضافة مستخدم';
             }
             
-            // إعادة إظهار جميع الحقول
-            if (nameGroup) nameGroup.style.display = 'block';
-            if (usernameGroup) usernameGroup.style.display = 'block';
-            if (roleGroup) roleGroup.style.display = 'block';
-            if (branchGroup) branchGroup.style.display = 'block';
-            if (passwordGroup) passwordGroup.style.display = 'block';
+            // إعادة إظهار جميع الحقول - إعادة تعيين جميع الأنماط
+            const allFormGroups = form.querySelectorAll('.form-group');
+            allFormGroups.forEach(group => {
+                group.style.removeProperty('display');
+                group.style.removeProperty('visibility');
+                group.style.removeProperty('height');
+                group.style.removeProperty('overflow');
+                group.style.removeProperty('margin');
+                group.style.removeProperty('padding');
+                group.style.removeProperty('opacity');
+                group.removeAttribute('hidden');
+                
+                // إعادة تفعيل جميع الحقول
+                const inputs = group.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    input.disabled = false;
+                    input.removeAttribute('tabindex');
+                });
+                
+                // إعادة إظهار labels
+                const labels = group.querySelectorAll('label');
+                labels.forEach(label => {
+                    label.style.removeProperty('display');
+                });
+            });
             
+            // إعادة تعيين required للحقول
+            if (nameField) {
+                nameField.required = true;
+                nameField.disabled = false;
+            }
             if (usernameField) {
+                usernameField.required = true;
                 usernameField.disabled = false;
+            }
+            if (roleField) {
+                roleField.required = true;
+                roleField.disabled = false;
+            }
+            const branchField = document.getElementById('userBranch');
+            if (branchField) {
+                branchField.disabled = false;
             }
             
             if (passwordField) {
                 passwordField.required = true;
+                passwordField.disabled = false;
                 const passwordLabel = passwordGroup?.querySelector('label');
                 if (passwordLabel) {
                     passwordLabel.textContent = 'كلمة المرور *';
