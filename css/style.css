@@ -5409,11 +5409,22 @@ body {
         width: 100%;
     }
     
-    .expenses-table-wrapper .table-container,
-    .salaries-table-wrapper .table-container {
+    .expenses-table-wrapper .table-container {
         margin: 0;
         padding: 0;
         overflow-x: visible;
+    }
+    
+    /* ✅ السماح بالتمرير الأفقي لجدول المستحقات على الشاشات الصغيرة */
+    .salaries-table-wrapper .table-container {
+        margin: 0;
+        padding: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .salaries-table-wrapper .data-table {
+        min-width: 600px;
     }
     
     .data-table th,
@@ -9656,6 +9667,37 @@ body > .nav-link,
     overflow-x: hidden;
 }
 
+/* ✅ إضافة شريط تمرير أفقي لجدول المستحقات */
+.salaries-table-wrapper .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--light-bg);
+}
+
+.salaries-table-wrapper .table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.salaries-table-wrapper .table-container::-webkit-scrollbar-track {
+    background: var(--light-bg);
+    border-radius: 4px;
+}
+
+.salaries-table-wrapper .table-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.salaries-table-wrapper .table-container::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
+
+.salaries-table-wrapper .data-table {
+    min-width: 600px;
+    width: 100%;
+}
+
 .table-title {
     color: var(--primary-color);
     font-size: 1.3em;
@@ -9917,16 +9959,30 @@ body > .nav-link,
     }
     
     /* تحسين عرض الجداول داخل expenses-table-wrapper على الشاشات الصغيرة */
-    .expenses-table-wrapper .table-container,
-    .salaries-table-wrapper .table-container {
+    .expenses-table-wrapper .table-container {
         margin: 0;
         padding: 0;
         border-radius: 6px;
     }
     
-    .expenses-table-wrapper .data-table,
-    .salaries-table-wrapper .data-table {
+    /* ✅ السماح بالتمرير الأفقي لجدول المستحقات على الشاشات الصغيرة */
+    .salaries-table-wrapper .table-container {
+        margin: 0;
+        padding: 0;
+        border-radius: 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .expenses-table-wrapper .data-table {
         min-width: unset;
+        width: 100%;
+        font-size: 0.85em;
+    }
+    
+    /* ✅ الحفاظ على min-width لجدول المستحقات للسماح بالتمرير الأفقي */
+    .salaries-table-wrapper .data-table {
+        min-width: 600px;
         width: 100%;
         font-size: 0.85em;
     }
