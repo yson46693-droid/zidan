@@ -3995,13 +3995,43 @@ async function handlePOSQRCodeScanned(decodedText) {
     // ═══════════════════════════════════════════════════════
     console.log('🔍 [Step 0] بحث بسيط ومباشر...');
     
-    const searchValue = cleanedText.toLowerCase();
+    const searchValue = cleanedText.toLowerCase().trim();
+    
+    // ✅ عرض معلومات البحث على الشاشة للتشخيص
+    const showDebugInfo = (message, type = 'info') => {
+        const debugDiv = document.createElement('div');
+        debugDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${type === 'error' ? 'var(--danger-color)' : type === 'success' ? 'var(--success-color)' : 'var(--primary-color)'};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            z-index: 99999;
+            max-width: 90%;
+            text-align: center;
+            font-size: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s ease;
+        `;
+        debugDiv.innerHTML = message;
+        document.body.appendChild(debugDiv);
+        
+        setTimeout(() => {
+            debugDiv.style.opacity = '0';
+            debugDiv.style.transform = 'translateX(-50%) translateY(-20px)';
+            debugDiv.style.transition = 'all 0.3s ease';
+            setTimeout(() => debugDiv.remove(), 300);
+        }, 3000);
+    };
     
     product = allProducts.find(p => {
         // البحث في جميع الحقول بشكل مباشر (case-insensitive)
-        const id = (p.id || '').toString().toLowerCase();
-        const barcode = (p.barcode || '').toString().toLowerCase();
-        const code = (p.code || '').toString().toLowerCase();
+        const id = (p.id || '').toString().toLowerCase().trim();
+        const barcode = (p.barcode || '').toString().toLowerCase().trim();
+        const code = (p.code || '').toString().toLowerCase().trim();
         
         if (id === searchValue || barcode === searchValue || code === searchValue) {
             console.log('✅ [Step 0] تطابق مباشر!', { product: p.name, field: id === searchValue ? 'id' : barcode === searchValue ? 'barcode' : 'code', value: searchValue });
@@ -4012,8 +4042,10 @@ async function handlePOSQRCodeScanned(decodedText) {
     
     if (product) {
         console.log('🎉 [Step 0] تم العثور على المنتج بالبحث البسيط:', product.name);
+        showDebugInfo(`✅ تم العثور: ${product.name}`, 'success');
     } else {
         console.log('⚠️ [Step 0] لم يتم العثور على المنتج بالبحث البسيط، سنحاول البحث المتقدم...');
+        showDebugInfo(`🔍 البحث عن: "${cleanedText}"...`, 'info');
     }
     
     // ═══════════════════════════════════════════════════════
@@ -4308,26 +4340,43 @@ async function handlePOSQRCodeScanned(decodedText) {
         if (errorDivMobile) {
             const errorMessageMobile = document.getElementById('pos-scanner-error-message-mobile');
             if (errorMessageMobile) {
+                // جمع عينة من المنتجات للمقارنة
+                let sampleProductsHTML = '';
+                if (allProducts && allProducts.length > 0) {
+                    const samples = allProducts.slice(0, 5);
+                    sampleProductsHTML = '<div style="margin-top: 10px; font-size: 0.85em; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; text-align: right;">';
+                    sampleProductsHTML += '<div style="font-weight: bold; margin-bottom: 8px;">📊 أمثلة على المنتجات المتاحة:</div>';
+                    samples.forEach((p, i) => {
+                        const displayBarcode = p.barcode || p.code || p.id;
+                        sampleProductsHTML += `<div style="margin-bottom: 5px; padding: 5px; background: rgba(255,255,255,0.1); border-radius: 3px;">
+                            ${i+1}. ${p.name}<br>
+                            <span style="font-family: monospace; font-size: 0.9em;">Barcode: ${displayBarcode}</span>
+                        </div>`;
+                    });
+                    sampleProductsHTML += '</div>';
+                }
+                
                 errorMessageMobile.innerHTML = `
                     <div style="text-align: right; direction: rtl;">
                         <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">❌ المنتج غير موجود</div>
                         <div style="margin-bottom: 8px;">📋 القيمة المقروءة:</div>
-                        <div style="background: rgba(0,0,0,0.1); padding: 8px; border-radius: 5px; font-family: monospace; word-break: break-all; margin-bottom: 10px;">${cleanedText}</div>
-                        <div style="font-size: 0.9em; color: rgba(255,255,255,0.9);">
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; font-family: monospace; word-break: break-all; margin-bottom: 10px; font-size: 1.1em; font-weight: bold;">${cleanedText}</div>
+                        <div style="font-size: 0.9em; color: rgba(255,255,255,0.9); margin-bottom: 10px;">
                             📦 المنتجات المحملة: ${allProducts ? allProducts.length : 0}<br>
-                            💡 تحقق من أن المنتج موجود في المخزون
+                            💡 تحقق من أن المنتج موجود في المخزون وله barcode
                         </div>
+                        ${sampleProductsHTML}
                     </div>
                 `;
             }
             errorDivMobile.style.display = 'block';
             
-            // Hide error after 5 seconds
+            // Hide error after 8 seconds (زيادة الوقت لقراءة المعلومات)
             setTimeout(() => {
                 if (errorDivMobile) {
                     errorDivMobile.style.display = 'none';
                 }
-            }, 5000);
+            }, 8000);
         }
         
         // Also show error for desktop with debug info

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار QR Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #qrcode {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 15px;
+        }
+        
+        #qrcode canvas {
+            margin: 0 auto;
+            display: block;
+        }
+        
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-right: 4px solid #2196f3;
+        }
+        
+        .info p {
+            margin: 5px 0;
+            color: #1565c0;
+        }
+        
+        .code-display {
+            background: #333;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 18px;
+            text-align: center;
+            margin-top: 15px;
+            word-break: break-all;
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .preset-btn {
+            padding: 10px;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .preset-btn:hover {
+            background: #e0e0e0;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 اختبار QR Scanner</h1>
+        
+        <div class="input-group">
+            <label>نوع الاختبار:</label>
+            <select id="testType" onchange="updateForm()">
+                <option value="simple">بسيط (ID فقط)</option>
+                <option value="barcode">Barcode</option>
+                <option value="json">JSON (قديم)</option>
+            </select>
+        </div>
+        
+        <div class="input-group" id="idGroup">
+            <label>ID المنتج:</label>
+            <input type="text" id="productId" placeholder="مثال: 123" value="1">
+        </div>
+        
+        <div class="input-group" id="barcodeGroup" style="display: none;">
+            <label>Barcode:</label>
+            <input type="text" id="barcode" placeholder="مثال: IP13-256-BLU">
+        </div>
+        
+        <div class="input-group" id="jsonGroup" style="display: none;">
+            <label>نوع المنتج:</label>
+            <select id="productType">
+                <option value="PHONE">هاتف</option>
+                <option value="ACCESSORY">إكسسوار</option>
+                <option value="SPARE_PART">قطعة غيار</option>
+            </select>
+        </div>
+        
+        <button onclick="generateQR()">🎨 إنشاء QR Code</button>
+        
+        <div class="preset-buttons">
+            <button class="preset-btn" onclick="setPreset('1')">اختبار ID: 1</button>
+            <button class="preset-btn" onclick="setPreset('123')">اختبار ID: 123</button>
+            <button class="preset-btn" onclick="setPreset('TEST-001')">اختبار Barcode</button>
+            <button class="preset-btn" onclick="setPreset('json')">اختبار JSON</button>
+        </div>
+        
+        <div id="qrcode"></div>
+        
+        <div id="codeDisplay" class="code-display" style="display: none;"></div>
+        
+        <div class="info">
+            <p><strong>📋 كيفية الاستخدام:</strong></p>
+            <p>1. اختر نوع الاختبار</p>
+            <p>2. أدخل البيانات</p>
+            <p>3. اضغط "إنشاء QR Code"</p>
+            <p>4. امسح QR Code بالهاتف من نقطة البيع</p>
+            <p>5. راقب النتيجة على الشاشة</p>
+        </div>
+    </div>
+    
+    <script>
+        function updateForm() {
+            const type = document.getElementById('testType').value;
+            
+            document.getElementById('idGroup').style.display = type === 'simple' ? 'block' : 'none';
+            document.getElementById('barcodeGroup').style.display = type === 'barcode' ? 'block' : 'none';
+            document.getElementById('jsonGroup').style.display = type === 'json' ? 'block' : 'none';
+        }
+        
+        function setPreset(type) {
+            const testType = document.getElementById('testType');
+            const productId = document.getElementById('productId');
+            const barcode = document.getElementById('barcode');
+            
+            if (type === '1' || type === '123') {
+                testType.value = 'simple';
+                productId.value = type;
+            } else if (type === 'TEST-001') {
+                testType.value = 'barcode';
+                barcode.value = 'TEST-001';
+            } else if (type === 'json') {
+                testType.value = 'json';
+                productId.value = '1';
+            }
+            
+            updateForm();
+            generateQR();
+        }
+        
+        function generateQR() {
+            const type = document.getElementById('testType').value;
+            let qrData = '';
+            
+            // Clear previous QR code
+            document.getElementById('qrcode').innerHTML = '';
+            
+            if (type === 'simple') {
+                qrData = document.getElementById('productId').value;
+            } else if (type === 'barcode') {
+                qrData = document.getElementById('barcode').value;
+            } else if (type === 'json') {
+                const productType = document.getElementById('productType').value;
+                const id = document.getElementById('productId').value;
+                qrData = JSON.stringify({
+                    type: productType,
+                    id: parseInt(id),
+                    barcode: `TEST-${productType}-${id}`,
+                    timestamp: Date.now()
+                });
+            }
+            
+            if (!qrData) {
+                alert('❌ يرجى إدخال البيانات');
+                return;
+            }
+            
+            // Generate QR Code
+            QRCode.toCanvas(qrData, {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                },
+                errorCorrectionLevel: 'M'
+            }, function (error, canvas) {
+                if (error) {
+                    console.error(error);
+                    alert('❌ فشل إنشاء QR Code');
+                } else {
+                    document.getElementById('qrcode').appendChild(canvas);
+                    
+                    // Display the code
+                    const codeDisplay = document.getElementById('codeDisplay');
+                    codeDisplay.textContent = qrData;
+                    codeDisplay.style.display = 'block';
+                    
+                    console.log('✅ تم إنشاء QR Code:', qrData);
+                }
+            });
+        }
+        
+        // Generate default QR on load
+        window.onload = function() {
+            generateQR();
+        };
+    </script>
+</body>
+</html>
