@@ -372,15 +372,10 @@ function displaySpareParts(parts) {
     }
     
     grid.innerHTML = parts.map(part => {
-        const barcode = part.barcode || `${part.brand}-${part.model}-${part.id}`;
-        // إنشاء بيانات QR Code
-        const qrData = JSON.stringify({
-            type: 'SPARE_PART',
-            id: part.id,
-            brand: part.brand || '',
-            model: part.model || '',
-            barcode: barcode
-        });
+        // ✅ استخدام barcode البسيط مباشرة للتوافق مع جميع الماسحات
+        const barcode = part.barcode || part.id?.toString() || `${part.brand}-${part.model}-${part.id}`;
+        const qrData = barcode;
+        
         // استخدام QR Code بدلاً من الباركود
         const qrCodeUrl = generateQRCodeFallback(qrData, 200);
         
@@ -3313,16 +3308,9 @@ async function printAccessoryBarcode(id) {
         // الحصول على قيمة الباركود للـ QR Code
         const barcodeValue = accessory.barcode || accessory.code || accessory.id?.toString() || id;
         
-        // إنشاء بيانات QR Code بصيغة JSON (مثل قطع الغيار)
-        const qrData = JSON.stringify({
-            type: 'ACCESSORY',
-            id: accessory.id,
-            name: accessory.name || '',
-            accessoryType: accessory.type || '',
-            barcode: barcodeValue,
-            price: accessory.selling_price || 0,
-            timestamp: Date.now()
-        });
+        // ✅ استخدام barcode البسيط مباشرة بدلاً من JSON
+        // هذا أفضل للتوافق مع جميع الماسحات (هاتف وسطح المكتب)
+        const qrData = barcodeValue;
         
         // إنشاء QR Code
         let qrImage = '';
@@ -3515,17 +3503,13 @@ async function printSparePartQRCode(partId) {
             return;
         }
         
-        // إنشاء بيانات QR Code
-        const barcode = part.barcode || `${part.brand}-${part.model}-${part.id}`;
-        const qrData = JSON.stringify({
-            type: 'SPARE_PART',
-            id: part.id,
-            brand: part.brand || '',
-            model: part.model || '',
-            barcode: barcode,
-            price: part.selling_price || 0,
-            timestamp: Date.now()
-        });
+        // إنشاء بيانات QR Code - تبسيط للتوافق مع الهاتف وسطح المكتب
+        // استخدام barcode فقط بدلاً من JSON المعقد لتحسين التوافق
+        const barcode = part.barcode || part.id?.toString() || `${part.brand}-${part.model}-${part.id}`;
+        
+        // ✅ استخدام barcode البسيط مباشرة بدلاً من JSON
+        // هذا أفضل للتوافق مع جميع الماسحات
+        const qrData = barcode;
         
         // إنشاء QR Code
         let qrImage = '';
@@ -3849,16 +3833,8 @@ async function printPhoneFullLabel(id) {
         // الحصول على قيمة الباركود للـ QR Code
         const barcodeValue = phone.barcode || phone.code || phone.id?.toString() || id;
         
-        // إنشاء بيانات QR Code بصيغة JSON (مثل قطع الغيار)
-        const qrData = JSON.stringify({
-            type: 'PHONE',
-            id: phone.id,
-            brand: phone.brand || '',
-            model: phone.model || '',
-            barcode: barcodeValue,
-            price: phone.selling_price || 0,
-            timestamp: Date.now()
-        });
+        // ✅ استخدام barcode البسيط مباشرة للتوافق مع جميع الماسحات
+        const qrData = barcodeValue;
         
         // إنشاء QR Code
         let qrImage = '';
@@ -4219,16 +4195,8 @@ async function printPhoneQRCodeOnly(id) {
         // الحصول على قيمة الباركود للـ QR Code
         const barcodeValue = phone.barcode || phone.code || phone.id?.toString() || id;
         
-        // إنشاء بيانات QR Code بصيغة JSON (مثل قطع الغيار)
-        const qrData = JSON.stringify({
-            type: 'PHONE',
-            id: phone.id,
-            brand: phone.brand || '',
-            model: phone.model || '',
-            barcode: barcodeValue,
-            price: phone.selling_price || 0,
-            timestamp: Date.now()
-        });
+        // ✅ استخدام barcode البسيط مباشرة للتوافق مع جميع الماسحات
+        const qrData = barcodeValue;
         
         // إنشاء QR Code
         let qrImage = '';
