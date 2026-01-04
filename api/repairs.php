@@ -863,10 +863,14 @@ if ($method === 'PUT') {
         $allowedFieldsForCancelled = ['inspection_cost'];
         $requestedFields = array_keys($data);
         
-        // إزالة 'id' من الحقول المطلوبة للتحقق
+        // إزالة الحقول التقنية من الحقول المطلوبة للتحقق
         $requestedFields = array_filter($requestedFields, function($field) {
-            return $field !== 'id';
+            // إزالة 'id' و '_method' من الحقول المطلوبة للتحقق
+            return $field !== 'id' && $field !== '_method';
         });
+        
+        // إعادة فهرسة المصفوفة بعد التصفية
+        $requestedFields = array_values($requestedFields);
         
         // التحقق من أن التعديل يحتوي على inspection_cost فقط
         $hasOnlyAllowedFields = count($requestedFields) === 1 && in_array('inspection_cost', $requestedFields);
