@@ -1801,10 +1801,9 @@ function displayRepairs(repairs) {
         
         // ✅ التحقق من إمكانية التعديل: 
         // - يمكن التعديل إذا لم تكن الحالة "cancelled" أو "delivered"
-        // - يمكن التعديل للعمليات الملغاة إذا لم يتم إدخال inspection_cost بعد (لأي مستخدم)
+        // - يمكن التعديل للعمليات الملغاة دائماً (لأي مستخدم)
         // - المالك يمكنه التعديل دائماً
-        const hasInspectionCost = repair.inspection_cost && parseFloat(repair.inspection_cost) > 0;
-        const canEditCancelled = repairStatus === 'cancelled' && !hasInspectionCost;
+        const canEditCancelled = repairStatus === 'cancelled';
         const canEdit = isOwner || (repairStatus !== 'cancelled' && repairStatus !== 'delivered') || canEditCancelled;
         
         // قائمة الإجراءات المنسدلة
@@ -4084,19 +4083,7 @@ async function editRepair(id) {
         return;
     }
     
-    // ✅ للعمليات الملغاة: التحقق من وجود inspection_cost
-    if (repair.status === 'cancelled') {
-        const hasInspectionCost = repair.inspection_cost && parseFloat(repair.inspection_cost) > 0;
-        if (hasInspectionCost && !isOwner) {
-            // إذا تم إدخال مبلغ الكشف، لا يمكن التعديل إلا للمالك
-            if (typeof showMessage === 'function') {
-                showMessage('تم إدخال مبلغ الكشف بالفعل. فقط المالك يمكنه التعديل.', 'error');
-            } else {
-                alert('تم إدخال مبلغ الكشف بالفعل. فقط المالك يمكنه التعديل.');
-            }
-            return;
-        }
-    }
+    // ✅ للعمليات الملغاة: السماح بالتكرار لأي مستخدم (لا يوجد قيود)
 
     // تحميل الماركات أولاً
     await loadDeviceBrands();
