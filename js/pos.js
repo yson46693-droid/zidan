@@ -961,7 +961,7 @@ function addSparePartItemToCart(index) {
         existingItem.totalPrice = existingItem.unitPrice * newQuantity;
         updateCartDisplay();
         closeSparePartItemsModal();
-        showMessage('تم تحديث الكمية في السلة', 'success');
+        showMessage(`تم اضافة المنتج بنجاح : ${itemName}`, 'success');
         playSuccessSound(); // تشغيل صوت النجاح
         return;
     }
@@ -998,7 +998,7 @@ function addSparePartItemToCart(index) {
     
     updateCartDisplay();
     closeSparePartItemsModal();
-    showMessage('تم إضافة المنتج للسلة', 'success');
+    showMessage(`تم اضافة المنتج بنجاح : ${itemName}`, 'success');
     playSuccessSound(); // تشغيل صوت النجاح
 }
 
@@ -1027,7 +1027,7 @@ function playSuccessSound() {
     }
 }
 
-async function addToCart(product) {
+async function addToCart(product, showMessageFlag = true) {
     const existingItem = cart.find(item => item.id === product.id && item.type === product.type && !item.spare_part_item_id);
     
     if (existingItem) {
@@ -1077,8 +1077,12 @@ async function addToCart(product) {
     }
     
     updateCartDisplay();
-    showMessage('تم إضافة المنتج للسلة', 'success');
-    playSuccessSound(); // تشغيل صوت النجاح
+    
+    // عرض الرسالة فقط إذا كان showMessageFlag = true
+    if (showMessageFlag) {
+        showMessage(`تم اضافة المنتج بنجاح : ${product.name}`, 'success');
+        playSuccessSound(); // تشغيل صوت النجاح
+    }
 }
 
 // Remove from Cart
@@ -3784,35 +3788,6 @@ async function handlePOSQRCodeScanned(decodedText) {
     console.log('🚀🚀🚀 [handlePOSQRCodeScanned] تم استدعاء الدالة!');
     console.log('📥 [handlePOSQRCodeScanned] القيمة المستلمة:', decodedText);
     
-    // عرض تنبيه على الشاشة
-    try {
-        const processAlert = document.createElement('div');
-        processAlert.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(76, 175, 80, 0.95);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 10px;
-            z-index: 999998;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-        `;
-        processAlert.textContent = '⚙️ جاري معالجة QR Code...';
-        document.body.appendChild(processAlert);
-        
-        setTimeout(() => {
-            if (document.body.contains(processAlert)) {
-                processAlert.remove();
-            }
-        }, 3000);
-    } catch (e) {
-        console.error('Error showing process alert:', e);
-    }
-    
     // منع القراءات المتكررة - إذا كان القارئ مقفل، تجاهل القراءة
     if (posScannerLocked) {
         console.log('⏳ [POS Scanner] القارئ مقفل مؤقتاً، تجاهل القراءة المتكررة');
@@ -4347,17 +4322,16 @@ async function handlePOSQRCodeScanned(decodedText) {
     console.log('   - الكمية المتوفرة:', product.quantity);
     console.log('═══════════════════════════════════════════════════════');
     
-    // Play success sound immediately when product is found
-    playSuccessSound();
-    
-    // Show success message
-    showMessage(`✅ تم إضافة "${product.name}" إلى السلة`, 'success');
-    
     // Add product to cart - camera continues running
     if (product.type === 'spare_part' && product.items && product.items.length > 0) {
         openSparePartItemsModal(product);
     } else {
-        addToCart(product); // صوت النجاح سيتم تشغيله تلقائياً في addToCart
+        // إضافة المنتج بدون عرض رسالة (سيتم عرضها في addToCart)
+        await addToCart(product, false); // false = لا تعرض رسالة (سنعرضها بعد ذلك)
+        // عرض رسالة النجاح الواحدة
+        showMessage(`تم اضافة المنتج بنجاح : ${product.name}`, 'success');
+        // تشغيل صوت النجاح
+        playSuccessSound();
     }
     
     // Continue scanning - don't stop camera

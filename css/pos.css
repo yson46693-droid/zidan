@@ -4213,7 +4213,7 @@
     }
 
     .btn-complete-sale {
-        background: var(--primary-color);
+        background: var(--success-color);
         color: var(--white);
         border: none;
         padding: 12px 25px;
@@ -4224,18 +4224,26 @@
         transition: all 0.3s ease;
         white-space: nowrap;
         flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
     }
 
     .btn-complete-sale:hover:not(:disabled) {
-        background: var(--secondary-color);
+        background: #45a049;
         transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+    }
+
+    .btn-complete-sale:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
     }
 
     .btn-complete-sale:disabled {
-        background: var(--border-color);
-        color: var(--text-light);
+        background: var(--text-light);
+        color: var(--white);
         cursor: not-allowed;
-        opacity: 0.6;
+        opacity: 0.5;
+        box-shadow: none;
     }
 
     .bottom-action-info {
