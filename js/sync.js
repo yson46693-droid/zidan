@@ -382,16 +382,54 @@ class SyncManager {
         }
     }
 
-    // مزامنة العمليات الخاسرة
+    // مزامنة العمليات الخاسرة مع throttling لتقليل الاستدعاءات
     async syncLossOperations() {
         try {
-            const result = await API.request('loss-operations.php', 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
+            // ✅ Throttling: مزامنة فقط كل 5 دقائق لتقليل الضغط على الخادم
+            const cacheKey = 'loss_operations_last_sync';
+            const lastSyncTime = localStorage.getItem(cacheKey);
+            const now = Date.now();
+            const SYNC_INTERVAL = 15 * 60 * 1000; // 5 دقائق
+            
+            if (lastSyncTime && (now - parseInt(lastSyncTime)) < SYNC_INTERVAL) {
+                // استخدام البيانات المحفوظة محلياً
+                const cached = localStorage.getItem('loss_operations_cache');
+                if (cached) {
+                    try {
+                        const data = JSON.parse(cached);
+                        if (typeof allRepairs !== 'undefined' && data && data.length > 0) {
+                            const lossOperations = data.map(loss => ({
+                                id: loss.id,
+                                repair_number: loss.repair_number,
+                                customer_name: loss.customer_name,
+                                customer_phone: '',
+                                device_type: loss.device_type,
+                                device_model: '',
+                                problem: loss.problem,
+                                cost: loss.loss_amount,
+                                status: 'lost',
+                                created_by: '',
+                                created_at: loss.created_at,
+                                loss_reason: loss.loss_reason,
+                                loss_notes: loss.notes,
+                                is_loss_operation: true
+                            }));
+                            const existingRepairs = allRepairs.filter(r => !r.is_loss_operation);
+                            allRepairs = [...existingRepairs, ...lossOperations];
+                        }
+                    } catch (e) {
+                        console.warn('[Sync] خطأ في استخدام cache العمليات الخاسرة:', e);
+                    }
+                }
+                return; // تخطي المزامنة إذا مر أقل من 5 دقائق
+            }
+            
+            const result = await API.request('loss-operations.php', 'GET', null, { silent: true });
             if (result.success) {
                 localStorage.setItem('loss_operations_cache', JSON.stringify(result.data));
+                localStorage.setItem(cacheKey, now.toString());
                 
-                // تحديث العمليات مباشرة بدلاً من استدعاء loadRepairs() المكلف
                 if (typeof allRepairs !== 'undefined') {
-                    // تحويل العمليات الخاسرة إلى تنسيق العمليات العادية
                     const lossOperations = result.data.map(loss => ({
                         id: loss.id,
                         repair_number: loss.repair_number,
@@ -409,11 +447,9 @@ class SyncManager {
                         is_loss_operation: true
                     }));
                     
-                    // دمج العمليات الخاسرة مع العمليات العادية (إزالة المكررات)
                     const existingRepairs = allRepairs.filter(r => !r.is_loss_operation);
                     allRepairs = [...existingRepairs, ...lossOperations];
                     
-                    // التحقق من وجود العنصر والدالة قبل الاستدعاء
                     const statusFilterElement = document.getElementById('statusFilter');
                     if (statusFilterElement && typeof filterRepairs === 'function') {
                         filterRepairs();

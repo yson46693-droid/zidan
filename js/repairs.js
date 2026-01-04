@@ -2096,41 +2096,57 @@ function displayRepairs(repairs) {
             `;
             
             return `
-                <div class="repair-mobile-card" data-repair-id="${repair.id}" style="background: var(--white); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: var(--shadow);">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div class="repair-mobile-card" data-repair-id="${repair.id}" style="background: var(--white); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: var(--shadow);">
+                    <!-- الرأس: رقم العملية والعميل والحالة -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                         <div style="flex: 1;">
-                            <div style="font-weight: bold; font-size: 1.1em; color: var(--primary-color); margin-bottom: 5px;">
+                            <div style="font-weight: bold; font-size: 1em; color: var(--primary-color); margin-bottom: 4px;">
                                 ${repair.repair_number || '-'}
                             </div>
-                            <div style="font-size: 0.95em; color: var(--text-dark); margin-bottom: 5px;">
+                            <div style="font-size: 0.9em; color: var(--text-dark);">
                                 ${repair.customer_name || '-'}
                             </div>
-                            ${phoneButton ? `<div style="margin-top: 8px;">${phoneButton}</div>` : ''}
                         </div>
                         <div style="text-align: left;">
                             ${statusBadge}
                         </div>
                     </div>
                     
-                    <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px;">
-                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
-                            <strong>الجهاز:</strong> ${repair.device_type || ''} ${repair.device_model || ''}
-                        </div>
-                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
-                            <strong>المشكلة:</strong> ${repair.problem || '-'}
-                        </div>
-                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
-                            <strong>التكلفة:</strong> <span style="color: var(--primary-color); font-weight: bold;">${formatCurrency(repairCost)}</span>
-                        </div>
-                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">
-                            <strong>الفني:</strong> ${repair.technician_name || getTechnicianName(repair.created_by) || 'غير محدد'}
-                        </div>
-                        <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 12px;">
-                            <strong>التاريخ:</strong> ${formatDate(repair.created_at)}
+                    <!-- الأزرار: الاتصال والإجراءات في نفس الصف -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                        ${phoneButton ? `<div>${phoneButton}</div>` : '<div></div>'}
+                        <div>${actionButtons}</div>
+                    </div>
+                    
+                    <!-- التفاصيل: عمودين -->
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 10px;">
+                        <!-- الجهاز والمشكلة في نفس الصف -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                            <div style="font-size: 0.85em; color: var(--text-light);">
+                                <strong style="color: var(--text-dark);">الجهاز:</strong><br>
+                                <span style="font-size: 0.9em;">${repair.device_type || ''} ${repair.device_model || ''}</span>
+                            </div>
+                            <div style="font-size: 0.85em; color: var(--text-light);">
+                                <strong style="color: var(--text-dark);">المشكلة:</strong><br>
+                                <span style="font-size: 0.9em;">${repair.problem || '-'}</span>
+                            </div>
                         </div>
                         
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
-                            ${actionButtons}
+                        <!-- التكلفة والفني في نفس الصف -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                            <div style="font-size: 0.85em; color: var(--text-light);">
+                                <strong style="color: var(--text-dark);">التكلفة:</strong><br>
+                                <span style="color: var(--primary-color); font-weight: bold; font-size: 0.95em;">${formatCurrency(repairCost)}</span>
+                            </div>
+                            <div style="font-size: 0.85em; color: var(--text-light);">
+                                <strong style="color: var(--text-dark);">الفني:</strong><br>
+                                <span style="font-size: 0.9em;">${repair.technician_name || getTechnicianName(repair.created_by) || 'غير محدد'}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- التاريخ في صف منفصل -->
+                        <div style="font-size: 0.85em; color: var(--text-light); text-align: center; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                            <strong style="color: var(--text-dark);">التاريخ:</strong> ${formatDate(repair.created_at)}
                         </div>
                     </div>
                 </div>

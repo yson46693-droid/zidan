@@ -2585,8 +2585,8 @@
                         // التحقق فوراً
                         setTimeout(checkForUpdates, 1000);
                         
-                        // التحقق بشكل دوري كل 30 ثانية
-                        setInterval(checkForUpdates, 30000); // كل 30 ثانية
+                        // ✅ تقليل الاستدعاءات: التحقق بشكل دوري كل 5 دقائق (بدلاً من 30 ثانية)
+                        setInterval(checkForUpdates, 300000); // كل 5 دقائق (300000 مللي ثانية)
                     } catch (error) {
                         // معالجة أفضل للأخطاء
                         if (error.message && error.message.includes('MIME type')) {

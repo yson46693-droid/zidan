@@ -5375,8 +5375,16 @@ body {
     .repair-mobile-card .actions-dropdown-btn {
         width: 100%;
         justify-content: center;
-        padding: 10px;
-        font-size: 0.95em;
+        padding: 8px 10px;
+        font-size: 0.9em;
+    }
+    
+    /* تحسين زر الاتصال على الهواتف */
+    .repair-mobile-card .btn-success {
+        width: 100%;
+        justify-content: center;
+        padding: 8px 10px;
+        font-size: 0.9em;
     }
     
     /* الجداول */

@@ -2,7 +2,19 @@
 /**
  * API إدارة العمليات الخاسرة
  * تسجيل وتتبع العمليات التي أدت إلى خسائر مالية
+ * 
+ * ✅ تم تعطيل هذا الملف - لم يعد مستخدماً
  */
+
+// ✅ إرجاع استجابة فارغة فوراً - منع أي تنفيذ
+http_response_code(200);
+header('Content-Type: application/json; charset=utf-8');
+echo json_encode([
+    'success' => false,
+    'message' => 'هذه الوظيفة غير متاحة حالياً',
+    'data' => []
+], JSON_UNESCAPED_UNICODE);
+exit;
 
 require_once 'config.php';
 
