@@ -1799,8 +1799,13 @@ function displayRepairs(repairs) {
         // ✅ إصلاح: استخدام customer_price بدلاً من cost
         const repairCost = repair.customer_price || repair.cost || 0;
         
-        // ✅ التحقق من إمكانية التعديل: يمكن التعديل فقط إذا لم تكن الحالة "cancelled" أو "delivered"، أو إذا كان المستخدم مالك
-        const canEdit = isOwner || (repairStatus !== 'cancelled' && repairStatus !== 'delivered');
+        // ✅ التحقق من إمكانية التعديل: 
+        // - يمكن التعديل إذا لم تكن الحالة "cancelled" أو "delivered"
+        // - يمكن التعديل للعمليات الملغاة إذا لم يتم إدخال inspection_cost بعد (لأي مستخدم)
+        // - المالك يمكنه التعديل دائماً
+        const hasInspectionCost = repair.inspection_cost && parseFloat(repair.inspection_cost) > 0;
+        const canEditCancelled = repairStatus === 'cancelled' && !hasInspectionCost;
+        const canEdit = isOwner || (repairStatus !== 'cancelled' && repairStatus !== 'delivered') || canEditCancelled;
         
         // قائمة الإجراءات المنسدلة
         const deleteButtonHTML = hasPermission('manager') ? `
@@ -3062,28 +3067,48 @@ async function saveRepair(event) {
             id: repairId
         };
         
-        // ✅ الحقول القابلة للتعديل فقط:
-        // 1. الفني المستلم
-        const technicianSelect = document.getElementById('technicianSelect');
-        if (technicianSelect && technicianSelect.value) {
-            repairData.created_by = technicianSelect.value;
+        // ✅ التحقق من حالة العملية
+        const currentRepairForEdit = allRepairs.find(r => r.id === repairId);
+        const isCancelled = currentRepairForEdit && currentRepairForEdit.status === 'cancelled';
+        
+        if (isCancelled) {
+            // ✅ للعمليات الملغاة: إرسال inspection_cost فقط
+            const inspectionCostInput = document.getElementById('inspectionCost');
+            if (inspectionCostInput) {
+                const inspectionCost = inspectionCostInput.value ? parseFloat(inspectionCostInput.value) : 0;
+                if (inspectionCost < 0) {
+                    showMessage('مبلغ الكشف يجب أن يكون أكبر من أو يساوي 0', 'error');
+                    return;
+                }
+                repairData.inspection_cost = inspectionCost;
+            } else {
+                showMessage('حقل تكلفة الكشف مطلوب', 'error');
+                return;
+            }
         } else {
-            showMessage('يجب اختيار الفني المستلم', 'error');
-            return;
-        }
-        
-        // 2. السعر للعميل - إرساله دائماً
-        const customerPrice = document.getElementById('customerPrice').value.trim();
-        repairData.customer_price = customerPrice ? parseFloat(customerPrice) : 0;
-        
-        // 3. تكلفة الإصلاح - إرسالها دائماً
-        const repairCost = document.getElementById('repairCost').value.trim();
-        repairData.repair_cost = repairCost ? parseFloat(repairCost) : 0;
-        
-        // 4. تكلفة الكشف - إرسالها عند الحاجة
-        const inspectionCostInput = document.getElementById('inspectionCost');
-        if (inspectionCostInput) {
-            repairData.inspection_cost = inspectionCostInput.value ? parseFloat(inspectionCostInput.value) : 0;
+            // ✅ الحقول القابلة للتعديل فقط:
+            // 1. الفني المستلم
+            const technicianSelect = document.getElementById('technicianSelect');
+            if (technicianSelect && technicianSelect.value) {
+                repairData.created_by = technicianSelect.value;
+            } else {
+                showMessage('يجب اختيار الفني المستلم', 'error');
+                return;
+            }
+            
+            // 2. السعر للعميل - إرساله دائماً
+            const customerPrice = document.getElementById('customerPrice').value.trim();
+            repairData.customer_price = customerPrice ? parseFloat(customerPrice) : 0;
+            
+            // 3. تكلفة الإصلاح - إرسالها دائماً
+            const repairCost = document.getElementById('repairCost').value.trim();
+            repairData.repair_cost = repairCost ? parseFloat(repairCost) : 0;
+            
+            // 4. تكلفة الكشف - إرسالها عند الحاجة
+            const inspectionCostInput = document.getElementById('inspectionCost');
+            if (inspectionCostInput) {
+                repairData.inspection_cost = inspectionCostInput.value ? parseFloat(inspectionCostInput.value) : 0;
+            }
         }
         
         // 5. اسم محل قطع الغيار - إرساله دائماً (حتى لو فارغ)
@@ -3119,13 +3144,13 @@ async function saveRepair(event) {
         }
         
         // ✅ التحقق من تغيير الحالة إلى "delivered" أو "cancelled" لطلب التقييم
-        const currentRepair = allRepairs.find(r => r.id === repairId);
-        const oldStatus = currentRepair ? currentRepair.status : null;
+        const currentRepairForRating = currentRepairForEdit || allRepairs.find(r => r.id === repairId);
+        const oldStatus = currentRepairForRating ? currentRepairForRating.status : null;
         const newStatus = repairData.status;
         const shouldRequestRating = (newStatus === 'delivered' || newStatus === 'cancelled') && 
                                     oldStatus !== newStatus && 
-                                    currentRepair && 
-                                    currentRepair.customer_id;
+                                    currentRepairForRating && 
+                                    currentRepairForRating.customer_id;
         
         // ✅ إرسال التعديلات
         console.log('✅ [Repairs] بيانات التعديل المرسلة:', repairData);
@@ -3146,10 +3171,13 @@ async function saveRepair(event) {
             lastRepairsLoadTime = 0;
             await loadRepairs(true);
             
+            // ✅ إذا كانت العملية ملغاة وتم إدخال inspection_cost، سيتم إخفاء زر التعديل تلقائياً
+            // لأن canEdit سيتحقق من وجود inspection_cost في loadRepairs
+            
             // ✅ طلب التقييم إذا تم تغيير الحالة إلى "delivered" أو "cancelled"
-            if (shouldRequestRating && currentRepair.customer_id) {
+            if (shouldRequestRating && currentRepairForRating && currentRepairForRating.customer_id) {
                 setTimeout(() => {
-                    showRepairRatingModal(currentRepair.customer_id, repairId, currentRepair.repair_number || '');
+                    showRepairRatingModal(currentRepairForRating.customer_id, repairId, currentRepairForRating.repair_number || '');
                 }, 500); // تأخير بسيط لإغلاق النافذة أولاً
             }
             
@@ -4045,15 +4073,29 @@ async function editRepair(id) {
     const currentUser = getCurrentUser();
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
     
-    // ✅ منع التعديل على الطلبات الملغاة أو المسلمة ما عدا المالك
-    if ((repair.status === 'cancelled' || repair.status === 'delivered') && !isOwner) {
-        const statusText = repair.status === 'cancelled' ? 'ملغاة' : 'مسلمة';
+    // ✅ السماح بتعديل العمليات الملغاة لإدخال مبلغ الكشف (لأي مستخدم)
+    // ✅ منع التعديل على الطلبات المسلمة ما عدا المالك
+    if (repair.status === 'delivered' && !isOwner) {
         if (typeof showMessage === 'function') {
-            showMessage(`لا يمكن تعديل عملية صيانة ${statusText}. فقط المالك يمكنه تعديل العمليات ${statusText === 'ملغاة' ? 'الملغاة' : 'المسلمة'}.`, 'error');
+            showMessage('لا يمكن تعديل عملية صيانة مسلمة. فقط المالك يمكنه تعديل العمليات المسلمة.', 'error');
         } else {
-            alert(`لا يمكن تعديل عملية صيانة ${statusText}. فقط المالك يمكنه تعديل العمليات ${statusText === 'ملغاة' ? 'الملغاة' : 'المسلمة'}.`);
+            alert('لا يمكن تعديل عملية صيانة مسلمة. فقط المالك يمكنه تعديل العمليات المسلمة.');
         }
         return;
+    }
+    
+    // ✅ للعمليات الملغاة: التحقق من وجود inspection_cost
+    if (repair.status === 'cancelled') {
+        const hasInspectionCost = repair.inspection_cost && parseFloat(repair.inspection_cost) > 0;
+        if (hasInspectionCost && !isOwner) {
+            // إذا تم إدخال مبلغ الكشف، لا يمكن التعديل إلا للمالك
+            if (typeof showMessage === 'function') {
+                showMessage('تم إدخال مبلغ الكشف بالفعل. فقط المالك يمكنه التعديل.', 'error');
+            } else {
+                alert('تم إدخال مبلغ الكشف بالفعل. فقط المالك يمكنه التعديل.');
+            }
+            return;
+        }
     }
 
     // تحميل الماركات أولاً
@@ -4097,6 +4139,13 @@ async function editRepair(id) {
     document.getElementById('repairType').value = repair.repair_type || 'soft';
     document.getElementById('customerPrice').value = repair.customer_price || repair.cost || 0;
     document.getElementById('repairCost').value = repair.repair_cost || 0;
+    
+    // ✅ تحميل تكلفة الكشف
+    const inspectionCostInput = document.getElementById('inspectionCost');
+    if (inspectionCostInput) {
+        inspectionCostInput.value = repair.inspection_cost || 0;
+    }
+    
     document.getElementById('partsStore').value = repair.parts_store || '';
     
     // تحميل أرقام فواتير قطع الغيار
@@ -4256,6 +4305,54 @@ async function editRepair(id) {
     const inspectionReportGroup = document.getElementById('inspectionReportGroup');
     if (inspectionReportGroup) {
         inspectionReportGroup.style.display = 'block';
+    }
+    
+    // ✅ إظهار حقل تكلفة الكشف للعمليات الملغاة فقط
+    if (repair.status === 'cancelled') {
+        const inspectionCostGroup = document.getElementById('inspectionCostGroup');
+        if (inspectionCostGroup) {
+            inspectionCostGroup.style.display = 'block';
+            const inspectionCostInput = document.getElementById('inspectionCost');
+            if (inspectionCostInput) {
+                inspectionCostInput.required = true;
+            }
+        }
+        
+        // ✅ إخفاء جميع الحقول الأخرى للعمليات الملغاة (ما عدا inspection_cost)
+        const technicianSelectGroup = document.getElementById('technicianSelect')?.parentElement;
+        if (technicianSelectGroup) {
+            technicianSelectGroup.style.display = 'none';
+        }
+        const customerPriceGroup = document.getElementById('customerPrice')?.parentElement;
+        if (customerPriceGroup) {
+            customerPriceGroup.style.display = 'none';
+        }
+        const repairCostGroup = document.getElementById('repairCost')?.parentElement;
+        if (repairCostGroup) {
+            repairCostGroup.style.display = 'none';
+        }
+        const partsStoreGroup = document.getElementById('partsStore')?.parentElement;
+        if (partsStoreGroup) {
+            partsStoreGroup.style.display = 'none';
+        }
+        const sparePartsInvoicesContainer = document.getElementById('sparePartsInvoicesContainer');
+        if (sparePartsInvoicesContainer) {
+            sparePartsInvoicesContainer.style.display = 'none';
+        }
+        const deliveryDateGroup = document.getElementById('deliveryDate')?.parentElement;
+        if (deliveryDateGroup) {
+            deliveryDateGroup.style.display = 'none';
+        }
+        const statusGroup = document.getElementById('status')?.parentElement;
+        if (statusGroup) {
+            statusGroup.style.display = 'none';
+        }
+        if (serialNumberGroup) {
+            serialNumberGroup.style.display = 'none';
+        }
+        if (inspectionReportGroup) {
+            inspectionReportGroup.style.display = 'none';
+        }
     }
     
     // عرض الصورة الموجودة إن وجدت
