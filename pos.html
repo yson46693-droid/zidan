@@ -592,14 +592,21 @@
             }
             
             if (qrHeaderBtnMobile && posQrScannerMobile) {
-                // على الهواتف: فتح/إغلاق جزء الكاميرا المدمج
+                // على الهواتف: تعطيل الماسح وإظهار رسالة التطوير
                 qrHeaderBtnMobile.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
                     // التحقق من أننا على هاتف
                     if (window.innerWidth <= 767.98) {
-                        toggleMobileQRScanner();
+                        // إظهار رسالة أن الميزة قيد التطوير
+                        if (typeof showMessage === 'function') {
+                            showMessage('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد', 'info');
+                        } else {
+                            alert('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد');
+                        }
+                        // عدم فتح الماسح أو الكاميرا
+                        return;
                     } else {
                         // على سطح المكتب: استخدام السلوك العادي (فتح modal)
                         if (qrHeaderBtn) {
@@ -612,6 +619,16 @@
                 qrHeaderBtnMobile.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    
+                    // على الهواتف: إظهار رسالة التطوير
+                    if (window.innerWidth <= 767.98) {
+                        if (typeof showMessage === 'function') {
+                            showMessage('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد', 'info');
+                        } else {
+                            alert('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد');
+                        }
+                        return;
+                    }
                     qrHeaderBtn.click();
                 });
             }
@@ -619,57 +636,21 @@
             // جعل الدالة متاحة عالمياً
             window.toggleMobileQRScanner = toggleMobileQRScanner;
             
-            // ربط زر تفعيل الكاميرا للهواتف (مشابه للكود المقدم)
+            // ربط زر تفعيل الكاميرا للهواتف - معطل (الميزة قيد التطوير)
             const enableCamMobile = document.getElementById('enableCamMobile');
             if (enableCamMobile) {
-                enableCamMobile.addEventListener('click', async function() {
-                    try {
-                        // إخفاء الزر
-                        enableCamMobile.style.display = 'none';
-                        
-                        // إظهار loading
-                        const loadingDiv = document.getElementById('pos-scanner-loading-mobile');
-                        if (loadingDiv) {
-                            loadingDiv.style.display = 'block';
-                            loadingDiv.innerHTML = `
-                                <i class="bi bi-camera" style="font-size: 2em; color: var(--primary-color); margin-bottom: 10px; display: block; animation: pulse 2s infinite;"></i>
-                                <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">جاري تحميل قارئ QR Code...</p>
-                                <p class="scanner-hint" style="font-size: 0.75em; color: var(--text-light); margin-top: 5px;">يرجى السماح بالوصول إلى الكاميرا</p>
-                            `;
-                        }
-                        
-                        // انتظار قليل لضمان تحميل العنصر
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                        
-                        // تهيئة الماسح
-                        if (window.initializePOSQRCodeScannerMobile) {
-                            await window.initializePOSQRCodeScannerMobile();
-                        } else if (window.initializePOSQRCodeScannerAuto) {
-                            await window.initializePOSQRCodeScannerAuto();
-                        } else {
-                            console.error('❌ Scanner functions not available');
-                            if (loadingDiv) {
-                                loadingDiv.innerHTML = `
-                                    <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                                    <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">خطأ: دالة الماسح غير متاحة</p>
-                                    <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">يرجى تحديث الصفحة</p>
-                                `;
-                            }
-                        }
-                    } catch (error) {
-                        console.error('❌ Error starting camera:', error);
-                        const loadingDiv = document.getElementById('pos-scanner-loading-mobile');
-                        if (loadingDiv) {
-                            loadingDiv.innerHTML = `
-                                <i class="bi bi-exclamation-triangle" style="font-size: 2em; color: var(--danger-color); margin-bottom: 10px; display: block;"></i>
-                                <p style="font-size: 0.9em; font-weight: 600; color: var(--text-dark);">خطأ في بدء الكاميرا</p>
-                                <p style="font-size: 0.8em; color: var(--text-light); margin-top: 5px;">${error.message || 'خطأ غير معروف'}</p>
-                                <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: var(--primary-color); color: var(--white); border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
-                                    تحديث الصفحة
-                                </button>
-                            `;
-                        }
+                enableCamMobile.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // إظهار رسالة أن الميزة قيد التطوير
+                    if (typeof showMessage === 'function') {
+                        showMessage('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد', 'info');
+                    } else {
+                        alert('الميزه قيد التطوير سيتم اطلاقها مع التحديث الجديد');
                     }
+                    // عدم فتح الكاميرا أو الماسح
+                    return;
                 });
             }
         });

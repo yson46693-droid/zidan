@@ -3192,9 +3192,9 @@ async function openPOSBarcodeScanner() {
 async function initializePOSQRCodeScannerAuto() {
     const isMobile = window.innerWidth <= 767.98;
     
-    // للهواتف: استخدام طريقة مبسطة مباشرة
+    // للهواتف: تعطيل الماسح (الميزة قيد التطوير)
     if (isMobile) {
-        await initializePOSQRCodeScannerMobile();
+        console.log('ℹ️ [POS Scanner] Scanner disabled on mobile devices - Feature under development');
         return;
     }
     
