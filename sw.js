@@ -399,7 +399,8 @@ self.addEventListener('fetch', event => {
                             }
                             throw error;
                         });
-                    })
+                    });
+                })
             );
         } else {
             // ✅ للطلبات POST/PUT/DELETE: Network First فقط
@@ -423,26 +424,7 @@ self.addEventListener('fetch', event => {
                     });
                 })
             );
-        } 
-                                    message: 'لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة محلياً.',
-                                    data: [], // ✅ إرجاع مصفوفة فارغة بدلاً من عدم إرجاع شيء
-                                    offline: true
-                                }),
-                                { 
-                                    headers: { 
-                                        'Content-Type': 'application/json',
-                                        'Cache-Control': 'no-cache'
-                                    } 
-                                }
-                            );
-                        });
-                    }
-                    
-                    // في حالة وجود خطأ آخر، نعيد الخطأ الأصلي للكود لمعالجته
-                    throw error;
-                })
-        );
-        return;
+        }
     }
     
     // تجاهل طلبات POST/PUT/DELETE
