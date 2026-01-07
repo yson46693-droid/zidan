@@ -425,6 +425,8 @@ self.addEventListener('fetch', event => {
                 })
             );
         }
+        // ✅ CRITICAL: إرجاع بعد معالجة طلبات API/PHP لتجنب استدعاء respondWith() مرة أخرى
+        return;
     }
     
     // تجاهل طلبات POST/PUT/DELETE
