@@ -21,8 +21,8 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: 213.239.220.209
-          username: osama1234
-          password: 987_dKl9i
+          username: alaazidan
+          password: rhye@hr9dL9f!Q1P
           server-dir: /test.alaazidan.store/
 
           protocol: ftp
@@ -32,7 +32,7 @@ jobs:
           log-level: verbose
 
 
-          # مهم: لا يحذف ملفات السيرفر 
+          # مهم: لا يحذف ملفات السيرفر  
           dangerous-clean-slate: false
 
           exclude: |
