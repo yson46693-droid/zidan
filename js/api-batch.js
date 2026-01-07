@@ -8,7 +8,7 @@
 
     // Cache للطلبات لتجنب التكرار
     const requestCache = new Map();
-    const CACHE_DURATION = 5000; // 5 ثواني
+    const CACHE_DURATION = 30000; // ✅ PERFORMANCE: زيادة إلى 30 ثانية لتقليل الطلبات المتكررة
 
     /**
      * دالة لتنظيف الـ cache القديم
@@ -47,11 +47,15 @@
         const promises = requests.map(async (req) => {
             const { url, method = 'GET', data = null, cache = true, skipCache = false } = req;
             
-            // التحقق من الـ cache
-            if (cache && !skipCache) {
+            // ✅ PERFORMANCE: التحقق من الـ cache مع تحسين
+            if (cache && !skipCache && method === 'GET') {
                 const cacheKey = getCacheKey(url, method, data);
                 const cached = requestCache.get(cacheKey);
                 if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+                    // ✅ تقليل console.log في الإنتاج
+                    if (window.location.search.includes('debug=true') || window.location.hostname === 'localhost') {
+                        console.log(`%c📦 [Batch API] استخدام cache:`, 'color: #FFA500; font-weight: bold;', url);
+                    }
                     return { url, success: true, data: cached.data, fromCache: true };
                 }
             }

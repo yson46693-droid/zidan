@@ -10,13 +10,13 @@
         constructor() {
             this.isActive = false;
             this.pollingInterval = null;
-            this.pollingIntervalMs = 30000; // 30 ثانية (تم تقليل الطلبات - الاعتماد على trigger فوري)
+            this.pollingIntervalMs = 60000; // ✅ PERFORMANCE: زيادة إلى 60 ثانية لتقليل الطلبات
             this.lastPollTime = 0;
             this.pendingPoll = false;
             this.subscribers = new Set(); // مشتركين في النتائج
             this.cachedResult = null;
             this.cacheExpiry = 0;
-            this.CACHE_DURATION = 5000; // 5 ثواني cache
+            this.CACHE_DURATION = 30000; // ✅ PERFORMANCE: زيادة إلى 30 ثانية لتقليل الطلبات المتكررة
             this.currentUser = null;
             this.lastMessageId = '0';
         }

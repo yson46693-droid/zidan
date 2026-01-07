@@ -3856,32 +3856,101 @@
                         console.warn('خطأ في جلب الفروع:', error);
                     }
                     
-                    // ✅ تحسين: جلب بيانات جميع الفروع بشكل متوازي (بدلاً من sequential)
-                    const branchPromises = [];
+                    // ✅ PERFORMANCE: استخدام batch requests لتقليل عدد الطلبات
+                    const batchRequests = [];
+                    const branchDataMap = new Map(); // لتخزين البيانات لكل فرع
+                    
                     for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
                         const branchNumber = branchIndex + 1;
                         const branchId = branches[branchIndex]?.id || null;
                         
                         if (branchId) {
-                            // إنشاء promise لكل فرع
-                            branchPromises.push(
-                                Promise.allSettled([
-                                    API.request(`reports.php?type=daily&start_date=${today}&end_date=${today}&branch_id=${branchId}`, 'GET').catch(() => ({ success: false })),
-                                    API.getRepairs(branchId, { silent: true }).catch(() => ({ success: false })),
-                                    API.request(`branch-treasury.php?branch_id=${branchId}&filter_type=today`, 'GET').catch(() => ({ success: false }))
-                                ]).then(([reportResult, repairsResult, treasuryResult]) => ({
-                                    branchNumber,
-                                    branchId,
-                                    reportResult,
-                                    repairsResult,
-                                    treasuryResult
-                                }))
+                            // إضافة جميع طلبات الفرع إلى batch
+                            batchRequests.push(
+                                { url: `reports.php?type=daily&start_date=${today}&end_date=${today}&branch_id=${branchId}`, method: 'GET', cache: true, branchId, branchNumber, type: 'report' },
+                                { url: `repairs.php?branch_id=${branchId}`, method: 'GET', cache: true, branchId, branchNumber, type: 'repairs' },
+                                { url: `branch-treasury.php?branch_id=${branchId}&filter_type=today`, method: 'GET', cache: true, branchId, branchNumber, type: 'treasury' }
                             );
+                            
+                            // تهيئة خريطة البيانات للفرع
+                            branchDataMap.set(branchId, { branchNumber, branchId, reportData: null, repairs: [], treasuryData: null });
                         }
                     }
                     
-                    // انتظار جميع الطلبات المتوازية
-                    const branchResults = await Promise.allSettled(branchPromises);
+                    // ✅ تنفيذ جميع الطلبات في batch واحد
+                    let batchResults = [];
+                    if (typeof window.batchAPIRequests === 'function' && batchRequests.length > 0) {
+                        batchResults = await window.batchAPIRequests(batchRequests);
+                    } else {
+                        // Fallback: استخدام الطريقة القديمة إذا لم يكن batchAPIRequests متاحاً
+                        const branchPromises = [];
+                        for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
+                            const branchNumber = branchIndex + 1;
+                            const branchId = branches[branchIndex]?.id || null;
+                            
+                            if (branchId) {
+                                branchPromises.push(
+                                    Promise.allSettled([
+                                        API.request(`reports.php?type=daily&start_date=${today}&end_date=${today}&branch_id=${branchId}`, 'GET').catch(() => ({ success: false })),
+                                        API.getRepairs(branchId, { silent: true }).catch(() => ({ success: false })),
+                                        API.request(`branch-treasury.php?branch_id=${branchId}&filter_type=today`, 'GET').catch(() => ({ success: false }))
+                                    ]).then(([reportResult, repairsResult, treasuryResult]) => ({
+                                        branchNumber,
+                                        branchId,
+                                        reportResult,
+                                        repairsResult,
+                                        treasuryResult
+                                    }))
+                                );
+                            }
+                        }
+                        const branchResults = await Promise.allSettled(branchPromises);
+                        // تحويل النتائج إلى تنسيق batch
+                        let resultIndex = 0;
+                        for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
+                            const branchId = branches[branchIndex]?.id || null;
+                            if (branchId && branchResults[branchIndex]?.status === 'fulfilled') {
+                                const result = branchResults[branchIndex].value;
+                                batchResults.push(
+                                    { url: `reports.php?type=daily&start_date=${today}&end_date=${today}&branch_id=${branchId}`, success: result.reportResult?.status === 'fulfilled', data: result.reportResult?.value, branchId, branchNumber: result.branchNumber, type: 'report' },
+                                    { url: `repairs.php?branch_id=${branchId}`, success: result.repairsResult?.status === 'fulfilled', data: result.repairsResult?.value, branchId, branchNumber: result.branchNumber, type: 'repairs' },
+                                    { url: `branch-treasury.php?branch_id=${branchId}&filter_type=today`, success: result.treasuryResult?.status === 'fulfilled', data: result.treasuryResult?.value, branchId, branchNumber: result.branchNumber, type: 'treasury' }
+                                );
+                            }
+                        }
+                    }
+                    
+                    // ✅ معالجة نتائج batch وتجميعها حسب الفرع
+                    batchResults.forEach((result, index) => {
+                        if (result && result.success && result.data && result.data.success) {
+                            const branchId = result.branchId || batchRequests[index]?.branchId;
+                            const type = result.type || batchRequests[index]?.type;
+                            const branchNumber = result.branchNumber || batchRequests[index]?.branchNumber;
+                            
+                            if (branchId && branchDataMap.has(branchId)) {
+                                const branchData = branchDataMap.get(branchId);
+                                if (type === 'report') {
+                                    branchData.reportData = result.data.data;
+                                } else if (type === 'repairs') {
+                                    branchData.repairs = Array.isArray(result.data.data) ? result.data.data : [];
+                                } else if (type === 'treasury') {
+                                    branchData.treasuryData = result.data.data;
+                                }
+                            }
+                        }
+                    });
+                    
+                    // ✅ تحويل branchDataMap إلى branchResults للتنسيق مع الكود الموجود
+                    const branchResults = Array.from(branchDataMap.values()).map(branchData => ({
+                        status: 'fulfilled',
+                        value: {
+                            branchNumber: branchData.branchNumber,
+                            branchId: branchData.branchId,
+                            reportResult: branchData.reportData ? { status: 'fulfilled', value: { success: true, data: branchData.reportData } } : { status: 'rejected' },
+                            repairsResult: branchData.repairs.length > 0 ? { status: 'fulfilled', value: { success: true, data: branchData.repairs } } : { status: 'rejected' },
+                            treasuryResult: branchData.treasuryData ? { status: 'fulfilled', value: { success: true, data: branchData.treasuryData } } : { status: 'rejected' }
+                        }
+                    }));
                     
                     // ✅ تحسين: معالجة النتائج لكل فرع من الطلبات المتوازية
                     for (let branchIndex = 0; branchIndex < 2; branchIndex++) {
@@ -4001,10 +4070,8 @@
                                 const now = new Date();
                                 monthFilter.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                             }
-                            // ✅ تأجيل تحميل الفنيين لتقليل الطلبات الفورية
-                            setTimeout(() => {
-                                loadTechnicians(branchId, branchNumber);
-                            }, 500); // تأخير 500ms
+                            // ✅ PERFORMANCE: تأجيل تحميل الفنيين لتقليل الطلبات الفورية (تم دمج debounce في الدالة)
+                            loadTechnicians(branchId, branchNumber);
                         }
                     }
                     
@@ -4172,8 +4239,34 @@
             }
         }
         
-        // ✅ دالة لتحميل وعرض الفنيين
+        // ✅ PERFORMANCE: Debounce timers لكل فرع
+        const loadTechniciansTimers = new Map();
+        
+        // ✅ دالة لتحميل وعرض الفنيين مع debounce
         async function loadTechnicians(branchId, branchNumber) {
+            // ✅ PERFORMANCE: إلغاء الطلب السابق إذا كان موجوداً
+            const timerKey = `branch_${branchNumber}`;
+            if (loadTechniciansTimers.has(timerKey)) {
+                clearTimeout(loadTechniciansTimers.get(timerKey));
+            }
+            
+            // ✅ تأجيل الطلب بـ 300ms لتجميع الطلبات المتكررة
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(async () => {
+                    loadTechniciansTimers.delete(timerKey);
+                    try {
+                        await loadTechniciansInternal(branchId, branchNumber);
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                }, 300);
+                loadTechniciansTimers.set(timerKey, timer);
+            });
+        }
+        
+        // ✅ الدالة الداخلية الفعلية لتحميل الفنيين
+        async function loadTechniciansInternal(branchId, branchNumber) {
             try {
                 const grid = document.getElementById(`techniciansGrid${branchNumber}`);
                 if (!grid) {

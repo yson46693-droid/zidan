@@ -178,11 +178,6 @@ if ($method === 'POST') {
     try {
         $conn = getDBConnection();
         if (!$conn) {
-            $errorMsg = "فشل الاتصال بقاعدة البيانات. تحقق من إعدادات قاعدة البيانات في api/database.php";
-            // ✅ SECURITY: تسجيل معلومات قاعدة البيانات في error_log فقط (وليس في الاستجابة)
-            error_log("خطأ: " . $errorMsg . " | Host: " . (defined('DB_HOST') ? DB_HOST : 'غير معرّف') . 
-                     " | User: " . (defined('DB_USER') ? DB_USER : 'غير معرّف') . 
-                     " | Database: " . (defined('DB_NAME') ? DB_NAME : 'غير معرّف'));
             // ✅ SECURITY: إرسال رسالة عامة فقط بدون معلومات حساسة
             response(false, "فشل الاتصال بقاعدة البيانات. يرجى الاتصال بالدعم الفني.", null, 500);
         }

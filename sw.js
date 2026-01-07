@@ -337,85 +337,93 @@ self.addEventListener('fetch', event => {
         url = { pathname: request.url };
     }
     
-    // ✅ تحسين: معالجة طلبات API مع caching ذكي
+    // ✅ PERFORMANCE: معالجة طلبات API مع caching ذكي وتحسين
     if (url.pathname.includes('/api/') || url.pathname.endsWith('.php')) {
-        // استراتيجية Network First مع Cache Fallback للـ API requests
-        event.respondWith(
-            fetch(request, {
-                cache: 'no-store',
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            })
-                .then(response => {
-                    // ✅ استثناء 206 Partial Content responses من caching
-                    if (response.status === 206) {
-                        return response;
+        // ✅ PERFORMANCE: استراتيجية Cache First للطلبات GET لتقليل الطلبات المتكررة
+        if (request.method === 'GET') {
+            event.respondWith(
+                caches.match(request).then(cachedResponse => {
+                    // إذا كان هناك cache حديث (أقل من 30 ثانية)، استخدمه
+                    if (cachedResponse) {
+                        const cacheDate = cachedResponse.headers.get('sw-cache-date');
+                        if (cacheDate && (Date.now() - parseInt(cacheDate)) < 30000) {
+                            return cachedResponse;
+                        }
                     }
                     
-                    // إذا كانت الاستجابة ناجحة (200-299) و GET request، نحفظها في cache
-                    if (request.method === 'GET' && response.ok && response.status >= 200 && response.status < 300) {
-                        // نسخ الاستجابة قبل حفظها
-                        const responseToCache = response.clone();
+                    // إذا لم يكن هناك cache حديث، جلب من الشبكة
+                    return fetch(request, {
+                        cache: 'no-store',
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
+                    })
+                    .then(response => {
+                        // ✅ استثناء 206 Partial Content responses من caching
+                        if (response.status === 206) {
+                            return response;
+                        }
                         
-                        // حفظ في cache بشكل آمن (في الخلفية)
-                        caches.open(CACHE_NAME).then(cache => {
-                            cache.put(request, responseToCache).catch(err => {
-                                console.warn('[SW] فشل حفظ API response في cache:', request.url, err);
+                        // ✅ PERFORMANCE: حفظ في cache مع timestamp
+                        if (request.method === 'GET' && response.ok && response.status >= 200 && response.status < 300) {
+                            const responseToCache = response.clone();
+                            
+                            // ✅ إضافة timestamp للاستجابة
+                            const headers = new Headers(responseToCache.headers);
+                            headers.set('sw-cache-date', Date.now().toString());
+                            
+                            const cachedResponse = new Response(responseToCache.body, {
+                                status: responseToCache.status,
+                                statusText: responseToCache.statusText,
+                                headers: headers
                             });
-                        });
-                    }
-                    
-                    return response;
-                })
-                .catch(error => {
-                    // في حالة فشل الشبكة، نجرب من cache
-                    const isNetworkError = error.name === 'TypeError' || 
-                                         error.name === 'NetworkError' ||
-                                         (error.message && (
-                                             error.message.includes('Failed to fetch') ||
-                                             error.message.includes('NetworkError') ||
-                                             error.message.includes('Network request failed') ||
-                                             error.message.includes('Load failed')
-                                         ));
-                    
-                    if (isNetworkError) {
-                        // محاولة جلب من cache
+                            
+                            // حفظ في cache بشكل آمن (في الخلفية)
+                            caches.open(CACHE_NAME).then(cache => {
+                                cache.put(request, cachedResponse).catch(err => {
+                                    console.warn('[SW] فشل حفظ API response في cache:', request.url, err);
+                                });
+                            });
+                        }
+                        
+                        return response;
+                    })
+                    .catch(error => {
+                        // في حالة فشل الشبكة، نجرب من cache
                         return caches.match(request).then(cachedResponse => {
                             if (cachedResponse) {
                                 console.log('[SW] ✅ استخدام API response من cache:', request.url);
-                                // ✅ محاولة إضافة علامة offline للاستجابة المحفوظة
-                                return cachedResponse.json().then(data => {
-                                    // ✅ إضافة علامة offline للبيانات المحفوظة
-                                    const offlineData = {
-                                        ...data,
-                                        offline: true,
-                                        message: data.message || 'تم تحميل البيانات من الذاكرة المؤقتة (وضع عدم الاتصال)'
-                                    };
-                                    return new Response(
-                                        JSON.stringify(offlineData),
-                                        {
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'Cache-Control': 'no-cache'
-                                            },
-                                            status: cachedResponse.status,
-                                            statusText: cachedResponse.statusText
-                                        }
-                                    );
-                                }).catch(() => {
-                    // إذا فشل تحليل JSON، نعيد الاستجابة الأصلية
-                                    return cachedResponse;
-                                });
+                                return cachedResponse;
                             }
-                            
-                            // ✅ إذا لم يكن في cache، نعيد رسالة عدم الاتصال مع بيانات فارغة بدلاً من خطأ
-                            // هذا يسمح للتطبيق بالعمل حتى لو لم تكن هناك بيانات محفوظة
-                            return new Response(
-                                JSON.stringify({ 
-                                    success: false, 
+                            throw error;
+                        });
+                    })
+            );
+        } else {
+            // ✅ للطلبات POST/PUT/DELETE: Network First فقط
+            event.respondWith(
+                fetch(request, {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                })
+                .catch(error => {
+                    // في حالة فشل الشبكة، نجرب من cache
+                    return caches.match(request).then(cachedResponse => {
+                        if (cachedResponse) {
+                            console.log('[SW] ✅ استخدام API response من cache:', request.url);
+                            return cachedResponse;
+                        }
+                        throw error;
+                    });
+                })
+            );
+        } 
                                     message: 'لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة محلياً.',
                                     data: [], // ✅ إرجاع مصفوفة فارغة بدلاً من عدم إرجاع شيء
                                     offline: true
