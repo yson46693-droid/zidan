@@ -25,7 +25,7 @@ jobs:
           password: 987_dKl9i
           server-dir: /test.alaazidan.store/
 
-          protocol: ftps
+          protocol: ftp
           port: 21
           security: loose
           timeout: 120000
