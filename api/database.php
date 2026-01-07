@@ -7,10 +7,10 @@
 // إعدادات قاعدة البيانات - Live Server
 define('DB_PORT', '3306');
 define('DB_NAME', 'test');
-define('DB_PASS', 'GRt7cy*x0troH3$c');
+define('DB_PASS', '8@90z2Esu');
 define('DB_CHARSET', 'utf8mb4');
 define('DB_HOST', 'localhost');
-define('DB_USER', 'azstore');
+define('DB_USER', 'tester');
 // define('DB_PASS', 'u93s2_Tk0');
 
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
