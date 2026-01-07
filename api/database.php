@@ -7,7 +7,7 @@
 // إعدادات قاعدة البيانات - Live Server
 define('DB_PORT', '3306');
 define('DB_NAME', 'test');
-define('DB_PASS', '8@90z2Esu');
+define('DB_PASS', 'b31s*Qg32');
 define('DB_CHARSET', 'utf8mb4');
 define('DB_HOST', 'localhost');
 define('DB_USER', 'tester');
