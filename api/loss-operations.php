@@ -2,19 +2,7 @@
 /**
  * API إدارة العمليات الخاسرة
  * تسجيل وتتبع العمليات التي أدت إلى خسائر مالية
- * 
- * ✅ تم تعطيل هذا الملف - لم يعد مستخدماً
  */
-
-// ✅ إرجاع استجابة فارغة فوراً - منع أي تنفيذ
-http_response_code(200);
-header('Content-Type: application/json; charset=utf-8');
-echo json_encode([
-    'success' => false,
-    'message' => 'هذه الوظيفة غير متاحة حالياً',
-    'data' => []
-], JSON_UNESCAPED_UNICODE);
-exit;
 
 require_once 'config.php';
 
@@ -25,7 +13,8 @@ $data = getRequestData();
 if ($method === 'GET') {
     checkAuth();
     
-    if (isset($_GET['action']) && $_GET['action'] === 'stats') {
+    // ✅ تنظيف action
+    if (isset($_GET['action']) && cleanInput($_GET['action']) === 'stats') {
         // إحصائيات العمليات الخاسرة
         $lossOperations = dbSelect("SELECT * FROM loss_operations");
         

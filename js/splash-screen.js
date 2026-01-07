@@ -143,26 +143,40 @@ class SplashScreenManager {
         this.splashElement = splashScreen;
     }
 
-    // ✅ دالة للتحقق من تحميل جميع ملفات CSS المطلوبة
+    // ✅ دالة للتحقق من تحميل جميع ملفات CSS المطلوبة - محسّنة للـ WiFi
     checkAllCSSLoaded() {
         let allLoaded = true;
         const missingCSS = [];
         
-        // ✅ التحقق من style.css (مطلوب)
+        // ✅ التحقق من style.css (مطلوب) - تحسين للـ WiFi
         const styleLink = document.querySelector('link[href*="style.css"]');
         if (styleLink) {
-            // التحقق من أن media تم تغييره من "print" إلى "all"
+            // ✅ تحسين: التحقق من media أولاً (أسرع)
             if (styleLink.media === 'all' || styleLink.media === '') {
-                // التحقق من أن الـ sheet محمّل
+                // ✅ تحسين: التحقق من sheet بشكل آمن (مع معالجة الأخطاء)
                 try {
                     if (styleLink.sheet) {
                         // style.css محمّل بشكل صحيح
                     } else {
-                        allLoaded = false;
-                        missingCSS.push('style.css (sheet not loaded)');
+                        // ✅ على WiFi البطيء، قد لا يكون sheet متاحاً فوراً
+                        // نتحقق من أن href موجود وأن media = 'all'
+                        if (styleLink.href && styleLink.media === 'all') {
+                            // نعتبره محمّل إذا كان media = 'all' و href موجود
+                            console.log('✅ style.css: media=all, href موجود - نعتبره محمّل');
+                        } else {
+                            allLoaded = false;
+                            missingCSS.push('style.css (sheet not loaded)');
+                        }
                     }
                 } catch (e) {
-                    // نعتبره محمّل إذا media = 'all'
+                    // ✅ على WiFi، قد يحدث خطأ CORS عند الوصول لـ sheet
+                    // نعتبره محمّل إذا كان media = 'all'
+                    if (styleLink.media === 'all' || styleLink.media === '') {
+                        console.log('✅ style.css: media=all - نعتبره محمّل (CORS error متوقع)');
+                    } else {
+                        allLoaded = false;
+                        missingCSS.push('style.css (CORS error)');
+                    }
                 }
             } else {
                 allLoaded = false;
@@ -173,32 +187,56 @@ class SplashScreenManager {
             missingCSS.push('style.css (not found)');
         }
         
-        // ✅ التحقق من Bootstrap Icons (مطلوب أيضاً)
-        // Bootstrap Icons يتم تحميله بعد window.load، لذلك قد لا يكون موجوداً في DOM بعد
+        // ✅ تحسين: Bootstrap Icons اختياري - لا نمنع إخفاء splash screen إذا لم يتم تحميله
+        // على WiFi البطيء، قد يتأخر تحميل Bootstrap Icons من CDN
         const bootstrapIconsLink = document.querySelector('link[href*="bootstrap-icons"]');
         if (bootstrapIconsLink) {
             // التحقق من أن media تم تغييره من "print" إلى "all" أو أنه محمّل
             if (bootstrapIconsLink.media === 'all' || bootstrapIconsLink.media === '') {
-                // التحقق من أن الـ sheet محمّل
                 try {
                     if (bootstrapIconsLink.sheet) {
                         // Bootstrap Icons محمّل بشكل صحيح
                     } else {
-                        allLoaded = false;
-                        missingCSS.push('bootstrap-icons.css (sheet not loaded)');
+                        // ✅ على WiFi البطيء، نعتبره محمّل إذا كان media = 'all'
+                        if (bootstrapIconsLink.href && bootstrapIconsLink.media === 'all') {
+                            console.log('✅ bootstrap-icons.css: media=all, href موجود - نعتبره محمّل');
+                        } else {
+                            // ✅ لا نمنع إخفاء splash screen - Bootstrap Icons اختياري
+                            console.warn('⚠️ bootstrap-icons.css: لم يتم تحميله بعد (سيتم تحميله لاحقاً)');
+                        }
                     }
                 } catch (e) {
-                    // نعتبره محمّل إذا media = 'all'
+                    // ✅ على WiFi، قد يحدث خطأ CORS - نعتبره محمّل إذا كان media = 'all'
+                    if (bootstrapIconsLink.media === 'all' || bootstrapIconsLink.media === '') {
+                        console.log('✅ bootstrap-icons.css: media=all - نعتبره محمّل (CORS error متوقع)');
+                    } else {
+                        // ✅ لا نمنع إخفاء splash screen - Bootstrap Icons اختياري
+                        console.warn('⚠️ bootstrap-icons.css: media=' + bootstrapIconsLink.media + ' (سيتم تحميله لاحقاً)');
+                    }
                 }
             } else {
-                allLoaded = false;
-                missingCSS.push('bootstrap-icons.css (media=' + bootstrapIconsLink.media + ')');
+                // ✅ لا نمنع إخفاء splash screen - Bootstrap Icons اختياري
+                console.warn('⚠️ bootstrap-icons.css: media=' + bootstrapIconsLink.media + ' (سيتم تحميله لاحقاً)');
             }
         } else {
-            // ✅ Bootstrap Icons قد لا يكون موجوداً في DOM بعد (يتم تحميله بشكل متأخر بعد window.load)
-            // نعتبره غير محمّل حتى يظهر في DOM
-            allLoaded = false;
-            missingCSS.push('bootstrap-icons.css (not in DOM yet)');
+            // ✅ Bootstrap Icons قد لا يكون موجوداً في DOM بعد (يتم تحميله بشكل متأخر)
+            // لا نمنع إخفاء splash screen - Bootstrap Icons اختياري
+            console.warn('⚠️ bootstrap-icons.css: غير موجود في DOM بعد (سيتم تحميله لاحقاً)');
+        }
+        
+        // ✅ تحسين: إذا كان style.css محمّل، نعتبر أن CSS محمّل (حتى لو Bootstrap Icons لم يتم تحميله)
+        if (styleLink && (styleLink.media === 'all' || styleLink.media === '')) {
+            if (!allLoaded && missingCSS.length > 0) {
+                // ✅ طباعة رسالة واحدة فقط كل 10 محاولات لتقليل الضوضاء
+                if (!this._lastCSSLogTime || Date.now() - this._lastCSSLogTime > 1000) {
+                    console.log('⏳ انتظار تحميل CSS:', missingCSS.join(', '));
+                    this._lastCSSLogTime = Date.now();
+                }
+            } else {
+                console.log('✅ style.css محمّل - جاهز لإخفاء splash screen (Bootstrap Icons سيتم تحميله لاحقاً)');
+            }
+            // ✅ نعتبر أن CSS محمّل إذا كان style.css محمّل (حتى لو Bootstrap Icons لم يتم تحميله)
+            return true; // ✅ إرجاع true إذا كان style.css محمّل
         }
         
         if (!allLoaded && missingCSS.length > 0) {
@@ -207,8 +245,6 @@ class SplashScreenManager {
                 console.log('⏳ انتظار تحميل CSS:', missingCSS.join(', '));
                 this._lastCSSLogTime = Date.now();
             }
-        } else if (allLoaded) {
-            console.log('✅ جميع ملفات CSS محملة بنجاح (style.css + bootstrap-icons.css)');
         }
         
         return allLoaded;
@@ -268,19 +304,19 @@ class SplashScreenManager {
                 window.removeEventListener('load', loadHandler);
                 
                 // ✅ بعد window.load، نتحقق من CSS بشكل دوري
-                // Bootstrap Icons يتم تحميله بعد window.load، لذلك ننتظر قليلاً
+                // ✅ تحسين: تقليل عدد المحاولات وزيادة السرعة على WiFi
                 let cssCheckCount = 0;
-                const maxCSSChecks = 30; // 3 ثوان (30 * 100ms)
+                const maxCSSChecks = 20; // ✅ تقليل من 30 إلى 20 (2 ثوان بدلاً من 3)
                 const cssCheckInterval = setInterval(() => {
                     cssCheckCount++;
                     if (checkAndHide()) {
                         clearInterval(cssCheckInterval);
-                        console.log('✅ تم تحميل جميع CSS - إخفاء splash screen');
+                        console.log('✅ تم تحميل style.css - إخفاء splash screen');
                         hideSplash();
                     } else if (cssCheckCount >= maxCSSChecks) {
                         clearInterval(cssCheckInterval);
-                        // ✅ بعد 3 ثوان، نخفي splash screen حتى لو لم يتم تحميل Bootstrap Icons
-                        console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 3 ثوان من window.load (قد لا يكون Bootstrap Icons محمّل بالكامل)');
+                        // ✅ بعد 2 ثوان، نخفي splash screen حتى لو لم يتم تحميل Bootstrap Icons
+                        console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 2 ثوان من window.load (Bootstrap Icons سيتم تحميله لاحقاً)');
                         if (!this.hideProcessCompleted) {
                             this.hideProcessCompleted = true;
                             this.hide();
@@ -291,9 +327,9 @@ class SplashScreenManager {
             window.addEventListener('load', loadHandler);
         }
 
-        // ✅ التحقق بشكل دوري من تحميل CSS (fallback)
+        // ✅ التحقق بشكل دوري من تحميل CSS (fallback) - تحسين للـ WiFi
         let checkCount = 0;
-        const maxChecks = 50; // 5 ثوان (50 * 100ms)
+        const maxChecks = 30; // ✅ تقليل من 50 إلى 30 (3 ثوان بدلاً من 5)
         const checkInterval = setInterval(() => {
             if (this.hideProcessCompleted) {
                 clearInterval(checkInterval);
@@ -308,8 +344,8 @@ class SplashScreenManager {
                 }
             } else if (checkCount >= maxChecks) {
                 clearInterval(checkInterval);
-                // ✅ إجبار الإخفاء بعد 5 ثوان حتى لو لم يتم تحميل CSS
-                console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 5 ثوان (قد لا يكون CSS محمّل بالكامل)');
+                // ✅ إجبار الإخفاء بعد 3 ثوان حتى لو لم يتم تحميل CSS (على WiFi البطيء)
+                console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 3 ثوان (على WiFi البطيء، قد لا يكون CSS محمّل بالكامل)');
                 if (!this.hideProcessCompleted) {
                     this.hideProcessCompleted = true;
                     this.hide();
@@ -317,16 +353,16 @@ class SplashScreenManager {
             }
         }, 100);
         
-        // ✅ إضافة timeout احتياطي (5 ثوان) لإخفاء splash screen حتى لو حدث خطأ
+        // ✅ إضافة timeout احتياطي (3 ثوان) لإخفاء splash screen حتى لو حدث خطأ
         setTimeout(() => {
             if (!this.hideProcessCompleted) {
-                console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 5 ثوان');
+                console.warn('⚠️ SplashScreen: Timeout - إخفاء splash screen بعد 3 ثوان (fallback)');
                 if (!this.hideProcessCompleted) {
                     this.hideProcessCompleted = true;
                     this.hide();
                 }
             }
-        }, 5000);
+        }, 3000); // ✅ تقليل من 5000 إلى 3000 (3 ثوان بدلاً من 5)
     }
 
     hide() {

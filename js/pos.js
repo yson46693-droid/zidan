@@ -3616,16 +3616,32 @@ async function initializePOSQRCodeScanner() {
                 }
             },
             (errorMessage) => {
-                // Error callback - تسجيل جميع الأخطاء للمساعدة في التشخيص
-                const timestamp = new Date().toISOString();
+                // Error callback - تصفية الأخطاء الطبيعية
+                if (!errorMessage) return;
                 
-                // تجاهل NotFoundException فقط (طبيعي أثناء المسح)
-                if (errorMessage && errorMessage.includes('NotFoundException')) {
+                // قائمة بالأخطاء الطبيعية التي تحدث عندما لا يوجد QR code في الإطار
+                // هذه الأخطاء طبيعية ولا تحتاج إلى تسجيل
+                const normalErrors = [
+                    'NotFoundException',
+                    'No MultiFormat Readers were able to detect the code',
+                    'QR code parse error',
+                    'No QR code found',
+                    'QR code not found'
+                ];
+                
+                // التحقق إذا كان الخطأ طبيعي (لا يحتاج تسجيل)
+                const isNormalError = normalErrors.some(normalError => 
+                    errorMessage.includes(normalError)
+                );
+                
+                if (isNormalError) {
                     // هذا طبيعي - يعني لم يجد QR code في هذه اللحظة
+                    // لا نريد تسجيل هذه الأخطاء لأنها تحدث مئات المرات في الدقيقة
                     return;
                 }
                 
-                // تسجيل جميع الأخطاء الأخرى
+                // تسجيل الأخطاء الحقيقية فقط (مشاكل في الكاميرا، أخطاء في الإعدادات، إلخ)
+                const timestamp = new Date().toISOString();
                 const logData = {
                     timestamp: timestamp,
                     success: false,
@@ -3638,7 +3654,7 @@ async function initializePOSQRCodeScanner() {
                 console.warn('⚠️ [POS Scanner] خطأ أثناء المسح:', errorMessage);
                 console.log('📦 [POS Scanner] Error Log Data:', JSON.stringify(logData, null, 2));
                 
-                // Log في error log
+                // Log في error log للأخطاء الحقيقية فقط
                 try {
                     const logMessage = `[POS QR Scanner ERROR] ${timestamp} - Error: ${errorMessage} - Device: ${isMobile ? 'Mobile' : 'Desktop'} - Camera: ${JSON.stringify(cameraConfig)}`;
                     console.error(logMessage);

@@ -1287,6 +1287,59 @@
             }
         }(typeof global !== "undefined" ? global : this));
     </script>
+    
+    <!-- تحديث رقم الإصدار من version.json -->
+    <script>
+        (function() {
+            // دالة لتحديث رقم الإصدار في الواجهة
+            async function updateVersionDisplay() {
+                try {
+                    const versionElement = document.getElementById('appVersionDisplay');
+                    if (!versionElement) {
+                        return; // العنصر غير موجود
+                    }
+                    
+                    // محاولة استخدام window.getAppVersionClean من version.js إذا كان متاحاً
+                    if (typeof window !== 'undefined' && window.getAppVersionClean) {
+                        const cleanVersion = window.getAppVersionClean();
+                        if (cleanVersion) {
+                            versionElement.textContent = 'v' + cleanVersion;
+                            return;
+                        }
+                    }
+                    
+                    // إذا لم يكن version.js محمّل بعد، قراءة مباشرة من version.json
+                    try {
+                        const response = await fetch('version.json?v=' + Date.now());
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.version) {
+                                versionElement.textContent = 'v' + data.version;
+                            }
+                        }
+                    } catch (error) {
+                        // في حالة الخطأ، استخدام الإصدار الافتراضي
+                        console.warn('[Version] تعذر جلب الإصدار من version.json:', error);
+                    }
+                } catch (error) {
+                    console.warn('[Version] خطأ في تحديث رقم الإصدار:', error);
+                }
+            }
+            
+            // تحديث الإصدار عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    // انتظار قليل لضمان تحميل version.js أولاً
+                    setTimeout(updateVersionDisplay, 200);
+                });
+            } else {
+                setTimeout(updateVersionDisplay, 200);
+            }
+            
+            // تحديث الإصدار مرة أخرى بعد تحميل version.js (إذا كان متأخراً)
+            setTimeout(updateVersionDisplay, 1000);
+        })();
+    </script>
 </body>
 </html>
 

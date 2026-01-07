@@ -232,6 +232,10 @@ if ($method === 'POST') {
                 
                 error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username . " - branch_id: " . ($user['branch_id'] ?? 'null'));
                 
+                // ✅ توليد Tokens قبل إغلاق الجلسة
+                $csrfToken = generateCSRFToken();
+                $apiToken = generateAPIRequestToken();
+                
                 // ✅ CRITICAL: إغلاق الجلسة قبل إرسال الاستجابة لتجنب مشاكل headers
                 session_write_close();
                 
@@ -243,7 +247,9 @@ if ($method === 'POST') {
                     'role' => $user['role'],
                     'branch_id' => $user['branch_id'] ?? null,
                     'branch_name' => $user['branch_name'] ?? null,
-                    'branch_code' => $user['branch_code'] ?? null
+                    'branch_code' => $user['branch_code'] ?? null,
+                    'csrf_token' => $csrfToken,
+                    'api_token' => $apiToken
                 ]);
             } else {
                 error_log("❌ كلمة المرور غير صحيحة للمستخدم: " . $username);
@@ -328,6 +334,10 @@ if ($method === 'GET') {
         
         error_log("Auth API - Returning user data: id=" . $_SESSION['user_id'] . ", username=" . ($_SESSION['username'] ?? 'null') . ", role=" . ($_SESSION['role'] ?? 'null'));
         
+        // ✅ توليد Tokens للجلسة النشطة
+        $csrfToken = generateCSRFToken();
+        $apiToken = generateAPIRequestToken();
+        
         response(true, 'الجلسة نشطة', [
             'id' => $_SESSION['user_id'],
             'username' => $_SESSION['username'] ?? '',
@@ -335,7 +345,9 @@ if ($method === 'GET') {
             'role' => $_SESSION['role'] ?? 'employee',
             'branch_id' => $_SESSION['branch_id'] ?? null,
             'branch_name' => $branchName,
-            'branch_code' => $branchCode
+            'branch_code' => $branchCode,
+            'csrf_token' => $csrfToken,
+            'api_token' => $apiToken
         ]);
     } else {
         error_log("Auth API - No user_id in session. Session keys: " . implode(', ', array_keys($_SESSION)));

@@ -509,6 +509,20 @@ function response($success, $message = '', $data = null, $code = 200) {
         error_log("Warning: Headers already sent in $file on line $line");
     }
     
+    // ✅ إضافة API Token الجديد إذا تم توليده تلقائياً
+    if (session_status() !== PHP_SESSION_NONE && isset($_SESSION['new_api_token'])) {
+        if ($data === null) {
+            $data = [];
+        } elseif (!is_array($data)) {
+            // إذا كان $data ليس array، نحوله إلى array
+            $data = ['result' => $data];
+        }
+        // إضافة Token الجديد للاستجابة
+        $data['api_token'] = $_SESSION['new_api_token'];
+        // مسح Token من الجلسة بعد إضافته
+        unset($_SESSION['new_api_token']);
+    }
+    
     $response = [
         'success' => (bool)$success,
         'message' => (string)$message,
@@ -609,6 +623,109 @@ function checkPermission($requiredRole) {
     }
 }
 
+/**
+ * ✅ تنظيف المدخلات من XSS و SQL Injection
+ * @param mixed $data
+ * @return mixed
+ */
+function cleanInput($data) {
+    if (is_array($data)) {
+        return array_map('cleanInput', $data);
+    }
+    if (is_string($data)) {
+        // إزالة HTML tags
+        $data = strip_tags($data);
+        // تحويل special characters
+        $data = htmlspecialchars(trim($data), ENT_QUOTES, 'UTF-8');
+    }
+    return $data;
+}
+
+/**
+ * ✅ تنظيف المخرجات من XSS
+ * @param mixed $data
+ * @return mixed
+ */
+function cleanOutput($data) {
+    if (is_array($data)) {
+        return array_map('cleanOutput', $data);
+    }
+    if (is_string($data)) {
+        return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+    }
+    return $data;
+}
+
+/**
+ * ✅ تنظيف رقم العملية أو المعرف (للاستخدام في URLs و IDs)
+ * يسمح فقط بالأحرف والأرقام والشرطة السفلية والشرطة
+ * @param string $id
+ * @return string
+ */
+function cleanId($id) {
+    if (!is_string($id)) {
+        return '';
+    }
+    return preg_replace('/[^a-zA-Z0-9_-]/', '', $id);
+}
+
+/**
+ * ✅ تنظيف النص (للأسماء والعناوين)
+ * @param string $text
+ * @return string
+ */
+function cleanText($text) {
+    if (!is_string($text)) {
+        return '';
+    }
+    $text = trim($text);
+    $text = strip_tags($text);
+    $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    return $text;
+}
+
+/**
+ * ✅ تنظيف رقم صحيح من $_GET أو $_POST
+ * @param mixed $value
+ * @param int|null $default
+ * @return int|null
+ */
+function cleanInt($value, $default = null) {
+    if ($value === null || $value === '') {
+        return $default;
+    }
+    $intValue = filter_var($value, FILTER_VALIDATE_INT);
+    return $intValue !== false ? $intValue : $default;
+}
+
+/**
+ * ✅ تنظيف رقم عشري من $_GET أو $_POST
+ * @param mixed $value
+ * @param float|null $default
+ * @return float|null
+ */
+function cleanFloat($value, $default = null) {
+    if ($value === null || $value === '') {
+        return $default;
+    }
+    $floatValue = filter_var($value, FILTER_VALIDATE_FLOAT);
+    return $floatValue !== false ? $floatValue : $default;
+}
+
+/**
+ * ✅ تنظيف branch_id (يسمح بالأحرف والأرقام والشرطة السفلية والنقطة)
+ * لأن branch_id يتم توليده باستخدام uniqid() الذي قد يحتوي على نقطة
+ * @param string $branchId
+ * @return string
+ */
+function cleanBranchId($branchId) {
+    if (!is_string($branchId)) {
+        return '';
+    }
+    // يسمح بالأحرف والأرقام والشرطة السفلية والنقطة
+    return preg_replace('/[^a-zA-Z0-9_.-]/', '', $branchId);
+}
+
 // ✅ تم إزالة إدراج البيانات الافتراضية - لم يعد يتم إنشاء مستخدمين أو إعدادات افتراضية
 function initializeSystem() {
     try {
@@ -664,6 +781,9 @@ if (!isset($_SESSION['system_initialized'])) {
         // لا نوقف التنفيذ، فقط نسجل الخطأ
     }
 }
+
+// ✅ تضمين نظام حماية API المتعدد الطبقات
+require_once __DIR__ . '/api-security.php';
 ?>
 
 

@@ -167,8 +167,22 @@ if ($method === 'POST') {
                     $totalRemainingAmount = 0;
                 }
                 
-                // إجمالي الإيرادات = المدفوع مقدماً + المتبقي (لكن فقط من retail)
-                $totalRepairProfits = $totalPaidAmount + $totalRemainingAmount;
+                // 3. جلب مبالغ الاسترجاع (استرجاع مبلغ مدفوع مقدماً في عمليات ملغاة)
+                $refundAmountQuery = "SELECT SUM(tt.amount) as total FROM treasury_transactions tt
+                                    INNER JOIN repairs r ON tt.reference_id = r.id
+                                    WHERE tt.branch_id = ? 
+                                    AND tt.transaction_type = 'withdrawal'
+                                    AND tt.reference_type = 'repair'
+                                    AND tt.description LIKE '%استرجاع مبلغ مدفوع مقدماً%'
+                                    AND DATE(tt.created_at) BETWEEN ? AND ?";
+                $refundAmountResult = dbSelectOne($refundAmountQuery, [$branchId, $startDate, $endDate]);
+                $totalRefundAmount = floatval($refundAmountResult['total'] ?? 0);
+                if ($totalRefundAmount === null) {
+                    $totalRefundAmount = 0;
+                }
+                
+                // إجمالي الإيرادات = المدفوع مقدماً + المتبقي (لكن فقط من retail) - مبالغ الاسترجاع
+                $totalRepairProfits = $totalPaidAmount + $totalRemainingAmount - $totalRefundAmount;
             }
         }
         
@@ -185,9 +199,11 @@ if ($method === 'POST') {
         
         // 5. جلب السحوبات من الخزنة (من نموذج سحب من الخزنة)
         // هذه السحوبات من treasury_transactions (transaction_type = 'withdrawal' و reference_type != 'salary_deduction')
+        // ✅ استبعاد مبالغ الاسترجاع من السحوبات لأنها تُخصم بالفعل من الإيرادات
         $treasuryWithdrawalsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
                                      WHERE branch_id = ? AND transaction_type = 'withdrawal' 
                                      AND (reference_type IS NULL OR reference_type != 'salary_deduction')
+                                     AND (description IS NULL OR description NOT LIKE '%استرجاع مبلغ مدفوع مقدماً%')
                                      AND DATE(created_at) BETWEEN ? AND ?";
         $treasuryWithdrawalsResult = dbSelectOne($treasuryWithdrawalsQuery, [$branchId, $startDate, $endDate]);
         $totalTreasuryWithdrawals = floatval($treasuryWithdrawalsResult['total'] ?? 0);

@@ -282,7 +282,11 @@ class SecurityManager {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
             navigator.mediaDevices.getUserMedia = function(constraints) {
-                // السماح فقط للكاميرا في سياق الباركود/QR ريدر
+                // السماح للكاميرا في السياقات المسموحة:
+                // 1. سياق الباركود/QR ريدر
+                // 2. سياق الإصلاحات (repairs) - لالتقاط صور الأجهزة
+                // 3. سياق المحادثة (chat) - لالتقاط الصور
+                
                 // التحقق من وجود عناصر الماسح الضوئي المختلفة
                 const scannerElements = [
                     '#scanner-area',
@@ -303,10 +307,30 @@ class SecurityManager {
                 const lossScannerExists = document.getElementById('loss-scanner-area') !== null ||
                                          document.getElementById('lossBarcodeScannerModal') !== null;
                 
+                // التحقق من سياق الإصلاحات (repairs) - عناصر الكاميرا في نموذج الإصلاحات
+                const repairsCameraContext = document.getElementById('imagePreview') !== null ||
+                                           document.getElementById('cameraVideo') !== null ||
+                                           document.getElementById('cameraCanvas') !== null ||
+                                           document.getElementById('deviceImageFile') !== null ||
+                                           (window.location.hash && window.location.hash.includes('repair'));
+                
+                // التحقق من سياق المحادثة (chat) - عناصر الكاميرا في المحادثة
+                const chatCameraContext = document.getElementById('chatCameraVideo') !== null ||
+                                        document.getElementById('chatCameraCanvas') !== null ||
+                                        (window.location.hash && window.location.hash.includes('chat'));
+                
+                // التحقق من علامة خاصة للسماح بالكاميرا (يمكن تعيينها قبل فتح الكاميرا)
+                const hasCameraPermissionFlag = window.allowCameraAccess === true ||
+                                              sessionStorage.getItem('allowCameraAccess') === 'true';
+                
+                // السماح بالكاميرا في أي من السياقات المسموحة
                 if (window.location.hash.includes('barcode') || 
                     window.location.hash.includes('qr') ||
                     hasScannerElement ||
-                    lossScannerExists) {
+                    lossScannerExists ||
+                    repairsCameraContext ||
+                    chatCameraContext ||
+                    hasCameraPermissionFlag) {
                     return originalGetUserMedia.apply(this, arguments);
                 } else {
                     securityManager.logSuspiciousActivity('محاولة الوصول للكاميرا خارج السياق المسموح', 'HIGH');

@@ -35,8 +35,8 @@ function loadExpensesSection() {
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
     const isManager = currentUser && (currentUser.role === 'manager');
     const showAdvancedFeatures = isOwner || isManager;
-    // إظهار المستحقات للمالك فقط (لإدارة رواتب الموظفين في خزنة الفرع)
-    const showSalariesSection = isOwner;
+    // إظهار المستحقات للمالك والمدير (لإدارة رواتب الموظفين في خزنة الفرع)
+    const showSalariesSection = isOwner || isManager;
     
     // جميع المستخدمين يستخدمون الصفحة الجديدة (لرؤية سجل المعاملات)
     // لكن الميزات المتقدمة (مثل اختيار الفرع) تظهر فقط للمالك والمدير
@@ -654,6 +654,7 @@ function loadExpensesSection() {
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button onclick="showDepositModal()" class="btn btn-success"><i class="bi bi-plus-circle"></i> إضافة إلى الخزنة</button>
                     <button onclick="showWithdrawalModal()" class="btn btn-danger"><i class="bi bi-cash-coin"></i> سحب من الخزنة</button>
+                    ${showAdvancedFeatures ? `<button onclick="showDebtCollectionModal()" class="btn btn-primary" style="background: var(--primary-color);"><i class="bi bi-cash-coin"></i> تحصيل دين</button>` : ''}
                 </div>
             </div>
             

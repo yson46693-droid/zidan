@@ -202,7 +202,28 @@ class SyncManager {
     // مزامنة العمليات
     async syncRepairs() {
         try {
-            const result = await API.request('repairs.php', 'GET', null, { silent: true }); // ✅ استخدام silent لمنع loading overlay
+            // ✅ إصلاح: الحصول على branch_id المناسب قبل استدعاء API
+            let branchId = null;
+            const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+            
+            if (isOwner) {
+                // للمالك: محاولة الحصول على الفرع المحدد من DOM أو استخدام الفرع الأول
+                const branchFilter = document.getElementById('repairBranchFilter');
+                if (branchFilter && branchFilter.value) {
+                    branchId = branchFilter.value;
+                } else if (typeof selectedRepairBranchId !== 'undefined' && selectedRepairBranchId) {
+                    branchId = selectedRepairBranchId;
+                } else if (typeof repairFirstBranchId !== 'undefined' && repairFirstBranchId) {
+                    branchId = repairFirstBranchId;
+                }
+            } else {
+                // للمستخدمين العاديين: استخدام فرعهم
+                branchId = currentUser && currentUser.branch_id ? currentUser.branch_id : null;
+            }
+            
+            // ✅ استخدام API.getRepairs() بدلاً من API.request() مباشرة
+            const result = await API.getRepairs(branchId, { silent: true }); // ✅ استخدام silent لمنع loading overlay
             if (result.success) {
                 localStorage.setItem('repairs_cache', JSON.stringify(result.data));
                 if (typeof allRepairs !== 'undefined') {

@@ -11,7 +11,9 @@ require_once 'invoices.php';
 checkAuth();
 
 // جلب sale_id من الطلب
-$saleId = $_GET['sale_id'] ?? null;
+// ✅ تنظيف معرف الفاتورة
+$saleId = cleanId($_GET['sale_id'] ?? '');
+$saleId = !empty($saleId) ? $saleId : null;
 
 if (empty($saleId)) {
     http_response_code(400);

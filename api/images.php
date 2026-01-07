@@ -98,7 +98,8 @@ if ($method === 'POST') {
 
 // الحصول على صورة
 if ($method === 'GET') {
-    $repairId = $_GET['repair_id'] ?? '';
+    // ✅ تنظيف معرف العملية
+    $repairId = cleanText($_GET['repair_id'] ?? '');
     
     if (empty($repairId)) {
         response(false, 'رقم العملية مطلوب', null, 400);

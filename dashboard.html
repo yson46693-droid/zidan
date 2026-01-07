@@ -62,8 +62,16 @@
     <!-- ✅ تحسين: Removed preload for deferred JS files - they won't be used immediately -->
     <!-- JS files are loaded with defer, so preloading them doesn't help and causes warnings -->
     
-    <!-- تحميل ملف الإصدارات أولاً -->
-    <script src="js/version.js"></script>
+    <!-- تحميل ملف الإصدارات أولاً - مع cache busting لضمان التحديث -->
+    <script>
+        // ✅ إصلاح: تحميل version.js مع cache busting لضمان التحديث بعد مسح الكاش
+        (function() {
+            const script = document.createElement('script');
+            script.src = 'js/version.js?v=' + Date.now() + '&nocache=' + Math.random();
+            script.async = false; // تحميل متزامن لضمان التحميل قبل باقي الملفات
+            document.head.appendChild(script);
+        })();
+    </script>
     <!-- Console Manager - إدارة console.log للإنتاج -->
     <script src="js/console-manager.js"></script>
     <!-- ✅ Resource Checker - التحقق من تحميل الموارد الحرجة -->
@@ -6057,6 +6065,85 @@
         window.openFloatingChat = openFloatingChat;
         window.closeFloatingChat = closeFloatingChat;
         window.toggleFloatingChat = toggleFloatingChat;
+    </script>
+
+    <!-- تحديث رقم الإصدار من version.json - يضمن التحديث حتى بعد مسح الكاش -->
+    <script>
+        (function() {
+            // دالة لتحديث رقم الإصدار في الواجهة مباشرة من version.json
+            async function updateVersionDisplay() {
+                try {
+                    const versionElement = document.getElementById('appVersionDisplay');
+                    if (!versionElement) {
+                        return; // العنصر غير موجود
+                    }
+                    
+                    // محاولة استخدام window.getAppVersionClean من version.js إذا كان متاحاً
+                    if (typeof window !== 'undefined' && window.getAppVersionClean) {
+                        const cleanVersion = window.getAppVersionClean();
+                        if (cleanVersion) {
+                            versionElement.textContent = 'v' + cleanVersion;
+                            // إعادة المحاولة بعد تأخير قصير للتأكد من التحديث
+                            setTimeout(() => {
+                                if (versionElement.textContent === 'v2.0.1') {
+                                    // إذا كان لا يزال الإصدار القديم، جلب مباشرة من version.json
+                                    fetchVersionDirectly();
+                                }
+                            }, 500);
+                            return;
+                        }
+                    }
+                    
+                    // إذا لم يكن version.js محمّل بعد، قراءة مباشرة من version.json
+                    fetchVersionDirectly();
+                } catch (error) {
+                    console.warn('[Version] خطأ في تحديث رقم الإصدار:', error);
+                }
+            }
+            
+            // دالة لجلب الإصدار مباشرة من version.json بدون cache
+            async function fetchVersionDirectly() {
+                try {
+                    const versionElement = document.getElementById('appVersionDisplay');
+                    if (!versionElement) return;
+                    
+                    // استخدام timestamp لضمان عدم استخدام cache
+                    const response = await fetch('version.json?v=' + Date.now() + '&nocache=' + Math.random());
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.version) {
+                            versionElement.textContent = 'v' + data.version;
+                            console.log('✅ [Version] تم تحديث الإصدار مباشرة من version.json:', data.version);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[Version] تعذر جلب الإصدار من version.json:', error);
+                }
+            }
+            
+            // تحديث الإصدار عند تحميل الصفحة
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(updateVersionDisplay, 100);
+                    // إعادة المحاولة بعد تأخير إضافي للتأكد من التحديث
+                    setTimeout(updateVersionDisplay, 1000);
+                });
+            } else {
+                setTimeout(updateVersionDisplay, 100);
+                setTimeout(updateVersionDisplay, 1000);
+            }
+            
+            // تحديث الإصدار عند تحميل version.js (إذا كان متأخراً)
+            if (typeof window !== 'undefined') {
+                const originalUpdateVersionDisplay = window.updateVersionDisplay;
+                if (originalUpdateVersionDisplay) {
+                    window.updateVersionDisplay = function() {
+                        originalUpdateVersionDisplay();
+                        setTimeout(fetchVersionDirectly, 200);
+                    };
+                }
+            }
+        })();
     </script>
 
     </body>

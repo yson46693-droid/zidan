@@ -3197,6 +3197,16 @@ async function openCamera() {
             return;
         }
 
+        // ✅ تعيين علامة السماح بالكاميرا للسياق الأمني (قبل طلب الوصول)
+        window.allowCameraAccess = true;
+        sessionStorage.setItem('allowCameraAccess', 'true');
+        
+        // تنظيف العلامة بعد 30 ثانية (للحماية)
+        setTimeout(() => {
+            window.allowCameraAccess = false;
+            sessionStorage.removeItem('allowCameraAccess');
+        }, 30000);
+
         // ✅ استخدام النظام المركزي للصلاحيات - التحقق من الصلاحية قبل طلبها
         let stream = null;
         
@@ -3331,6 +3341,10 @@ async function capturePhoto() {
         window.currentCameraStream = null;
     }
     
+    // ✅ إزالة علامة السماح بالكاميرا
+    window.allowCameraAccess = false;
+    sessionStorage.removeItem('allowCameraAccess');
+    
     // عرض معاينة الصورة
     document.getElementById('imageFileName').textContent = '✓ تم التقاط الصورة من الكاميرا';
     showImagePreview(selectedDeviceImage);
@@ -3345,6 +3359,10 @@ function closeCameraPreview() {
         window.currentCameraStream.getTracks().forEach(track => track.stop());
         window.currentCameraStream = null;
     }
+    
+    // ✅ إزالة علامة السماح بالكاميرا
+    window.allowCameraAccess = false;
+    sessionStorage.removeItem('allowCameraAccess');
     
     // حفظ حالة الإذن
     if (cameraPermissionGranted) {
@@ -5712,8 +5730,9 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         }
         
         const canvas = document.createElement('canvas');
-        const width = 650; // عرض مناسب للملصق
-        const height = 350; // الارتفاع
+        // مقاسات 60x40mm (472x315 pixels عند 200 DPI)
+        const width = 472; // عرض 60mm
+        const height = 315; // ارتفاع 40mm
         const scale = 2; // دقة مضاعفة للجودة العالية
         canvas.width = width * scale;
         canvas.height = height * scale;
@@ -5732,13 +5751,13 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         
         // رسم الحدود
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 4 * scale;
+        ctx.lineWidth = 2 * scale; // حدود أرفع للملصق الصغير
         ctx.strokeRect(2 * scale, 2 * scale, scaledWidth - 4 * scale, scaledHeight - 4 * scale);
         
-        // رسم QR Code على اليسار
-        const qrSize = 220 * scale; // زيادة حجم QR Code قليلاً
-        const qrX = 25 * scale;
-        const qrY = 40 * scale;
+        // رسم QR Code على اليسار - حجم أصغر ليتناسب مع الملصق
+        const qrSize = 110 * scale; // تقليل حجم QR Code قليلاً لإتاحة مساحة أكبر للنص
+        const qrX = 10 * scale; // تقليل المسافة من الحافة
+        const qrY = 8 * scale; // تقليل المسافة من الأعلى
         const qrEndX = qrX + qrSize; // نهاية QR Code
         
         // تحميل صورة QR Code مع معالجة أخطاء محسّنة
@@ -5781,11 +5800,13 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         
         // رسم البيانات على اليمين - بعد QR Code بمسافة كافية
         // النص العربي يبدأ من اليمين (RTL)
-        const marginFromQR = 40 * scale; // زيادة المسافة بين QR Code والنص
-        const marginRight = 25 * scale; // المسافة من الحافة اليمنى
+        const marginFromQR = 12 * scale; // تقليل المسافة بين QR Code والنص
+        const marginRight = 10 * scale; // تقليل المسافة من الحافة اليمنى
+        const marginTop = 8 * scale; // تقليل المسافة من الأعلى
+        const marginBottom = 3 * scale; // تقليل المسافة من الأسفل بشكل كبير
         const textStartX = scaledWidth - marginRight; // نقطة بداية النص من اليمين
-        const dataY = 40 * scale;
-        const lineHeight = 28 * scale; // lineHeight مناسب لحجم الخط الأصغر
+        const dataY = marginTop; // بداية من الأعلى مباشرة
+        const lineHeight = 21 * scale; // تقليل lineHeight قليلاً لتقليل المسافات
         let currentY = dataY;
         
         ctx.fillStyle = '#000000';
@@ -5796,78 +5817,95 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         // ملاحظة: Canvas لا يستطيع تحميل خطوط الويب مباشرة، لكن سيستخدم Cairo إذا كان مثبتاً في النظام
         const fontFamily = '"Cairo", "Tajawal", Arial, "Segoe UI", sans-serif';
         
-        // عنوان الملصق
-        ctx.font = `bold ${18 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        // عنوان الملصق - خط أكبر بكثير
+        ctx.font = `bold ${18 * scale}px ${fontFamily}`;
         ctx.fillText('ملصق الجهاز', textStartX, currentY);
-        currentY += lineHeight + (10 * scale);
+        currentY += lineHeight + (1 * scale);
         
-        // رقم العملية
-        ctx.font = `bold ${16 * scale}px ${fontFamily}`; // خط Cairo للوضوح
-        ctx.fillText(`رقم العملية: ${repair.repair_number}`, textStartX, currentY);
-        currentY += lineHeight + (6 * scale);
+        // رقم العملية - خط أكبر بكثير
+        ctx.font = `bold ${16 * scale}px ${fontFamily}`;
+        ctx.fillText(`رقم: ${repair.repair_number}`, textStartX, currentY);
+        currentY += lineHeight + (1 * scale);
         
-        // بيانات العميل
-        ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
-        ctx.fillText(`العميل: ${repair.customer_name || 'غير محدد'}`, textStartX, currentY);
+        // بيانات العميل - خط أكبر بكثير
+        ctx.font = `${15 * scale}px ${fontFamily}`;
+        const customerName = repair.customer_name || 'غير محدد';
+        if (customerName.length > 15) {
+            ctx.fillText(`العميل: ${customerName.substring(0, 15)}...`, textStartX, currentY);
+        } else {
+            ctx.fillText(`العميل: ${customerName}`, textStartX, currentY);
+        }
         currentY += lineHeight;
         
         if (repair.customer_phone) {
-            ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+            ctx.font = `${15 * scale}px ${fontFamily}`;
             ctx.fillText(`الهاتف: ${repair.customer_phone}`, textStartX, currentY);
             currentY += lineHeight;
         }
         
-        // نوع الجهاز
-        const deviceText = `الجهاز: ${repair.device_type || ''} ${repair.device_model || ''}`.trim();
-        ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
-        ctx.fillText(deviceText || 'الجهاز: غير محدد', textStartX, currentY);
-        currentY += lineHeight + (6 * scale);
+        // نوع الجهاز - مختصر - خط أكبر بكثير
+        const deviceText = `${repair.device_type || ''} ${repair.device_model || ''}`.trim();
+        if (deviceText) {
+            ctx.font = `${15 * scale}px ${fontFamily}`;
+            const deviceDisplay = deviceText.length > 18 ? deviceText.substring(0, 18) + '...' : deviceText;
+            ctx.fillText(`الجهاز: ${deviceDisplay}`, textStartX, currentY);
+            currentY += lineHeight + (1 * scale);
+        }
         
-        // المشكلة
-        ctx.font = `bold ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        // المشكلة - خط أكبر بكثير
+        ctx.font = `bold ${14 * scale}px ${fontFamily}`;
         ctx.fillText('المشكلة:', textStartX, currentY);
         currentY += lineHeight;
         
-        ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
+        ctx.font = `${14 * scale}px ${fontFamily}`;
         const problemText = repair.problem || 'غير محدد';
         // حساب العرض المتاح للنص: من بداية النص (textStartX) إلى نهاية QR Code + margin
         const maxTextWidth = textStartX - (qrEndX + marginFromQR); // العرض المتاح للنص
         const words = problemText.split(' ');
         let line = '';
+        let linesCount = 0;
+        const maxLines = 3; // حد أقصى 3 أسطر للمشكلة
         for (let word of words) {
+            if (linesCount >= maxLines) break;
             const testLine = line + word + ' ';
             const metrics = ctx.measureText(testLine);
             if (metrics.width > maxTextWidth && line !== '') {
                 ctx.fillText(line.trim(), textStartX, currentY);
                 currentY += lineHeight;
                 line = word + ' ';
+                linesCount++;
             } else {
                 line = testLine;
             }
         }
-        if (line) {
+        if (line && linesCount < maxLines) {
             ctx.fillText(line.trim(), textStartX, currentY);
             currentY += lineHeight;
         }
         
-        currentY += (5 * scale);
+        // إزالة المسافة الإضافية قبل تاريخ التسليم
+        currentY += (1 * scale);
         
-        // تاريخ التسليم المتوقع (بدلاً من تاريخ الإنشاء)
-        if (repair.delivery_date) {
-            ctx.font = `bold ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
-            ctx.fillText('موعد التسليم المتوقع:', textStartX, currentY);
-            currentY += lineHeight;
-            
-            ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
-            const deliveryDate = new Date(repair.delivery_date).toLocaleDateString('ar-EG');
-            ctx.fillText(deliveryDate, textStartX, currentY);
-        } else {
-            ctx.font = `bold ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
-            ctx.fillText('موعد التسليم المتوقع:', textStartX, currentY);
-            currentY += lineHeight;
-            
-            ctx.font = `600 ${14 * scale}px ${fontFamily}`; // خط Cairo للوضوح
-            ctx.fillText('لم يتم تحديده', textStartX, currentY);
+        // تاريخ التسليم المتوقع - خط أكبر بكثير
+        // التحقق من أن هناك مساحة كافية قبل الرسم - تقليل الحد الأدنى المطلوب
+        const remainingHeight = scaledHeight - currentY - marginBottom;
+        if (remainingHeight >= lineHeight * 1.5) { // تقليل الحد الأدنى من 2 إلى 1.5
+            if (repair.delivery_date) {
+                ctx.font = `bold ${14 * scale}px ${fontFamily}`;
+                ctx.fillText('التسليم:', textStartX, currentY);
+                currentY += lineHeight;
+                
+                ctx.font = `${14 * scale}px ${fontFamily}`;
+                const deliveryDate = new Date(repair.delivery_date).toLocaleDateString('ar-EG');
+                ctx.fillText(deliveryDate, textStartX, currentY);
+            } else {
+                ctx.font = `bold ${14 * scale}px ${fontFamily}`;
+                ctx.fillText('التسليم:', textStartX, currentY);
+                currentY += lineHeight;
+                
+                ctx.font = `${14 * scale}px ${fontFamily}`;
+                ctx.fillText('غير محدد', textStartX, currentY);
+            }
         }
         
         // تحويل إلى الحجم الأصلي مع الحفاظ على الجودة
@@ -6157,6 +6195,8 @@ function printQRCode(qrCodeImage, repairNumber) {
                         max-width: 300px; 
                         height: auto; 
                         display: block;
+                        width: 472px;
+                        height: 315px;
                     }
                     .repair-number {
                         margin-top: 15px;
@@ -6297,6 +6337,8 @@ function printLabel(labelImage, repairNumber) {
                         display: block;
                         border: 2px solid #ddd;
                         border-radius: 8px;
+                        width: 472px;
+                        height: 315px;
                     }
                     .no-print { 
                         text-align: center; 
@@ -6332,14 +6374,30 @@ function printLabel(labelImage, repairNumber) {
                         background: #555;
                     }
                 @media print {
+                        @page {
+                            size: 60mm 40mm;
+                            margin: 0;
+                        }
                         body { 
                             background: white;
-                            padding: 20px;
+                            padding: 0;
+                            margin: 0;
+                            width: 60mm;
+                            height: 40mm;
                         }
                     .no-print { display: none; }
                         .label-container {
                             box-shadow: none;
                             border: none;
+                            padding: 0;
+                            margin: 0;
+                            width: 60mm;
+                            height: 40mm;
+                        }
+                        img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: contain;
                         }
                 }
             </style>

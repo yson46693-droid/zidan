@@ -6,12 +6,12 @@
 
 // إعدادات قاعدة البيانات - Live Server
 define('DB_PORT', '3306');
-define('DB_NAME', 'zidan_v1');
-define('DB_PASS', '2m8a&gA00');
+define('DB_NAME', '1');
+define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
-define('DB_HOST', 'localhost');
-define('DB_USER', 'azstore');
-// define('DB_PASS', '');
+define('DB_HOST', '127.0.0.1');
+define('DB_USER', 'root');
+// define('DB_PASS', 'u93s2_Tk0');
 
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
 $lastDbError = null;
@@ -291,6 +291,7 @@ function dbEscape($data) {
 
 /**
  * التحقق من وجود جدول
+ * ✅ إصلاح: استخدام INFORMATION_SCHEMA مع prepared statements (متوافق مع جميع إصدارات MySQL/MariaDB)
  * @param string $tableName
  * @return bool
  */
@@ -300,8 +301,54 @@ function dbTableExists($tableName) {
         return false;
     }
     
-    $result = $conn->query("SHOW TABLES LIKE '$tableName'");
-    return $result && $result->num_rows > 0;
+    // ✅ تنظيف اسم الجدول (يسمح فقط بالأحرف والأرقام والشرطة السفلية)
+    $tableName = preg_replace('/[^a-zA-Z0-9_]/', '', $tableName);
+    
+    if (empty($tableName)) {
+        return false;
+    }
+    
+    // ✅ استخدام INFORMATION_SCHEMA مع prepared statements (متوافق مع جميع الإصدارات)
+    try {
+        $dbResult = $conn->query("SELECT DATABASE()");
+        if (!$dbResult) {
+            error_log('خطأ في جلب اسم قاعدة البيانات: ' . $conn->error);
+            return false;
+        }
+        $dbRow = $dbResult->fetch_row();
+        $dbName = $dbRow ? $dbRow[0] : DB_NAME;
+        
+        // إذا لم يتم الحصول على اسم قاعدة البيانات، استخدام DB_NAME من config
+        if (empty($dbName)) {
+            $dbName = DB_NAME;
+        }
+        
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?");
+        if (!$stmt) {
+            error_log('خطأ في إعداد استعلام dbTableExists: ' . $conn->error);
+            return false;
+        }
+        
+        $stmt->bind_param("ss", $dbName, $tableName);
+        if (!$stmt->execute()) {
+            error_log('خطأ في تنفيذ استعلام dbTableExists: ' . $stmt->error);
+            $stmt->close();
+            return false;
+        }
+        
+        $result = $stmt->get_result();
+        $row = $result->fetch_row();
+        $exists = ($row && $row[0] > 0);
+        $stmt->close();
+        
+        return $exists;
+    } catch (Exception $e) {
+        error_log('خطأ في dbTableExists: ' . $e->getMessage());
+        return false;
+    } catch (Error $e) {
+        error_log('خطأ قاتل في dbTableExists: ' . $e->getMessage());
+        return false;
+    }
 }
 
 /**

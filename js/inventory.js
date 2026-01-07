@@ -3522,15 +3522,18 @@ async function printAccessoryBarcode(id) {
         let printContent = '';
         for (let i = 0; i < numCopies; i++) {
             printContent += `
-            <div class="qrcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 20px;">
+            <div class="qrcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'};">
                 <div class="qrcode-image">
-                    <img src="${qrImage}" alt="QR Code ${barcodeValue}" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}';" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
-                </div>
-                <div class="qrcode-value">
-                    ${barcodeValue}
+                    <img src="${qrImage}" alt="QR Code ${barcodeValue}" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}';">
                 </div>
             </div>
             `;
+        }
+        
+        // التحقق من أن النافذة جاهزة
+        if (!printWindow || !printWindow.document) {
+            showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+            return;
         }
         
         printWindow.document.write(`
@@ -3543,9 +3546,6 @@ async function printAccessoryBarcode(id) {
             <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
             <style>
                 :root {
-                    --primary-color: #2196F3;
-                    --text-dark: #333;
-                    --border-color: #ddd;
                     --white: #ffffff;
                 }
                 * {
@@ -3555,72 +3555,80 @@ async function printAccessoryBarcode(id) {
                 }
                 body {
                     font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    padding: 20px;
-                    background: var(--white);
-                    font-size: 16px;
+                    padding: 0;
+                    background: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
                 }
                 .qrcode-container {
+                    width: 60mm;
+                    height: 40mm;
                     background: var(--white);
-                    padding: 30px;
-                    max-width: 400px;
-                    margin: 0 auto;
+                    padding: 5mm;
+                    margin: 0;
                     text-align: center;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .qrcode-image {
-                    margin-bottom: 15px;
-                    padding: 20px;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .qrcode-image img {
-                    max-width: 100%;
-                    height: auto;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
                     display: block;
-                    margin: 0 auto;
-                }
-                .qrcode-value {
-                    font-family: 'Courier New', monospace;
-                    font-size: 18px;
-                    font-weight: bold;
-                    color: var(--text-dark);
-                    letter-spacing: 2px;
-                    text-align: center;
-                    padding: 10px;
                 }
                 @media print {
+                    @page {
+                        size: 60mm 40mm;
+                        margin: 0;
+                    }
                     body {
                         background: white;
-                        padding: 10mm;
-                        font-size: 16px;
+                        padding: 0;
+                        margin: 0;
+                        width: 60mm;
+                        height: 40mm;
                     }
                     .qrcode-container {
-                        box-shadow: none;
+                        width: 60mm;
+                        height: 40mm;
                         page-break-inside: avoid;
-                        margin-bottom: 10mm;
+                        margin: 0;
                     }
                     .no-print {
-                        display: none;
-                    }
-                    @page {
-                        size: A4;
-                        margin: 10mm;
+                        display: none !important;
                     }
                 }
             </style>
         </head>
         <body>
             ${printContent}
-            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-printer"></i> طباعة
-                </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    رجوع
-                </button>
-            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                    }, 300);
+                };
+            </script>
         </body>
         </html>
         `);
         printWindow.document.close();
-        printWindow.focus();
+        
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                printWindow.focus();
+            }
+        }, 100);
     } catch (error) {
         console.error('خطأ في طباعة QR Code الإكسسوار:', error);
         showMessage('حدث خطأ أثناء طباعة QR Code', 'error');
@@ -3732,6 +3740,10 @@ async function printSparePartQRCode(partId) {
     
     // إنشاء نافذة الطباعة
     const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!printWindow) {
+        showMessage('يرجى السماح بفتح النوافذ المنبثقة للطباعة', 'warning');
+        return;
+    }
     
     // إنشاء محتوى الطباعة
     let printContent = '';
@@ -3740,21 +3752,20 @@ async function printSparePartQRCode(partId) {
     
     for (let i = 0; i < numCopies; i++) {
         printContent += `
-            <div class="qrcode-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 10px;">
+            <div class="qrcode-label" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'};">
                 <div class="qrcode-label-content">
-                    <div class="qrcode-label-header">
-                        <h4><i class="bi bi-tools"></i> ${part.brand || ''}</h4>
-                        <p>${part.model || ''}</p>
-                    </div>
                     <div class="qrcode-label-qrcode">
-                        <img src="${safeQRImage}" alt="QR Code" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${safeQRData}';" style="max-width: 100%; height: auto; max-height: 120px;">
-                    </div>
-                    <div class="qrcode-label-code">
-                        ID: ${part.id || 'غير محدد'}
+                        <img src="${safeQRImage}" alt="QR Code" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${safeQRData}';">
                     </div>
                 </div>
             </div>
         `;
+    }
+    
+    // التحقق من أن النافذة جاهزة
+    if (!printWindow || !printWindow.document) {
+        showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+        return;
     }
     
     printWindow.document.write(`
@@ -3763,15 +3774,12 @@ async function printSparePartQRCode(partId) {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>طباعة QR Code - ${part.brand} ${part.model}</title>
+            <title>طباعة QR Code - ${part.brand || ''} ${part.model || ''}</title>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
             <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
             <style>
                 :root {
                     --primary-color: #2196F3;
-                    --text-dark: #333;
-                    --text-light: #666;
-                    --border-color: #ddd;
                     --white: #ffffff;
                 }
                 * {
@@ -3781,107 +3789,87 @@ async function printSparePartQRCode(partId) {
                 }
                 body {
                     font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    padding: 10px;
+                    padding: 0;
                     background: white;
-                }
-                .qrcode-label {
-                    width: 100%;
-                    max-width: 100mm;
-                    margin: 0 auto 10px;
-                    border: 2px solid var(--primary-color);
-                    border-radius: 8px;
-                    overflow: hidden;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                }
-                .qrcode-label-content {
-                    padding: 10px;
-                    text-align: center;
-                    background: var(--white);
-                }
-                .qrcode-label-header {
-                    margin-bottom: 8px;
-                    padding-bottom: 6px;
-                    border-bottom: 2px solid var(--primary-color);
-                }
-                .qrcode-label-header h4 {
-                    font-size: 14px;
-                    margin: 0 0 3px 0;
-                    color: var(--primary-color);
-                    font-weight: 700;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    gap: 6px;
+                    min-height: 100vh;
                 }
-                .qrcode-label-header p {
-                    font-size: 11px;
+                .qrcode-label {
+                    width: 60mm;
+                    height: 40mm;
                     margin: 0;
-                    color: var(--text-light);
-                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .qrcode-label-content {
+                    width: 100%;
+                    height: 100%;
+                    padding: 5mm;
+                    text-align: center;
+                    background: var(--white);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .qrcode-label-qrcode {
-                    margin-top: 8px;
-                    padding: 8px;
-                    background: #f9f9f9;
-                    border-radius: 6px;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .qrcode-label-qrcode img {
-                    max-width: 100%;
-                    height: auto;
-                    max-height: 120px;
-                    width: auto;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
                     display: block;
-                    margin: 0 auto;
-                    border: 1px solid var(--border-color);
-                    border-radius: 4px;
-                    padding: 5px;
-                    background: var(--white);
-                }
-                .qrcode-label-code {
-                    margin-top: 6px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 10px;
-                    color: var(--text-dark);
-                    font-weight: bold;
-                    padding: 4px;
-                    background: #f0f0f0;
-                    border-radius: 4px;
                 }
                 @media print {
+                    @page {
+                        size: 60mm 40mm;
+                        margin: 0;
+                    }
                     body {
                         padding: 0;
                         margin: 0;
+                        width: 60mm;
+                        height: 40mm;
+                        background: white;
                     }
                     .qrcode-label {
+                        width: 60mm;
+                        height: 40mm;
                         page-break-inside: avoid;
-                        margin-bottom: 5mm;
-                        border: 2px solid var(--primary-color);
+                        margin: 0;
                     }
                     .no-print {
-                        display: none;
+                        display: none !important;
                     }
-                }
-                @page {
-                    size: auto;
-                    margin: 5mm;
                 }
             </style>
         </head>
         <body>
             ${printContent}
-            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-printer"></i> طباعة
-                </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: var(--secondary-color, #64B5F6); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-arrow-right"></i> رجوع
-                </button>
-            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                    }, 300);
+                };
+            </script>
         </body>
         </html>
         `);
         printWindow.document.close();
-        printWindow.focus();
+        
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                printWindow.focus();
+            }
+        }, 100);
     } catch (error) {
         console.error('خطأ في طباعة QR Code قطعة الغيار:', error);
         showMessage('حدث خطأ أثناء طباعة QR Code', 'error');
@@ -4075,13 +4063,19 @@ async function printPhoneFullLabel(id) {
             `;
         }
         
+        // التحقق من أن النافذة جاهزة
+        if (!printWindow || !printWindow.document) {
+            showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+            return;
+        }
+        
         printWindow.document.write(`
         <!DOCTYPE html>
         <html dir="rtl" lang="ar">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>ملصق الهاتف - ${phone.brand} ${phone.model}</title>
+            <title>ملصق الهاتف - ${phone.brand || ''} ${phone.model || ''}</title>
             <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
             <style>
                 :root {
@@ -4328,7 +4322,12 @@ async function printPhoneFullLabel(id) {
         </html>
         `);
         printWindow.document.close();
-        printWindow.focus();
+        
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                printWindow.focus();
+            }
+        }, 100);
     } catch (error) {
         console.error('خطأ في طباعة الملصق الكامل:', error);
         showMessage('حدث خطأ أثناء طباعة الملصق', 'error');
@@ -4408,15 +4407,18 @@ async function printPhoneQRCodeOnly(id) {
         let printContent = '';
         for (let i = 0; i < numCopies; i++) {
             printContent += `
-            <div class="qrcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'}; margin-bottom: 20px;">
+            <div class="qrcode-container" style="page-break-after: ${i < numCopies - 1 ? 'always' : 'auto'};">
                 <div class="qrcode-image">
-                    <img src="${qrImage}" alt="QR Code ${barcodeValue}" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}';" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
-                </div>
-                <div class="qrcode-value">
-                    ${barcodeValue}
+                    <img src="${qrImage}" alt="QR Code ${barcodeValue}" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}';">
                 </div>
             </div>
             `;
+        }
+        
+        // التحقق من أن النافذة جاهزة
+        if (!printWindow || !printWindow.document) {
+            showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+            return;
         }
         
         printWindow.document.write(`
@@ -4429,9 +4431,6 @@ async function printPhoneQRCodeOnly(id) {
             <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
             <style>
                 :root {
-                    --primary-color: #2196F3;
-                    --text-dark: #333;
-                    --border-color: #ddd;
                     --white: #ffffff;
                 }
                 * {
@@ -4441,72 +4440,80 @@ async function printPhoneQRCodeOnly(id) {
                 }
                 body {
                     font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    padding: 20px;
-                    background: var(--white);
-                    font-size: 16px;
+                    padding: 0;
+                    background: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
                 }
                 .qrcode-container {
+                    width: 60mm;
+                    height: 40mm;
                     background: var(--white);
-                    padding: 30px;
-                    max-width: 400px;
-                    margin: 0 auto;
+                    padding: 5mm;
+                    margin: 0;
                     text-align: center;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .qrcode-image {
-                    margin-bottom: 15px;
-                    padding: 20px;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .qrcode-image img {
-                    max-width: 100%;
-                    height: auto;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
                     display: block;
-                    margin: 0 auto;
-                }
-                .qrcode-value {
-                    font-family: 'Courier New', monospace;
-                    font-size: 18px;
-                    font-weight: bold;
-                    color: var(--text-dark);
-                    letter-spacing: 2px;
-                    text-align: center;
-                    padding: 10px;
                 }
                 @media print {
+                    @page {
+                        size: 60mm 40mm;
+                        margin: 0;
+                    }
                     body {
                         background: white;
-                        padding: 10mm;
-                        font-size: 16px;
+                        padding: 0;
+                        margin: 0;
+                        width: 60mm;
+                        height: 40mm;
                     }
                     .qrcode-container {
-                        box-shadow: none;
+                        width: 60mm;
+                        height: 40mm;
                         page-break-inside: avoid;
-                        margin-bottom: 10mm;
+                        margin: 0;
                     }
                     .no-print {
-                        display: none;
-                    }
-                    @page {
-                        size: A4;
-                        margin: 10mm;
+                        display: none !important;
                     }
                 }
             </style>
         </head>
         <body>
             ${printContent}
-            <div class="no-print" style="text-align: center; margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: var(--primary-color, #2196F3); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    <i class="bi bi-printer"></i> طباعة
-                </button>
-                <button onclick="window.history.back() || window.close()" style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-                    رجوع
-                </button>
-            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(() => {
+                        window.print();
+                    }, 300);
+                };
+            </script>
         </body>
         </html>
         `);
         printWindow.document.close();
-        printWindow.focus();
+        
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                printWindow.focus();
+            }
+        }, 100);
     } catch (error) {
         console.error('خطأ في طباعة QR Code:', error);
         showMessage('حدث خطأ أثناء طباعة QR Code', 'error');

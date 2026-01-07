@@ -16,7 +16,8 @@ try {
     }
     
     // ✅ جلب lastReadMessageId للمستخدم من localStorage (يتم إرساله في الطلب)
-    $lastReadMessageId = $_GET['last_read_message_id'] ?? null;
+    // ✅ تنظيف last_read_message_id
+    $lastReadMessageId = cleanInt($_GET['last_read_message_id'] ?? 0, 0);
     
     // ✅ بناء استعلام يتضمن التحقق من lastReadMessageId
     $query = "
@@ -39,7 +40,7 @@ try {
     
     // ✅ إضافة شرط لاستبعاد الرسائل المقروءة بالفعل
     $params = [$userId];
-    if (!empty($lastReadMessageId) && $lastReadMessageId !== '0') {
+    if (!empty($lastReadMessageId) && $lastReadMessageId > 0) {
         $query .= " AND cm.id > ?";
         $params[] = $lastReadMessageId;
         

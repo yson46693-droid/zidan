@@ -16,13 +16,30 @@ var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
 // قراءة الإصدار من ملف version.json (مع cache لتقليل الاستدعاءات)
 (async function() {
     try {
-        // ✅ استخدام cache لتقليل الاستدعاءات - التحقق فقط كل 5 دقائق
+        // ✅ إصلاح: التحقق من مسح الكاش (hard refresh) ومسح localStorage cache
         const cacheKey = 'version_json_cache';
         const cacheTimeKey = 'version_json_cache_time';
+        const versionCheckKey = 'version_check_timestamp';
         const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
         
-        const cachedTime = localStorage.getItem(cacheTimeKey);
+        // التحقق من وجود علامة مسح الكاش (hard refresh)
+        // عند hard refresh (Ctrl+F5)، يتم إعادة تحميل جميع الملفات بما فيها version.js
+        // لذلك نتحقق من timestamp آخر تحقق - إذا كان قديماً جداً، نمسح cache
+        const lastCheck = sessionStorage.getItem(versionCheckKey);
         const now = Date.now();
+        
+        // إذا كان آخر تحقق قديم جداً (أكثر من 10 ثوان) أو غير موجود، نمسح cache
+        // هذا يعني أن المستخدم قام بمسح الكاش
+        if (!lastCheck || (now - parseInt(lastCheck)) > 10000) {
+            console.log('🔄 [Version] تم اكتشاف مسح الكاش - مسح localStorage cache');
+            localStorage.removeItem(cacheKey);
+            localStorage.removeItem(cacheTimeKey);
+        }
+        
+        // حفظ timestamp التحقق الحالي
+        sessionStorage.setItem(versionCheckKey, now.toString());
+        
+        const cachedTime = localStorage.getItem(cacheTimeKey);
         
         // إذا كان cache موجوداً وحديثاً (أقل من 5 دقائق)، استخدامه
         if (cachedTime && (now - parseInt(cachedTime)) < CACHE_DURATION) {
@@ -38,14 +55,21 @@ var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
                         window.APP_LAST_UPDATE = LAST_UPDATE;
                         window.APP_VERSION_CLEAN = data.version;
                     }
-                    return; // استخدام cache - لا حاجة لاستدعاء API
+                    // لا نعود مباشرة - نتابع لاستدعاء API للتأكد من التحديث
                 } catch (e) {
                     // إذا فشل parsing cache، نتابع لاستدعاء API
                 }
             }
         }
         
-        const response = await fetch('/version.json?v=' + Date.now());
+        // ✅ إصلاح: استخدام timestamp و random لضمان عدم استخدام cache
+        const response = await fetch('/version.json?v=' + Date.now() + '&nocache=' + Math.random(), {
+            cache: 'no-store', // منع المتصفح من استخدام cache
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        });
         if (response.ok) {
             const data = await response.json();
             APP_VERSION = data.version + '.' + Date.now();
@@ -115,13 +139,20 @@ var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
                     }
                 }
                 
-                const response = await fetch('/version.json?v=' + Date.now());
+                // ✅ إصلاح: استخدام timestamp و random لضمان عدم استخدام cache
+                const response = await fetch('/version.json?v=' + Date.now() + '&nocache=' + Math.random(), {
+                    cache: 'no-store', // منع المتصفح من استخدام cache
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     
                     // حفظ في cache
                     localStorage.setItem(cacheKey, JSON.stringify(data));
-                    localStorage.setItem(cacheTimeKey, now.toString());
+                    localStorage.setItem(cacheTimeKey, Date.now().toString());
                     
                     const currentVersion = window.getAppVersionClean ? window.getAppVersionClean() : APP_VERSION.split('.').slice(0, 3).join('.');
                     if (data.version !== currentVersion) {
@@ -152,13 +183,27 @@ var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
             }
         };
         
-        // تحديث العرض عند تحميل الصفحة
+        // تحديث العرض عند تحميل الصفحة - مع إعادة المحاولة للتأكد من التحديث
+        const updateDisplayWithRetry = function() {
+            if (window.updateVersionDisplay) {
+                window.updateVersionDisplay();
+                // إعادة المحاولة بعد تأخير للتأكد من التحديث
+                setTimeout(() => {
+                    if (window.updateVersionDisplay) {
+                        window.updateVersionDisplay();
+                    }
+                }, 500);
+            }
+        };
+        
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(window.updateVersionDisplay, 100);
+                setTimeout(updateDisplayWithRetry, 100);
+                setTimeout(updateDisplayWithRetry, 1000);
             });
         } else {
-            setTimeout(window.updateVersionDisplay, 100);
+            setTimeout(updateDisplayWithRetry, 100);
+            setTimeout(updateDisplayWithRetry, 1000);
         }
         
         console.log('✅ نظام الإصدارات مفعّل - الإصدار الحالي:', APP_VERSION);

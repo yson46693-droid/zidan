@@ -21,9 +21,9 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: 213.239.220.209
-          username: alaazidan
-          password: KGw~1blLgk1hz*d1
-          server-dir: /httpdocs/
+          username: osama1234
+          password: 987_dKl9i
+          server-dir: /test.alaazidan.store/
 
           protocol: ftp
           port: 21

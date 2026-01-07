@@ -16,8 +16,9 @@ function getFirstBranchId() {
 }
 
 // جلب الماركات من قاعدة البيانات
-if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'brands') {
+if ($method === 'GET' && isset($_GET['action']) && cleanInput($_GET['action']) === 'brands') {
     checkAuth();
+    // ✅ الطلبات GET لا تحتاج إلى checkAPISecurity() (لا تحتاج إلى API Token)
     
     try {
         $allBrands = [];
@@ -81,10 +82,11 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'brands')
 }
 
 // الحصول على صيانات العميل - يجب أن يكون قبل الشرط العام GET
-if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'customer') {
+if ($method === 'GET' && isset($_GET['action']) && cleanInput($_GET['action']) === 'customer') {
     checkAuth();
     
-    $customerId = $_GET['customer_id'] ?? '';
+    // ✅ تنظيف معرف العميل
+    $customerId = cleanId($_GET['customer_id'] ?? '');
     
     if (empty($customerId)) {
         response(false, 'معرف العميل مطلوب', null, 400);
@@ -152,7 +154,9 @@ if ($method === 'GET' && isset($_GET['action']) && $_GET['action'] === 'customer
 // قراءة جميع عمليات الصيانة
 if ($method === 'GET') {
     // ✅ السماح بالوصول بدون auth إذا كان هناك repair_number (لصفحة تتبع الصيانة)
-    $repairNumber = $_GET['repair_number'] ?? null;
+    // ✅ تنظيف رقم الصيانة
+    $repairNumber = cleanText($_GET['repair_number'] ?? '');
+    $repairNumber = !empty($repairNumber) ? $repairNumber : null;
     $isPublicTracking = ($repairNumber && $repairNumber !== '');
     
     if ($isPublicTracking) {
@@ -254,7 +258,9 @@ if ($method === 'GET') {
     if (!$isPublicTracking) {
         if ($userRole === 'admin') {
             // ✅ المالك: يجب تمرير branch_id دائماً - منع عرض عمليات من فروع أخرى
-            $filterBranchId = $_GET['branch_id'] ?? null;
+            // ✅ تنظيف branch_id (يسمح بالنقطة لأن generateId() يولد IDs مع نقطة)
+            $filterBranchId = cleanBranchId($_GET['branch_id'] ?? '');
+            $filterBranchId = !empty($filterBranchId) ? $filterBranchId : null;
             if ($filterBranchId && $filterBranchId !== '') {
                 $query .= " AND r.branch_id = ?";
                 $params[] = $filterBranchId;
@@ -469,6 +475,7 @@ if ($method === 'POST') {
     
     // إضافة عملية صيانة جديدة (يتطلب auth)
     checkAuth();
+    checkAPISecurity(); // ✅ حماية API متعددة الطبقات
     
     // Migration: إضافة spare_parts_invoices لحفظ أرقام فواتير قطع الغيار
     try {
@@ -769,6 +776,7 @@ if ($method === 'POST') {
 // تعديل عملية صيانة
 if ($method === 'PUT') {
     checkAuth();
+    checkAPISecurity(); // ✅ حماية API متعددة الطبقات
     if (!isset($data['id'])) {
         $data = getRequestData();
     }
@@ -1295,67 +1303,10 @@ if ($method === 'PUT') {
             }
         }
         
-        // ✅ تسجيل ربح الصيانة في treasury_transactions عند تغيير الحالة إلى "delivered"
-        if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
-            $customerPrice = floatval($updatedRepair['customer_price'] ?? 0);
-            $repairCost = floatval($updatedRepair['repair_cost'] ?? 0);
-            $profit = $customerPrice - $repairCost;
-            $branchId = $updatedRepair['branch_id'] ?? null;
-            
-            // فقط إذا كان هناك ربح فعلي والفرع موجود
-            if ($profit > 0 && $branchId) {
-                // التأكد من وجود جدول treasury_transactions
-                if (dbTableExists('treasury_transactions')) {
-                    // التحقق من وجود 'repair_profit' في enum
-                    $conn = getDBConnection();
-                    if ($conn) {
-                        try {
-                            // محاولة إضافة 'repair_profit' إلى enum إذا لم يكن موجوداً
-                            $conn->query("ALTER TABLE treasury_transactions MODIFY transaction_type enum('expense','repair_cost','repair_profit','loss_operation','sales_revenue','sales_cost','withdrawal','deposit','damaged_return','debt_collection') NOT NULL");
-                        } catch (Exception $e) {
-                            // تجاهل الخطأ إذا كان العمود موجوداً بالفعل
-                        }
-                    }
-                    
-                    // التحقق من عدم وجود معاملة مسجلة مسبقاً لهذه العملية
-                    $existingTransaction = dbSelectOne(
-                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'repair' AND transaction_type = 'repair_profit'",
-                        [$id]
-                    );
-                    
-                    if (!$existingTransaction) {
-                        $session = checkAuth();
-                        $transactionId = generateId();
-                        $repairNumber = dbSelectOne("SELECT repair_number FROM repairs WHERE id = ?", [$id]);
-                        $repairNumberText = $repairNumber ? $repairNumber['repair_number'] : $id;
-                        
-                        $transactionDescription = "ربح عملية صيانة - رقم العملية: {$repairNumberText}";
-                        
-                        $transactionResult = dbExecute(
-                            "INSERT INTO treasury_transactions (
-                                id, branch_id, transaction_type, amount, description, 
-                                reference_id, reference_type, created_at, created_by
-                            ) VALUES (?, ?, 'repair_profit', ?, ?, ?, 'repair', NOW(), ?)",
-                            [$transactionId, $branchId, $profit, $transactionDescription, $id, $session['user_id']]
-                        );
-                        
-                        if ($transactionResult !== false) {
-                            error_log("✅ [Repairs API] تم تسجيل ربح الصيانة في treasury_transactions: {$profit} ج.م للعملية {$repairNumberText}");
-                        } else {
-                            error_log("⚠️ [Repairs API] فشل تسجيل ربح الصيانة في treasury_transactions: {$profit} ج.م للعملية {$repairNumberText}");
-                        }
-                    } else {
-                        error_log("ℹ️ [Repairs API] تم تسجيل ربح الصيانة مسبقاً في treasury_transactions للعملية: {$id}");
-                    }
-                } else {
-                    error_log("⚠️ [Repairs API] جدول treasury_transactions غير موجود - لم يتم تسجيل ربح الصيانة");
-                }
-            } elseif ($profit <= 0) {
-                error_log("ℹ️ [Repairs API] لا يوجد ربح للعملية: الربح = {$profit} ج.م (السعر: {$customerPrice} - التكلفة: {$repairCost})");
-            } elseif (!$branchId) {
-                error_log("⚠️ [Repairs API] العملية لا تحتوي على branch_id - لم يتم تسجيل ربح الصيانة");
-            }
-        }
+        // ✅ ملاحظة: صافي ربح العملية (customer_price - repair_cost) هو إحصائية فقط
+        // ولا يجب تسجيله في سجل معاملات الخزنة لأنه ليس مبلغاً فعلياً يُضاف أو يُخصم من الخزنة
+        // الإيرادات الفعلية تُسجل عند استلام المبلغ المدفوع مقدماً والمبلغ المتبقي
+        // التكاليف الفعلية تُسجل عند تغيير الحالة إلى "ready_for_delivery"
     }
     
     response(true, 'تم تعديل عملية الصيانة بنجاح');
@@ -1363,6 +1314,8 @@ if ($method === 'PUT') {
 
 // حذف عملية صيانة
 if ($method === 'DELETE') {
+    checkAuth();
+    checkAPISecurity(); // ✅ حماية API متعددة الطبقات
     checkPermission('manager');
     if (!isset($data['id'])) {
         $data = getRequestData();

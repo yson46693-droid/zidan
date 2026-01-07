@@ -140,8 +140,34 @@
         });
 
         if (includeRepairs) {
+            // ✅ إصلاح: الحصول على branch_id المناسب قبل استدعاء API
+            let branchId = null;
+            const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+            
+            if (isOwner) {
+                // للمالك: محاولة الحصول على الفرع المحدد من DOM أو استخدام الفرع الأول
+                const branchFilter = document.getElementById('repairBranchFilter');
+                if (branchFilter && branchFilter.value) {
+                    branchId = branchFilter.value;
+                } else if (typeof selectedRepairBranchId !== 'undefined' && selectedRepairBranchId) {
+                    branchId = selectedRepairBranchId;
+                } else if (typeof repairFirstBranchId !== 'undefined' && repairFirstBranchId) {
+                    branchId = repairFirstBranchId;
+                }
+            } else {
+                // للمستخدمين العاديين: استخدام فرعهم
+                branchId = currentUser && currentUser.branch_id ? currentUser.branch_id : null;
+            }
+            
+            // بناء URL مع branch_id إذا كان متاحاً
+            let repairsUrl = 'api/repairs.php';
+            if (branchId) {
+                repairsUrl += `?branch_id=${encodeURIComponent(branchId)}`;
+            }
+            
             requests.push({
-                url: 'api/repairs.php',
+                url: repairsUrl,
                 method: 'GET',
                 cache: true
             });

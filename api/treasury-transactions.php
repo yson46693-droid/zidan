@@ -48,7 +48,9 @@ if ($method === 'GET') {
     // السماح لجميع المستخدمين بعرض سجل المعاملات
     // (لكن غير المالك يمكنه رؤية فرعه فقط - يتم التحقق من ذلك لاحقاً)
     
-    $requestedBranchId = $_GET['branch_id'] ?? null;
+    // ✅ تنظيف branch_id (يسمح بالنقطة لأن generateId() يولد IDs مع نقطة)
+    $requestedBranchId = cleanBranchId($_GET['branch_id'] ?? '');
+    $requestedBranchId = !empty($requestedBranchId) ? $requestedBranchId : null;
     $page = intval($_GET['page'] ?? 1);
     $perPage = intval($_GET['per_page'] ?? 20);
     $offset = ($page - 1) * $perPage;
@@ -71,13 +73,22 @@ if ($method === 'GET') {
         $branchId = $requestedBranchId;
     }
     
-    if (!$branchId) {
+    if (!$branchId || empty(trim($branchId))) {
         response(false, 'معرف الفرع مطلوب', null, 400);
+    }
+    
+    // ✅ التحقق من أن branch_id صحيح قبل استخدامه في الاستعلام
+    $branchId = trim($branchId);
+    if (empty($branchId)) {
+        response(false, 'معرف الفرع غير صحيح', null, 400);
     }
     
     // جلب إجمالي عدد المعاملات
     $totalQuery = "SELECT COUNT(*) as total FROM treasury_transactions WHERE branch_id = ?";
     $totalResult = dbSelectOne($totalQuery, [$branchId]);
+    if ($totalResult === false) {
+        response(false, 'خطأ في جلب عدد المعاملات', null, 500);
+    }
     $total = intval($totalResult['total'] ?? 0);
     $totalPages = ceil($total / $perPage);
     

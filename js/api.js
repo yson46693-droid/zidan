@@ -50,6 +50,22 @@ setInterval(() => API_CACHE.cleanup(), 10 * 60 * 1000);
 
 // دوال التواصل مع API
 const API = {
+    // متغيرات لتخزين Tokens
+    csrfToken: null,
+    apiToken: null,
+    
+    // دالة لتحديث Tokens من الاستجابة
+    updateTokens(response) {
+        if (response && response.data) {
+            if (response.data.csrf_token) {
+                this.csrfToken = response.data.csrf_token;
+            }
+            if (response.data.api_token) {
+                this.apiToken = response.data.api_token;
+            }
+        }
+    },
+    
     // دالة عامة لإرسال الطلبات
     // يمكن تمرير options إضافية مثل { silent: true } لمنع عرض loading overlay
     async request(endpoint, method = 'GET', data = null, requestOptions = {}) {
@@ -90,6 +106,23 @@ const API = {
         // إضافة silent flag إذا كان موجوداً
         if (requestOptions && requestOptions.silent) {
             fetchOptions.headers['X-Silent-Request'] = 'true';
+        }
+
+        // ✅ إضافة Tokens للطلبات الحساسة
+        if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+            if (!data) data = {};
+            
+            // إضافة CSRF Token
+            if (this.csrfToken) {
+                data.csrf_token = this.csrfToken;
+                fetchOptions.headers['X-CSRF-Token'] = this.csrfToken;
+            }
+            
+            // إضافة API Token
+            if (this.apiToken) {
+                data.api_token = this.apiToken;
+                fetchOptions.headers['X-API-Token'] = this.apiToken;
+            }
         }
 
         if (data && actualMethod !== 'GET') {
@@ -258,6 +291,49 @@ const API = {
                 if (result.success) {
                     console.log('%c✅ نجح الطلب:', 'color: #4CAF50; font-weight: bold;', result);
                 } else {
+                    // ✅ إذا كان الخطأ متعلق بـ API Token، محاولة تحديث Token تلقائياً
+                    if (result.message && result.message.includes('رمز API')) {
+                        console.warn('⚠️ API Token منتهي الصلاحية - محاولة تحديث Token تلقائياً...');
+                        // محاولة تحديث Token عبر checkAuth
+                        try {
+                            const authResult = await this.checkAuth(true); // silent = true
+                            if (authResult && authResult.success) {
+                                this.updateTokens(authResult);
+                                console.log('✅ تم تحديث API Token تلقائياً');
+                                // إعادة المحاولة مرة واحدة فقط
+                                if (attempt === 0 && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+                                    console.log('🔄 إعادة المحاولة بعد تحديث Token...');
+                                    // إضافة Token الجديد للطلب
+                                    if (!data) data = {};
+                                    if (this.csrfToken) {
+                                        data.csrf_token = this.csrfToken;
+                                        fetchOptions.headers['X-CSRF-Token'] = this.csrfToken;
+                                    }
+                                    if (this.apiToken) {
+                                        data.api_token = this.apiToken;
+                                        fetchOptions.headers['X-API-Token'] = this.apiToken;
+                                    }
+                                    fetchOptions.body = JSON.stringify(data);
+                                    // إعادة المحاولة
+                                    response = await fetch(fullUrl, fetchOptions);
+                                    const retryText = await response.text();
+                                    result = JSON.parse(retryText);
+                                    if (result.success) {
+                                        console.log('✅ نجح الطلب بعد تحديث Token');
+                                        this.updateTokens(result);
+                                        // حفظ في cache بعد الاستجابة الناجحة للطلبات GET فقط
+                                        if (method === 'GET' && result.success && !requestOptions.skipCache) {
+                                            const cacheKey = `${endpoint}_${JSON.stringify(data || {})}`;
+                                            API_CACHE.set(cacheKey, result);
+                                        }
+                                        return result;
+                                    }
+                                }
+                            }
+                        } catch (authError) {
+                            console.error('❌ فشل تحديث Token:', authError);
+                        }
+                    }
                     // ✅ إخفاء رسالة الخطأ للوظائف المعطلة (loss-operations.php)
                     const isDisabledFeature = result.message && (
                         result.message.includes('غير متاحة حالياً') ||
@@ -291,6 +367,11 @@ const API = {
                 // مسح الكاش بالكامل لضمان تحديث جميع البيانات
                 API_CACHE.clear();
                 console.log('%c🗑️ تم مسح الكاش بعد العملية:', 'color: #FFA500; font-weight: bold;', endpoint);
+            }
+            
+            // ✅ تحديث Tokens بعد استلام الاستجابة
+            if (result && result.data) {
+                this.updateTokens(result);
             }
             
             return result;
@@ -400,12 +481,16 @@ const API = {
 
     // المصادقة
     async login(username, password) {
-        return await this.request('auth.php', 'POST', { username, password });
+        const result = await this.request('auth.php', 'POST', { username, password });
+        this.updateTokens(result);
+        return result;
     },
 
     async checkAuth(silent = false) {
         const options = silent ? { silent: true } : {};
-        return await this.request('auth.php', 'GET', null, options);
+        const result = await this.request('auth.php', 'GET', null, options);
+        this.updateTokens(result);
+        return result;
     },
 
     async logout() {
