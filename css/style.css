@@ -2502,6 +2502,10 @@ body {
     justify-content: center;
 }
 
+.modal.show {
+    display: flex;
+}
+
 .modal-content {
     background: var(--white);
     border-radius: 10px;
@@ -10523,4 +10527,181 @@ body > .nav-link,
         display: none !important;
     }
 }
+}
+
+/* Phone Action Modal Styles */
+.phone-number-clickable {
+    color: var(--primary-color);
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.phone-number-clickable:hover {
+    color: var(--secondary-color);
+    text-decoration: none;
+}
+
+.phone-number-clickable:active {
+    transform: scale(0.98);
+}
+
+/* Phone Action Modal */
+#phoneActionModal {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#phoneActionModal.show {
+    display: flex;
+    opacity: 1;
+}
+
+#phoneActionModal .modal-content {
+    animation: slideInModal 0.3s ease;
+}
+
+@keyframes slideInModal {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+#phoneActionModal .modal-body {
+    padding: 20px;
+}
+
+#phoneActionModal .modal-body p {
+    margin: 0;
+}
+
+#phoneActionModal #phoneActionModalNumber {
+    direction: ltr;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+}
+
+/* Phone Action Buttons */
+.btn-phone-action {
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    width: 100%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-family: inherit;
+}
+
+.btn-phone-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-phone-action:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-phone-action i {
+    font-size: 1.2em;
+}
+
+/* WhatsApp Button Specific - استخدام nth-child بدلاً من onclick selector */
+.btn-phone-action:nth-child(3) {
+    background: #25D366;
+}
+
+.btn-phone-action:nth-child(3):hover {
+    background: #20BA5A;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+/* Call Button Specific */
+.btn-phone-action:nth-child(2) {
+    background: var(--success-color);
+}
+
+.btn-phone-action:nth-child(2):hover {
+    background: #45a049;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+/* Copy Button Specific */
+.btn-phone-action:nth-child(1) {
+    background: var(--primary-color);
+}
+
+.btn-phone-action:nth-child(1):hover {
+    background: var(--secondary-color);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+/* Responsive Design for Phone Modal */
+@media (max-width: 575.98px) {
+    #phoneActionModal .modal-content.modal-sm {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 10px;
+    }
+    
+    #phoneActionModal .modal-body {
+        padding: 15px;
+    }
+    
+    .btn-phone-action {
+        padding: 12px 15px;
+        font-size: 0.95em;
+    }
+    
+    #phoneActionModal .modal-body i.bi-telephone-fill {
+        font-size: 2.5em !important;
+    }
+    
+    #phoneActionModal #phoneActionModalNumber {
+        font-size: 1.1em !important;
+    }
+}
+
+/* Dark Mode Support */
+.dark-mode #phoneActionModal .modal-content {
+    background: var(--dark-bg);
+    color: var(--white);
+}
+
+.dark-mode #phoneActionModal .modal-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode #phoneActionModal .modal-header h3 {
+    color: var(--white);
+}
+
+.dark-mode #phoneActionModal .modal-body p {
+    color: var(--white);
+}
+
+.dark-mode .phone-number-clickable {
+    color: var(--secondary-color);
+}
+
+.dark-mode .phone-number-clickable:hover {
+    color: var(--primary-color);
 }

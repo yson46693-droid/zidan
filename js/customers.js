@@ -128,6 +128,37 @@ async function loadCustomersSection() {
                 </form>
             </div>
         </div>
+
+        <!-- Modal للهاتف -->
+        <div id="phoneActionModal" class="modal">
+            <div class="modal-content modal-sm">
+                <div class="modal-header">
+                    <h3>إجراءات الهاتف</h3>
+                    <button onclick="closePhoneActionModal()" class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <i class="bi bi-telephone-fill" style="font-size: 3em; color: var(--primary-color); margin-bottom: 15px; display: block;"></i>
+                        <p style="font-size: 1.1em; color: var(--text-dark); font-weight: 600; margin-bottom: 5px;">رقم الهاتف</p>
+                        <p id="phoneActionModalNumber" style="font-size: 1.3em; color: var(--primary-color); font-weight: bold; direction: ltr; text-align: center;"></p>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button onclick="copyPhoneNumber()" class="btn-phone-action">
+                            <i class="bi bi-copy"></i>
+                            <span>نسخ الرقم</span>
+                        </button>
+                        <button onclick="callPhoneNumber()" class="btn-phone-action">
+                            <i class="bi bi-telephone"></i>
+                            <span>الاتصال بالرقم</span>
+                        </button>
+                        <button onclick="whatsappPhoneNumber()" class="btn-phone-action">
+                            <i class="bi bi-whatsapp"></i>
+                            <span>التواصل عبر واتساب</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     `;
 
     // تحميل الفروع أولاً (للمالك فقط)
@@ -758,7 +789,11 @@ function displayCustomers(customers) {
         <tr>
             <td><strong>${customer.name}</strong></td>
             ${shopNameCell}
-            <td>${customer.phone}</td>
+            <td>
+                <span class="phone-number-clickable" data-phone="${escapeHtml(customer.phone)}" style="color: var(--primary-color); cursor: pointer; text-decoration: underline; font-weight: 500; transition: all 0.2s ease;" onmouseover="this.style.color='var(--secondary-color)'" onmouseout="this.style.color='var(--primary-color)'">
+                    ${customer.phone}
+                </span>
+            </td>
             <td>${customer.address || '-'}</td>
             <td>
                 ${totalRatings > 0 ? `
@@ -793,6 +828,9 @@ function displayCustomers(customers) {
     
     // إضافة event delegation للأزرار
     setupCustomerActionButtons();
+    
+    // إضافة event delegation لأرقام الهواتف
+    setupPhoneNumberClickHandlers();
 }
 
 function toggleShopNameField() {
@@ -4839,10 +4877,247 @@ function setupCustomerActionButtons() {
     tbody.addEventListener('click', handler);
 }
 
+// إعداد event delegation لأرقام الهواتف
+function setupPhoneNumberClickHandlers() {
+    const tbody = document.getElementById('customersTableBody');
+    if (!tbody) return;
+    
+    // إزالة event listeners السابقة لتجنب التكرار
+    const existingHandler = tbody._phoneNumberHandler;
+    if (existingHandler) {
+        tbody.removeEventListener('click', existingHandler);
+    }
+    
+    // إضافة event listener جديد
+    const handler = function(e) {
+        const phoneElement = e.target.closest('.phone-number-clickable');
+        if (phoneElement) {
+            e.preventDefault();
+            e.stopPropagation();
+            const phoneNumber = phoneElement.getAttribute('data-phone');
+            if (phoneNumber) {
+                try {
+                    showPhoneActionModal(phoneNumber);
+                } catch (error) {
+                    console.error('Error showing phone action modal:', error);
+                    showMessage('حدث خطأ في فتح نافذة الهاتف', 'error');
+                }
+            }
+        }
+    };
+    
+    tbody._phoneNumberHandler = handler;
+    tbody.addEventListener('click', handler);
+}
+
+// عرض modal إجراءات الهاتف
+function showPhoneActionModal(phoneNumber) {
+    try {
+        const modal = document.getElementById('phoneActionModal');
+        const phoneDisplay = document.getElementById('phoneActionModalNumber');
+        
+        if (!modal || !phoneDisplay) {
+            console.error('Phone action modal elements not found');
+            showMessage('حدث خطأ في فتح نافذة الهاتف', 'error');
+            return;
+        }
+        
+        // تنظيف رقم الهاتف من أي مسافات أو أحرف خاصة
+        const cleanPhone = phoneNumber.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+        
+        // عرض رقم الهاتف
+        phoneDisplay.textContent = cleanPhone;
+        
+        // حفظ رقم الهاتف في data attribute للاستخدام لاحقاً
+        modal.setAttribute('data-phone', cleanPhone);
+        
+        // إظهار الـ modal
+        modal.style.display = 'flex';
+        
+        // إضافة تأثير fade-in
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+        });
+        
+        // إضافة event listener لإغلاق الـ modal عند النقر خارجها
+        const closeOnOutsideClick = function(e) {
+            if (e.target === modal) {
+                closePhoneActionModal();
+                modal.removeEventListener('click', closeOnOutsideClick);
+            }
+        };
+        modal.addEventListener('click', closeOnOutsideClick);
+        
+        // إضافة event listener لإغلاق الـ modal عند الضغط على ESC
+        const closeOnEscape = function(e) {
+            if (e.key === 'Escape' || e.keyCode === 27) {
+                closePhoneActionModal();
+                document.removeEventListener('keydown', closeOnEscape);
+            }
+        };
+        document.addEventListener('keydown', closeOnEscape);
+    } catch (error) {
+        console.error('Error in showPhoneActionModal:', error);
+        showMessage('حدث خطأ في فتح نافذة الهاتف: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
+// إغلاق modal إجراءات الهاتف
+function closePhoneActionModal() {
+    try {
+        const modal = document.getElementById('phoneActionModal');
+        if (!modal) return;
+        
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+            // إزالة رقم الهاتف المحفوظ
+            modal.removeAttribute('data-phone');
+        }, 300);
+    } catch (error) {
+        console.error('Error closing phone action modal:', error);
+    }
+}
+
+// نسخ رقم الهاتف
+function copyPhoneNumber() {
+    try {
+        const modal = document.getElementById('phoneActionModal');
+        if (!modal) {
+            showMessage('حدث خطأ في نسخ الرقم', 'error');
+            return;
+        }
+        
+        const phoneNumber = modal.getAttribute('data-phone') || '';
+        if (!phoneNumber) {
+            showMessage('رقم الهاتف غير موجود', 'error');
+            return;
+        }
+        
+        // استخدام Clipboard API إذا كان متاحاً
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(phoneNumber).then(() => {
+                showMessage('تم نسخ رقم الهاتف بنجاح', 'success');
+            }).catch(() => {
+                // Fallback: استخدام طريقة قديمة
+                fallbackCopyToClipboard(phoneNumber);
+            });
+        } else {
+            // Fallback: استخدام طريقة قديمة
+            fallbackCopyToClipboard(phoneNumber);
+        }
+    } catch (error) {
+        console.error('Error copying phone number:', error);
+        showMessage('حدث خطأ في نسخ الرقم', 'error');
+    }
+}
+
+// طريقة بديلة للنسخ (fallback)
+function fallbackCopyToClipboard(text) {
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+            showMessage('تم نسخ رقم الهاتف بنجاح', 'success');
+        } else {
+            showMessage('فشل نسخ الرقم. يرجى نسخه يدوياً', 'error');
+        }
+    } catch (error) {
+        console.error('Fallback copy failed:', error);
+        showMessage('فشل نسخ الرقم. يرجى نسخه يدوياً', 'error');
+    }
+}
+
+// الاتصال برقم الهاتف
+function callPhoneNumber() {
+    try {
+        const modal = document.getElementById('phoneActionModal');
+        if (!modal) {
+            showMessage('حدث خطأ في الاتصال', 'error');
+            return;
+        }
+        
+        const phoneNumber = modal.getAttribute('data-phone') || '';
+        if (!phoneNumber) {
+            showMessage('رقم الهاتف غير موجود', 'error');
+            return;
+        }
+        
+        // تنظيف الرقم وإزالة أي رموز خاصة
+        const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
+        
+        // استخدام tel: protocol للاتصال
+        const telLink = `tel:${cleanPhone}`;
+        window.location.href = telLink;
+        
+        // إغلاق الـ modal بعد محاولة الاتصال
+        setTimeout(() => {
+            closePhoneActionModal();
+        }, 500);
+    } catch (error) {
+        console.error('Error calling phone number:', error);
+        showMessage('حدث خطأ في الاتصال: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
+// التواصل عبر واتساب
+function whatsappPhoneNumber() {
+    try {
+        const modal = document.getElementById('phoneActionModal');
+        if (!modal) {
+            showMessage('حدث خطأ في فتح واتساب', 'error');
+            return;
+        }
+        
+        const phoneNumber = modal.getAttribute('data-phone') || '';
+        if (!phoneNumber) {
+            showMessage('رقم الهاتف غير موجود', 'error');
+            return;
+        }
+        
+        // تنظيف الرقم وإزالة أي رموز خاصة
+        let cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
+        
+        // إزالة علامة + إذا كانت موجودة
+        if (cleanPhone.startsWith('+')) {
+            cleanPhone = cleanPhone.substring(1);
+        }
+        
+        // إزالة أي أصفار في البداية (لأرقام محلية)
+        if (cleanPhone.startsWith('0')) {
+            cleanPhone = cleanPhone.substring(1);
+        }
+        
+        // استخدام WhatsApp Web API
+        const whatsappUrl = `https://wa.me/${cleanPhone}`;
+        window.open(whatsappUrl, '_blank');
+        
+        // إغلاق الـ modal بعد فتح واتساب
+        setTimeout(() => {
+            closePhoneActionModal();
+        }, 500);
+    } catch (error) {
+        console.error('Error opening WhatsApp:', error);
+        showMessage('حدث خطأ في فتح واتساب: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
 // Expose functions to global scope for onclick handlers
 window.validateStatementDates = validateStatementDates;
 window.savePrintAccountStatement = savePrintAccountStatement;
 window.showPrintAccountStatementModal = showPrintAccountStatementModal;
 window.deleteCustomerFromProfile = deleteCustomerFromProfile;
 window.applyBranchFilter = applyBranchFilter;
+window.closePhoneActionModal = closePhoneActionModal;
+window.copyPhoneNumber = copyPhoneNumber;
+window.callPhoneNumber = callPhoneNumber;
+window.whatsappPhoneNumber = whatsappPhoneNumber;
 

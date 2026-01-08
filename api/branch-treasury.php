@@ -606,34 +606,112 @@ if ($method === 'GET') {
     if ($isFirstBranch) {
         $hasCustomerIdColumn = dbColumnExists('sales', 'customer_id');
         
-        // ✅ إصلاح: جلب final_amount من جدول sales مباشرة (بعد خصم الخصم)
-        $salesQuery = "SELECT s.id, s.final_amount FROM sales s 
-                       INNER JOIN users u ON s.created_by = u.id";
-        if ($hasCustomerIdColumn) {
-            $salesQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
-        }
-        $salesQuery .= " WHERE DATE(s.created_at) BETWEEN ? AND ?";
-        $salesParams = [$startDate, $endDate];
-        
-        // فلترة المبيعات حسب الفرع الأول
-        if ($hasCustomerIdColumn) {
-            $salesQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
-            $salesParams[] = $branchId;
-            $salesParams[] = $branchId;
+        // ✅ إصلاح: استخدام treasury_transactions لحساب إجمالي المبيعات (لضمان استخدام المبلغ المدفوع للعملاء التجاريين)
+        if (dbTableExists('treasury_transactions')) {
+            // جلب المبيعات من treasury_transactions (تحتوي على المبلغ الفعلي المضاف للخزنة)
+            $salesRevenueQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
+                                  WHERE branch_id = ? 
+                                  AND transaction_type = 'sales_revenue' 
+                                  AND reference_type = 'sale'
+                                  AND DATE(created_at) BETWEEN ? AND ?";
+            $salesRevenueResult = dbSelectOne($salesRevenueQuery, [$branchId, $startDate, $endDate]);
+            $totalSalesRevenue = floatval($salesRevenueResult['total'] ?? 0);
+            
+            // جلب المبيعات القديمة التي لم تُسجل في treasury_transactions (fallback)
+            $hasPaidAmountColumn = dbColumnExists('sales', 'paid_amount');
+            $salesQuery = "SELECT s.id, s.final_amount";
+            if ($hasPaidAmountColumn && $hasCustomerIdColumn) {
+                $salesQuery .= ", s.paid_amount, c.customer_type";
+            }
+            $salesQuery .= " FROM sales s 
+                           INNER JOIN users u ON s.created_by = u.id";
+            if ($hasCustomerIdColumn) {
+                $salesQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
+            }
+            $salesQuery .= " WHERE DATE(s.created_at) BETWEEN ? AND ?
+                           AND NOT EXISTS (
+                               SELECT 1 FROM treasury_transactions tt 
+                               WHERE tt.reference_id = s.id 
+                               AND tt.reference_type = 'sale' 
+                               AND tt.transaction_type = 'sales_revenue'
+                           )";
+            $salesParams = [$startDate, $endDate];
+            
+            // فلترة المبيعات حسب الفرع الأول
+            if ($hasCustomerIdColumn) {
+                $salesQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
+                $salesParams[] = $branchId;
+                $salesParams[] = $branchId;
+            } else {
+                $salesQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
+                $salesParams[] = $branchId;
+            }
+            
+            $sales = dbSelect($salesQuery, $salesParams);
+            
+            if ($sales !== false && is_array($sales)) {
+                foreach ($sales as $sale) {
+                    // للمبيعات القديمة: استخدام paid_amount للعملاء التجاريين و final_amount للعملاء العاديين
+                    if ($hasPaidAmountColumn && $hasCustomerIdColumn) {
+                        $customerType = $sale['customer_type'] ?? 'retail';
+                        if ($customerType === 'commercial') {
+                            $amount = floatval($sale['paid_amount'] ?? 0);
+                        } else {
+                            $amount = floatval($sale['final_amount'] ?? 0);
+                        }
+                    } else {
+                        // للجداول القديمة: استخدام final_amount
+                        $amount = floatval($sale['final_amount'] ?? 0);
+                    }
+                    $totalSalesRevenue += $amount;
+                }
+            }
         } else {
-            $salesQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
-            $salesParams[] = $branchId;
+            // Fallback: استخدام sales مباشرة (للجداول القديمة)
+            $hasPaidAmountColumn = dbColumnExists('sales', 'paid_amount');
+            $salesQuery = "SELECT s.id, s.final_amount";
+            if ($hasPaidAmountColumn && $hasCustomerIdColumn) {
+                $salesQuery .= ", s.paid_amount, c.customer_type";
+            }
+            $salesQuery .= " FROM sales s 
+                           INNER JOIN users u ON s.created_by = u.id";
+            if ($hasCustomerIdColumn) {
+                $salesQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
+            }
+            $salesQuery .= " WHERE DATE(s.created_at) BETWEEN ? AND ?";
+            $salesParams = [$startDate, $endDate];
+            
+            if ($hasCustomerIdColumn) {
+                $salesQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
+                $salesParams[] = $branchId;
+                $salesParams[] = $branchId;
+            } else {
+                $salesQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
+                $salesParams[] = $branchId;
+            }
+            
+            $sales = dbSelect($salesQuery, $salesParams);
+            
+            if ($sales !== false && is_array($sales)) {
+                foreach ($sales as $sale) {
+                    if ($hasPaidAmountColumn && $hasCustomerIdColumn) {
+                        $customerType = $sale['customer_type'] ?? 'retail';
+                        if ($customerType === 'commercial') {
+                            $amount = floatval($sale['paid_amount'] ?? 0);
+                        } else {
+                            $amount = floatval($sale['final_amount'] ?? 0);
+                        }
+                    } else {
+                        $amount = floatval($sale['final_amount'] ?? 0);
+                    }
+                    $totalSalesRevenue += $amount;
+                }
+            }
         }
         
-        $sales = dbSelect($salesQuery, $salesParams);
-        
-        if ($sales !== false && is_array($sales)) {
+        // حساب التكلفة من sale_items (التكلفة لا تتأثر بالخصم)
+        if (isset($sales) && $sales !== false && is_array($sales)) {
             foreach ($sales as $sale) {
-                // ✅ إصلاح: استخدام final_amount من جدول sales (بعد خصم الخصم)
-                $finalAmount = floatval($sale['final_amount'] ?? 0);
-                $totalSalesRevenue += $finalAmount;
-                
-                // حساب التكلفة من sale_items (التكلفة لا تتأثر بالخصم)
                 $saleItems = dbSelect("SELECT * FROM sale_items WHERE sale_id = ?", [$sale['id']]);
                 
                 if ($saleItems !== false && is_array($saleItems)) {

@@ -275,8 +275,69 @@ if ($method === 'GET') {
     }
     
     if ($sales !== false && is_array($sales)) {
+        // ✅ إصلاح: استخدام treasury_transactions لحساب إجمالي المبيعات (لضمان استخدام المبلغ المدفوع للعملاء التجاريين)
+        $hasPaidAmountColumn = dbColumnExists('sales', 'paid_amount');
+        
         foreach ($sales as $sale) {
-            // جلب عناصر البيع
+            // حساب الإيرادات من المبلغ الفعلي المضاف للخزنة
+            if (dbTableExists('treasury_transactions')) {
+                // محاولة جلب المبلغ من treasury_transactions أولاً
+                $treasuryTransaction = dbSelectOne(
+                    "SELECT amount FROM treasury_transactions 
+                     WHERE reference_id = ? 
+                     AND reference_type = 'sale' 
+                     AND transaction_type = 'sales_revenue'",
+                    [$sale['id']]
+                );
+                
+                if ($treasuryTransaction) {
+                    $totalSalesRevenue += floatval($treasuryTransaction['amount'] ?? 0);
+                } else {
+                    // إذا لم تكن موجودة في treasury_transactions، استخدام sales مع التحقق من نوع العميل
+                    $saleData = dbSelectOne(
+                        "SELECT s.final_amount" . ($hasPaidAmountColumn && $hasCustomerIdColumn ? ", s.paid_amount, c.customer_type" : "") . "
+                         FROM sales s" . ($hasCustomerIdColumn ? " LEFT JOIN customers c ON s.customer_id = c.id" : "") . "
+                         WHERE s.id = ?",
+                        [$sale['id']]
+                    );
+                    
+                    if ($saleData) {
+                        if ($hasPaidAmountColumn && $hasCustomerIdColumn) {
+                            $customerType = $saleData['customer_type'] ?? 'retail';
+                            if ($customerType === 'commercial') {
+                                $totalSalesRevenue += floatval($saleData['paid_amount'] ?? 0);
+                            } else {
+                                $totalSalesRevenue += floatval($saleData['final_amount'] ?? 0);
+                            }
+                        } else {
+                            $totalSalesRevenue += floatval($saleData['final_amount'] ?? 0);
+                        }
+                    }
+                }
+            } else {
+                // Fallback: استخدام sales مباشرة
+                $saleData = dbSelectOne(
+                    "SELECT s.final_amount" . ($hasPaidAmountColumn && $hasCustomerIdColumn ? ", s.paid_amount, c.customer_type" : "") . "
+                     FROM sales s" . ($hasCustomerIdColumn ? " LEFT JOIN customers c ON s.customer_id = c.id" : "") . "
+                     WHERE s.id = ?",
+                    [$sale['id']]
+                );
+                
+                if ($saleData) {
+                    if ($hasPaidAmountColumn && $hasCustomerIdColumn) {
+                        $customerType = $saleData['customer_type'] ?? 'retail';
+                        if ($customerType === 'commercial') {
+                            $totalSalesRevenue += floatval($saleData['paid_amount'] ?? 0);
+                        } else {
+                            $totalSalesRevenue += floatval($saleData['final_amount'] ?? 0);
+                        }
+                    } else {
+                        $totalSalesRevenue += floatval($saleData['final_amount'] ?? 0);
+                    }
+                }
+            }
+            
+            // جلب عناصر البيع لحساب التكلفة
             $saleItems = dbSelect(
                 "SELECT * FROM sale_items WHERE sale_id = ?",
                 [$sale['id']]
@@ -288,9 +349,6 @@ if ($method === 'GET') {
                     $itemId = $item['item_id'] ?? '';
                     $quantity = intval($item['quantity'] ?? 1);
                     $unitPrice = floatval($item['unit_price'] ?? 0);
-                    
-                    // حساب إجمالي سعر البيع
-                    $totalSalesRevenue += ($unitPrice * $quantity);
                     
                     // جلب سعر التكلفة حسب نوع العنصر
                     $purchasePrice = 0;
