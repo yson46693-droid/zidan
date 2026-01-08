@@ -55,10 +55,10 @@ async function loadRepairsSection() {
         <div id="readyForDeliveryStats" class="stats-container" style="display: block; margin-bottom: 20px; padding: 12px 15px; background: var(--white); border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: var(--light-bg); border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 200px;">
-                    <i class="bi bi-check-circle" style="font-size: 1.2em; color: var(--success-color); flex-shrink: 0;"></i>
+                    <i class="bi bi-check-circle" style="font-size: 1.2em; color: var(--success-color); flex-shrink: 0 text-align: center;"></i>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.85em; color: var(--text-light); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي المتبقي للعمليات جاهزة للتسليم</div>
-                        <div id="totalReadyForDeliveryRemaining" style="font-size: 1.3em; font-weight: bold; color: var(--success-color); white-space: nowrap;">0.00 ج.م</div>
+                        <div style="font-size: 0.85em; color: var(--text-light); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;">إجمالي المتبقي للصيانات الجاهزة للتسليم</div>
+                        <div id="totalReadyForDeliveryRemaining" style="font-size: 1.3em; font-weight: bold; color: var(--success-color); white-space: nowrap; text-align: center;">0.00 ج.م</div>
                     </div>
                 </div>
             </div>
