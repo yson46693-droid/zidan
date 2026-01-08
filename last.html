@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة تسليم جهاز</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --secondary-color: #64B5F6;
+            --success-color: #4CAF50;
+            --warning-color: #FFA500;
+            --danger-color: #f44336;
+            --text-dark: #333;
+            --text-light: #666;
+            --border-color: #ddd;
+            --light-bg: #f5f5f5;
+            --white: #ffffff;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .invoice-wrapper {
+            background: white;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border-radius: 16px;
+        }
+
+        .invoice-logo-section {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .invoice-logo {
+            max-width: 200px;
+            max-height: 150px;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .invoice-header {
+            border-bottom: 2px solid var(--primary-color, #2196F3);
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+
+        .invoice-header h2 {
+            margin: 10px 0;
+            color: var(--primary-color, #2196F3);
+            font-size: 1.5em;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .invoice-shop-info {
+            text-align: center;
+            color: var(--text-light, #666);
+            font-size: 0.95em;
+            line-height: 1.8;
+        }
+
+        .invoice-shop-info div {
+            margin: 5px 0;
+        }
+
+        .invoice-shop-info i {
+            margin-left: 5px;
+            color: var(--primary-color, #2196F3);
+        }
+
+        .invoice-details {
+            padding: 20px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--light-bg, #f8f9fa) 0%, var(--white, #ffffff) 100%);
+            border-radius: 12px;
+            border: 1px solid var(--border-color, #e0e0e0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .invoice-details-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .invoice-details-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .invoice-details-row>div {
+            color: var(--text-dark, #333);
+            font-size: 1.05em;
+            padding: 12px 15px;
+            background: var(--white, #ffffff);
+            border-radius: 8px;
+            border-right: 3px solid var(--primary-color, #2196F3);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .invoice-details-row strong {
+            color: var(--primary-color, #2196F3);
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .invoice-extra-info {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--light-bg, #f8f9fa) 0%, var(--white, #ffffff) 100%);
+            border-radius: 12px;
+            border: 1px solid var(--border-color, #e0e0e0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .invoice-extra-info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .invoice-extra-info-row>div {
+            color: var(--text-dark, #333);
+            font-size: 1.05em;
+            padding: 12px 15px;
+            background: var(--white, #ffffff);
+            border-radius: 8px;
+            border-right: 3px solid var(--primary-color, #2196F3);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .invoice-extra-info-row strong {
+            color: var(--primary-color, #2196F3);
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .invoice-extra-info>div:not(.invoice-extra-info-row) {
+            color: var(--text-dark, #333);
+            font-size: 1.05em;
+            padding: 12px 15px;
+            background: var(--white, #ffffff);
+            border-radius: 8px;
+            border-right: 3px solid var(--primary-color, #2196F3);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .invoice-extra-info>div:not(.invoice-extra-info-row) strong {
+            color: var(--primary-color, #2196F3);
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .invoice-summary {
+            margin-top: 25px;
+            padding: 25px;
+            background: var(--light-bg, #f8f9fa);
+            border-radius: 12px;
+        }
+
+        .invoice-summary .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            padding: 10px 0;
+        }
+
+        .invoice-summary .summary-row.total {
+            font-size: 1.9em;
+            font-weight: 800;
+            color: var(--primary-color, #2196F3);
+            padding: 20px 0;
+            border-top: 3px solid var(--primary-color, #2196F3);
+            margin-top: 20px;
+        }
+
+        .invoice-summary hr {
+            margin: 18px 0;
+            border: none;
+            border-top: 2px solid var(--border-color, #e0e0e0);
+        }
+
+        .invoice-terms {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f0f8f0 0%, var(--white, #ffffff) 100%);
+            border: 2px solid var(--success-color, #4CAF50);
+            border-radius: 8px;
+        }
+
+        .invoice-terms h4 {
+            color: var(--success-color, #4CAF50);
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .invoice-terms ul {
+            margin: 0;
+            padding-right: 25px;
+            color: var(--text-dark, #333);
+            line-height: 2;
+            font-size: 0.95em;
+        }
+
+        .invoice-terms li {
+            margin-bottom: 8px;
+        }
+
+        .invoice-qrcode {
+            text-align: center;
+            margin: 25px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--light-bg, #f8f9fa) 0%, var(--white, #ffffff) 100%);
+            border-radius: 12px;
+            border: 2px solid var(--success-color, #4CAF50);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);
+        }
+
+        .invoice-qrcode-content {
+            margin-bottom: 15px;
+        }
+
+        .invoice-qrcode-content i {
+            font-size: 2em;
+            color: var(--success-color, #4CAF50);
+            margin-bottom: 10px;
+        }
+
+        .invoice-qrcode-content p {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--success-color, #4CAF50);
+            margin: 10px 0;
+        }
+
+        .invoice-qrcode img {
+            max-width: 200px;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            display: block;
+            border: 3px solid var(--success-color, #4CAF50);
+            border-radius: 12px;
+            padding: 10px;
+            background: var(--white, #ffffff);
+        }
+
+        .invoice-qrcode-info {
+            margin-top: 15px;
+            font-size: 0.95em;
+            color: var(--text-dark, #333);
+        }
+
+        .invoice-qrcode-info strong {
+            color: var(--primary-color, #2196F3);
+        }
+
+        .invoice-qrcode-info p:last-child {
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: var(--text-light, #666);
+        }
+
+        .invoice-footer {
+            text-align: center;
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 2px solid var(--primary-color, #2196F3);
+            color: var(--text-light, #666);
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .no-print {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .no-print button {
+            padding: 12px 30px;
+            background: var(--primary-color, #2196F3);
+            color: var(--white, #ffffff);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .no-print button:hover {
+            background: var(--secondary-color, #64B5F6);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+
+        .no-print button i {
+            margin-left: 8px;
+        }
+
+        .no-print button:last-child {
+            background: var(--text-light, #666);
+        }
+
+        .no-print button:last-child:hover {
+            background: #555;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .invoice-details-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .invoice-extra-info-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .invoice-wrapper {
+                padding: 15px;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            @page {
+                margin: 0;
+                size: 80mm auto;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 80mm !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .invoice-wrapper {
+                width: 80mm !important;
+                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 8px 4px !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+
+            .invoice-logo {
+                max-width: 60mm !important;
+                max-height: 40mm !important;
+            }
+
+            .invoice-header {
+                padding: 5px 0 !important;
+                margin-bottom: 8px !important;
+                font-size: 0.85em !important;
+                border-bottom: 2px solid var(--primary-color, #2196F3) !important;
+            }
+
+            .invoice-header h2 {
+                font-size: 1em !important;
+                margin: 5px 0 !important;
+            }
+
+            .invoice-shop-info {
+                font-size: 0.75em !important;
+            }
+
+            .invoice-details {
+                padding: 8px !important;
+                margin-bottom: 8px !important;
+                font-size: 0.85em !important;
+            }
+
+            .invoice-details-row {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 5px !important;
+            }
+
+            .invoice-details-row>div {
+                font-size: 0.8em !important;
+                padding: 6px 8px !important;
+            }
+
+            .invoice-extra-info {
+                padding: 8px !important;
+                margin-bottom: 8px !important;
+                font-size: 0.85em !important;
+            }
+
+            .invoice-extra-info-row {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 5px !important;
+            }
+
+            .invoice-extra-info-row>div {
+                font-size: 0.8em !important;
+                padding: 6px 8px !important;
+            }
+
+            .invoice-summary {
+                padding: 8px !important;
+                margin: 8px 0 !important;
+                font-size: 0.85em !important;
+            }
+
+            .invoice-summary .summary-row {
+                font-size: 0.9em !important;
+                margin-bottom: 5px !important;
+            }
+
+            .invoice-summary .summary-row.total {
+                font-size: 1.1em !important;
+                padding: 8px 0 !important;
+            }
+
+            .invoice-qrcode {
+                margin: 8px 0 !important;
+                padding: 15px !important;
+                border: 2px solid var(--success-color, #4CAF50) !important;
+            }
+
+            .invoice-qrcode img {
+                max-width: 40mm !important;
+                width: 40mm !important;
+                height: 40mm !important;
+                border: 2px solid var(--success-color, #4CAF50) !important;
+            }
+
+            .invoice-qrcode-info {
+                font-size: 0.75em !important;
+                margin-top: 8px !important;
+            }
+
+            .invoice-qrcode-info p:last-child {
+                font-size: 0.7em !important;
+            }
+
+            .invoice-terms {
+                margin: 10px 0 !important;
+                padding: 10px !important;
+                font-size: 0.7em !important;
+            }
+
+            .invoice-terms h4 {
+                font-size: 0.8em !important;
+                margin-bottom: 6px !important;
+            }
+
+            .invoice-terms ul {
+                padding-right: 20px !important;
+                line-height: 1.5 !important;
+                font-size: 0.7em !important;
+            }
+
+            .invoice-terms li {
+                margin-bottom: 4px !important;
+            }
+
+            .invoice-footer {
+                margin: 10px 0 0 0 !important;
+                padding-top: 10px !important;
+                font-size: 0.8em !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="invoice-wrapper">
+        <!-- Logo Section -->
+        <div class="invoice-logo-section" id="logoSection">
+            <!-- سيتم إضافة اللوجو هنا ديناميكياً -->
+        </div>
+
+        <!-- Shop Info -->
+        <div class="invoice-header">
+            <div class="invoice-shop-info">
+                <div id="shopAddressContainer" style="display: none;">
+                    <i class="bi bi-geo-alt-fill"></i> <span id="shopAddress"></span>
+                </div>
+                <div id="whatsappContainer" style="display: none;">
+                    <i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: <span id="whatsappNumber"></span>
+                </div>
+                <div id="shopPhoneContainer" style="display: none;">
+                    <i class="bi bi-telephone-fill"></i> <span id="shopPhone"></span>
+                </div>
+            </div>
+            <h2>إيصال تسليم جهاز</h2>
+        </div>
+
+        <!-- Invoice Details -->
+        <div class="invoice-details">
+            <div class="invoice-details-row">
+                <div><strong>العميل:</strong> <span id="customerName">-</span></div>
+                <div><strong>الهاتف:</strong> <span id="customerPhone">-</span></div>
+            </div>
+            <div class="invoice-details-row">
+                <div><strong>رقم العملية:</strong> <span id="repairNumber">-</span></div>
+                <div><strong>تاريخ التسليم:</strong> <span id="deliveryDate">-</span></div>
+            </div>
+        </div>
+
+        <!-- Device Info -->
+        <div class="invoice-extra-info">
+            <div class="invoice-extra-info-row">
+                <div><strong>نوع الجهاز:</strong> <span id="deviceType">-</span></div>
+                <div><strong>الموديل:</strong> <span id="deviceModel">-</span></div>
+            </div>
+            <div class="invoice-extra-info-row">
+                <div><strong>الرقم التسلسلي:</strong> <span id="serialNumber">-</span></div>
+                <div><strong>المشكلة:</strong> <span id="problem">-</span></div>
+            </div>
+            <div class="invoice-extra-info-row" id="accessoriesRow" style="display: none;">
+                <div><strong>الملحقات:</strong> <span id="accessories">-</span></div>
+                <div><strong>الفني المسؤول:</strong> <span id="technicianName">-</span></div>
+            </div>
+            <div class="invoice-extra-info-row" id="technicianOnlyRow">
+                <div><strong>الفني المسؤول:</strong> <span id="technicianNameOnly">-</span></div>
+                <div></div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="invoice-summary">
+            <div class="summary-row">
+                <span>تكلفة الصيانة:</span>
+                <span id="repairCost">0.00 <span id="currency">ج.م</span></span>
+            </div>
+            <div class="summary-row" id="paidRow" style="display: none;">
+                <span>المبلغ المدفوع:</span>
+                <span id="paidAmount">0.00 <span class="currency">ج.م</span></span>
+            </div>
+            <div class="summary-row" id="remainingRow" style="display: none;">
+                <span>المتبقي:</span>
+                <span id="remainingAmount">0.00 <span class="currency">ج.م</span></span>
+            </div>
+            <hr>
+            <div class="summary-row total">
+                <span>الإجمالي:</span>
+                <span id="total">0.00 <span class="currency">ج.م</span></span>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="invoice-extra-info" id="notesSection" style="display: none; margin-top: 10px;">
+            <div><strong>ملاحظات:</strong> <span id="notes">-</span></div>
+        </div>
+
+        <!-- QR Code -->
+        <div class="invoice-qrcode">
+            <div class="invoice-qrcode-content">
+                <i class="bi bi-check-circle-fill"></i>
+                <p>تم التسليم بنجاح</p>
+            </div>
+            <img id="qrcodeImage" src="" alt="QR Code رقم العملية">
+            <div class="invoice-qrcode-info">
+                <p>رقم العملية: <strong id="qrcodeRepairNumber">-</strong></p>
+                <p>يمكنك مسح QR Code للحصول على رقم العملية</p>
+            </div>
+        </div>
+
+        <!-- Terms & Conditions -->
+        <div class="invoice-terms">
+            <h4>
+                <i class="bi bi-info-circle-fill" style="margin-left: 8px;"></i> معلومات مهمة
+            </h4>
+            <ul>
+                <li>ضمان البورد ٧ أيام فقط في حالة التغيير</li>
+                <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="invoice-footer">
+            <div>شكراً لثقتكم</div>
+        </div>
+    </div>
+
+    <div class="no-print">
+        <button onclick="window.print()">
+            <i class="bi bi-printer"></i> طباعة
+        </button>
+        <button onclick="window.history.back() || window.close()">
+            <i class="bi bi-arrow-right"></i> رجوع
+        </button>
+    </div>
+
+    <script>
+        // ✅ دالة لتحديث الفاتورة ببيانات عملية الصيانة
+        function setInvoiceData(data) {
+            try {
+                // Shop Info
+                if (data.shopInfo) {
+                    if (data.shopInfo.address) {
+                        document.getElementById('shopAddress').textContent = data.shopInfo.address;
+                        document.getElementById('shopAddressContainer').style.display = 'block';
+                    }
+                    if (data.shopInfo.whatsapp) {
+                        document.getElementById('whatsappNumber').textContent = data.shopInfo.whatsapp;
+                        document.getElementById('whatsappContainer').style.display = 'block';
+                    }
+                    if (data.shopInfo.phone) {
+                        document.getElementById('shopPhone').textContent = data.shopInfo.phone;
+                        document.getElementById('shopPhoneContainer').style.display = 'block';
+                    }
+                    if (data.shopInfo.logo) {
+                        const logoSection = document.getElementById('logoSection');
+                        logoSection.innerHTML = `<img src="${data.shopInfo.logo}" alt="شعار المحل" class="invoice-logo" onerror="this.style.display='none';">`;
+                    }
+                }
+
+                // Basic Info
+                document.getElementById('customerName').textContent = data.customerName || '-';
+                document.getElementById('customerPhone').textContent = data.customerPhone || '-';
+                document.getElementById('repairNumber').textContent = data.repairNumber || '-';
+                document.getElementById('deliveryDate').textContent = data.deliveryDate || '-';
+
+                // Device Info
+                document.getElementById('deviceType').textContent = data.deviceType || '-';
+                document.getElementById('deviceModel').textContent = data.deviceModel || '-';
+                document.getElementById('serialNumber').textContent = data.serialNumber || '-';
+                document.getElementById('problem').textContent = data.problem || '-';
+                
+                // Accessories and Technician
+                if (data.accessories && data.accessories.trim() !== '') {
+                    document.getElementById('accessories').textContent = data.accessories;
+                    document.getElementById('technicianName').textContent = data.technicianName || '-';
+                    document.getElementById('accessoriesRow').style.display = 'grid';
+                    document.getElementById('technicianOnlyRow').style.display = 'none';
+                } else {
+                    document.getElementById('technicianNameOnly').textContent = data.technicianName || '-';
+                    document.getElementById('accessoriesRow').style.display = 'none';
+                    document.getElementById('technicianOnlyRow').style.display = 'grid';
+                }
+
+                // Summary
+                const currency = data.currency || 'ج.م';
+                document.getElementById('currency').textContent = currency;
+                document.querySelectorAll('.currency').forEach(el => el.textContent = currency);
+
+                const repairCost = parseFloat(data.repairCost || data.customer_price || 0).toFixed(2);
+                document.getElementById('repairCost').innerHTML = `${repairCost} <span id="currency">${currency}</span>`;
+
+                const paidAmount = parseFloat(data.paidAmount || data.paid_amount || 0).toFixed(2);
+                if (paidAmount > 0) {
+                    document.getElementById('paidAmount').innerHTML = `${paidAmount} <span class="currency">${currency}</span>`;
+                    document.getElementById('paidRow').style.display = 'flex';
+                } else {
+                    document.getElementById('paidRow').style.display = 'none';
+                }
+
+                const remainingAmount = parseFloat(data.remainingAmount || data.remaining_amount || 0).toFixed(2);
+                if (remainingAmount > 0) {
+                    document.getElementById('remainingAmount').innerHTML = `${remainingAmount} <span class="currency">${currency}</span>`;
+                    document.getElementById('remainingRow').style.display = 'flex';
+                } else {
+                    document.getElementById('remainingRow').style.display = 'none';
+                }
+
+                const total = parseFloat(data.total || data.repairCost || data.customer_price || 0).toFixed(2);
+                document.getElementById('total').innerHTML = `${total} <span class="currency">${currency}</span>`;
+
+                // Notes
+                if (data.notes && data.notes.trim() !== '') {
+                    document.getElementById('notes').textContent = data.notes;
+                    document.getElementById('notesSection').style.display = 'flex';
+                } else {
+                    document.getElementById('notesSection').style.display = 'none';
+                }
+
+                // QR Code - يحتوي على ID العملية
+                const repairId = data.repairId || data.id || data.repairNumber || '';
+                if (repairId) {
+                    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(repairId.toString())}`;
+                    document.getElementById('qrcodeImage').src = qrCodeUrl;
+                    document.getElementById('qrcodeRepairNumber').textContent = data.repairNumber || repairId;
+                }
+            } catch (error) {
+                console.error('خطأ في تحديث بيانات الفاتورة:', error);
+            }
+        }
+
+        // ✅ جعل الدالة متاحة عالمياً
+        window.setInvoiceData = setInvoiceData;
+
+        // ✅ إذا كانت هناك بيانات في URL parameters
+        if (window.location.search) {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const dataParam = params.get('data');
+                if (dataParam) {
+                    const data = JSON.parse(decodeURIComponent(dataParam));
+                    setInvoiceData(data);
+                }
+            } catch (error) {
+                console.error('خطأ في قراءة البيانات من URL:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>

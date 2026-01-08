@@ -4818,6 +4818,164 @@ async function deleteRepair(id) {
     }
 }
 
+// ✅ دالة لطباعة فاتورة التسليم باستخدام القالب الجديد
+async function printDeliveredRepairInvoice(repair) {
+    try {
+        // ✅ جلب بيانات الفرع
+        let branchData = null;
+        let branchSettings = null;
+        
+        if (repair.branch_id) {
+            try {
+                const branchResponse = await API.request(`branches.php?id=${repair.branch_id}`, 'GET');
+                if (branchResponse && branchResponse.success && branchResponse.data) {
+                    branchData = Array.isArray(branchResponse.data) ? branchResponse.data[0] : branchResponse.data;
+                }
+                
+                if (branchData) {
+                    const branchSettingsResponse = await API.request(`settings.php?branch_id=${repair.branch_id}`, 'GET');
+                    if (branchSettingsResponse && branchSettingsResponse.success && branchSettingsResponse.data) {
+                        branchSettings = branchSettingsResponse.data;
+                    }
+                }
+            } catch (error) {
+                console.log('خطأ في جلب بيانات الفرع:', error);
+            }
+        }
+        
+        // ✅ جلب إعدادات المحل
+        let shopSettings = {
+            shop_name: 'محل صيانة الهواتف',
+            shop_phone: '',
+            shop_address: '',
+            shop_logo: '',
+            currency: 'ج.م',
+            whatsapp_number: ''
+        };
+        
+        try {
+            const settingsResponse = await API.request('settings.php', 'GET');
+            if (settingsResponse && settingsResponse.success && settingsResponse.data) {
+                shopSettings = settingsResponse.data;
+            }
+        } catch (error) {
+            console.log('لم يتم تحميل إعدادات المحل:', error);
+        }
+        
+        // ✅ استخدام إعدادات الفرع إذا كانت متوفرة
+        const finalShopName = (branchSettings && branchSettings.shop_name) || (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
+        const finalShopPhone = (branchSettings && branchSettings.shop_phone) || (branchData && branchData.phone) || shopSettings.shop_phone || '';
+        const finalShopAddress = (branchSettings && branchSettings.shop_address) || (branchData && branchData.address) || shopSettings.shop_address || '';
+        const finalShopLogo = (branchSettings && branchSettings.shop_logo) || (branchData && branchData.logo) || shopSettings.shop_logo || '';
+        const currency = (branchSettings && branchSettings.currency) || shopSettings.currency || 'ج.م';
+        const whatsappNumber = (branchSettings && branchSettings.whatsapp_number) || shopSettings.whatsapp_number || '';
+        
+        // ✅ دوال مساعدة
+        const formatDateFunc = (dateString) => {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Africa/Cairo' });
+            } catch (e) {
+                return '-';
+            }
+        };
+        
+        const formatDateTime = (dateString) => {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('ar-EG', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Africa/Cairo'
+                });
+            } catch (e) {
+                return '-';
+            }
+        };
+        
+        // ✅ تحضير البيانات للقالب
+        const invoiceData = {
+            shopInfo: {
+                address: finalShopAddress,
+                whatsapp: whatsappNumber,
+                phone: finalShopPhone,
+                logo: finalShopLogo || 'vertopal.com_photo_5922357566287580087_y.png'
+            },
+            repairId: repair.id,
+            repairNumber: repair.repair_number || repair.id,
+            customerName: repair.customer_name || '-',
+            customerPhone: repair.customer_phone || '-',
+            deviceType: repair.device_type || '-',
+            deviceModel: repair.device_model || '-',
+            serialNumber: repair.serial_number || '-',
+            problem: repair.problem || '-',
+            accessories: repair.accessories || '',
+            technicianName: repair.technician_name || 'غير محدد',
+            deliveryDate: repair.delivered_at ? formatDateTime(repair.delivered_at) : (repair.delivery_date ? formatDateFunc(repair.delivery_date) : formatDateFunc(repair.created_at)),
+            repairCost: repair.customer_price || repair.cost || 0,
+            paidAmount: repair.paid_amount || 0,
+            remainingAmount: repair.remaining_amount || 0,
+            total: repair.customer_price || repair.cost || 0,
+            notes: repair.notes || '',
+            currency: currency
+        };
+        
+        // ✅ فتح القالب في نافذة جديدة
+        const templateUrl = 'last.html';
+        const printWindow = window.open(templateUrl, '_blank', 'width=900,height=700');
+        
+        if (!printWindow) {
+            showMessage('يرجى السماح بالنوافذ المنبثقة لطباعة الإيصال', 'error');
+            return;
+        }
+        
+        // ✅ انتظار تحميل الصفحة ثم تحديث البيانات
+        printWindow.onload = function() {
+            setTimeout(() => {
+                try {
+                    if (printWindow.setInvoiceData) {
+                        printWindow.setInvoiceData(invoiceData);
+                    } else {
+                        // إذا فشل التحديث المباشر، استخدم URL parameters
+                        const dataParam = encodeURIComponent(JSON.stringify(invoiceData));
+                        const urlWithData = `${templateUrl}?data=${dataParam}`;
+                        printWindow.location.href = urlWithData;
+                    }
+                } catch (error) {
+                    console.error('خطأ في تحديث بيانات الفاتورة:', error);
+                    showMessage('تم فتح الفاتورة، لكن حدث خطأ في تحميل البيانات', 'warning');
+                }
+            }, 500);
+        };
+        
+        // ✅ إذا تم تحميل الصفحة بالفعل
+        setTimeout(() => {
+            try {
+                if (printWindow.document.readyState === 'complete') {
+                    if (printWindow.setInvoiceData) {
+                        printWindow.setInvoiceData(invoiceData);
+                    } else {
+                        const dataParam = encodeURIComponent(JSON.stringify(invoiceData));
+                        const urlWithData = `${templateUrl}?data=${dataParam}`;
+                        printWindow.location.href = urlWithData;
+                    }
+                }
+            } catch (error) {
+                console.error('خطأ في تحديث بيانات الفاتورة:', error);
+            }
+        }, 1000);
+        
+    } catch (error) {
+        console.error('خطأ في طباعة فاتورة التسليم:', error);
+        showMessage('حدث خطأ أثناء طباعة الفاتورة: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
 async function printRepairReceipt(id) {
     // ✅ استخدام الدالة الصحيحة من customers.js مباشرة
     try {
@@ -4833,6 +4991,11 @@ async function printRepairReceipt(id) {
         if (!repair) {
             showMessage('عملية الصيانة غير موجودة', 'error');
             return;
+        }
+        
+        // ✅ إذا كانت الحالة "تم التسليم"، استخدم القالب الجديد
+        if (repair.status === 'delivered') {
+            return await printDeliveredRepairInvoice(repair);
         }
         
         // ✅ جلب بيانات الفرع
@@ -4888,15 +5051,11 @@ async function printRepairReceipt(id) {
         const repairNumber = repair.repair_number || repair.id;
         const trackingLink = `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/repair-tracking.html?number=${encodeURIComponent(repairNumber)}`;
         
-        // ✅ إنشاء QR Code - إذا كانت الحالة "تم التسليم"، نستخدم ID العملية بدلاً من رابط التتبع
+        // ✅ إنشاء QR Code
         const generateQRCodeFallback = (data, size = 200) => {
             return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&choe=UTF-8`;
         };
-        
-        // ✅ تحديد محتوى QR Code بناءً على حالة العملية
-        const isDelivered = repair.status === 'delivered';
-        const qrCodeData = isDelivered ? repair.id.toString() : trackingLink;
-        let qrCodeImage = generateQRCodeFallback(qrCodeData, 200);
+        let qrCodeImage = generateQRCodeFallback(trackingLink, 200);
         
         // ✅ تحضير الشعار
         let logoHtml = '';
@@ -4915,39 +5074,12 @@ async function printRepairReceipt(id) {
         }
         
         // ✅ دوال مساعدة
-        const escapeHtml = (text) => {
-            if (!text) return '';
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return String(text).replace(/[&<>"']/g, (m) => map[m]);
-        };
         const formatPrice = (price) => parseFloat(price || 0).toFixed(2);
-        const formatDate = (dateString) => {
+        const formatDateFunc = (dateString) => {
             if (!dateString) return '-';
             try {
                 const date = new Date(dateString);
                 return date.toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Africa/Cairo' });
-            } catch (e) {
-                return '-';
-            }
-        };
-        const formatDateTime = (dateString) => {
-            if (!dateString) return '-';
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('ar-EG', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: 'Africa/Cairo'
-                });
             } catch (e) {
                 return '-';
             }
@@ -5278,20 +5410,6 @@ async function printRepairReceipt(id) {
                     height: 250px;
                     margin: 0 auto;
                     display: block;
-                }
-                
-                /* ✅ تحسينات لإيصال التسليم */
-                .invoice-qrcode[style*="background"] {
-                    border-radius: 12px !important;
-                    padding: 20px !important;
-                }
-                
-                .invoice-qrcode[style*="background"] img {
-                    border: 3px solid var(--success-color, #4CAF50) !important;
-                    border-radius: 12px !important;
-                    padding: 10px !important;
-                    background: white !important;
-                    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2) !important;
                 }
                 
                 .invoice-footer {
@@ -5642,9 +5760,9 @@ async function printRepairReceipt(id) {
                 <!-- Shop Info -->
                 <div class="invoice-header">
                     <div class="invoice-shop-info">
-                        ${finalShopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${escapeHtml(finalShopAddress)}</div>` : ''}
-                        ${whatsappNumber ? `<div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${escapeHtml(whatsappNumber)}</div>` : ''}
-                        ${finalShopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${escapeHtml(finalShopPhone)}</div>` : ''}
+                        ${finalShopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${finalShopAddress}</div>` : ''}
+                        ${whatsappNumber ? `<div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${whatsappNumber}</div>` : ''}
+                        ${finalShopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${finalShopPhone}</div>` : ''}
                 </div>
                     <h2 style="margin: 10px 0; color: var(--primary-color, #2196F3); font-size: 1.2em; font-weight: 700;">إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} جهاز</h2>
                 </div>
@@ -5652,12 +5770,12 @@ async function printRepairReceipt(id) {
                 <!-- Invoice Details -->
                 <div class="invoice-details">
                     <div class="invoice-details-row">
-                        <div><strong>العميل:</strong> ${escapeHtml(repair.customer_name || '-')}</div>
-                        <div><strong>الهاتف:</strong> ${escapeHtml(repair.customer_phone || '-')}</div>
+                        <div><strong>العميل:</strong> ${repair.customer_name || '-'}</div>
+                        <div><strong>الهاتف:</strong> ${repair.customer_phone || '-'}</div>
                 </div>
                     <div class="invoice-details-row">
-                        <div><strong>رقم العملية:</strong> ${escapeHtml(repair.repair_number || '-')}</div>
-                        <div><strong>التاريخ:</strong> ${formatDateTime(repair.created_at)}</div>
+                        <div><strong>رقم العملية:</strong> ${repair.repair_number || '-'}</div>
+                        <div><strong>التاريخ:</strong> ${formatDateFunc(repair.created_at)}</div>
                 </div>
                 </div>
                 
@@ -5665,34 +5783,34 @@ async function printRepairReceipt(id) {
                 <!-- Device Info -->
                 <div class="invoice-extra-info">
                     <div class="invoice-extra-info-row">
-                        <div><strong>نوع الجهاز:</strong> ${escapeHtml(repair.device_type || '-')}</div>
-                        <div><strong>الموديل:</strong> ${escapeHtml(repair.device_model || '-')}</div>
+                        <div><strong>نوع الجهاز:</strong> ${repair.device_type || '-'}</div>
+                        <div><strong>الموديل:</strong> ${repair.device_model || '-'}</div>
                     </div>
                     <div class="invoice-extra-info-row">
-                        <div><strong>الرقم التسلسلي:</strong> ${escapeHtml(repair.serial_number || '-')}</div>
-                        <div><strong>المشكلة:</strong> ${escapeHtml(repair.problem || '-')}</div>
+                        <div><strong>الرقم التسلسلي:</strong> ${repair.serial_number || '-'}</div>
+                        <div><strong>المشكلة:</strong> ${repair.problem || '-'}</div>
                     </div>
                     ${repair.accessories ? `
                     <div class="invoice-extra-info-row">
-                        <div><strong>الملحقات:</strong> ${escapeHtml(repair.accessories)}</div>
-                        <div><strong>الفني المستلم:</strong> ${escapeHtml(technicianName)}</div>
+                        <div><strong>الملحقات:</strong> ${repair.accessories}</div>
+                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
                     </div>
                     ` : `
                     <div class="invoice-extra-info-row">
-                        <div><strong>الفني المستلم:</strong> ${escapeHtml(technicianName)}</div>
+                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
                         <div></div>
                     </div>
                     `}
                 </div>
                 
-                ${repair.delivery_date && !isDelivered ? `
-                <!-- Delivery Date Section - فقط للحالات غير "تم التسليم" -->
+                ${repair.delivery_date ? `
+                <!-- Delivery Date Section -->
                 <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);">
                     <div style="color: var(--white, #ffffff); font-size: 0.95em; font-weight: 600; margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">
                         <i class="bi bi-calendar-check-fill" style="margin-left: 6px;"></i> موعد الاستلام المتوقع
                     </div>
                     <div style="color: var(--white, #ffffff); font-size: 1.3em; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
-                        ${formatDate(repair.delivery_date)}
+                        ${formatDateFunc(repair.delivery_date)}
                     </div>
                 </div>
                 ` : ''}
@@ -5719,41 +5837,25 @@ async function printRepairReceipt(id) {
                 
                 ${repair.notes ? `
                 <div class="invoice-extra-info" style="margin-top: 10px;">
-                    <div><strong>ملاحظات:</strong> ${escapeHtml(repair.notes)}</div>
+                    <div><strong>ملاحظات:</strong> ${repair.notes}</div>
                     </div>
                 ` : ''}
                 
                 ${repair.status === 'delivered' && repair.delivered_at ? `
                 <div class="invoice-extra-info" style="margin-top: 10px;">
-                    <div><strong>تاريخ التسليم:</strong> ${formatDateTime(repair.delivered_at)}</div>
+                    <div><strong>تاريخ التسليم:</strong> ${formatDateFunc(repair.delivered_at)}</div>
                 </div>
                 ` : ''}
                 
                 <!-- QR Code -->
-                ${isDelivered ? `
-                <!-- QR Code لعملية التسليم - يحتوي على ID العملية -->
-                <div class="invoice-qrcode" style="text-align: center; margin: 25px 0; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 12px; border: 2px solid var(--success-color, #4CAF50); box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);">
-                    <div style="margin-bottom: 15px;">
-                        <i class="bi bi-check-circle-fill" style="font-size: 2em; color: var(--success-color, #4CAF50); margin-bottom: 10px;"></i>
-                        <p style="font-size: 1.1em; font-weight: 600; color: var(--success-color, #4CAF50); margin: 10px 0;">تم التسليم بنجاح</p>
-                    </div>
-                    <img src="${qrCodeImage}" alt="QR Code رقم العملية" style="max-width: 200px; width: 200px; height: 200px; margin: 0 auto; display: block; border: 3px solid var(--success-color, #4CAF50); border-radius: 12px; padding: 10px; background: white;" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(repair.id.toString())}';">
-                    <p style="margin-top: 15px; font-size: 0.95em; color: var(--text-dark, #333); font-weight: 500;">رقم العملية: <strong style="color: var(--primary-color, #2196F3);">${escapeHtml(repair.repair_number || repair.id.toString())}</strong></p>
-                    <p style="margin-top: 8px; font-size: 0.85em; color: var(--text-light, #666);">يمكنك مسح QR Code للحصول على رقم العملية</p>
-                </div>
-                ` : `
-                <!-- QR Code لمتابعة الصيانة - للحالات الأخرى -->
                 <div class="invoice-qrcode">
                     <br>
                     <img src="${qrCodeImage}" alt="QR Code لمتابعة الصيانة" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(trackingLink)}';">
                     <p style="margin-top: 5px; font-size: 1em; color: #666;">يمكنك مسح ال qr code لمتابعة الصيانه بشكل لحظي</p>
                     <br>
-                </div>
-                `}
+            </div>
                 
                 <!-- Terms & Conditions -->
-                ${!isDelivered ? `
-                <!-- شروط وأحكام - فقط للحالات غير "تم التسليم" -->
                 <div class="invoice-terms" style="margin-top: 30px; padding: 20px; background: #fff9e6; border: 2px solid var(--warning-color, #FFA500); border-radius: 8px;">
                     <h4 style="color: var(--warning-color, #FFA500); margin-bottom: 15px; font-size: 1.1em; font-weight: 700; text-align: center;">
                         <i class="bi bi-exclamation-triangle-fill" style="margin-left: 8px;"></i> شروط وأحكام مهمة
@@ -5765,19 +5867,7 @@ async function printRepairReceipt(id) {
                         <li>المحل غير مسؤول عن اي عطل يظهر في الجهاز بعد عملية الصيانه غير العطل المتفق عليه</li>
                         <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
                     </ul>
-                </div>
-                ` : `
-                <!-- شروط وأحكام محدودة لعملية التسليم -->
-                <div class="invoice-terms" style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #f0f8f0 0%, #ffffff 100%); border: 2px solid var(--success-color, #4CAF50); border-radius: 8px;">
-                    <h4 style="color: var(--success-color, #4CAF50); margin-bottom: 15px; font-size: 1.1em; font-weight: 700; text-align: center;">
-                        <i class="bi bi-info-circle-fill" style="margin-left: 8px;"></i> معلومات مهمة
-                    </h4>
-                    <ul style="margin: 0; padding-right: 25px; color: var(--text-dark, #333); line-height: 2; font-size: 0.95em;">
-                        <li>ضمان البورد ٧ أيام فقط في حالة التغيير</li>
-                        <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
-                    </ul>
-                </div>
-                `}
+            </div>
                 
                 <!-- Footer -->
                 <div class="invoice-footer">
