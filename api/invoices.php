@@ -283,20 +283,49 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     
     // جدول العناصر
     $itemsHtml = '';
-    foreach ($items as $index => $item) {
-        $itemName = htmlspecialchars($item['item_name'] ?? $item['name'] ?? 'غير محدد');
-        $quantity = intval($item['quantity'] ?? 0);
-        $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 0);
-        $totalPrice = number_format(floatval($item['total_price'] ?? 0), 0);
+    
+    // ✅ التحقق من وجود items
+    if (empty($items) || !is_array($items) || count($items) === 0) {
+        error_log('⚠️ [Invoice] لا توجد عناصر في saleData! saleData keys: ' . implode(', ', array_keys($saleData)));
+        error_log('⚠️ [Invoice] saleData items: ' . (isset($saleData['items']) ? 'exists but empty' : 'not exists'));
         
-        $itemsHtml .= '
-                        <tr>
-                            <td>' . ($index + 1) . '</td>
-                            <td>' . $itemName . '</td>
-                            <td>' . $quantity . '</td>
-                            <td>' . $unitPrice . '</td>
-                            <td>' . $totalPrice . '</td>
-                        </tr>';
+        // محاولة جلب items من sale_id إذا كان متاحاً
+        if (!empty($saleData['id'])) {
+            try {
+                $saleItems = dbSelect(
+                    "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
+                    [$saleData['id']]
+                );
+                if (!empty($saleItems) && is_array($saleItems) && count($saleItems) > 0) {
+                    $items = $saleItems;
+                    error_log('✅ [Invoice] تم جلب ' . count($items) . ' عنصر من قاعدة البيانات');
+                }
+            } catch (Exception $e) {
+                error_log('❌ [Invoice] خطأ في جلب items من قاعدة البيانات: ' . $e->getMessage());
+            }
+        }
+    }
+    
+    // ✅ التحقق مرة أخرى بعد محاولة الجلب
+    if (empty($items) || !is_array($items) || count($items) === 0) {
+        $itemsHtml = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #f44336;">⚠️ لا توجد منتجات في الفاتورة</td></tr>';
+        error_log('❌ [Invoice] لا توجد عناصر للعرض بعد محاولة الجلب!');
+    } else {
+        foreach ($items as $index => $item) {
+            $itemName = htmlspecialchars($item['item_name'] ?? $item['name'] ?? 'غير محدد');
+            $quantity = intval($item['quantity'] ?? 0);
+            $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 0);
+            $totalPrice = number_format(floatval($item['total_price'] ?? 0), 0);
+            
+            $itemsHtml .= '
+                            <tr>
+                                <td>' . ($index + 1) . '</td>
+                                <td>' . $itemName . '</td>
+                                <td>' . $quantity . '</td>
+                                <td>' . $unitPrice . '</td>
+                                <td>' . $totalPrice . '</td>
+                            </tr>';
+        }
     }
     
     // حساب المبالغ

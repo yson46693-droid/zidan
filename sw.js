@@ -337,6 +337,25 @@ self.addEventListener('fetch', event => {
         url = { pathname: request.url };
     }
     
+    // ✅ استثناء invoice-view.php من caching - يجب أن يكون دائماً fresh
+    if (url.pathname.includes('invoice-view.php')) {
+        // جلب مباشر من الشبكة بدون cache
+        event.respondWith(
+            fetch(request, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            }).catch(error => {
+                console.error('[SW] خطأ في جلب invoice-view.php:', error);
+                throw error;
+            })
+        );
+        return;
+    }
+    
     // ✅ PERFORMANCE: معالجة طلبات API مع caching ذكي وتحسين
     if (url.pathname.includes('/api/') || url.pathname.endsWith('.php')) {
         // ✅ PERFORMANCE: استراتيجية Cache First للطلبات GET لتقليل الطلبات المتكررة

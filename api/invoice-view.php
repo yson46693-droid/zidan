@@ -200,6 +200,42 @@ try {
         $invoiceData['items'] = $sale['items'];
     }
     
+    // ✅ التأكد من وجود items في $sale قبل استدعاء generateInvoiceHTML
+    if (empty($sale['items']) || !is_array($sale['items']) || count($sale['items']) === 0) {
+        error_log('⚠️ [invoice-view] لا توجد عناصر في $sale قبل generateInvoiceHTML!');
+        error_log('⚠️ [invoice-view] $sale keys: ' . implode(', ', array_keys($sale)));
+        
+        // محاولة إعادة جلب items من قاعدة البيانات
+        $saleItems = dbSelect(
+            "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
+            [$saleId]
+        );
+        
+        if (!empty($saleItems) && is_array($saleItems) && count($saleItems) > 0) {
+            // معالجة العناصر مرة أخرى
+            $processedItems = [];
+            foreach ($saleItems as $item) {
+                // معالجة بيانات الهاتف إذا كانت موجودة
+                if ($item['item_type'] === 'phone' && !empty($item['notes'])) {
+                    $notesData = json_decode($item['notes'], true);
+                    if ($notesData && is_array($notesData)) {
+                        if (isset($notesData['phone_data'])) {
+                            $item['phone_data'] = $notesData['phone_data'];
+                        } else {
+                            $item['phone_data'] = $notesData;
+                        }
+                    }
+                }
+                $processedItems[] = $item;
+            }
+            $sale['items'] = $processedItems;
+            error_log('✅ [invoice-view] تم إعادة جلب ' . count($sale['items']) . ' عنصر من قاعدة البيانات');
+        } else {
+            error_log('❌ [invoice-view] لا توجد عناصر في قاعدة البيانات أيضاً! sale_id: ' . $saleId);
+            $sale['items'] = [];
+        }
+    }
+    
     // إنشاء HTML للفاتورة باستخدام القالب
     // استخدام shop_settings من invoice_data إذا كانت موجودة، وإلا جلبها من قاعدة البيانات
     $shopSettings = $invoiceData['shop_settings'] ?? getShopSettings();
