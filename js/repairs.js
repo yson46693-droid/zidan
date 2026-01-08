@@ -51,6 +51,19 @@ async function loadRepairsSection() {
             </div>
         </div>
 
+        <!-- إحصائيات عمليات الصيانة جاهزة للتسليم -->
+        <div id="readyForDeliveryStats" class="stats-container" style="display: none; margin-bottom: 20px; padding: 12px 15px; background: var(--white); border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: var(--light-bg); border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 200px;">
+                    <i class="bi bi-check-circle" style="font-size: 1.2em; color: var(--success-color); flex-shrink: 0;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.85em; color: var(--text-light); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي المتبقي للعمليات جاهزة للتسليم</div>
+                        <div id="totalReadyForDeliveryRemaining" style="font-size: 1.3em; font-weight: bold; color: var(--success-color); white-space: nowrap;">0.00 ج.م</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="repair-type-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">
             <button onclick="switchRepairType('soft')" id="tab-soft" class="repair-type-tab active" style="flex: 1; padding: 12px 20px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
                 <i class="bi bi-code-slash"></i> سوفت
@@ -1681,14 +1694,56 @@ async function loadRepairs(force = false) {
         
         // ✅ التأكد من استدعاء filterRepairs() دائماً لعرض الجدول (حتى لو كان فارغاً)
         filterRepairs();
+        
+        // ✅ تحديث إحصائيات العمليات جاهزة للتسليم
+        updateReadyForDeliveryStats();
     } catch (error) {
         console.error('❌ [Repairs] خطأ في تحميل البيانات:', error);
         showMessage('خطأ في تحميل البيانات', 'error');
         // ✅ في حالة الخطأ، نعرض جدول فارغ بدلاً من عدم عرض الجدول
         allRepairs = [];
         filterRepairs();
+        // ✅ تحديث الإحصائيات حتى في حالة الخطأ
+        updateReadyForDeliveryStats();
     } finally {
         isLoadingRepairs = false;
+    }
+}
+
+// ✅ دالة لتحديث إحصائيات العمليات جاهزة للتسليم
+function updateReadyForDeliveryStats() {
+    try {
+        const statsContainer = document.getElementById('readyForDeliveryStats');
+        const totalRemainingElement = document.getElementById('totalReadyForDeliveryRemaining');
+        
+        if (!statsContainer || !totalRemainingElement) {
+            return;
+        }
+        
+        // حساب إجمالي المتبقي من العمليات التي في حالة "جاهز للتسليم"
+        let totalRemaining = 0;
+        if (allRepairs && Array.isArray(allRepairs)) {
+            const readyForDeliveryRepairs = allRepairs.filter(repair => {
+                return repair.status === 'ready_for_delivery';
+            });
+            
+            totalRemaining = readyForDeliveryRepairs.reduce((sum, repair) => {
+                const remaining = parseFloat(repair.remaining_amount || 0);
+                return sum + (isNaN(remaining) ? 0 : remaining);
+            }, 0);
+        }
+        
+        // تحديث القيمة
+        totalRemainingElement.textContent = totalRemaining.toFixed(2) + ' ج.م';
+        
+        // إظهار الإحصائيات إذا كان هناك عمليات جاهزة للتسليم
+        if (totalRemaining > 0) {
+            statsContainer.style.display = 'block';
+        } else {
+            statsContainer.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('❌ [Repairs] خطأ في تحديث إحصائيات العمليات جاهزة للتسليم:', error);
     }
 }
 
@@ -1859,6 +1914,9 @@ function filterRepairs() {
     }
 
     displayRepairs(filtered);
+    
+    // ✅ تحديث إحصائيات العمليات جاهزة للتسليم
+    updateReadyForDeliveryStats();
 }
 
 function displayRepairs(repairs) {

@@ -44,6 +44,19 @@ async function loadCustomersSection() {
             </div>
         </div>
 
+        <!-- إحصائيات العملاء التجاري -->
+        <div id="commercialDebtStats" class="stats-container" style="display: none; margin-bottom: 20px; padding: 12px 15px; background: var(--white); border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: var(--light-bg); border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 200px;">
+                    <i class="bi bi-cash-coin" style="font-size: 1.2em; color: var(--warning-color); flex-shrink: 0;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.85em; color: var(--text-light); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ديون العملاء التجاري</div>
+                        <div id="totalCommercialDebt" style="font-size: 1.3em; font-weight: bold; color: var(--warning-color); white-space: nowrap;">0.00 ج.م</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Customer Type Tabs -->
         <div class="customer-type-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">
             <button onclick="switchCustomerType('retail')" id="tab-retail" class="customer-type-tab active" style="flex: 1; padding: 12px 20px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
@@ -474,6 +487,42 @@ async function loadCustomers() {
     
     // استخدام switchCustomerType للتأكد من عرض النوع الصحيح فقط
     switchCustomerType(currentCustomerType);
+    
+    // ✅ تحديث إحصائيات الديون
+    updateCommercialDebtStats();
+}
+
+// ✅ دالة لتحديث إحصائيات ديون العملاء التجاري
+function updateCommercialDebtStats() {
+    try {
+        const statsContainer = document.getElementById('commercialDebtStats');
+        const totalDebtElement = document.getElementById('totalCommercialDebt');
+        
+        if (!statsContainer || !totalDebtElement) {
+            return;
+        }
+        
+        // حساب إجمالي الديون من العملاء التجاريين
+        let totalDebt = 0;
+        if (commercialCustomers && Array.isArray(commercialCustomers)) {
+            totalDebt = commercialCustomers.reduce((sum, customer) => {
+                const debt = parseFloat(customer.total_debt || 0);
+                return sum + (isNaN(debt) ? 0 : debt);
+            }, 0);
+        }
+        
+        // تحديث القيمة
+        totalDebtElement.textContent = totalDebt.toFixed(2) + ' ج.م';
+        
+        // إظهار الإحصائيات إذا كان هناك عملاء تجاريين
+        if (commercialCustomers && commercialCustomers.length > 0) {
+            statsContainer.style.display = 'block';
+        } else {
+            statsContainer.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('❌ [Customers] خطأ في تحديث إحصائيات الديون:', error);
+    }
 }
 
 // ✅ تحسين الأداء: تحميل الفروع بنفس طريقة expenses.js
@@ -747,6 +796,9 @@ function switchCustomerType(type) {
         return (c.customer_type || 'retail') === type;
     });
     displayCustomers(filteredCustomers);
+    
+    // ✅ تحديث إحصائيات الديون
+    updateCommercialDebtStats();
 }
 
 function displayCustomers(customers) {

@@ -263,7 +263,8 @@ if ($method === 'GET') {
     $params = [];
     
     // ✅ التحقق من وجود id أو repair_number للوصول إلى عملية معينة
-    $repairId = cleanId($_GET['id'] ?? '');
+    // ✅ استخدام cleanBranchId() لأن repair_id قد يحتوي على نقطة (مثل: 695fd7ce455de3.90007175)
+    $repairId = cleanBranchId($_GET['id'] ?? '');
     $repairId = !empty($repairId) ? $repairId : null;
     $isSingleRepairRequest = ($repairId && $repairId !== '') || ($repairNumber && $repairNumber !== '');
     
@@ -418,16 +419,24 @@ if ($method === 'GET') {
         response(true, '', $repair);
     } elseif ($isSingleRepairRequest && !$isPublicTracking) {
         // ✅ للوصول إلى عملية معينة باستخدام id (لطباعة الإيصال، الباركود، إلخ)
+        error_log("🔍 [Repairs] البحث عن عملية صيانة - ID: " . ($repairId ?? 'null') . ", repair_number: " . ($repairNumber ?? 'null'));
+        error_log("🔍 [Repairs] Query: " . $query);
+        error_log("🔍 [Repairs] Params: " . json_encode($params));
+        
         $repair = dbSelectOne($query, $params);
         
         if ($repair === false) {
             $error = isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف';
             error_log("❌ خطأ في البحث عن الصيانة: $error");
+            error_log("❌ Query: " . $query);
+            error_log("❌ Params: " . json_encode($params));
             response(false, 'حدث خطأ في البحث عن عملية الصيانة', null, 500);
         }
         
         if (!$repair || empty($repair)) {
-            error_log("❌ لم يتم العثور على الصيانة");
+            error_log("❌ لم يتم العثور على الصيانة - ID: " . ($repairId ?? 'null') . ", repair_number: " . ($repairNumber ?? 'null'));
+            error_log("❌ Query: " . $query);
+            error_log("❌ Params: " . json_encode($params));
             response(false, 'لم يتم العثور على عملية الصيانة', null, 404);
         }
         
