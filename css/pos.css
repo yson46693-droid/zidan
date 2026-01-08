@@ -1390,6 +1390,218 @@
     border-radius: 5px;
 }
 
+/* Confirm Sale Items Section - Desktop Styles */
+.confirm-sale-items-section {
+    margin-bottom: 20px;
+}
+
+.confirm-sale-section-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--text-dark);
+    margin-bottom: 15px;
+}
+
+.confirm-sale-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.confirm-sale-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--light-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.confirm-sale-item-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: var(--white);
+}
+
+.confirm-sale-item-image-placeholder {
+    width: 60px;
+    height: 60px;
+    background: var(--light-bg);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    font-size: 1.5em;
+}
+
+.confirm-sale-item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.confirm-sale-item-name {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 0.95em;
+}
+
+.confirm-sale-item-price {
+    color: var(--primary-color);
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.confirm-sale-item-remove {
+    background: var(--danger-color);
+    color: var(--white);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 1.2em;
+    flex-shrink: 0;
+}
+
+.confirm-sale-item-remove:hover {
+    background: #d32f2f;
+    transform: scale(1.1);
+}
+
+/* Discount Section - Desktop Styles */
+.confirm-sale-discount {
+    margin-bottom: 20px;
+}
+
+.confirm-sale-discount label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-dark);
+    font-weight: bold;
+}
+
+.discount-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--white);
+    transition: border-color 0.3s ease;
+}
+
+.discount-input-wrapper:focus-within {
+    border-color: var(--primary-color);
+}
+
+.discount-input-wrapper i {
+    color: var(--text-light);
+    font-size: 1.2em;
+}
+
+.discount-input-wrapper input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 1em;
+    background: transparent;
+}
+
+.currency-label {
+    color: var(--text-light);
+    font-size: 0.9em;
+}
+
+/* Input with Icon - Desktop Styles */
+.input-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--white);
+    transition: border-color 0.3s ease;
+}
+
+.input-with-icon:focus-within {
+    border-color: var(--primary-color);
+}
+
+.input-with-icon i {
+    color: var(--text-light);
+    font-size: 1.2em;
+}
+
+.input-with-icon input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 1em;
+    background: transparent;
+}
+
+/* Total Section - Desktop Styles */
+.confirm-sale-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 8px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.confirm-sale-total-label {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--text-dark);
+}
+
+.confirm-sale-total-value {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+/* Confirm Pay Button - Desktop Styles */
+.btn-confirm-pay {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.1em;
+    font-weight: bold;
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-confirm-pay:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.btn-confirm-pay:active {
+    transform: translateY(0);
+}
+
 .pos-modal-footer {
     padding: 20px;
     border-top: 1px solid var(--border-color);

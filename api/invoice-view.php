@@ -12,13 +12,21 @@ checkAuth();
 
 // جلب sale_id من الطلب
 // ✅ تنظيف معرف الفاتورة
-$saleId = cleanId($_GET['sale_id'] ?? '');
+$saleIdRaw = $_GET['sale_id'] ?? '';
+$saleId = cleanId($saleIdRaw);
 $saleId = !empty($saleId) ? $saleId : null;
+
+// ✅ تسجيل sale_id للتحقق من المشكلة
+error_log("invoice-view.php - sale_id raw: " . $saleIdRaw . " | cleaned: " . ($saleId ?? 'null'));
 
 if (empty($saleId)) {
     http_response_code(400);
     header('Content-Type: text/html; charset=utf-8');
-    echo '<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>خطأ</title></head><body><h1>خطأ</h1><p>معرف الفاتورة مطلوب</p></body></html>';
+    $errorMsg = 'معرف الفاتورة مطلوب';
+    if (!empty($saleIdRaw)) {
+        $errorMsg .= ' (القيمة المرسلة: ' . htmlspecialchars($saleIdRaw) . ')';
+    }
+    echo '<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>خطأ</title></head><body><h1>خطأ</h1><p>' . $errorMsg . '</p></body></html>';
     exit;
 }
 
@@ -32,10 +40,31 @@ try {
         [$saleId]
     );
     
+    // ✅ تسجيل النتيجة للتحقق
+    if (!$sale) {
+        error_log("invoice-view.php - لم يتم العثور على فاتورة برقم: " . $saleId);
+        // محاولة البحث بدون cleanId للتحقق
+        $saleIdAlt = $saleIdRaw;
+        if ($saleIdAlt !== $saleId) {
+            error_log("invoice-view.php - محاولة البحث بالقيمة الأصلية: " . $saleIdAlt);
+            $sale = dbSelectOne(
+                "SELECT s.*, u.name as created_by_name 
+                 FROM sales s 
+                 LEFT JOIN users u ON s.created_by = u.id 
+                 WHERE s.id = ? OR s.sale_number = ?",
+                [$saleIdAlt, $saleIdAlt]
+            );
+        }
+    }
+    
     if (!$sale) {
         http_response_code(404);
         header('Content-Type: text/html; charset=utf-8');
-        echo '<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>خطأ</title></head><body><h1>خطأ</h1><p>الفاتورة غير موجودة</p></body></html>';
+        $errorMsg = 'الفاتورة غير موجودة';
+        if (!empty($saleId)) {
+            $errorMsg .= ' (رقم الفاتورة: ' . htmlspecialchars($saleId) . ')';
+        }
+        echo '<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>خطأ</title></head><body><h1>خطأ</h1><p>' . $errorMsg . '</p><p style="font-size: 0.9em; color: #666;">يرجى التحقق من رقم الفاتورة والمحاولة مرة أخرى.</p></body></html>';
         exit;
     }
     
