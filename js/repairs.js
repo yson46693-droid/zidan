@@ -4941,7 +4941,13 @@ async function printRepairReceipt(id) {
             return;
         }
         
-        // ✅ كتابة HTML - استخدام التصميم المحسّن من print.css
+        // ✅ كتابة HTML - التصميم المطابق للصورة
+        const customerName = repair.customer_name || '';
+        const customerPhone = repair.customer_phone || '';
+        const deliveryDateFormatted = repair.delivery_date ? formatDateFunc(repair.delivery_date) : '';
+        const repairCost = repair.customer_price || 0;
+        const inspectionCost = repair.inspection_cost || 0;
+        
         printWindow.document.open('text/html', 'replace');
         printWindow.document.write(`
 <!DOCTYPE html>
@@ -4949,110 +4955,176 @@ async function printRepairReceipt(id) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} - ${repairNumber}</title>
+    <title>إيصال استلام جهاز - ${repairNumber}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background: #fff; color: #333; line-height: 1.6; }
-        .receipt { max-width: 800px; margin: 0 auto; padding: 20px; font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .receipt-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-        .receipt-header h1 { font-size: 2em; color: #2196F3; margin-bottom: 10px; font-weight: 800; }
-        .receipt-header h2 { font-size: 1.3em; color: #666; margin-top: 5px; }
-        .receipt-header img { max-height: 60px; max-width: 200px; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; }
-        .receipt-header p { color: #666; font-size: 1em; margin: 5px 0; }
-        .receipt-info { display: flex; justify-content: space-between; margin-bottom: 25px; padding: 15px; background: #f5f5f5; border-radius: 5px; flex-wrap: wrap; }
-        .receipt-info p { margin: 5px 0; }
-        .receipt-section { margin-bottom: 25px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-        .receipt-section h3 { color: #2196F3; margin-bottom: 15px; font-size: 1.2em; border-bottom: 1px solid #ddd; padding-bottom: 10px; font-weight: 700; }
-        .receipt-section p { margin: 8px 0; line-height: 1.8; }
-        .receipt-section strong { color: #333; font-weight: 600; }
-        .total-amount { font-size: 2em; font-weight: bold; color: #4CAF50; text-align: center; margin: 15px 0; }
-        .receipt-section hr { margin: 15px 0; border: none; border-top: 1px solid #ddd; }
-        .receipt-section img { max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 10px auto; }
-        .receipt-footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #333; }
-        .receipt-footer p { font-size: 1.1em; color: #666; }
+        body { font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #fff; color: #333; line-height: 1.6; }
+        .receipt { max-width: 800px; margin: 0 auto; padding: 15px; background: white; }
+        .receipt-logo-section { text-align: center; margin-bottom: 15px; }
+        .receipt-logo-section img { max-height: 60px; max-width: 200px; margin-bottom: 10px; }
+        .receipt-shop-info { text-align: center; margin-bottom: 15px; font-size: 0.9em; color: #666; }
+        .receipt-shop-info p { margin: 3px 0; }
+        .receipt-title-bar { background: #2196F3; color: white; padding: 12px; text-align: center; font-size: 1.2em; font-weight: 700; margin-bottom: 20px; border-radius: 4px; }
+        .receipt-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .receipt-detail-item { display: flex; flex-direction: column; }
+        .receipt-detail-label { font-size: 0.85em; color: #666; margin-bottom: 4px; font-weight: 600; }
+        .receipt-detail-value { font-size: 1em; color: #333; font-weight: 500; }
+        .receipt-delivery-date-box { background: #2196F3; color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
+        .receipt-delivery-date-box i { font-size: 1.5em; margin-bottom: 8px; display: block; }
+        .receipt-delivery-date-box .label { font-size: 0.9em; margin-bottom: 5px; opacity: 0.9; }
+        .receipt-delivery-date-box .date { font-size: 1.3em; font-weight: 700; }
+        .receipt-costs-section { margin-bottom: 20px; }
+        .receipt-cost-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .receipt-cost-item:last-child { border-bottom: none; }
+        .receipt-cost-label { font-weight: 600; color: #333; }
+        .receipt-cost-value { font-weight: 700; color: #2196F3; }
+        .receipt-notes-section { margin-bottom: 20px; }
+        .receipt-notes-label { font-weight: 600; color: #333; margin-bottom: 5px; }
+        .receipt-notes-value { color: #666; padding: 8px; background: #f5f5f5; border-radius: 4px; }
+        .receipt-qr-section { text-align: center; margin: 25px 0; }
+        .receipt-qr-section img { max-width: 250px; max-height: 250px; border: 2px solid #ddd; border-radius: 8px; padding: 10px; background: white; }
+        .receipt-qr-section p { margin-top: 10px; font-size: 0.9em; color: #666; }
+        .receipt-warning-box { background: #FFA500; color: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-right: 4px solid #FF8C00; }
+        .receipt-warning-box i { font-size: 1.3em; margin-left: 8px; vertical-align: middle; }
+        .receipt-warning-title { font-weight: 700; font-size: 1.1em; margin-bottom: 10px; }
+        .receipt-warning-list { list-style: none; padding-right: 0; }
+        .receipt-warning-list li { margin-bottom: 8px; padding-right: 20px; position: relative; }
+        .receipt-warning-list li:before { content: "•"; position: absolute; right: 0; font-weight: bold; }
+        .receipt-footer { text-align: center; margin-top: 25px; padding-top: 15px; border-top: 2px solid #333; font-size: 1.1em; color: #666; font-weight: 600; }
         .no-print { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
             body { padding: 0; background: white; }
-            .receipt { width: 80mm !important; max-width: 80mm !important; padding: 10px 5px; margin: 0; }
-            .receipt-header { margin-bottom: 15px; padding-bottom: 10px; }
-            .receipt-header h1 { font-size: 1.5em; }
-            .receipt-header h2 { font-size: 1.1em; }
-            .receipt-header img { max-height: 40px; max-width: 150px; }
-            .receipt-info { font-size: 0.85em; padding: 10px; margin-bottom: 15px; flex-direction: column; }
-            .receipt-section { font-size: 0.85em; padding: 10px; margin-bottom: 15px; }
-            .receipt-section h3 { font-size: 1em; }
-            .receipt-footer { font-size: 0.85em; margin-top: 20px; padding-top: 10px; }
+            .receipt { width: 80mm !important; max-width: 80mm !important; padding: 8px 4px; margin: 0; }
+            .receipt-logo-section img { max-height: 40px; max-width: 150px; }
+            .receipt-shop-info { font-size: 0.75em; margin-bottom: 10px; }
+            .receipt-title-bar { font-size: 1em; padding: 8px; margin-bottom: 12px; }
+            .receipt-details-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px; font-size: 0.85em; }
+            .receipt-delivery-date-box { padding: 12px; margin-bottom: 12px; }
+            .receipt-delivery-date-box .date { font-size: 1.1em; }
+            .receipt-costs-section { font-size: 0.85em; margin-bottom: 12px; }
+            .receipt-notes-section { font-size: 0.85em; margin-bottom: 12px; }
+            .receipt-qr-section img { max-width: 150px; max-height: 150px; }
+            .receipt-qr-section p { font-size: 0.8em; }
+            .receipt-warning-box { padding: 10px; margin-bottom: 12px; font-size: 0.8em; }
+            .receipt-footer { font-size: 0.9em; margin-top: 15px; padding-top: 10px; }
             .no-print { display: none !important; }
         }
     </style>
 </head>
 <body>
     <div class="receipt">
-        <div class="receipt-header">
+        <div class="receipt-logo-section">
             ${logoHtml}
-            <h1>${escapeHtml(finalShopName)}</h1>
-            <h2>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} عملية صيانة</h2>
-            ${finalShopPhone ? `<p><i class="bi bi-telephone"></i> ${escapeHtml(finalShopPhone)}</p>` : ''}
-            ${finalShopAddress ? `<p><i class="bi bi-geo-alt"></i> ${escapeHtml(finalShopAddress)}</p>` : ''}
         </div>
         
-        <div class="receipt-info">
-            <p><strong>رقم العملية:</strong> ${escapeHtml(repairNumber)}</p>
-            <p><strong>التاريخ:</strong> ${formatDateFunc(repair.created_at)}</p>
-            <p><strong>الحالة:</strong> ${getStatusTextFunc(repair.status || 'received')}</p>
+        <div class="receipt-shop-info">
+            <p><strong>${escapeHtml(finalShopName)}</strong></p>
+            ${finalShopAddress ? `<p>${escapeHtml(finalShopAddress)}</p>` : ''}
+            ${finalShopPhone ? `<p><i class="bi bi-telephone"></i> ${escapeHtml(finalShopPhone)} ${whatsappNumber ? `<i class="bi bi-whatsapp" style="color: #25D366; margin-right: 5px;"></i>` : ''}</p>` : ''}
         </div>
         
-        <div class="receipt-section">
-            <h3>معلومات الجهاز</h3>
-            <p><strong>نوع الجهاز:</strong> ${escapeHtml(repair.device_type || '-')}</p>
-            <p><strong>الماركة:</strong> ${escapeHtml(repair.brand || '-')}</p>
-            <p><strong>الموديل:</strong> ${escapeHtml(repair.model || repair.device_model || '-')}</p>
-            ${repair.serial_number ? `<p><strong>Serial Number:</strong> ${escapeHtml(repair.serial_number)}</p>` : ''}
-            ${repair.accessories ? `<p><strong>ملحقات الجهاز:</strong> ${escapeHtml(repair.accessories)}</p>` : ''}
+        <div class="receipt-title-bar">
+            إيصال استلام جهاز
         </div>
         
-        <div class="receipt-section">
-            <h3>تفاصيل العملية</h3>
-            <p><strong>المشكلة المذكورة:</strong></p>
-            <p>${escapeHtml(repair.problem || '-')}</p>
-            ${repair.inspection_report ? `
-            <hr>
-            <p><strong>تقرير الفحص:</strong></p>
-            <p>${escapeHtml(repair.inspection_report)}</p>
-            ` : ''}
-            ${repair.notes ? `
-            <hr>
-            <p><strong>ملاحظات:</strong></p>
-            <p>${escapeHtml(repair.notes)}</p>
-            ` : ''}
+        <div class="receipt-details-grid">
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">العميل</span>
+                <span class="receipt-detail-value">${escapeHtml(customerName || '-')}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">رقم العملية</span>
+                <span class="receipt-detail-value">${escapeHtml(repairNumber)}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">الواقف</span>
+                <span class="receipt-detail-value">${escapeHtml(customerPhone || '-')}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">التاريخ</span>
+                <span class="receipt-detail-value">${formatDateFunc(repair.created_at)}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">نوع الجهاز</span>
+                <span class="receipt-detail-value">${escapeHtml(repair.device_type || '-')}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">الموصل</span>
+                <span class="receipt-detail-value">${escapeHtml(repair.model || repair.device_model || '-')}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">الرقم التسلسلي</span>
+                <span class="receipt-detail-value">${escapeHtml(repair.serial_number || '-')}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">المشكلة</span>
+                <span class="receipt-detail-value">${escapeHtml(repair.problem || '-')}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">الملحقات</span>
+                <span class="receipt-detail-value">${escapeHtml(repair.accessories || '-')}</span>
+            </div>
+            <div class="receipt-detail-item">
+                <span class="receipt-detail-label">لفاي المسلام والعلاء</span>
+                <span class="receipt-detail-value">${escapeHtml(technicianName)}</span>
+            </div>
         </div>
         
-        ${repair.customer_price ? `
-        <div class="total-amount">
-            السعر المتفق عليه: ${formatPrice(repair.customer_price)} ${currency}
+        ${deliveryDateFormatted ? `
+        <div class="receipt-delivery-date-box">
+            <i class="bi bi-calendar3"></i>
+            <div class="label">موعد الاستلام المتوقع</div>
+            <div class="date">${deliveryDateFormatted}</div>
         </div>
         ` : ''}
         
-        <div class="receipt-section">
-            <h3>معلومات إضافية</h3>
-            ${technicianName ? `<p><strong>الفني المسؤول:</strong> ${escapeHtml(technicianName)}</p>` : ''}
-            ${branchName ? `<p><strong>الفرع:</strong> ${escapeHtml(branchName)}</p>` : ''}
-            ${repair.delivery_date ? `<p><strong>تاريخ التسليم المتوقع:</strong> ${formatDateFunc(repair.delivery_date)}</p>` : ''}
+        <div class="receipt-costs-section">
+            ${repairCost > 0 ? `
+            <div class="receipt-cost-item">
+                <span class="receipt-cost-label">الكلفة الصيانة</span>
+                <span class="receipt-cost-value">${formatPrice(repairCost)} ${currency}</span>
+            </div>
+            ` : ''}
+            ${inspectionCost > 0 ? `
+            <div class="receipt-cost-item">
+                <span class="receipt-cost-label">الطبقي</span>
+                <span class="receipt-cost-value">${formatPrice(inspectionCost)} ${currency}</span>
+            </div>
+            ` : ''}
         </div>
+        
+        ${repair.notes ? `
+        <div class="receipt-notes-section">
+            <div class="receipt-notes-label">ملاحظات</div>
+            <div class="receipt-notes-value">${escapeHtml(repair.notes)}</div>
+        </div>
+        ` : ''}
         
         ${qrCodeImage ? `
-        <div class="receipt-section">
-            <h3>متابعة العملية</h3>
+        <div class="receipt-qr-section">
             <img src="${qrCodeImage}" alt="QR Code">
-            <p style="text-align: center; margin-top: 10px; font-size: 0.9em; color: #666;">يمكنك مسح ال QR code لمتابعة الصيانة بشكل لحظي</p>
+            <p>يمكنك مسح ال QR code لمتابعة الصيانة بشكل لحظي</p>
         </div>
         ` : ''}
         
+        <div class="receipt-warning-box">
+            <div class="receipt-warning-title">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                تنبيه وإسلام مهمة
+            </div>
+            <ul class="receipt-warning-list">
+                <li>يرجى الاحتفاظ بهذا الإيصال لاستلام الجهاز</li>
+                <li>في حالة فقدان الإيصال، يرجى إحضار الهوية الشخصية</li>
+                <li>الجهاز غير مسؤول عن أي ضرر يحدث بعد الاستلام</li>
+                <li>يرجى مراجعة الجهاز قبل الاستلام والتأكد من سلامته</li>
+            </ul>
+        </div>
+        
         <div class="receipt-footer">
-            <p>شكراً لثقتكم</p>
+            شكراً لثقتكم
         </div>
     </div>
     <div class="no-print">
