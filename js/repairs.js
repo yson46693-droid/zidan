@@ -4941,7 +4941,7 @@ async function printRepairReceipt(id) {
             return;
         }
         
-        // ✅ كتابة HTML - نفس التنسيق الصحيح من customers.js
+        // ✅ كتابة HTML - استخدام التصميم المحسّن من print.css
         printWindow.document.open('text/html', 'replace');
         printWindow.document.write(`
 <!DOCTYPE html>
@@ -4955,67 +4955,105 @@ async function printRepairReceipt(id) {
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background: #fff; color: #333; line-height: 1.6; }
-        .invoice-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border: 2px solid #ddd; border-radius: 8px; }
-        .invoice-header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #2196F3; }
-        .invoice-logo { max-width: 200px; max-height: 200px; margin-bottom: 15px; }
-        .invoice-header h1 { font-size: 2em; color: #2196F3; margin-bottom: 10px; font-weight: 800; }
-        .invoice-header p { color: #666; font-size: 1em; margin: 5px 0; }
-        .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; }
-        .invoice-info-section { flex: 1; min-width: 250px; margin-bottom: 15px; }
-        .invoice-info-section h3 { color: #2196F3; margin-bottom: 10px; font-size: 1.1em; font-weight: 700; }
-        .invoice-info-section p { margin: 5px 0; color: #333; font-size: 0.95em; }
-        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        .invoice-table th { padding: 12px; text-align: right; background: #2196F3; color: white; font-weight: 700; }
-        .invoice-table td { padding: 10px 12px; border-bottom: 1px solid #ddd; text-align: right; }
-        .invoice-table tbody tr:hover { background: #f8f9fa; }
-        .invoice-total { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 20px; border-top: 3px solid #2196F3; font-size: 1.3em; font-weight: 800; color: #2196F3; }
-        .invoice-footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd; color: #666; }
-        .qr-code-section { text-align: center; margin: 20px 0; }
-        .qr-code-section img { max-width: 200px; height: auto; }
+        .receipt { max-width: 800px; margin: 0 auto; padding: 20px; font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .receipt-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+        .receipt-header h1 { font-size: 2em; color: #2196F3; margin-bottom: 10px; font-weight: 800; }
+        .receipt-header h2 { font-size: 1.3em; color: #666; margin-top: 5px; }
+        .receipt-header img { max-height: 60px; max-width: 200px; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; }
+        .receipt-header p { color: #666; font-size: 1em; margin: 5px 0; }
+        .receipt-info { display: flex; justify-content: space-between; margin-bottom: 25px; padding: 15px; background: #f5f5f5; border-radius: 5px; flex-wrap: wrap; }
+        .receipt-info p { margin: 5px 0; }
+        .receipt-section { margin-bottom: 25px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .receipt-section h3 { color: #2196F3; margin-bottom: 15px; font-size: 1.2em; border-bottom: 1px solid #ddd; padding-bottom: 10px; font-weight: 700; }
+        .receipt-section p { margin: 8px 0; line-height: 1.8; }
+        .receipt-section strong { color: #333; font-weight: 600; }
+        .total-amount { font-size: 2em; font-weight: bold; color: #4CAF50; text-align: center; margin: 15px 0; }
+        .receipt-section hr { margin: 15px 0; border: none; border-top: 1px solid #ddd; }
+        .receipt-section img { max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 10px auto; }
+        .receipt-footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #333; }
+        .receipt-footer p { font-size: 1.1em; color: #666; }
         .no-print { display: none; }
         @media print {
             @page { margin: 0; size: 80mm auto; }
             body { padding: 0; background: white; }
-            .invoice-container { width: 80mm !important; max-width: 80mm !important; border: none; padding: 10px 5px; margin: 0; }
+            .receipt { width: 80mm !important; max-width: 80mm !important; padding: 10px 5px; margin: 0; }
+            .receipt-header { margin-bottom: 15px; padding-bottom: 10px; }
+            .receipt-header h1 { font-size: 1.5em; }
+            .receipt-header h2 { font-size: 1.1em; }
+            .receipt-header img { max-height: 40px; max-width: 150px; }
+            .receipt-info { font-size: 0.85em; padding: 10px; margin-bottom: 15px; flex-direction: column; }
+            .receipt-section { font-size: 0.85em; padding: 10px; margin-bottom: 15px; }
+            .receipt-section h3 { font-size: 1em; }
+            .receipt-footer { font-size: 0.85em; margin-top: 20px; padding-top: 10px; }
             .no-print { display: none !important; }
         }
     </style>
 </head>
 <body>
-    <div class="invoice-container">
-        <div class="invoice-header">
+    <div class="receipt">
+        <div class="receipt-header">
             ${logoHtml}
             <h1>${escapeHtml(finalShopName)}</h1>
+            <h2>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} عملية صيانة</h2>
             ${finalShopPhone ? `<p><i class="bi bi-telephone"></i> ${escapeHtml(finalShopPhone)}</p>` : ''}
             ${finalShopAddress ? `<p><i class="bi bi-geo-alt"></i> ${escapeHtml(finalShopAddress)}</p>` : ''}
         </div>
-        <div class="invoice-info">
-            <div class="invoice-info-section">
-                <h3>معلومات العملية</h3>
-                <p><strong>رقم العملية:</strong> ${escapeHtml(repairNumber)}</p>
-                <p><strong>التاريخ:</strong> ${formatDateFunc(repair.created_at)}</p>
-                <p><strong>الحالة:</strong> ${getStatusTextFunc(repair.status || 'received')}</p>
-            </div>
-            <div class="invoice-info-section">
-                <h3>معلومات الجهاز</h3>
-                <p><strong>نوع الجهاز:</strong> ${escapeHtml(repair.device_type || '-')}</p>
-                <p><strong>الماركة:</strong> ${escapeHtml(repair.brand || '-')}</p>
-                <p><strong>الموديل:</strong> ${escapeHtml(repair.model || repair.device_model || '-')}</p>
-            </div>
+        
+        <div class="receipt-info">
+            <p><strong>رقم العملية:</strong> ${escapeHtml(repairNumber)}</p>
+            <p><strong>التاريخ:</strong> ${formatDateFunc(repair.created_at)}</p>
+            <p><strong>الحالة:</strong> ${getStatusTextFunc(repair.status || 'received')}</p>
         </div>
-        <table class="invoice-table">
-            <thead>
-                <tr><th>الوصف</th><th>القيمة</th></tr>
-            </thead>
-            <tbody>
-                <tr><td>المشكلة المذكورة</td><td>${escapeHtml(repair.problem || '-')}</td></tr>
-                ${repair.customer_price ? `<tr><td>السعر المتفق عليه</td><td><strong>${formatPrice(repair.customer_price)} ${currency}</strong></td></tr>` : ''}
-                ${technicianName ? `<tr><td>الفني المسؤول</td><td>${escapeHtml(technicianName)}</td></tr>` : ''}
-                ${branchName ? `<tr><td>الفرع</td><td>${escapeHtml(branchName)}</td></tr>` : ''}
-            </tbody>
-        </table>
-        ${qrCodeImage ? `<div class="qr-code-section"><img src="${qrCodeImage}" alt="QR Code"><p style="margin-top: 5px; font-size: 1em; color: #666;">يمكنك مسح ال QR code لمتابعة الصيانة بشكل لحظي</p></div>` : ''}
-        <div class="invoice-footer"><div>شكراً لثقتكم</div></div>
+        
+        <div class="receipt-section">
+            <h3>معلومات الجهاز</h3>
+            <p><strong>نوع الجهاز:</strong> ${escapeHtml(repair.device_type || '-')}</p>
+            <p><strong>الماركة:</strong> ${escapeHtml(repair.brand || '-')}</p>
+            <p><strong>الموديل:</strong> ${escapeHtml(repair.model || repair.device_model || '-')}</p>
+            ${repair.serial_number ? `<p><strong>Serial Number:</strong> ${escapeHtml(repair.serial_number)}</p>` : ''}
+            ${repair.accessories ? `<p><strong>ملحقات الجهاز:</strong> ${escapeHtml(repair.accessories)}</p>` : ''}
+        </div>
+        
+        <div class="receipt-section">
+            <h3>تفاصيل العملية</h3>
+            <p><strong>المشكلة المذكورة:</strong></p>
+            <p>${escapeHtml(repair.problem || '-')}</p>
+            ${repair.inspection_report ? `
+            <hr>
+            <p><strong>تقرير الفحص:</strong></p>
+            <p>${escapeHtml(repair.inspection_report)}</p>
+            ` : ''}
+            ${repair.notes ? `
+            <hr>
+            <p><strong>ملاحظات:</strong></p>
+            <p>${escapeHtml(repair.notes)}</p>
+            ` : ''}
+        </div>
+        
+        ${repair.customer_price ? `
+        <div class="total-amount">
+            السعر المتفق عليه: ${formatPrice(repair.customer_price)} ${currency}
+        </div>
+        ` : ''}
+        
+        <div class="receipt-section">
+            <h3>معلومات إضافية</h3>
+            ${technicianName ? `<p><strong>الفني المسؤول:</strong> ${escapeHtml(technicianName)}</p>` : ''}
+            ${branchName ? `<p><strong>الفرع:</strong> ${escapeHtml(branchName)}</p>` : ''}
+            ${repair.delivery_date ? `<p><strong>تاريخ التسليم المتوقع:</strong> ${formatDateFunc(repair.delivery_date)}</p>` : ''}
+        </div>
+        
+        ${qrCodeImage ? `
+        <div class="receipt-section">
+            <h3>متابعة العملية</h3>
+            <img src="${qrCodeImage}" alt="QR Code">
+            <p style="text-align: center; margin-top: 10px; font-size: 0.9em; color: #666;">يمكنك مسح ال QR code لمتابعة الصيانة بشكل لحظي</p>
+        </div>
+        ` : ''}
+        
+        <div class="receipt-footer">
+            <p>شكراً لثقتكم</p>
+        </div>
     </div>
     <div class="no-print">
         <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px;"><i class="bi bi-printer"></i> طباعة</button>
