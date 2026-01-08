@@ -52,7 +52,7 @@ async function loadRepairsSection() {
         </div>
 
         <!-- إحصائيات عمليات الصيانة جاهزة للتسليم -->
-        <div id="readyForDeliveryStats" class="stats-container" style="display: none; margin-bottom: 20px; padding: 12px 15px; background: var(--white); border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
+        <div id="readyForDeliveryStats" class="stats-container" style="display: block; margin-bottom: 20px; padding: 12px 15px; background: var(--white); border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: var(--light-bg); border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 200px;">
                     <i class="bi bi-check-circle" style="font-size: 1.2em; color: var(--success-color); flex-shrink: 0;"></i>
@@ -435,6 +435,11 @@ async function loadRepairsSection() {
     }
     
     searchTable('repairSearch', 'repairsTable');
+    
+    // ✅ تحديث الإحصائيات بعد تحميل القسم مباشرة
+    setTimeout(() => {
+        updateReadyForDeliveryStats();
+    }, 500);
     
     // ✅ إضافة event listener لرقم العملية في نموذج الخسارة
     const lossRepairNumberInput = document.getElementById('lossRepairNumber');
@@ -1717,6 +1722,7 @@ function updateReadyForDeliveryStats() {
         const totalRemainingElement = document.getElementById('totalReadyForDeliveryRemaining');
         
         if (!statsContainer || !totalRemainingElement) {
+            console.warn('⚠️ [Repairs] عناصر الإحصائيات غير موجودة في DOM');
             return;
         }
         
@@ -1727,6 +1733,8 @@ function updateReadyForDeliveryStats() {
                 return repair.status === 'ready_for_delivery';
             });
             
+            console.log(`📊 [Repairs] عدد العمليات جاهزة للتسليم: ${readyForDeliveryRepairs.length}`);
+            
             totalRemaining = readyForDeliveryRepairs.reduce((sum, repair) => {
                 const remaining = parseFloat(repair.remaining_amount || 0);
                 return sum + (isNaN(remaining) ? 0 : remaining);
@@ -1736,12 +1744,10 @@ function updateReadyForDeliveryStats() {
         // تحديث القيمة
         totalRemainingElement.textContent = totalRemaining.toFixed(2) + ' ج.م';
         
-        // إظهار الإحصائيات إذا كان هناك عمليات جاهزة للتسليم
-        if (totalRemaining > 0) {
-            statsContainer.style.display = 'block';
-        } else {
-            statsContainer.style.display = 'none';
-        }
+        // ✅ إظهار الإحصائيات دائماً
+        statsContainer.style.display = 'block';
+        
+        console.log(`✅ [Repairs] تم تحديث إحصائيات العمليات جاهزة للتسليم: ${totalRemaining.toFixed(2)} ج.م`);
     } catch (error) {
         console.error('❌ [Repairs] خطأ في تحديث إحصائيات العمليات جاهزة للتسليم:', error);
     }
