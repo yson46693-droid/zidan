@@ -106,61 +106,182 @@ if ($method === 'POST') {
         response(false, 'المبلغ يجب أن يكون أكبر من صفر', null, 400);
     }
     
-    // ✅ منطق تسوية الرصيد السالب: حساب الرصيد الحالي أولاً
+    // ✅ منطق تسوية الرصيد السالب: حساب الرصيد الحالي أولاً باستخدام نفس منطق branch-treasury.php
     try {
+        // جلب معرف الفرع الأول
+        $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
+        $firstBranchId = $firstBranch ? $firstBranch['id'] : null;
+        $isFirstBranch = ($branchId === $firstBranchId);
+        
         // تحديد الفترة الزمنية (الشهر الحالي)
         $now = new DateTime();
         $startDate = $now->format('Y-m-01');
         $endDate = $now->format('Y-m-t');
         
-        // ✅ حساب صافي رصيد الخزنة الحالي باستخدام API branch-treasury
-        // نستخدم نفس المنطق لكن بطريقة أبسط: نطلب الرصيد من API branch-treasury
-        // أو نحسبه مباشرة من treasury_transactions
-        
-        // حساب الرصيد من جميع المعاملات في الشهر الحالي
-        // الرصيد = (الإضافات) - (الخصومات)
-        $additions = dbSelectOne(
-            "SELECT SUM(amount) as total FROM treasury_transactions 
-             WHERE branch_id = ? 
-             AND transaction_type IN ('deposit', 'repair_profit', 'debt_collection')
-             AND DATE(created_at) BETWEEN ? AND ?",
-            [$branchId, $startDate, $endDate]
-        );
-        $totalAdditions = floatval($additions['total'] ?? 0);
-        
-        $deductions = dbSelectOne(
-            "SELECT SUM(amount) as total FROM treasury_transactions 
-             WHERE branch_id = ? 
-             AND transaction_type IN ('withdrawal', 'expense', 'repair_cost', 'loss_operation', 'sales_cost', 'damaged_return')
-             AND DATE(created_at) BETWEEN ? AND ?",
-            [$branchId, $startDate, $endDate]
-        );
-        $totalDeductions = floatval($deductions['total'] ?? 0);
-        
-        // إضافة المصروفات من جدول expenses
-        $expensesResult = dbSelectOne(
-            "SELECT SUM(amount) as total FROM expenses 
-             WHERE branch_id = ? AND expense_date BETWEEN ? AND ?",
-            [$branchId, $startDate, $endDate]
-        );
+        // ✅ استخدام نفس منطق حساب الرصيد من branch-treasury.php
+        // 1. جلب المصروفات
+        $expensesResult = dbSelectOne("SELECT SUM(amount) as total FROM expenses WHERE branch_id = ? AND expense_date BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
         $totalExpenses = floatval($expensesResult['total'] ?? 0);
         
-        // إضافة المسحوبات من الرواتب
-        if (dbTableExists('salary_deductions')) {
-            $salaryWithdrawalsResult = dbSelectOne(
-                "SELECT SUM(sd.amount) as total FROM salary_deductions sd
-                 INNER JOIN users u ON sd.user_id = u.id
-                 WHERE u.branch_id = ? AND sd.type = 'withdrawal' 
-                 AND DATE(sd.created_at) BETWEEN ? AND ?",
-                [$branchId, $startDate, $endDate]
-            );
-            $totalSalaryWithdrawals = floatval($salaryWithdrawalsResult['total'] ?? 0);
-        } else {
-            $totalSalaryWithdrawals = 0;
+        // 2. جلب تكاليف عمليات الصيانة
+        $totalRepairCosts = 0;
+        if (dbTableExists('treasury_transactions')) {
+            $repairCostsResult = dbSelectOne("SELECT SUM(amount) as total FROM treasury_transactions WHERE branch_id = ? AND transaction_type = 'repair_cost' AND DATE(created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+            $totalRepairCosts = floatval($repairCostsResult['total'] ?? 0);
         }
         
-        // حساب صافي الرصيد
-        $currentNetBalance = $totalAdditions - ($totalDeductions + $totalExpenses + $totalSalaryWithdrawals);
+        // 3. جلب الإيرادات الفعلية من عمليات الصيانة
+        $totalRepairRevenue = 0;
+        if ($isFirstBranch) {
+            if (dbTableExists('treasury_transactions')) {
+                $paidAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'repair_profit' AND tt.reference_type = 'repair' AND tt.description LIKE '%مبلغ مدفوع مقدماً%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalPaidAmount = floatval($paidAmountResult['total'] ?? 0);
+                
+                $remainingAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'repair_profit' AND tt.reference_type = 'repair' AND tt.description LIKE '%المبلغ المتبقي%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalRemainingAmount = floatval($remainingAmountResult['total'] ?? 0);
+                
+                $refundAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'withdrawal' AND tt.reference_type = 'repair' AND tt.description LIKE '%استرجاع مبلغ مدفوع مقدماً%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalRefundAmount = floatval($refundAmountResult['total'] ?? 0);
+                
+                $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount - $totalRefundAmount;
+            }
+        } else {
+            if (dbTableExists('treasury_transactions')) {
+                $paidAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'deposit' AND tt.reference_type = 'repair' AND tt.description LIKE '%مبلغ مدفوع مقدماً%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalPaidAmount = floatval($paidAmountResult['total'] ?? 0);
+                
+                $remainingAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id LEFT JOIN customers c ON r.customer_id = c.id WHERE tt.branch_id = ? AND tt.transaction_type = 'deposit' AND tt.reference_type = 'repair' AND tt.description LIKE '%المبلغ المتبقي%' AND (c.customer_type IS NULL OR c.customer_type = 'retail' OR c.customer_type != 'commercial') AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalRemainingAmount = floatval($remainingAmountResult['total'] ?? 0);
+                
+                $refundAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'withdrawal' AND tt.reference_type = 'repair' AND tt.description LIKE '%استرجاع مبلغ مدفوع مقدماً%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalRefundAmount = floatval($refundAmountResult['total'] ?? 0);
+                
+                $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount - $totalRefundAmount;
+            }
+        }
+        
+        // 4. جلب المبيعات (للفرع الأول فقط)
+        $totalSales = 0;
+        if ($isFirstBranch) {
+            $hasCustomerIdColumn = dbColumnExists('sales', 'customer_id');
+            $salesQuery = "SELECT s.id, s.final_amount FROM sales s INNER JOIN users u ON s.created_by = u.id";
+            if ($hasCustomerIdColumn) {
+                $salesQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
+            }
+            $salesQuery .= " WHERE DATE(s.created_at) BETWEEN ? AND ?";
+            $salesParams = [$startDate, $endDate];
+            
+            if ($hasCustomerIdColumn) {
+                $salesQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
+                $salesParams[] = $branchId;
+                $salesParams[] = $branchId;
+            } else {
+                $salesQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
+                $salesParams[] = $branchId;
+            }
+            
+            $sales = dbSelect($salesQuery, $salesParams);
+            if ($sales !== false && is_array($sales)) {
+                foreach ($sales as $sale) {
+                    $totalSales += floatval($sale['final_amount'] ?? 0);
+                }
+            }
+        }
+        
+        // 5. حساب إجمالي الإيرادات
+        if ($isFirstBranch) {
+            $totalRevenue = $totalSales + $totalRepairRevenue;
+        } else {
+            $totalRevenue = $totalRepairRevenue;
+        }
+        
+        // 6. جلب العمليات الخاسرة
+        $lossResult = dbSelectOne("SELECT SUM(lo.loss_amount) as total FROM loss_operations lo INNER JOIN repairs r ON lo.repair_number = r.repair_number WHERE r.branch_id = ? AND DATE(lo.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+        $totalLosses = floatval($lossResult['total'] ?? 0);
+        
+        // 7. جلب السحوبات من الخزنة
+        $totalTreasuryWithdrawals = 0;
+        if (dbTableExists('treasury_transactions')) {
+            $treasuryWithdrawalsResult = dbSelectOne("SELECT SUM(amount) as total FROM treasury_transactions WHERE branch_id = ? AND transaction_type = 'withdrawal' AND (reference_type IS NULL OR reference_type != 'salary_deduction') AND (description IS NULL OR description NOT LIKE '%استرجاع مبلغ مدفوع مقدماً%') AND DATE(created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+            $totalTreasuryWithdrawals = floatval($treasuryWithdrawalsResult['total'] ?? 0);
+        }
+        
+        // 8. جلب المسحوبات من الرواتب
+        $totalSalaryWithdrawals = 0;
+        if (dbTableExists('salary_deductions')) {
+            $salaryWithdrawalsResult = dbSelectOne("SELECT SUM(sd.amount) as total FROM salary_deductions sd INNER JOIN users u ON sd.user_id = u.id WHERE u.branch_id = ? AND sd.type = 'withdrawal' AND DATE(sd.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+            $totalSalaryWithdrawals = floatval($salaryWithdrawalsResult['total'] ?? 0);
+        }
+        
+        // 9. جلب الإيداعات
+        $depositsResult = dbSelectOne("SELECT SUM(amount) as total FROM treasury_transactions WHERE branch_id = ? AND transaction_type = 'deposit' AND DATE(created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+        $totalDeposits = floatval($depositsResult['total'] ?? 0);
+        
+        // 10. جلب تحصيلات الدين
+        $debtCollectionsResult = dbSelectOne("SELECT SUM(amount) as total FROM treasury_transactions WHERE branch_id = ? AND transaction_type = 'debt_collection' AND DATE(created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+        $totalDebtCollections = floatval($debtCollectionsResult['total'] ?? 0);
+        
+        // 11. جلب المرتجعات (للفرع الأول فقط)
+        $totalDamagedReturns = 0;
+        $totalNormalReturns = 0;
+        if ($isFirstBranch) {
+            $hasCustomerIdColumn = dbColumnExists('sales', 'customer_id');
+            $damagedReturnsQuery = "SELECT SUM(pri.total_price) as total FROM product_return_items pri INNER JOIN product_returns pr ON pri.return_id = pr.id INNER JOIN sales s ON pr.sale_id = s.id INNER JOIN users u ON s.created_by = u.id";
+            if ($hasCustomerIdColumn) {
+                $damagedReturnsQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
+            }
+            $damagedReturnsQuery .= " WHERE pri.is_damaged = 1 AND DATE(pr.created_at) BETWEEN ? AND ?";
+            $damagedReturnsParams = [$startDate, $endDate];
+            
+            if ($hasCustomerIdColumn) {
+                $damagedReturnsQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
+                $damagedReturnsParams[] = $branchId;
+                $damagedReturnsParams[] = $branchId;
+            } else {
+                $damagedReturnsQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
+                $damagedReturnsParams[] = $branchId;
+            }
+            
+            $damagedReturnsResult = dbSelectOne($damagedReturnsQuery, $damagedReturnsParams);
+            $totalDamagedReturns = floatval($damagedReturnsResult['total'] ?? 0);
+            
+            $normalReturnsQuery = "SELECT SUM(pri.total_price) as total FROM product_return_items pri INNER JOIN product_returns pr ON pri.return_id = pr.id INNER JOIN sales s ON pr.sale_id = s.id INNER JOIN users u ON s.created_by = u.id";
+            if ($hasCustomerIdColumn) {
+                $normalReturnsQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
+            }
+            $normalReturnsQuery .= " WHERE pri.is_damaged = 0 AND DATE(pr.created_at) BETWEEN ? AND ?";
+            $normalReturnsParams = [$startDate, $endDate];
+            
+            if ($hasCustomerIdColumn) {
+                $normalReturnsQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
+                $normalReturnsParams[] = $branchId;
+                $normalReturnsParams[] = $branchId;
+            } else {
+                $normalReturnsQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
+                $normalReturnsParams[] = $branchId;
+            }
+            
+            $normalReturnsResult = dbSelectOne($normalReturnsQuery, $normalReturnsParams);
+            $totalNormalReturns = floatval($normalReturnsResult['total'] ?? 0);
+        }
+        
+        // 12. حساب إجمالي السحوبات
+        $totalWithdrawals = $totalTreasuryWithdrawals + $totalSalaryWithdrawals;
+        
+        // 13. حساب صافي الرصيد باستخدام نفس المعادلة من branch-treasury.php
+        if ($isFirstBranch) {
+            $currentNetBalance = ($totalRevenue + $totalDeposits) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
+        } else {
+            $currentNetBalance = ($totalRevenue + $totalDeposits + $totalDebtCollections) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalSalaryWithdrawals + $totalTreasuryWithdrawals);
+        }
+        
+        // ✅ تسجيل للتشخيص
+        error_log("🔍 [Treasury Deposits Debug] حساب الرصيد قبل الإضافة:");
+        error_log("   - الإيرادات: {$totalRevenue}");
+        error_log("   - الإيداعات: {$totalDeposits}");
+        error_log("   - المصروفات: {$totalExpenses}");
+        error_log("   - تكاليف الصيانة: {$totalRepairCosts}");
+        error_log("   - الرصيد الصافي الحالي: {$currentNetBalance}");
         
         // ✅ إذا كان الرصيد سالباً، يتم أولاً تسوية الرصيد السالب حتى يصل إلى صفر
         // أي مبلغ متبقٍ بعد تسوية الرصيد السالب يتم إضافته ليصبح الرصيد موجباً
