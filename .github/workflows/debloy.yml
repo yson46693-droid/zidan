@@ -23,6 +23,7 @@ jobs:
           server: 213.239.220.209
           username: alaazidan
           password: rhye@hr9dL9f!Q1P
+          server-dir: /test.alaazidan.store/
 
           protocol: ftp
           port: 21

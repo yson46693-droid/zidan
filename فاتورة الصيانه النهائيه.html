@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>وصل</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.4;
+            height: 100vh;
+        }
+
+        .receipt {
+            width: 78mm;
+            max-width: 340px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #000;
+            /* منع التقسيم تماماً */
+            page-break-inside: avoid;
+            break-inside: avoid;
+            height: auto;
+            min-height: 100vh;
+        }
+
+        /* الهيدر - عنوان بالأبيض مع حدود سوداء */
+        .header-top {
+            border: 2px solid #000;
+            padding: 12px 15px;
+            text-align: center;
+            background: white;
+            margin: -1px;
+            page-break-inside: avoid;
+        }
+
+        .logo {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 8px;
+            background: #f8f8f8;
+            border: 2px solid #000;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .store-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 2px;
+        }
+
+        .store-phone {
+            font-size: 12px;
+            color: #000;
+        }
+
+        /* رقم الوصل والتاريخ - عنوان بالأبيض مع حدود سوداء */
+        .receipt-header {
+            border: 2px solid #000;
+            background: white;
+            text-align: center;
+            padding: 12px 10px;
+            margin: 0 -1px;
+            page-break-inside: avoid;
+        }
+
+        .receipt-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 5px;
+        }
+
+        .current-date {
+            font-size: 12px;
+            color: #000;
+        }
+
+        /* البيانات */
+        .info-section {
+            padding: 15px;
+            page-break-inside: avoid;
+        }
+
+        /* بيانات العميل - عنوان بالأبيض مع حدود سوداء */
+        .customer-box {
+            border: 2px solid #000;
+            padding: 12px;
+            background: white;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+
+        .customer-box table {
+            width: 100%;
+            font-size: 13px;
+        }
+
+        .customer-box th {
+            width: 35%;
+            font-weight: 600;
+            color: #000;
+            padding: 5px 0;
+        }
+
+        /* بيانات الجهاز - عنوان بالأبيض مع حدود سوداء */
+        .device-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            border: 2px solid #000;
+            background: white;
+            page-break-inside: avoid;
+        }
+
+        .device-table th {
+            background: white;
+            color: #000;
+            padding: 10px 8px;
+            font-weight: 600;
+            font-size: 12px;
+            border-bottom: 2px solid #000;
+        }
+
+        .device-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #000;
+            background: #f8f8f8;
+            font-size: 12px;
+        }
+
+        .device-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* جدول المبالغ - عنوان بالأبيض مع حدود سوداء */
+        .amounts-section {
+            border: 2px solid #000;
+            padding: 10px;
+            background: white;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+
+        .amounts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .amounts-table th {
+            background: white;
+            color: #000;
+            padding: 8px 4px;
+            font-size: 12px;
+            text-align: center;
+            border-bottom: 2px solid #000;
+        }
+
+        .amounts-table td {
+            padding: 8px 4px;
+            text-align: center;
+            border-bottom: 1px solid #000;
+            background: #f8f8f8;
+        }
+
+        .amounts-table tr:last-child td {
+            background: #f8f8f8;
+            color: #000;
+            font-size: 14px;
+            font-weight: 700;
+            border-bottom: none;
+        }
+
+        /* تاريخ التسليم - عنوان بالأبيض مع حدود سوداء */
+        .delivery-date {
+            border: 2px solid #000;
+            padding: 12px;
+            text-align: center;
+            background: white;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 15px;
+            font-size: 13px;
+            page-break-inside: avoid;
+        }
+
+        /* وصف الصيانة - عنوان بالأبيض مع حدود سوداء */
+        .description-section {
+            border: 2px solid #000;
+            padding: 15px;
+            background: white;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+
+        .description-title {
+            background: white;
+            color: #000;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 2px solid #000;
+            margin: -15px -15px 15px -15px;
+        }
+
+        .description-content {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #000;
+            background: #f8f8f8;
+            padding: 12px;
+            border: 1px solid #000;
+        }
+
+        /* QR Code - عنوان بالأبيض مع حدود سوداء */
+        .qr-section {
+            text-align: center;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+
+        .qr-placeholder {
+            width: 80px;
+            height: 80px;
+            background: #f8f8f8;
+            border: 3px solid #000;
+            margin: 0 auto 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        /* التوقيع */
+        .signature-section {
+            padding: 15px;
+            text-align: center;
+            border-top: 3px dashed #000;
+            page-break-inside: avoid;
+        }
+
+        .signature-line {
+            font-size: 13px;
+            color: #000;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .signature {
+            border-top: 2px solid #000;
+            width: 200px;
+            height: 40px;
+            margin: 0 auto;
+            position: relative;
+            background: #f8f8f8;
+        }
+
+        .signature::after {
+            content: 'التوقيع';
+            position: absolute;
+            bottom: -20px;
+            right: 0;
+            font-size: 11px;
+            color: #000;
+            font-weight: 600;
+        }
+
+        /* CSS الطباعة المحسن - صفحة واحدة مهما كان الطول */
+        @media print {
+            * {
+                visibility: visible !important;
+            }
+            
+            html, body {
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+
+            .receipt {
+                box-shadow: none !important;
+                width: 78mm !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 1px solid #000 !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                font-size: 11px !important;
+                /* منع التقسيم تماماً */
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                break-before: avoid !important;
+                break-after: avoid !important;
+                height: auto !important;
+                min-height: auto !important;
+            }
+
+            /* منع تقسيم أي عنصر داخل الفاتورة */
+            .receipt * {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: table !important;
+            }
+
+            /* إعدادات الصفحة للطابعة الحرارية */
+            @page {
+                size: 80mm auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* إخفاء أي عناصر خارج الفاتورة */
+            body > *:not(.receipt) {
+                display: none !important;
+            }
+        }
+
+        /* للطابعات الحرارية */
+        @media print and (max-width: 100mm) {
+            .receipt {
+                width: 80mm !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <!-- اللوجو واسم المحل -->
+        <div class="header-top">
+            <div class="logo" id="logo">📱</div>
+            <div class="store-title" id="storeTitle">مركز صيانة الموبايل</div>
+            <div class="store-phone" id="storePhone">02-12345678</div>
+        </div>
+
+        <!-- رقم الوصل والتاريخ -->
+        <div class="receipt-header">
+            <div class="receipt-number" id="receiptNumber">#6600001</div>
+            <div class="current-date" id="currentDate">09/06/2023 - 05:57 مساءً</div>
+        </div>
+
+        <div class="info-section">
+            <!-- بيانات العميل -->
+            <div class="customer-box">
+                <table>
+                    <tr><th>الاسم</th><td id="customerName">محمد أحمد</td></tr>
+                    <tr><th>الهاتف</th><td id="customerPhone">01000000000</td></tr>
+                </table>
+            </div>
+
+            <!-- بيانات الجهاز -->
+            <table class="device-table">
+                <tr>
+                    <th>الموديل</th>
+                    <td id="phoneModel">iPhone 13 Pro</td>
+                </tr>
+                <tr>
+                    <th>SN</th>
+                    <td id="sn">012345678901234</td>
+                </tr>
+                <tr>
+                    <th>الحالة</th>
+                    <td id="condition">ممتازة</td>
+                </tr>
+                 <tr>
+                    <th>موعد الاستلام</th>
+                    <td id="pickupDate">10/13/2025</td>
+                </tr>
+            </table>
+
+            <!-- جدول المبالغ -->
+            <div class="amounts-section">
+                <table class="amounts-table">
+                    <tr>
+                        <th>المدفوع</th>
+                        <th>المطلوب</th>
+                        <th>المتبقي</th>
+                    </tr>
+                    <tr>
+                        <td id="paid">0</td>
+                        <td id="required">100</td>
+                        <td id="remaining">100</td>
+                        <td></td>
+                    </tr>
+                   
+                </table>
+            </div>
+
+            
+            <!-- وصف الصيانة -->
+            <div class="description-section">
+                <div class="description-title">تفاصيل الصيانة</div>
+                <div class="description-content" id="description">
+                    استبدال الشاشة الأمامية - تنظيف شامل للجهاز - اختبار جميع الوظائف - ضمان 6 أشهر
+                </div>
+            </div>
+
+            <!-- QR Code -->
+            <div class="qr-section">
+                <div class="qr-placeholder"> تابعنا علي فيسبوك</div>
+                <div style="font-size: 12px; margin-top: 5px; color: #000;">شكرا لتعاملكم معنا</div>
+            </div>
+        </div>
+
+       
+    </div>
+
+    <script>
+        // ===== غيّر هذه القيم فقط =====
+        document.getElementById('logo').textContent = '📱';
+        document.getElementById('storeTitle').textContent = 'اسم المحل';
+        document.getElementById('storePhone').textContent = 'رقم الهاتف';
+        
+        document.getElementById('receiptNumber').textContent = '#123456';
+        document.getElementById('currentDate').textContent = '28/12/2025 - 09:15 ص';
+        document.getElementById('customerName').textContent = 'اسم العميل';
+        document.getElementById('customerPhone').textContent = '01012345678';
+        document.getElementById('phoneModel').textContent = 'Samsung S23';
+        document.getElementById('sn').textContent = '123456789012345';
+        document.getElementById('condition').textContent = 'جيدة';
+        document.getElementById('pickupDate').textContent = '15/01/2026';
+        
+        // المبالغ
+        document.getElementById('paid').textContent = '0';
+        document.getElementById('required').textContent = '150';
+        document.getElementById('remaining').textContent = '150';
+        document.getElementById('total').textContent = '150';
+        
+        document.getElementById('deliveryDate').textContent = '15/01/2026';
+        document.getElementById('description').textContent = 'وصف الصيانة المفصل هنا';
+    </script>
+</body>
+</html>
+
+
+
+
+
