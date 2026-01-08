@@ -983,11 +983,11 @@ if ($method === 'PUT') {
             error_log("✅ [Repairs API] تحديث remaining_amount تلقائياً: customer_price ({$newCustomerPrice}) - paid_amount ({$newPaidAmount}) = {$calculatedRemainingAmount}");
         }
         
-        // ✅ تحديث دين العميل للعملاء التجاريين فقط عند تغيير الحالة إلى "جاهز للتسليم"
+        // ✅ تحديث دين العميل للعملاء التجاريين فقط عند تغيير الحالة إلى "جاهز للتسليم" أو "تم التسليم"
         $newStatus = isset($data['status']) ? $data['status'] : $currentStatus;
         $newRemainingAmount = isset($data['remaining_amount']) ? floatval($data['remaining_amount']) : $currentRemainingAmount;
         
-        // فقط عند تغيير الحالة إلى "جاهز للتسليم" يتم إضافة المبلغ المتبقي إلى الديون
+        // عند تغيير الحالة إلى "جاهز للتسليم" يتم إضافة المبلغ المتبقي إلى الديون
         if ($currentCustomerId && $newStatus === 'ready_for_delivery' && $currentStatus !== 'ready_for_delivery' && dbColumnExists('customers', 'total_debt')) {
             // جلب نوع العميل والدين الحالي
             $customer = dbSelectOne(
@@ -1008,6 +1008,35 @@ if ($method === 'PUT') {
                     error_log('⚠️ فشل تحديث دين العميل بعد تغيير الحالة إلى "جاهز للتسليم"');
                 } else {
                     error_log("✅ تم إضافة المبلغ المتبقي ({$newRemainingAmount}) إلى دين العميل عند تغيير الحالة إلى 'جاهز للتسليم': {$currentTotalDebt} + {$newRemainingAmount} = {$newTotalDebt}");
+                }
+            }
+        }
+        
+        // ✅ عند تغيير الحالة إلى "تم التسليم" للعملاء التجاريين: إضافة المبلغ المتبقي للديون إذا لم يتم إضافته من قبل
+        if ($currentCustomerId && $newStatus === 'delivered' && $currentStatus !== 'delivered' && dbColumnExists('customers', 'total_debt')) {
+            // جلب نوع العميل والدين الحالي
+            $customer = dbSelectOne(
+                "SELECT customer_type, total_debt FROM customers WHERE id = ?",
+                [$currentCustomerId]
+            );
+            
+            if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial' && $newRemainingAmount > 0) {
+                // التحقق من أن المبلغ المتبقي لم يتم إضافته للديون من قبل (عند تغيير الحالة إلى ready_for_delivery)
+                // إذا كانت الحالة السابقة ليست ready_for_delivery، فيجب إضافة المبلغ المتبقي للديون
+                if ($currentStatus !== 'ready_for_delivery') {
+                    $currentTotalDebt = floatval($customer['total_debt'] ?? 0);
+                    $newTotalDebt = $currentTotalDebt + $newRemainingAmount;
+                    
+                    $updateDebtResult = dbExecute(
+                        "UPDATE customers SET total_debt = ? WHERE id = ?",
+                        [$newTotalDebt, $currentCustomerId]
+                    );
+                    
+                    if ($updateDebtResult === false) {
+                        error_log('⚠️ فشل تحديث دين العميل بعد تغيير الحالة إلى "تم التسليم"');
+                    } else {
+                        error_log("✅ تم إضافة المبلغ المتبقي ({$newRemainingAmount}) إلى دين العميل عند تغيير الحالة إلى 'تم التسليم': {$currentTotalDebt} + {$newRemainingAmount} = {$newTotalDebt}");
+                    }
                 }
             }
         }
@@ -1088,28 +1117,28 @@ if ($method === 'PUT') {
         
         // ✅ إضافة المبلغ المتبقي إلى الخزنة عند تغيير الحالة إلى "delivered"
         // ✅ تسجيل المبلغ حسب نوع الفرع: repair_profit للفرع الأول، deposit للفرع الثاني
-        // ✅ للفرع الثاني: المبلغ المتبقي يُضاف للإيرادات فقط إذا كان العميل من نوع retail (محل)، وليس commercial (تجاري)
+        // ✅ إذا كان العميل تجاري (commercial): لا يتم إضافة المبلغ المتبقي للخزنة على الإطلاق - يُضاف فقط للديون
         if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
             $remainingAmount = floatval($updatedRepair['remaining_amount'] ?? 0);
             $customerId = $updatedRepair['customer_id'] ?? null;
             
             if ($remainingAmount > 0 && $branchId && dbTableExists('treasury_transactions')) {
-                // تحديد نوع الفرع (الأول أو الثاني)
-                $branch = dbSelectOne("SELECT id, name, created_at FROM branches WHERE id = ?", [$branchId]);
-                $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
-                $isFirstBranch = $branch && $firstBranch && $branch['id'] === $firstBranch['id'];
-                
-                // للفرع الثاني: التحقق من نوع العميل - إذا كان commercial فلا يُضاف للإيرادات
+                // التحقق من نوع العميل - إذا كان commercial فلا يُضاف للخزنة على الإطلاق
                 $shouldAddToRevenue = true;
-                if (!$isFirstBranch && $customerId) {
+                if ($customerId) {
                     $customer = dbSelectOne("SELECT customer_type FROM customers WHERE id = ?", [$customerId]);
                     if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial') {
                         $shouldAddToRevenue = false;
-                        error_log("ℹ️ [Repairs API] المبلغ المتبقي ({$remainingAmount} ج.م) لا يُضاف للإيرادات للفرع الثاني لأن العميل تجاري (commercial) - العملية {$repairNumberText}");
+                        error_log("ℹ️ [Repairs API] المبلغ المتبقي ({$remainingAmount} ج.م) لا يُضاف للخزنة لأن العميل تجاري (commercial) - سيتم إضافته للديون فقط - العملية {$repairNumberText}");
                     }
                 }
                 
                 if ($shouldAddToRevenue) {
+                    // تحديد نوع الفرع (الأول أو الثاني)
+                    $branch = dbSelectOne("SELECT id, name, created_at FROM branches WHERE id = ?", [$branchId]);
+                    $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
+                    $isFirstBranch = $branch && $firstBranch && $branch['id'] === $firstBranch['id'];
+                    
                     // تحديد نوع المعاملة: repair_profit للفرع الأول، deposit للفرع الثاني
                     $transactionType = $isFirstBranch ? 'repair_profit' : 'deposit';
                     $transactionTypeLabel = $isFirstBranch ? 'أرباح الصيانة' : 'إيرادات';

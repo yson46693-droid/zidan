@@ -135,6 +135,85 @@ if ($method === 'GET') {
     ]);
 }
 
+// ✅ تعديل وصف معاملة
+if ($method === 'PUT') {
+    checkAuth();
+    
+    $session = checkAuth();
+    $userRole = $session['role'] ?? 'employee';
+    $userBranchId = $session['branch_id'] ?? null;
+    $isOwner = ($userRole === 'admin');
+    $isManager = ($userRole === 'manager');
+    
+    // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم تعديل الوصف
+    if (!$isOwner && !$isManager) {
+        response(false, 'ليس لديك صلاحية لتعديل الوصف', null, 403);
+    }
+    
+    $data = getRequestData();
+    $transactionId = cleanInput($data['id'] ?? '');
+    $newDescription = trim($data['description'] ?? '');
+    
+    if (empty($transactionId)) {
+        response(false, 'معرف المعاملة مطلوب', null, 400);
+    }
+    
+    // جلب المعاملة للتأكد من وجودها
+    $transaction = dbSelectOne(
+        "SELECT * FROM treasury_transactions WHERE id = ?",
+        [$transactionId]
+    );
+    
+    if (!$transaction) {
+        response(false, 'المعاملة غير موجودة', null, 404);
+    }
+    
+    // التحقق من الصلاحيات - غير المالك يمكنه تعديل معاملات فرعه فقط
+    if (!$isOwner) {
+        if (!$userBranchId || $transaction['branch_id'] !== $userBranchId) {
+            response(false, 'ليس لديك صلاحية لتعديل هذه المعاملة', null, 403);
+        }
+    }
+    
+    // تحديث الوصف
+    $result = dbExecute(
+        "UPDATE treasury_transactions SET description = ? WHERE id = ?",
+        [$newDescription, $transactionId]
+    );
+    
+    if ($result === false) {
+        response(false, 'خطأ في تحديث الوصف', null, 500);
+    }
+    
+    // جلب المعاملة المحدثة
+    $updatedTransaction = dbSelectOne(
+        "SELECT t.*, u.name as created_by_name 
+         FROM treasury_transactions t
+         LEFT JOIN users u ON t.created_by = u.id
+         WHERE t.id = ?",
+        [$transactionId]
+    );
+    
+    // إضافة نص نوع المعاملة بالعربية
+    $transactionTypes = [
+        'expense' => 'مصروف',
+        'repair_cost' => 'تكلفة صيانة',
+        'repair_profit' => 'ربح صيانة',
+        'loss_operation' => 'عملية خاسرة',
+        'sales_revenue' => 'إيراد مبيعات',
+        'sales_cost' => 'تكلفة مبيعات',
+        'withdrawal' => 'سحب من الخزنة',
+        'deposit' => 'إضافة إلى الخزنة',
+        'damaged_return' => 'مرتجع تالف'
+    ];
+    
+    if ($updatedTransaction) {
+        $updatedTransaction['type_text'] = $transactionTypes[$updatedTransaction['transaction_type']] ?? $updatedTransaction['transaction_type'];
+    }
+    
+    response(true, 'تم تحديث الوصف بنجاح', $updatedTransaction);
+}
+
 response(false, 'طريقة غير مدعومة', null, 405);
 ?>
 

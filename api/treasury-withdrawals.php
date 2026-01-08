@@ -406,23 +406,9 @@ if ($method === 'POST') {
             $totalRevenue = $totalRepairProfits;
         }
         
-        // حساب صافي رصيد الخزنة الحالي (بدون السحب الجديد)
-        if ($isFirstBranch) {
-            // الفرع الأول: المعادلة القديمة (المحافظة على التوافق)
-            // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإيداعات) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي السحوبات + إجمالي المرتجعات التالفة + إجمالي المرتجعات السليمة)
-            $currentNetBalance = ($totalRevenue + $totalDeposits) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
-        } else {
-            // الفرع الثاني: المعادلة الجديدة
-            // صافي رصيد الخزنة = (إجمالي الإيرادات + إجمالي الإضافات + إجمالي تحصيلات الدين) - (إجمالي مصروفات الفرع + إجمالي تكاليف عمليات الصيانة + إجمالي العمليات الخاسرة + إجمالي المسحوبات + سحوبات من الخزنة)
-            // قيمة إيجابية تعني ربح، قيمة سالبة تعني خسارة
-            $currentNetBalance = ($totalRevenue + $totalDeposits + $totalDebtCollections) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalSalaryWithdrawals + $totalTreasuryWithdrawals);
-        }
-        
-        // التحقق من أن الرصيد كافٍ للسحب (يجب أن يكون الرصيد أكبر أو يساوي المبلغ المطلوب سحبه)
-        if ($currentNetBalance < $amount) {
-            $availableBalance = max(0, $currentNetBalance);
-            response(false, "رصيد الخزنة غير كافٍ. الرصيد المتاح: " . number_format($availableBalance, 2) . " ج.م والمبلغ المطلوب: " . number_format($amount, 2) . " ج.م", null, 400);
-        }
+        // ✅ منطق جديد: السماح بالرصيد السالب عند الخصم
+        // لا حاجة للتحقق من الرصيد الكافي - يُسمح بأن يصبح رصيد الخزنة سالبًا
+        // يتم خصم المبلغ مباشرة من صافي رصيد الخزنة
         
     } catch (Exception $e) {
         error_log('Error calculating treasury balance: ' . $e->getMessage());

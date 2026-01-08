@@ -4688,6 +4688,9 @@ function displayFilteredTreasuryTransactions() {
         const endIndex = startIndex + transactionsPerPage;
         const paginatedTransactions = filteredTreasuryTransactions.slice(startIndex, endIndex);
         
+        // ✅ التحقق من الصلاحيات للتعديل المباشر
+        const canEdit = (typeof hasPermission === 'function' && (hasPermission('admin') || hasPermission('manager'))) || false;
+        
         // عرض المعاملات
         tbody.innerHTML = paginatedTransactions.map(transaction => {
             const amount = parseFloat(transaction.amount || 0);
@@ -4695,12 +4698,24 @@ function displayFilteredTreasuryTransactions() {
             const amountColor = isNegative ? 'var(--danger-color)' : 'var(--success-color)';
             const amountSign = isNegative ? '-' : '+';
             
+            const descriptionRaw = transaction.description || '';
+            const descriptionEscaped = escapeHtml(descriptionRaw || '-');
+            
+            // ✅ جعل حقل الوصف قابل للتعديل إذا كان المستخدم لديه صلاحية
+            const descriptionCell = canEdit ? `
+                <td class="editable-cell" data-field="description" data-transaction-id="${escapeHtml(transaction.id)}" data-value="${escapeHtml(descriptionRaw)}" style="cursor: pointer; position: relative;">
+                    <span class="cell-content">${descriptionEscaped}</span>
+                </td>
+            ` : `
+                <td>${descriptionEscaped}</td>
+            `;
+            
             return `
                 <tr>
                     <td>${formatDate(transaction.created_at)}</td>
                     <td><strong>${escapeHtml(transaction.type_text || transaction.transaction_type)}</strong></td>
                     <td><strong style="color: ${amountColor};">${amountSign}${formatCurrency(Math.abs(amount))}</strong></td>
-                    <td>${escapeHtml(transaction.description || '-')}</td>
+                    ${descriptionCell}
                     <td>${escapeHtml(transaction.created_by_name || '-')}</td>
                 </tr>
             `;
@@ -4721,12 +4736,168 @@ function displayFilteredTreasuryTransactions() {
         } else if (paginationDiv) {
             paginationDiv.innerHTML = '';
         }
+        
+        // ✅ إعداد event listeners للتعديل المباشر
+        if (canEdit) {
+            setupTreasuryTransactionsEventListeners();
+        }
     } catch (error) {
         console.error('خطأ في عرض المعاملات:', error);
         const tbody = document.getElementById('treasuryTransactionsTableBody');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">حدث خطأ أثناء عرض المعاملات</td></tr>';
         }
+    }
+}
+
+// ✅ إعداد event listeners لجدول معاملات الخزنة باستخدام event delegation
+function setupTreasuryTransactionsEventListeners() {
+    try {
+        const tbody = document.getElementById('treasuryTransactionsTableBody');
+        if (!tbody) {
+            console.warn('treasuryTransactionsTableBody not found, skipping event listeners setup');
+            return;
+        }
+        
+        // ✅ استخدام event delegation - إزالة listeners القديمة أولاً لتجنب التكرار
+        const existingHandler = tbody._treasuryTransactionsHandler;
+        if (existingHandler) {
+            tbody.removeEventListener('click', existingHandler);
+        }
+        
+        // ✅ إنشاء handler جديد
+        const clickHandler = async (event) => {
+            try {
+                // ✅ التحقق من النقر على خلية قابلة للتعديل
+                const editableCell = event.target.closest('.editable-cell');
+                if (editableCell && !editableCell.querySelector('input, textarea')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const field = editableCell.getAttribute('data-field');
+                    const transactionId = editableCell.getAttribute('data-transaction-id');
+                    const currentValue = editableCell.getAttribute('data-value') || '';
+                    
+                    if (!field || !transactionId) return;
+                    
+                    // فتح حقل التعديل
+                    if (field === 'description') {
+                        showDescriptionInput(editableCell, transactionId, currentValue);
+                    }
+                    return;
+                }
+            } catch (error) {
+                console.error('خطأ في معالجة حدث النقر على خلية المعاملة:', error);
+                showMessage('حدث خطأ أثناء تنفيذ العملية', 'error');
+            }
+        };
+        
+        // ✅ حفظ المرجع للـ handler لإمكانية إزالته لاحقاً
+        tbody._treasuryTransactionsHandler = clickHandler;
+        
+        // ✅ إضافة event listener
+        tbody.addEventListener('click', clickHandler);
+    } catch (error) {
+        console.error('خطأ في إعداد event listeners لجدول معاملات الخزنة:', error);
+    }
+}
+
+// ✅ دالة لعرض حقل إدخال نص للوصف
+function showDescriptionInput(cell, transactionId, currentValue) {
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.className = 'inline-edit-input';
+        textarea.value = currentValue;
+        textarea.style.cssText = 'width: 100%; padding: 5px; border: 1px solid var(--primary-color); border-radius: 4px; background: var(--white); min-height: 60px; resize: vertical; font-family: inherit;';
+        
+        const cellContent = cell.querySelector('.cell-content');
+        if (cellContent) {
+            cellContent.style.display = 'none';
+        }
+        cell.innerHTML = '';
+        cell.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        
+        // حفظ عند الضغط على Enter (Ctrl+Enter) أو فقدان التركيز
+        const saveHandler = async () => {
+            const newValue = textarea.value.trim();
+            if (newValue !== currentValue) {
+                await saveTransactionDescription(transactionId, newValue, cell);
+            } else {
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        };
+        
+        textarea.addEventListener('blur', saveHandler);
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                saveHandler();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit(cell, cellContent?.textContent || '');
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في showDescriptionInput:', error);
+        showMessage('حدث خطأ أثناء فتح حقل الإدخال', 'error');
+    }
+}
+
+// ✅ دالة لحفظ وصف المعاملة
+async function saveTransactionDescription(transactionId, value, cell) {
+    try {
+        const result = await API.request('treasury-transactions.php', 'PUT', {
+            id: transactionId,
+            description: value
+        });
+        
+        if (result && result.success) {
+            showMessage('تم تحديث الوصف بنجاح', 'success');
+            
+            // ✅ تحديث الخلية بالقيمة الجديدة
+            const cellContent = document.createElement('span');
+            cellContent.className = 'cell-content';
+            cellContent.textContent = value || '-';
+            
+            cell.innerHTML = '';
+            cell.appendChild(cellContent);
+            cell.setAttribute('data-value', value);
+            
+            // ✅ تحديث البيانات المحلية إذا كانت موجودة
+            if (typeof filteredTreasuryTransactions !== 'undefined' && Array.isArray(filteredTreasuryTransactions)) {
+                const transaction = filteredTreasuryTransactions.find(t => t.id === transactionId);
+                if (transaction) {
+                    transaction.description = value;
+                }
+            }
+        } else {
+            showMessage(result?.message || 'فشل تحديث الوصف', 'error');
+            // إعادة عرض القيمة القديمة
+            const oldValue = cell.getAttribute('data-value') || '';
+            cancelEdit(cell, oldValue);
+        }
+    } catch (error) {
+        console.error('خطأ في حفظ وصف المعاملة:', error);
+        showMessage('حدث خطأ أثناء حفظ الوصف', 'error');
+        // إعادة عرض القيمة القديمة
+        const oldValue = cell.getAttribute('data-value') || '';
+        cancelEdit(cell, oldValue);
+    }
+}
+
+// ✅ دالة لإلغاء التعديل
+function cancelEdit(cell, originalValue) {
+    try {
+        const cellContent = document.createElement('span');
+        cellContent.className = 'cell-content';
+        cellContent.textContent = originalValue || '-';
+        
+        cell.innerHTML = '';
+        cell.appendChild(cellContent);
+    } catch (error) {
+        console.error('خطأ في cancelEdit:', error);
     }
 }
 
