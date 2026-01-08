@@ -4949,188 +4949,779 @@ async function printRepairReceipt(id) {
         printWindow.document.open('text/html', 'replace');
         printWindow.document.write(`
 <!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إيصال استلام جهاز - ${repairNumber}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #fff; color: #333; line-height: 1.6; }
-        .receipt { max-width: 800px; margin: 0 auto; padding: 15px; background: white; }
-        .receipt-logo-section { text-align: center; margin-bottom: 15px; }
-        .receipt-logo-section img { max-height: 60px; max-width: 200px; margin-bottom: 10px; }
-        .receipt-shop-info { text-align: center; margin-bottom: 15px; font-size: 0.9em; color: #666; }
-        .receipt-shop-info p { margin: 3px 0; }
-        .receipt-title-bar { background: #2196F3; color: white; padding: 12px; text-align: center; font-size: 1.2em; font-weight: 700; margin-bottom: 20px; border-radius: 4px; }
-        .receipt-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        .receipt-detail-item { display: flex; flex-direction: column; }
-        .receipt-detail-label { font-size: 0.85em; color: #666; margin-bottom: 4px; font-weight: 600; }
-        .receipt-detail-value { font-size: 1em; color: #333; font-weight: 500; }
-        .receipt-delivery-date-box { background: #2196F3; color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
-        .receipt-delivery-date-box i { font-size: 1.5em; margin-bottom: 8px; display: block; }
-        .receipt-delivery-date-box .label { font-size: 0.9em; margin-bottom: 5px; opacity: 0.9; }
-        .receipt-delivery-date-box .date { font-size: 1.3em; font-weight: 700; }
-        .receipt-costs-section { margin-bottom: 20px; }
-        .receipt-cost-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-        .receipt-cost-item:last-child { border-bottom: none; }
-        .receipt-cost-label { font-weight: 600; color: #333; }
-        .receipt-cost-value { font-weight: 700; color: #2196F3; }
-        .receipt-notes-section { margin-bottom: 20px; }
-        .receipt-notes-label { font-weight: 600; color: #333; margin-bottom: 5px; }
-        .receipt-notes-value { color: #666; padding: 8px; background: #f5f5f5; border-radius: 4px; }
-        .receipt-qr-section { text-align: center; margin: 25px 0; }
-        .receipt-qr-section img { max-width: 250px; max-height: 250px; border: 2px solid #ddd; border-radius: 8px; padding: 10px; background: white; }
-        .receipt-qr-section p { margin-top: 10px; font-size: 0.9em; color: #666; }
-        .receipt-warning-box { background: #FFA500; color: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-right: 4px solid #FF8C00; }
-        .receipt-warning-box i { font-size: 1.3em; margin-left: 8px; vertical-align: middle; }
-        .receipt-warning-title { font-weight: 700; font-size: 1.1em; margin-bottom: 10px; }
-        .receipt-warning-list { list-style: none; padding-right: 0; }
-        .receipt-warning-list li { margin-bottom: 8px; padding-right: 20px; position: relative; }
-        .receipt-warning-list li:before { content: "•"; position: absolute; right: 0; font-weight: bold; }
-        .receipt-footer { text-align: center; margin-top: 25px; padding-top: 15px; border-top: 2px solid #333; font-size: 1.1em; color: #666; font-weight: 600; }
-        .no-print { display: none; }
-        @media print {
-            @page { margin: 0; size: 80mm auto; }
-            body { padding: 0; background: white; }
-            .receipt { width: 80mm !important; max-width: 80mm !important; padding: 8px 4px; margin: 0; }
-            .receipt-logo-section img { max-height: 40px; max-width: 150px; }
-            .receipt-shop-info { font-size: 0.75em; margin-bottom: 10px; }
-            .receipt-title-bar { font-size: 1em; padding: 8px; margin-bottom: 12px; }
-            .receipt-details-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px; font-size: 0.85em; }
-            .receipt-delivery-date-box { padding: 12px; margin-bottom: 12px; }
-            .receipt-delivery-date-box .date { font-size: 1.1em; }
-            .receipt-costs-section { font-size: 0.85em; margin-bottom: 12px; }
-            .receipt-notes-section { font-size: 0.85em; margin-bottom: 12px; }
-            .receipt-qr-section img { max-width: 150px; max-height: 150px; }
-            .receipt-qr-section p { font-size: 0.8em; }
-            .receipt-warning-box { padding: 10px; margin-bottom: 12px; font-size: 0.8em; }
-            .receipt-footer { font-size: 0.9em; margin-top: 15px; padding-top: 10px; }
-            .no-print { display: none !important; }
-        }
-    </style>
-</head>
-<body>
-    <div class="receipt">
-        <div class="receipt-logo-section">
-            ${logoHtml}
-        </div>
-        
-        <div class="receipt-shop-info">
-            <p><strong>${escapeHtml(finalShopName)}</strong></p>
-            ${finalShopAddress ? `<p>${escapeHtml(finalShopAddress)}</p>` : ''}
-            ${finalShopPhone ? `<p><i class="bi bi-telephone"></i> ${escapeHtml(finalShopPhone)} ${whatsappNumber ? `<i class="bi bi-whatsapp" style="color: #25D366; margin-right: 5px;"></i>` : ''}</p>` : ''}
-        </div>
-        
-        <div class="receipt-title-bar">
-            إيصال استلام جهاز
-        </div>
-        
-        <div class="receipt-details-grid">
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">العميل</span>
-                <span class="receipt-detail-value">${escapeHtml(customerName || '-')}</span>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} - ${repair.repair_number}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+            <style>
+                /* ✅ إضافة CSS Variables للطباعة */
+                :root {
+                    --primary-color: #2196F3;
+                    --secondary-color: #64B5F6;
+                    --text-dark: #333;
+                    --text-light: #666;
+                    --border-color: #ddd;
+                    --light-bg: #f5f5f5;
+                    --white: #ffffff;
+                }
+                
+                /* ✅ التأكد من ظهور المحتوى */
+                body {
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                }
+                
+                .invoice-wrapper {
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    display: block !important;
+                }
+                
+                .invoice-wrapper > * {
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    display: block !important;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Cairo', 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #f5f5f5;
+                    padding: 20px;
+                    color: #333;
+                    margin: 0;
+                    direction: rtl;
+                }
+                
+                /* ✅ أنماط invoice-wrapper الأساسية */
+                .invoice-wrapper {
+                    direction: rtl;
+                    font-family: 'Cairo', 'Tajawal', 'Almarai', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #ffffff;
+                    color: #333;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                    border-radius: 16px;
+                    font-size: 16px;
+                    line-height: 1.7;
+                }
+                
+                .invoice-logo-section {
+                    text-align: center;
+                    margin-bottom: 3px;
+                    margin-top: 0;
+                    padding: 2px 0;
+                }
+                
+                .invoice-logo {
+                    max-width: 500px;
+                    max-height: 500px;
+                    width: auto;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                }
+                
+                .invoice-header {
+                    text-align: center;
+                    margin-bottom: 15px;
+                    padding-bottom: 8px;
+                    border-bottom: 3px solid #2196F3;
+                }
+                
+                .invoice-shop-name {
+                    font-size: 2.2em;
+                    font-weight: 700;
+                    color: #2196F3;
+                    margin-bottom: 12px;
+                }
+                
+                .invoice-shop-info {
+                    color: #666;
+                    line-height: 1.8;
+                    font-size: 1.05em;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    align-items: center;
+                }
+                
+                .invoice-shop-info div {
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .invoice-details {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+                    border-radius: 12px;
+                    border: 1px solid #e0e0e0;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                }
+                
+                .invoice-details-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+                
+                .invoice-details-row > div {
+                    color: #333;
+                    font-size: 1.05em;
+                    padding: 12px 15px;
+                    background: var(--white, #ffffff);
+                    border-radius: 8px;
+                    border-right: 3px solid var(--primary-color, #2196F3);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+                }
+                
+                .invoice-details-row strong {
+                    color: var(--primary-color, #2196F3);
+                    font-weight: 600;
+                    margin-left: 8px;
+                }
+                
+                .invoice-extra-info {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    margin-bottom: 20px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+                    border-radius: 12px;
+                    border: 1px solid #e0e0e0;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                }
+                
+                .invoice-extra-info-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+                
+                .invoice-extra-info-row > div {
+                    color: #333;
+                    font-size: 1.05em;
+                    padding: 12px 15px;
+                    background: var(--white, #ffffff);
+                    border-radius: 8px;
+                    border-right: 3px solid var(--primary-color, #2196F3);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+                }
+                
+                .invoice-extra-info-row strong {
+                    color: var(--primary-color, #2196F3);
+                    font-weight: 600;
+                    margin-left: 8px;
+                }
+                
+                .invoice-summary {
+                    margin-top: 25px;
+                    padding: 25px;
+                    background: #f8f9fa;
+                    border-radius: 12px;
+                }
+                
+                .invoice-summary .summary-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 15px;
+                    font-size: 1.1em;
+                    padding: 10px 0;
+                }
+                
+                .invoice-summary .summary-row.total {
+                    font-size: 1.9em;
+                    font-weight: 800;
+                    color: #2196F3;
+                    padding: 20px 0;
+                    border-top: 3px solid #2196F3;
+                    margin-top: 20px;
+                }
+                
+                /* ✅ Responsive Design للجوال */
+                @media (max-width: 768px) {
+                    .invoice-details-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                    
+                    .invoice-details {
+                        padding: 15px !important;
+                    }
+                    
+                    .invoice-extra-info {
+                        padding: 15px !important;
+                    }
+                    
+                    .invoice-extra-info-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                }
+                
+                .invoice-delivery-date {
+                    text-align: center;
+                    margin: 15px 0;
+                    padding: 15px;
+                    background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%);
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+                    page-break-inside: avoid;
+                }
+                
+                .invoice-delivery-date > div:first-child {
+                    color: var(--white, #ffffff);
+                    font-size: 0.95em;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                }
+                
+                .invoice-delivery-date > div:last-child {
+                    color: var(--white, #ffffff);
+                    font-size: 1.3em;
+                    font-weight: 700;
+                    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                }
+                
+                .invoice-summary hr {
+                    margin: 18px 0;
+                    border: none;
+                    border-top: 2px solid #e0e0e0;
+                }
+                
+                .invoice-terms {
+                    margin-top: 30px;
+                    padding: 20px;
+                    background: #fff9e6;
+                    border: 2px solid var(--warning-color, #FFA500);
+                    border-radius: 8px;
+                    page-break-inside: avoid;
+                }
+                
+                .invoice-terms h4 {
+                    color: var(--warning-color, #FFA500);
+                    margin-bottom: 15px;
+                    font-size: 1.1em;
+                    font-weight: 700;
+                    text-align: center;
+                }
+                
+                .invoice-terms ul {
+                    margin: 0;
+                    padding-right: 25px;
+                    color: var(--text-dark, #333);
+                    line-height: 2;
+                    font-size: 0.95em;
+                }
+                
+                .invoice-terms li {
+                    margin-bottom: 8px;
+                }
+                
+                .invoice-qrcode {
+                    text-align: center;
+                    margin: 30px 0;
+                    padding: 0;
+                }
+                
+                .invoice-qrcode img {
+                    max-width: 250px;
+                    width: 250px;
+                    height: 250px;
+                    margin: 0 auto;
+                    display: block;
+                }
+                
+                .invoice-footer {
+                    text-align: center;
+                    margin-top: 35px;
+                    padding-top: 25px;
+                    border-top: 2px solid #2196F3;
+                    color: #666;
+                    font-size: 1.2em;
+                    font-weight: 600;
+                }
+                
+                .no-print {
+                    display: block !important;
+                    text-align: center;
+                    margin-top: 20px;
+                    display: flex;
+                    gap: 10px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+                
+                .no-print button {
+                    padding: 10px 20px;
+                    background: var(--primary-color, #2196F3);
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.3s ease;
+                }
+                
+                .no-print button:hover {
+                    background: var(--secondary-color, #64B5F6);
+                    transform: translateY(-2px);
+                }
+                
+                .no-print button:last-child {
+                    background: var(--secondary-color, #64B5F6);
+                }
+                
+                .no-print button:last-child:hover {
+                    background: var(--primary-color, #2196F3);
+                }
+                
+                @media print {
+                    @page {
+                        margin: 0;
+                        size: 80mm auto;
+                    }
+                    
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 80mm !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                    }
+                    
+                    .no-print {
+                        display: none !important;
+                    }
+                    
+                    .invoice-wrapper {
+                        width: 80mm !important;
+                        max-width: 80mm !important;
+                        margin: 0 !important;
+                        padding: 8px 4px !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        border-radius: 0 !important;
+                        background: white !important;
+                        height: auto !important;
+                        min-height: auto !important;
+                        max-height: none !important;
+                        overflow: visible !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                        box-sizing: border-box !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: block !important;
+                    }
+                    
+                    /* ✅ التأكد من ظهور جميع العناصر */
+                    .invoice-wrapper > *:not(.invoice-extra-info) {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: block !important;
+                    }
+                    
+                    .invoice-logo-section,
+                    .invoice-header,
+                    .invoice-details,
+                    .invoice-summary,
+                    .invoice-terms,
+                    .invoice-qrcode,
+                    .invoice-footer {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: block !important;
+                    }
+                    
+                    .invoice-extra-info {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                    }
+                    
+                    .invoice-extra-info-row {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        display: grid !important;
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                    
+                    .invoice-wrapper * {
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    
+                    .invoice-logo-section {
+                        padding-top: 0 !important;
+                        padding-bottom: 0 !important;
+                        margin-top: 0 !important;
+                        margin-bottom: 2px !important;
+                        background: white !important;
+                        box-shadow: none !important;
+                        text-align: center !important;
+                        page-break-inside: avoid !important;
+                    }
+                    
+                    .invoice-logo {
+                        max-width: 60mm !important;
+                        max-height: 40mm !important;
+                        width: auto !important;
+                        height: auto !important;
+                        display: block !important;
+                        margin: 0 auto 0 auto !important;
+                        padding: 0 !important;
+                    }
+                    
+                    .invoice-header {
+                        border-bottom: 2px solid #2196F3 !important;
+                        padding: 5px 0 !important;
+                        margin-top: 2px !important;
+                        margin-bottom: 8px !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                    }
+                    
+                    .invoice-header h2 {
+                        font-size: 1em !important;
+                        margin: 5px 0 !important;
+                    }
+                    
+                    .invoice-shop-info {
+                        font-size: 0.75em !important;
+                    }
+                    
+                    .invoice-shop-info div {
+                        font-size: 0.75em !important;
+                    }
+                    
+                    .invoice-details {
+                        padding: 8px !important;
+                        margin-bottom: 8px !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                        box-shadow: none !important;
+                        border: 1px solid #ddd !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-details-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 5px !important;
+                    }
+                    
+                    .invoice-details-row > div {
+                        font-size: 0.8em !important;
+                        padding: 6px 8px !important;
+                    }
+                    
+                    .invoice-extra-info {
+                        padding: 8px !important;
+                        margin-bottom: 8px !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                        box-shadow: none !important;
+                        border: 1px solid #ddd !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-extra-info-row {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 5px !important;
+                    }
+                    
+                    .invoice-extra-info-row > div {
+                        font-size: 0.8em !important;
+                        padding: 6px 8px !important;
+                    }
+                    
+                    .invoice-extra-info > div:not(.invoice-extra-info-row) {
+                        font-size: 0.8em !important;
+                        padding: 6px 8px !important;
+                    }
+                    
+                    .invoice-delivery-date {
+                        margin: 15px 0 !important;
+                        padding: 15px !important;
+                        background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%) !important;
+                        border-radius: 8px !important;
+                        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3) !important;
+                        page-break-inside: avoid !important;
+                    }
+                    
+                    .invoice-delivery-date {
+                        padding: 10px !important;
+                        margin: 10px 0 !important;
+                    }
+                    
+                    .invoice-delivery-date > div:first-child {
+                        font-size: 0.75em !important;
+                        margin-bottom: 5px !important;
+                    }
+                    
+                    .invoice-delivery-date > div:last-child {
+                        font-size: 0.95em !important;
+                    }
+                    
+                    .invoice-summary {
+                        padding: 8px !important;
+                        margin: 8px 0 !important;
+                        font-size: 0.85em !important;
+                        page-break-inside: avoid !important;
+                        page-break-before: avoid !important;
+                        box-shadow: none !important;
+                        border: 1px solid #ddd !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-summary .summary-row {
+                        font-size: 0.9em !important;
+                        margin-bottom: 5px !important;
+                    }
+                    
+                    .invoice-summary .summary-row.total {
+                        font-size: 1.1em !important;
+                        padding: 8px 0 !important;
+                    }
+                    
+                    .invoice-qrcode {
+                        page-break-inside: avoid !important;
+                        page-break-before: avoid !important;
+                        page-break-after: avoid !important;
+                        margin: 8px 0 !important;
+                        padding: 0 !important;
+                        display: block !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        text-align: center !important;
+                    }
+                    
+                    .invoice-qrcode img {
+                        max-width: 45mm !important;
+                        width: 45mm !important;
+                        height: 45mm !important;
+                        display: block !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        margin: 0 auto !important;
+                    }
+                    
+                    .invoice-qrcode p {
+                        font-size: 0.7em !important;
+                        margin-top: 3px !important;
+                    }
+                    
+                    .invoice-terms {
+                        margin: 10px 0 !important;
+                        padding: 10px !important;
+                        font-size: 0.7em !important;
+                        page-break-inside: avoid !important;
+                        background: #fff9e6 !important;
+                        border: 1px solid #FFA500 !important;
+                    }
+                    
+                    .invoice-terms h4 {
+                        font-size: 0.8em !important;
+                        margin-bottom: 6px !important;
+                    }
+                    
+                    .invoice-terms ul {
+                        padding-right: 20px !important;
+                        line-height: 1.5 !important;
+                        font-size: 0.7em !important;
+                    }
+                    
+                    .invoice-terms li {
+                        font-size: 0.7em !important;
+                        margin-bottom: 4px !important;
+                    }
+                    
+                    .invoice-footer {
+                        margin: 10px 0 0 0 !important;
+                        padding-top: 10px !important;
+                        font-size: 0.8em !important;
+                        page-break-inside: avoid !important;
+                        box-shadow: none !important;
+                        border-top: 2px solid #2196F3 !important;
+                        background: white !important;
+                    }
+                    
+                    .invoice-footer div {
+                        font-size: 0.8em !important;
+                    }
+                    
+                    .repair-device-image {
+                        max-width: 100% !important;
+                        max-height: 150px !important;
+                        width: auto !important;
+                        height: auto !important;
+                        display: block !important;
+                        margin: 5px auto !important;
+                        border: 1px solid #ddd !important;
+                        border-radius: 5px !important;
+                        page-break-inside: avoid !important;
+                    }
+                }
+            </style>
+        </head>
+        <body style="margin: 0; padding: 0; background: #f5f5f5; direction: rtl;">
+            <div class="invoice-wrapper" style="background: white; padding: 20px; margin: 20px auto; max-width: 800px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 16px;">
+                <!-- Logo Section -->
+                ${logoHtml ? `<div class="invoice-logo-section" style="text-align: center; margin-top: 0; margin-bottom: 2px; padding: 2px 0;">${logoHtml}</div>` : ''}
+                
+                <!-- Shop Info -->
+                <div class="invoice-header">
+                    <div class="invoice-shop-info">
+                        ${finalShopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${finalShopAddress}</div>` : ''}
+                        ${whatsappNumber ? `<div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${whatsappNumber}</div>` : ''}
+                        ${finalShopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${finalShopPhone}</div>` : ''}
+                </div>
+                    <h2 style="margin: 10px 0; color: var(--primary-color, #2196F3); font-size: 1.2em; font-weight: 700;">إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} جهاز</h2>
+                </div>
+                
+                <!-- Invoice Details -->
+                <div class="invoice-details">
+                    <div class="invoice-details-row">
+                        <div><strong>العميل:</strong> ${repair.customer_name || '-'}</div>
+                        <div><strong>الهاتف:</strong> ${repair.customer_phone || '-'}</div>
+                </div>
+                    <div class="invoice-details-row">
+                        <div><strong>رقم العملية:</strong> ${repair.repair_number || '-'}</div>
+                        <div><strong>التاريخ:</strong> ${formatDateTime(repair.created_at)}</div>
+                </div>
+                </div>
+                
+               
+                <!-- Device Info -->
+                <div class="invoice-extra-info">
+                    <div class="invoice-extra-info-row">
+                        <div><strong>نوع الجهاز:</strong> ${repair.device_type || '-'}</div>
+                        <div><strong>الموديل:</strong> ${repair.device_model || '-'}</div>
+                    </div>
+                    <div class="invoice-extra-info-row">
+                        <div><strong>الرقم التسلسلي:</strong> ${repair.serial_number || '-'}</div>
+                        <div><strong>المشكلة:</strong> ${repair.problem || '-'}</div>
+                    </div>
+                    ${repair.accessories ? `
+                    <div class="invoice-extra-info-row">
+                        <div><strong>الملحقات:</strong> ${repair.accessories}</div>
+                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
+                    </div>
+                    ` : `
+                    <div class="invoice-extra-info-row">
+                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
+                        <div></div>
+                    </div>
+                    `}
+                </div>
+                
+                ${repair.delivery_date ? `
+                <!-- Delivery Date Section -->
+                <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);">
+                    <div style="color: var(--white, #ffffff); font-size: 0.95em; font-weight: 600; margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                        <i class="bi bi-calendar-check-fill" style="margin-left: 6px;"></i> موعد الاستلام المتوقع
+                    </div>
+                    <div style="color: var(--white, #ffffff); font-size: 1.3em; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+                        ${formatDate(repair.delivery_date)}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- Summary -->
+                <div class="invoice-summary">
+                    <div class="summary-row">
+                        <span>تكلفة الصيانة:</span>
+                        <span>${formatPrice(repair.customer_price || repair.cost || 0)} ${currency}</span>
+                    </div>
+                    ${(repair.paid_amount && parseFloat(repair.paid_amount) > 0) ? `
+                    <div class="summary-row">
+                        <span>المبلغ المدفوع:</span>
+                        <span>${formatPrice(repair.paid_amount)} ${currency}</span>
+                    </div>
+                    ` : ''}
+                    ${(repair.remaining_amount && parseFloat(repair.remaining_amount) > 0) ? `
+                    <div class="summary-row">
+                        <span> المتبقي:</span>
+                        <span>${formatPrice(repair.remaining_amount)} ${currency}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                ${repair.notes ? `
+                <div class="invoice-extra-info" style="margin-top: 10px;">
+                    <div><strong>ملاحظات:</strong> ${repair.notes}</div>
+                    </div>
+                ` : ''}
+                
+                ${repair.status === 'delivered' && repair.delivered_at ? `
+                <div class="invoice-extra-info" style="margin-top: 10px;">
+                    <div><strong>تاريخ التسليم:</strong> ${formatDateTime(repair.delivered_at)}</div>
+                </div>
+                ` : ''}
+                
+                <!-- QR Code -->
+                <div class="invoice-qrcode">
+                    <br>
+                    <img src="${qrCodeImage}" alt="QR Code لمتابعة الصيانة" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(trackingLink)}';">
+                    <p style="margin-top: 5px; font-size: 1em; color: #666;">يمكنك مسح ال qr code لمتابعة الصيانه بشكل لحظي</p>
+                    <br>
             </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">رقم العملية</span>
-                <span class="receipt-detail-value">${escapeHtml(repairNumber)}</span>
+                
+                <!-- Terms & Conditions -->
+                <div class="invoice-terms" style="margin-top: 30px; padding: 20px; background: #fff9e6; border: 2px solid var(--warning-color, #FFA500); border-radius: 8px;">
+                    <h4 style="color: var(--warning-color, #FFA500); margin-bottom: 15px; font-size: 1.1em; font-weight: 700; text-align: center;">
+                        <i class="bi bi-exclamation-triangle-fill" style="margin-left: 8px;"></i> شروط وأحكام مهمة
+                    </h4>
+                    <ul style="margin: 0; padding-right: 25px; color: var(--text-dark, #333); line-height: 2; font-size: 0.95em;">
+                        <li>المحل غير مسئول عن الجهاز بعد مرور شهر من تاريخ الاستلام</li>
+                        <li>ضمان البورد ٧ أيام فقط في حالة التغيير</li>
+                        <li>في حال الالغاء او عدم اتمام عملية الصيانه بناءا علي طلبكم بعد الفحص يتم دفع رسوم الفحص التي يحددها فني المسؤوليين في المكان</li>
+                        <li>المحل غير مسؤول عن اي عطل يظهر في الجهاز بعد عملية الصيانه غير العطل المتفق عليه</li>
+                        <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
+                    </ul>
             </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">الواقف</span>
-                <span class="receipt-detail-value">${escapeHtml(customerPhone || '-')}</span>
+                
+                <!-- Footer -->
+                <div class="invoice-footer">
+                    <div>شكراً لثقتكم</div>
+                </div>
             </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">التاريخ</span>
-                <span class="receipt-detail-value">${formatDateFunc(repair.created_at)}</span>
+            
+            <div class="no-print">
+                <button onclick="window.print()">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+                <button onclick="window.history.back() || window.close()">
+                    <i class="bi bi-arrow-right"></i> رجوع
+                </button>
             </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">نوع الجهاز</span>
-                <span class="receipt-detail-value">${escapeHtml(repair.device_type || '-')}</span>
-            </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">الموصل</span>
-                <span class="receipt-detail-value">${escapeHtml(repair.model || repair.device_model || '-')}</span>
-            </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">الرقم التسلسلي</span>
-                <span class="receipt-detail-value">${escapeHtml(repair.serial_number || '-')}</span>
-            </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">المشكلة</span>
-                <span class="receipt-detail-value">${escapeHtml(repair.problem || '-')}</span>
-            </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">الملحقات</span>
-                <span class="receipt-detail-value">${escapeHtml(repair.accessories || '-')}</span>
-            </div>
-            <div class="receipt-detail-item">
-                <span class="receipt-detail-label">لفاي المسلام والعلاء</span>
-                <span class="receipt-detail-value">${escapeHtml(technicianName)}</span>
-            </div>
-        </div>
-        
-        ${deliveryDateFormatted ? `
-        <div class="receipt-delivery-date-box">
-            <i class="bi bi-calendar3"></i>
-            <div class="label">موعد الاستلام المتوقع</div>
-            <div class="date">${deliveryDateFormatted}</div>
-        </div>
-        ` : ''}
-        
-        <div class="receipt-costs-section">
-            ${repairCost > 0 ? `
-            <div class="receipt-cost-item">
-                <span class="receipt-cost-label">الكلفة الصيانة</span>
-                <span class="receipt-cost-value">${formatPrice(repairCost)} ${currency}</span>
-            </div>
-            ` : ''}
-            ${inspectionCost > 0 ? `
-            <div class="receipt-cost-item">
-                <span class="receipt-cost-label">الطبقي</span>
-                <span class="receipt-cost-value">${formatPrice(inspectionCost)} ${currency}</span>
-            </div>
-            ` : ''}
-        </div>
-        
-        ${repair.notes ? `
-        <div class="receipt-notes-section">
-            <div class="receipt-notes-label">ملاحظات</div>
-            <div class="receipt-notes-value">${escapeHtml(repair.notes)}</div>
-        </div>
-        ` : ''}
-        
-        ${qrCodeImage ? `
-        <div class="receipt-qr-section">
-            <img src="${qrCodeImage}" alt="QR Code">
-            <p>يمكنك مسح ال QR code لمتابعة الصيانة بشكل لحظي</p>
-        </div>
-        ` : ''}
-        
-        <div class="receipt-warning-box">
-            <div class="receipt-warning-title">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                تنبيه وإسلام مهمة
-            </div>
-            <ul class="receipt-warning-list">
-                <li>يرجى الاحتفاظ بهذا الإيصال لاستلام الجهاز</li>
-                <li>في حالة فقدان الإيصال، يرجى إحضار الهوية الشخصية</li>
-                <li>الجهاز غير مسؤول عن أي ضرر يحدث بعد الاستلام</li>
-                <li>يرجى مراجعة الجهاز قبل الاستلام والتأكد من سلامته</li>
-            </ul>
-        </div>
-        
-        <div class="receipt-footer">
-            شكراً لثقتكم
-        </div>
-    </div>
-    <div class="no-print">
-        <button onclick="window.print()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px;"><i class="bi bi-printer"></i> طباعة</button>
-        <button onclick="window.close()" style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px;"><i class="bi bi-x"></i> إغلاق</button>
-    </div>
-</body>
-</html>
+        </body>
+        </html>
         `);
         printWindow.document.close();
         setTimeout(() => {
