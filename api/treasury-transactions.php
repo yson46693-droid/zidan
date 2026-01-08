@@ -117,7 +117,8 @@ if ($method === 'GET') {
         'sales_cost' => 'تكلفة مبيعات',
         'withdrawal' => 'سحب من الخزنة',
         'deposit' => 'إضافة إلى الخزنة',
-        'damaged_return' => 'مرتجع تالف'
+        'damaged_return' => 'مرتجع تالف',
+        'debt_collection' => 'تحصيل دين'
     ];
     
     foreach ($transactions as &$transaction) {
@@ -204,7 +205,8 @@ if ($method === 'PUT') {
         'sales_cost' => 'تكلفة مبيعات',
         'withdrawal' => 'سحب من الخزنة',
         'deposit' => 'إضافة إلى الخزنة',
-        'damaged_return' => 'مرتجع تالف'
+        'damaged_return' => 'مرتجع تالف',
+        'debt_collection' => 'تحصيل دين'
     ];
     
     if ($updatedTransaction) {

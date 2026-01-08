@@ -1831,6 +1831,26 @@ async function processPayment() {
             // حفظ بيانات آخر عملية بيع للاستخدام في الطباعة
             window.lastSaleData = response.data;
             
+            // ✅ التحقق من وجود items في البيانات
+            console.log('📋 [POS] Response data:', response.data);
+            console.log('📋 [POS] Items in response:', response.data?.items);
+            console.log('📋 [POS] Items count:', response.data?.items?.length || 0);
+            
+            // ✅ التأكد من وجود items قبل عرض الفاتورة
+            if (!response.data.items || !Array.isArray(response.data.items) || response.data.items.length === 0) {
+                console.error('❌ [POS] لا توجد عناصر في استجابة API!');
+                console.error('❌ [POS] Response data:', JSON.stringify(response.data, null, 2));
+                
+                // محاولة إصلاح البيانات باستخدام البيانات المرسلة
+                if (saleData.items && saleData.items.length > 0) {
+                    console.log('✅ [POS] استخدام البيانات المرسلة كبديل');
+                    response.data.items = saleData.items;
+                } else {
+                    showMessage('❌ خطأ: لا توجد منتجات في الفاتورة. يرجى المحاولة مرة أخرى.', 'error');
+                    return;
+                }
+            }
+            
             showInvoice(response.data);
             cart = [];
             updateCartDisplay();
@@ -1887,6 +1907,28 @@ async function showInvoice(saleData) {
     const invoiceBody = document.getElementById('invoiceBody');
     
     if (!invoiceModal || !invoiceBody) return;
+    
+    // ✅ التحقق من وجود items في saleData
+    console.log('📋 [Invoice] Sale Data:', saleData);
+    console.log('📋 [Invoice] Items:', saleData.items);
+    console.log('📋 [Invoice] Items type:', typeof saleData.items);
+    console.log('📋 [Invoice] Items is array:', Array.isArray(saleData.items));
+    console.log('📋 [Invoice] Items length:', saleData.items?.length || 0);
+    
+    // ✅ التأكد من وجود items
+    if (!saleData.items || !Array.isArray(saleData.items) || saleData.items.length === 0) {
+        console.error('❌ [Invoice] لا توجد عناصر في saleData!');
+        console.error('❌ [Invoice] Full saleData:', JSON.stringify(saleData, null, 2));
+        
+        // محاولة استخدام window.lastSaleData إذا كان متاحاً
+        if (window.lastSaleData && window.lastSaleData.items && Array.isArray(window.lastSaleData.items) && window.lastSaleData.items.length > 0) {
+            console.log('✅ [Invoice] استخدام window.lastSaleData كبديل');
+            saleData.items = window.lastSaleData.items;
+        } else {
+            showMessage('❌ خطأ: لا توجد منتجات في الفاتورة. يرجى التحقق من البيانات.', 'error');
+            return;
+        }
+    }
     
     const shopName = shopSettings.shop_name || 'المتجر';
     const shopPhone = shopSettings.shop_phone || '';
@@ -2244,22 +2286,39 @@ async function showInvoice(saleData) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${(saleData.items || []).map((item, index) => {
-                        // التأكد من وجود اسم المنتج مع معالجة الأخطاء
-                        const itemName = item.item_name || item.name || 'غير محدد';
-                        if (!item.item_name && !item.name) {
-                            console.warn('تحذير: اسم المنتج غير موجود في العنصر:', item);
+                    ${(() => {
+                        // ✅ التأكد من وجود items
+                        const items = saleData.items || [];
+                        console.log('📋 [Invoice] Rendering items:', items);
+                        console.log('📋 [Invoice] Items count:', items.length);
+                        
+                        if (!items || !Array.isArray(items) || items.length === 0) {
+                            console.error('❌ [Invoice] لا توجد عناصر للعرض!');
+                            return '<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--danger-color);">⚠️ لا توجد منتجات في الفاتورة</td></tr>';
                         }
-                        return `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td>${itemName}</td>
-                            <td>${item.quantity || 0}</td>
-                            <td>${formatPrice(item.unit_price)} ${currency}</td>
-                            <td>${formatPrice(item.total_price)} ${currency}</td>
-                        </tr>
-                    `;
-                    }).join('')}
+                        
+                        return items.map((item, index) => {
+                            // التأكد من وجود اسم المنتج مع معالجة الأخطاء
+                            const itemName = item.item_name || item.name || 'غير محدد';
+                            const quantity = item.quantity || 0;
+                            const unitPrice = parseFloat(item.unit_price || 0);
+                            const totalPrice = parseFloat(item.total_price || 0);
+                            
+                            if (!item.item_name && !item.name) {
+                                console.warn('⚠️ [Invoice] اسم المنتج غير موجود في العنصر:', item);
+                            }
+                            
+                            return `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${itemName}</td>
+                                <td>${quantity}</td>
+                                <td>${formatPrice(unitPrice)} ${currency}</td>
+                                <td>${formatPrice(totalPrice)} ${currency}</td>
+                            </tr>
+                        `;
+                        }).join('');
+                    })()}
                 </tbody>
             </table>
             

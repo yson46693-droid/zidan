@@ -59,12 +59,18 @@ $data = getRequestData();
 if ($method === 'POST') {
     $session = checkAuth();
     $userRole = $session['role'] ?? 'employee';
+    $userId = $session['user_id'] ?? null;
     $isOwner = ($userRole === 'admin' || $userRole === 'owner');
     $isManager = ($userRole === 'manager');
     
     // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم تسجيل تحصيلات الدين
     if (!$isOwner && !$isManager) {
         response(false, 'ليس لديك صلاحية لتسجيل تحصيلات الدين', null, 403);
+    }
+    
+    // التحقق من وجود user_id
+    if (!$userId) {
+        response(false, 'خطأ في بيانات الجلسة - معرف المستخدم غير موجود', null, 401);
     }
     
     $branchId = $data['branch_id'] ?? null;
@@ -141,7 +147,7 @@ if ($method === 'POST') {
                 id, branch_id, transaction_type, amount, description, 
                 reference_id, reference_type, created_at, created_by
             ) VALUES (?, ?, 'debt_collection', ?, ?, ?, 'debt_collection', NOW(), ?)",
-            [$collectionId, $branchId, $amount, $transactionDescription, $customerId, $session['user_id']]
+            [$collectionId, $branchId, $amount, $transactionDescription, $customerId, $userId]
         );
         
         if ($result === false) {
