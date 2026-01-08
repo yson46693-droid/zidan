@@ -931,6 +931,75 @@ if ($method === 'POST') {
             }
         }
         
+        // ✅ إضافة معاملة خزنة للمبيعات
+        if (dbTableExists('treasury_transactions') && $paidAmount > 0) {
+            // جلب branch_id من العميل
+            $customerBranchId = null;
+            if (dbColumnExists('customers', 'branch_id')) {
+                $customerBranch = dbSelectOne("SELECT branch_id FROM customers WHERE id = ?", [$customerId]);
+                if ($customerBranch) {
+                    $customerBranchId = $customerBranch['branch_id'] ?? null;
+                }
+            }
+            
+            // إذا لم يكن branch_id موجوداً في العميل، استخدام branch_id من المستخدم
+            if (empty($customerBranchId)) {
+                $customerBranchId = $userBranchId;
+            }
+            
+            // إذا لم يكن branch_id موجوداً، استخدام الفرع الأول
+            if (empty($customerBranchId)) {
+                $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
+                $customerBranchId = $firstBranch ? $firstBranch['id'] : null;
+            }
+            
+            if ($customerBranchId) {
+                // تحديد نوع المعاملة حسب نوع العميل
+                $amountToAdd = 0;
+                $transactionType = '';
+                $transactionDescription = '';
+                
+                if ($customerType === 'commercial') {
+                    // للعملاء التجاريين: إضافة المبلغ المدفوع فقط للخزنة
+                    $amountToAdd = $paidAmount;
+                    $transactionType = 'sales_revenue';
+                    $transactionDescription = "مبيعات - عميل تجاري ({$customerName}) - المبلغ المدفوع - فاتورة رقم {$saleNumber}";
+                } else {
+                    // للعملاء العاديين: إضافة كامل المبلغ للخزنة
+                    $amountToAdd = $finalAmount;
+                    $transactionType = 'sales_revenue';
+                    $transactionDescription = "مبيعات - عميل محل ({$customerName}) - فاتورة رقم {$saleNumber}";
+                }
+                
+                if ($amountToAdd > 0) {
+                    // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                    $existingTransaction = dbSelectOne(
+                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'sale' AND transaction_type = ?",
+                        [$saleId, $transactionType]
+                    );
+                    
+                    if (!$existingTransaction) {
+                        $transactionId = generateId();
+                        $result = dbExecute(
+                            "INSERT INTO treasury_transactions (
+                                id, branch_id, transaction_type, amount, description, 
+                                reference_id, reference_type, created_at, created_by
+                            ) VALUES (?, ?, ?, ?, ?, ?, 'sale', NOW(), ?)",
+                            [$transactionId, $customerBranchId, $transactionType, $amountToAdd, $transactionDescription, $saleId, $session['user_id']]
+                        );
+                        
+                        if ($result === false) {
+                            error_log('تحذير: فشل تسجيل معاملة الخزنة للمبيعات - لن نوقف العملية');
+                        } else {
+                            error_log("✅ تم تسجيل معاملة خزنة للمبيعات: {$amountToAdd} ج.م - نوع العميل: {$customerType} - فاتورة رقم {$saleNumber}");
+                        }
+                    }
+                }
+            } else {
+                error_log('تحذير: لا يمكن تحديد branch_id لتسجيل معاملة الخزنة للمبيعات');
+            }
+        }
+        
         dbCommit();
         
         // جلب عملية البيع الكاملة
