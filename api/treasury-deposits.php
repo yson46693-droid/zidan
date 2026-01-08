@@ -346,7 +346,7 @@ if ($method === 'POST') {
         
         // 13. حساب صافي الرصيد باستخدام نفس المعادلة من branch-treasury.php
         if ($isFirstBranch) {
-            $currentNetBalance = ($totalRevenue + $totalDeposits) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
+            $currentNetBalance = ($totalRevenue + $totalDeposits + $totalDebtCollections) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalWithdrawals + $totalDamagedReturns + $totalNormalReturns);
         } else {
             $currentNetBalance = ($totalRevenue + $totalDeposits + $totalDebtCollections) - ($totalExpenses + $totalRepairCosts + $totalLosses + $totalSalaryWithdrawals + $totalTreasuryWithdrawals);
         }
@@ -355,6 +355,7 @@ if ($method === 'POST') {
         error_log("🔍 [Treasury Deposits Debug] حساب الرصيد قبل الإضافة:");
         error_log("   - الإيرادات: {$totalRevenue}");
         error_log("   - الإيداعات: {$totalDeposits}");
+        error_log("   - تحصيلات الدين: {$totalDebtCollections}");
         error_log("   - المصروفات: {$totalExpenses}");
         error_log("   - تكاليف الصيانة: {$totalRepairCosts}");
         error_log("   - الرصيد الصافي الحالي: {$currentNetBalance}");
