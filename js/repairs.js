@@ -4884,10 +4884,7 @@ async function printRepairReceipt(id) {
         const currency = (branchSettings && branchSettings.currency) || shopSettings.currency || 'ج.م';
         const whatsappNumber = (branchSettings && branchSettings.whatsapp_number) || shopSettings.whatsapp_number || '';
         
-        // ✅ تحديد حالة العملية
-        const isDeliveredOrReady = repair.status === 'delivered' || repair.status === 'ready';
-        
-        // ✅ إنشاء رابط التتبع (للعروض العادية فقط)
+        // ✅ إنشاء رابط التتبع
         const repairNumber = repair.repair_number || repair.id;
         const trackingLink = `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/repair-tracking.html?number=${encodeURIComponent(repairNumber)}`;
         
@@ -4895,19 +4892,7 @@ async function printRepairReceipt(id) {
         const generateQRCodeFallback = (data, size = 200) => {
             return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}&choe=UTF-8`;
         };
-        
-        // ✅ إذا كانت الحالة "تم التسليم" أو "جاهز للتسليم"، استخدم ID العملية بدلاً من رابط التتبع
-        let qrCodeImage;
-        let qrCodeData;
-        if (isDeliveredOrReady) {
-            // استخدام ID العملية للـ QR Code
-            qrCodeData = repair.id || repair.repair_number || repairNumber;
-            qrCodeImage = generateQRCodeFallback(qrCodeData, 200);
-        } else {
-            // استخدام رابط التتبع للـ QR Code
-            qrCodeData = trackingLink;
-            qrCodeImage = generateQRCodeFallback(trackingLink, 200);
-        }
+        let qrCodeImage = generateQRCodeFallback(trackingLink, 200);
         
         // ✅ تحضير الشعار
         let logoHtml = '';
@@ -5655,7 +5640,7 @@ async function printRepairReceipt(id) {
                     `}
                 </div>
                 
-                ${repair.delivery_date && !isDeliveredOrReady ? `
+                ${repair.delivery_date ? `
                 <!-- Delivery Date Section -->
                 <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);">
                     <div style="color: var(--white, #ffffff); font-size: 0.95em; font-weight: 600; margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">
@@ -5700,34 +5685,14 @@ async function printRepairReceipt(id) {
                 ` : ''}
                 
                 <!-- QR Code -->
-                ${isDeliveredOrReady ? `
-                <div class="invoice-qrcode">
-                    <br>
-                    <img src="${qrCodeImage}" alt="QR Code - رقم العملية" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCodeData)}';">
-                    <p style="margin-top: 5px; font-size: 1em; color: #666;">رقم العملية: ${repair.repair_number || repair.id || '-'}</p>
-                    <br>
-                </div>
-                ` : `
                 <div class="invoice-qrcode">
                     <br>
                     <img src="${qrCodeImage}" alt="QR Code لمتابعة الصيانة" onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(trackingLink)}';">
                     <p style="margin-top: 5px; font-size: 1em; color: #666;">يمكنك مسح ال qr code لمتابعة الصيانه بشكل لحظي</p>
                     <br>
-                </div>
-                `}
+            </div>
                 
                 <!-- Terms & Conditions -->
-                ${isDeliveredOrReady ? `
-                <div class="invoice-terms" style="margin-top: 30px; padding: 20px; background: #fff9e6; border: 2px solid var(--warning-color, #FFA500); border-radius: 8px;">
-                    <h4 style="color: var(--warning-color, #FFA500); margin-bottom: 15px; font-size: 1.1em; font-weight: 700; text-align: center;">
-                        <i class="bi bi-exclamation-triangle-fill" style="margin-left: 8px;"></i> شروط وأحكام مهمة
-                    </h4>
-                    <ul style="margin: 0; padding-right: 25px; color: var(--text-dark, #333); line-height: 2; font-size: 0.95em;">
-                        <li>ضمان البورد ٧ أيام فقط في حالة التغيير</li>
-                        <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
-                    </ul>
-                </div>
-                ` : `
                 <div class="invoice-terms" style="margin-top: 30px; padding: 20px; background: #fff9e6; border: 2px solid var(--warning-color, #FFA500); border-radius: 8px;">
                     <h4 style="color: var(--warning-color, #FFA500); margin-bottom: 15px; font-size: 1.1em; font-weight: 700; text-align: center;">
                         <i class="bi bi-exclamation-triangle-fill" style="margin-left: 8px;"></i> شروط وأحكام مهمة
@@ -5739,8 +5704,7 @@ async function printRepairReceipt(id) {
                         <li>المحل غير مسؤول عن اي عطل يظهر في الجهاز بعد عملية الصيانه غير العطل المتفق عليه</li>
                         <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
                     </ul>
-                </div>
-                `}
+            </div>
                 
                 <!-- Footer -->
                 <div class="invoice-footer">
