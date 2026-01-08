@@ -45,14 +45,12 @@ async function loadCustomersSection() {
         </div>
 
         <!-- إحصائيات العملاء التجاري -->
-        <div id="commercialDebtStats" class="stats-container" style="display: none; margin-bottom: 20px; padding: 12px 15px; background: var(--white); border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color);">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: var(--light-bg); border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 200px;">
-                    <i class="bi bi-cash-coin" style="font-size: 1.2em; color: var(--warning-color); flex-shrink: 0;"></i>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.85em; color: var(--text-light); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">إجمالي ديون العملاء التجاري</div>
-                        <div id="totalCommercialDebt" style="font-size: 1.3em; font-weight: bold; color: var(--warning-color); white-space: nowrap;">0.00 ج.م</div>
-                    </div>
+        <div id="commercialDebtStats" class="stats-container" style="display: none; margin: 0 auto 20px auto; padding: 15px 20px; background: var(--white); border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color); max-width: 500px; width: 100%;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;">
+                <i class="bi bi-cash-coin" style="font-size: 2em; color: var(--warning-color);"></i>
+                <div style="width: 100%;">
+                    <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 8px;">إجمالي ديون العملاء التجاري</div>
+                    <div id="totalCommercialDebt" style="font-size: 1.5em; font-weight: bold; color: var(--warning-color);">0.00 ج.م</div>
                 </div>
             </div>
         </div>
