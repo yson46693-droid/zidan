@@ -5950,34 +5950,35 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         
         // رسم البيانات على اليمين - بعد QR Code بمسافة كافية
         // النص العربي يبدأ من اليمين (RTL)
-        const marginFromQR = 12 * scale; // تقليل المسافة بين QR Code والنص
-        const marginRight = 10 * scale; // تقليل المسافة من الحافة اليمنى
-        const marginTop = 8 * scale; // تقليل المسافة من الأعلى
-        const marginBottom = 3 * scale; // تقليل المسافة من الأسفل بشكل كبير
+        const marginFromQR = 12 * scale; // المسافة بين QR Code والنص
+        const marginRight = 10 * scale; // المسافة من الحافة اليمنى
+        const marginTop = 8 * scale; // المسافة من الأعلى
+        const marginBottom = 3 * scale; // المسافة من الأسفل
         const textStartX = scaledWidth - marginRight; // نقطة بداية النص من اليمين
-        const dataY = marginTop; // بداية من الأعلى مباشرة
-        const lineHeight = 21 * scale; // تقليل lineHeight قليلاً لتقليل المسافات
+        const dataY = marginTop; // بداية من الأعلى
+        const lineHeight = 20 * scale; // ارتفاع السطر الأساسي
+        const sectionSpacing = 8 * scale; // مسافة بين الأقسام
+        const lineSpacing = 4 * scale; // مسافة بين الأسطر داخل القسم الواحد
         let currentY = dataY;
         
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'right'; // النص العربي من اليمين
         ctx.textBaseline = 'top';
         
-        // استخدام خط Cairo للوضوح (Canvas سيستخدم الخط المتاح في النظام)
-        // ملاحظة: Canvas لا يستطيع تحميل خطوط الويب مباشرة، لكن سيستخدم Cairo إذا كان مثبتاً في النظام
+        // استخدام خط Cairo للوضوح
         const fontFamily = '"Cairo", "Tajawal", Arial, "Segoe UI", sans-serif';
         
-        // عنوان الملصق - خط أكبر بكثير
+        // ========== القسم الأول: عنوان الملصق ==========
         ctx.font = `bold ${18 * scale}px ${fontFamily}`;
         ctx.fillText('ملصق الجهاز', textStartX, currentY);
-        currentY += lineHeight + (1 * scale);
+        currentY += lineHeight + sectionSpacing;
         
-        // رقم العملية - خط أكبر بكثير
+        // ========== القسم الثاني: رقم العملية ==========
         ctx.font = `bold ${16 * scale}px ${fontFamily}`;
         ctx.fillText(`رقم: ${repair.repair_number}`, textStartX, currentY);
-        currentY += lineHeight + (1 * scale);
+        currentY += lineHeight + sectionSpacing;
         
-        // بيانات العميل - خط أكبر بكثير
+        // ========== القسم الثالث: بيانات العميل ==========
         ctx.font = `${15 * scale}px ${fontFamily}`;
         const customerName = repair.customer_name || 'غير محدد';
         if (customerName.length > 15) {
@@ -5985,27 +5986,29 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         } else {
             ctx.fillText(`العميل: ${customerName}`, textStartX, currentY);
         }
-        currentY += lineHeight;
+        currentY += lineHeight + lineSpacing;
         
         if (repair.customer_phone) {
             ctx.font = `${15 * scale}px ${fontFamily}`;
             ctx.fillText(`الهاتف: ${repair.customer_phone}`, textStartX, currentY);
-            currentY += lineHeight;
+            currentY += lineHeight + sectionSpacing;
+        } else {
+            currentY += sectionSpacing - lineSpacing;
         }
         
-        // نوع الجهاز - مختصر - خط أكبر بكثير
+        // ========== القسم الرابع: بيانات الجهاز ==========
         const deviceText = `${repair.device_type || ''} ${repair.device_model || ''}`.trim();
         if (deviceText) {
             ctx.font = `${15 * scale}px ${fontFamily}`;
             const deviceDisplay = deviceText.length > 18 ? deviceText.substring(0, 18) + '...' : deviceText;
             ctx.fillText(`الجهاز: ${deviceDisplay}`, textStartX, currentY);
-            currentY += lineHeight + (1 * scale);
+            currentY += lineHeight + sectionSpacing;
         }
         
-        // المشكلة - خط أكبر بكثير
+        // ========== القسم الخامس: المشكلة ==========
         ctx.font = `bold ${14 * scale}px ${fontFamily}`;
         ctx.fillText('المشكلة:', textStartX, currentY);
-        currentY += lineHeight;
+        currentY += lineHeight + lineSpacing;
         
         ctx.font = `${14 * scale}px ${fontFamily}`;
         const problemText = repair.problem || 'غير محدد';
@@ -6021,7 +6024,7 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
             const metrics = ctx.measureText(testLine);
             if (metrics.width > maxTextWidth && line !== '') {
                 ctx.fillText(line.trim(), textStartX, currentY);
-                currentY += lineHeight;
+                currentY += lineHeight + lineSpacing;
                 line = word + ' ';
                 linesCount++;
             } else {
@@ -6032,18 +6035,16 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
             ctx.fillText(line.trim(), textStartX, currentY);
             currentY += lineHeight;
         }
+        currentY += sectionSpacing;
         
-        // إزالة المسافة الإضافية قبل تاريخ التسليم
-        currentY += (1 * scale);
-        
-        // تاريخ التسليم المتوقع - خط أكبر بكثير
-        // التحقق من أن هناك مساحة كافية قبل الرسم - تقليل الحد الأدنى المطلوب
+        // ========== القسم السادس: تاريخ التسليم ==========
+        // التحقق من أن هناك مساحة كافية قبل الرسم
         const remainingHeight = scaledHeight - currentY - marginBottom;
-        if (remainingHeight >= lineHeight * 1.5) { // تقليل الحد الأدنى من 2 إلى 1.5
+        if (remainingHeight >= lineHeight * 1.5) {
             if (repair.delivery_date) {
                 ctx.font = `bold ${14 * scale}px ${fontFamily}`;
                 ctx.fillText('التسليم:', textStartX, currentY);
-                currentY += lineHeight;
+                currentY += lineHeight + lineSpacing;
                 
                 ctx.font = `${14 * scale}px ${fontFamily}`;
                 const deliveryDate = new Date(repair.delivery_date).toLocaleDateString('ar-EG');
@@ -6051,7 +6052,7 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
             } else {
                 ctx.font = `bold ${14 * scale}px ${fontFamily}`;
                 ctx.fillText('التسليم:', textStartX, currentY);
-                currentY += lineHeight;
+                currentY += lineHeight + lineSpacing;
                 
                 ctx.font = `${14 * scale}px ${fontFamily}`;
                 ctx.fillText('غير محدد', textStartX, currentY);
