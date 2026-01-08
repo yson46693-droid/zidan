@@ -153,21 +153,36 @@ if ($method === 'GET' && isset($_GET['action']) && cleanInput($_GET['action']) =
 
 // قراءة جميع عمليات الصيانة
 if ($method === 'GET') {
-    // ✅ السماح بالوصول بدون auth إذا كان هناك repair_number (لصفحة تتبع الصيانة)
     // ✅ تنظيف رقم الصيانة
     $repairNumber = cleanText($_GET['repair_number'] ?? '');
     $repairNumber = !empty($repairNumber) ? $repairNumber : null;
-    $isPublicTracking = ($repairNumber && $repairNumber !== '');
     
-    if ($isPublicTracking) {
-        // للوصول العام: لا حاجة لـ auth
-        $session = null;
-        $userRole = null;
-        $userBranchId = null;
+    // ✅ التحقق من وجود session قبل استدعاء checkAuth
+    $session = null;
+    $userRole = null;
+    $userBranchId = null;
+    $isPublicTracking = false;
+    
+    // ✅ التحقق من وجود session (بدون استدعاء checkAuth الذي يقوم بـ exit)
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // ✅ إذا كان هناك repair_number ولم يكن هناك session، نعتبره public tracking
+    if ($repairNumber && $repairNumber !== '' && !isset($_SESSION['user_id'])) {
+        $isPublicTracking = true;
+    } else if (isset($_SESSION['user_id'])) {
+        // ✅ المستخدم مسجل دخول
+        $session = $_SESSION;
+        $userRole = $session['role'] ?? null;
+        $userBranchId = $session['branch_id'] ?? null;
+        $isPublicTracking = false;
     } else {
-        // للداشبورد: يتطلب auth
-        $session = checkAuth();
-        $userRole = $session['role'];
+        // ✅ لا يوجد session ولا repair_number - يتطلب auth
+        checkAuth(); // هذا سيستدعي response() و exit إذا فشل
+        // ✅ لن نصل هنا إذا فشل checkAuth
+        $session = $_SESSION;
+        $userRole = $session['role'] ?? null;
         $userBranchId = $session['branch_id'] ?? null;
     }
     
@@ -247,16 +262,34 @@ if ($method === 'GET') {
               WHERE 1=1";
     $params = [];
     
+    // ✅ التحقق من وجود id أو repair_number للوصول إلى عملية معينة
+    $repairId = cleanId($_GET['id'] ?? '');
+    $repairId = !empty($repairId) ? $repairId : null;
+    $isSingleRepairRequest = ($repairId && $repairId !== '') || ($repairNumber && $repairNumber !== '');
+    
     // ✅ فلترة حسب repair_number إذا كان موجوداً (لصفحة تتبع الصيانة - بدون auth)
     if ($isPublicTracking) {
         // استخدام BINARY للحساسية لحالة الأحرف أو UPPER/LOWER للمقارنة
         $query .= " AND UPPER(TRIM(r.repair_number)) = UPPER(TRIM(?))";
         $params[] = trim($repairNumber);
+    } elseif ($repairNumber && $repairNumber !== '' && !$isPublicTracking) {
+        // ✅ للمستخدمين المسجلين (بما في ذلك المالك): فلترة حسب repair_number
+        $query .= " AND UPPER(TRIM(r.repair_number)) = UPPER(TRIM(?))";
+        $params[] = trim($repairNumber);
     }
     
-    // فلترة حسب الفرع (فقط إذا لم يكن هناك repair_number - للداشبورد)
-    if (!$isPublicTracking) {
-        if ($userRole === 'admin') {
+    // ✅ فلترة حسب id إذا كان موجوداً (لطباعة الإيصال، الباركود، إلخ)
+    if ($repairId && $repairId !== '' && !$isPublicTracking) {
+        $query .= " AND r.id = ?";
+        $params[] = $repairId;
+    }
+    
+    // ✅ التحقق من أن المستخدم مالك (admin أو owner)
+    $isOwner = ($userRole === 'admin' || $userRole === 'owner');
+    
+    // فلترة حسب الفرع (فقط إذا لم يكن هناك repair_number أو id - للداشبورد)
+    if (!$isPublicTracking && !$isSingleRepairRequest) {
+        if ($isOwner) {
             // ✅ المالك: يجب تمرير branch_id دائماً - منع عرض عمليات من فروع أخرى
             // ✅ تنظيف branch_id (يسمح بالنقطة لأن generateId() يولد IDs مع نقطة)
             $filterBranchId = cleanBranchId($_GET['branch_id'] ?? '');
@@ -282,6 +315,18 @@ if ($method === 'GET') {
                 // ✅ إذا لم يكن للمستخدم فرع، لا نعرض أي عمليات
                 $query .= " AND 1=0"; // شرط مستحيل - لا يعرض أي عمليات
             }
+        }
+    } elseif (!$isPublicTracking && $isSingleRepairRequest && $isOwner) {
+        // ✅ للمالك: السماح بالوصول إلى عملية معينة (id أو repair_number) حتى بدون branch_id
+        // لا حاجة لإضافة فلترة branch_id هنا - المالك يمكنه الوصول إلى أي عملية
+    } elseif (!$isPublicTracking && $isSingleRepairRequest && !$isOwner) {
+        // ✅ للمستخدمين العاديين: التحقق من أن العملية تنتمي لفرعهم
+        if ($userBranchId) {
+            $query .= " AND r.branch_id = ?";
+            $params[] = $userBranchId;
+        } else {
+            // ✅ إذا لم يكن للمستخدم فرع، لا نعرض أي عمليات
+            $query .= " AND 1=0"; // شرط مستحيل - لا يعرض أي عمليات
         }
     }
     
@@ -370,6 +415,47 @@ if ($method === 'GET') {
         }
         
         error_log("✅ إرجاع بيانات الصيانة: " . $repair['repair_number']);
+        response(true, '', $repair);
+    } elseif ($isSingleRepairRequest && !$isPublicTracking) {
+        // ✅ للوصول إلى عملية معينة باستخدام id (لطباعة الإيصال، الباركود، إلخ)
+        $repair = dbSelectOne($query, $params);
+        
+        if ($repair === false) {
+            $error = isset($GLOBALS['lastDbError']) ? $GLOBALS['lastDbError'] : 'خطأ غير معروف';
+            error_log("❌ خطأ في البحث عن الصيانة: $error");
+            response(false, 'حدث خطأ في البحث عن عملية الصيانة', null, 500);
+        }
+        
+        if (!$repair || empty($repair)) {
+            error_log("❌ لم يتم العثور على الصيانة");
+            response(false, 'لم يتم العثور على عملية الصيانة', null, 404);
+        }
+        
+        // إضافة cost للتوافق مع الكود القديم ومعالجة أرقام الفواتير
+        $repair['cost'] = $repair['customer_price'] ?? 0;
+        
+        // إضافة repair_type افتراضي إذا لم يكن موجوداً
+        if (!isset($repair['repair_type']) || empty($repair['repair_type'])) {
+            $repair['repair_type'] = 'soft';
+        }
+        
+        // معالجة أرقام فواتير قطع الغيار
+        if (isset($repair['spare_parts_invoices']) && !empty($repair['spare_parts_invoices'])) {
+            try {
+                $invoices = json_decode($repair['spare_parts_invoices'], true);
+                if (is_array($invoices)) {
+                    $repair['spare_parts_invoices'] = $invoices;
+                } else {
+                    $repair['spare_parts_invoices'] = [];
+                }
+            } catch (Exception $e) {
+                $repair['spare_parts_invoices'] = [];
+            }
+        } else {
+            $repair['spare_parts_invoices'] = [];
+        }
+        
+        error_log("✅ إرجاع بيانات الصيانة (id): " . ($repair['id'] ?? 'unknown'));
         response(true, '', $repair);
     } else {
         // للداشبورد: إرجاع array
