@@ -175,6 +175,14 @@ function loadSettingsSection() {
                         <span class="info-label">النسخة التالية:</span>
                         <span class="info-value" id="nextBackupDisplay">غير محدد</span>
                     </div>
+                    <div class="info-item">
+                        <span class="info-label">عدد النسخ المحفوظة:</span>
+                        <span class="info-value" id="backupCountDisplay">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">الحجم الإجمالي:</span>
+                        <span class="info-value" id="backupSizeDisplay">0 MB</span>
+                    </div>
                 </div>
             </div>
 
@@ -182,12 +190,25 @@ function loadSettingsSection() {
             <div class="sync-backup-section">
                 <h4><i class="bi bi-cloud-download"></i> النسخ الاحتياطي اليدوي</h4>
                 <div class="backup-buttons">
-                    <button onclick="createBackup()" class="btn btn-success">
-                        <i class="bi bi-download"></i> تصدير نسخة احتياطية
+                    <button onclick="createDatabaseBackup()" class="btn btn-success" id="createBackupBtn">
+                        <i class="bi bi-download"></i> إنشاء نسخة احتياطية الآن
                     </button>
-                    <button onclick="restoreBackup()" class="btn btn-warning">
-                        <i class="bi bi-upload"></i> استعادة نسخة احتياطية
+                    <button onclick="loadBackupFiles()" class="btn btn-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> تحديث القائمة
                     </button>
+                </div>
+                <p style="margin-top: 10px; font-size: 0.9em; color: var(--text-light);">
+                    <i class="bi bi-info-circle"></i> يتم إنشاء نسخة احتياطية تلقائياً كل 24 ساعة
+                </p>
+            </div>
+
+            <!-- قائمة النسخ الاحتياطية -->
+            <div class="sync-backup-section">
+                <h4><i class="bi bi-list-ul"></i> النسخ الاحتياطية المحفوظة</h4>
+                <div id="backupFilesList" style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+                    <div style="text-align: center; padding: 20px; color: var(--text-light);">
+                        <i class="bi bi-hourglass-split"></i> جاري التحميل...
+                    </div>
                 </div>
             </div>
 
@@ -329,6 +350,18 @@ function loadSettingsSection() {
         </div>
     `;
 
+            // ✅ تصدير الوظائف إلى window مباشرة بعد تحميل HTML
+            // ✅ دوال النسخ الاحتياطي من قاعدة البيانات
+            if (typeof window !== 'undefined') {
+                window.loadBackupInfo = loadBackupInfo;
+                window.loadBackupFiles = loadBackupFiles;
+                window.createDatabaseBackup = createDatabaseBackup;
+                window.restoreDatabaseBackup = restoreDatabaseBackup;
+                window.deleteDatabaseBackup = deleteDatabaseBackup;
+                window.downloadBackupFile = downloadBackupFile;
+                console.log('✅ [Settings] تم تصدير وظائف النسخ الاحتياطي إلى window');
+            }
+
             // تحميل البيانات بشكل آمن مع معالجة الأخطاء
             // تأخير بسيط لضمان أن DOM جاهز
             setTimeout(() => {
@@ -407,6 +440,10 @@ function loadSettingsSection() {
                         console.error('تفاصيل الخطأ:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
                         // لا نرمي الخطأ - نسمح للصفحة بالاستمرار
                         return null;
+                    }),
+                    loadBackupFiles().catch(err => {
+                        console.error('خطأ في تحميل قائمة النسخ الاحتياطية:', err);
+                        return null;
                     })
                 ]).then((results) => {
                     console.log('تم تحميل قسم الإعدادات بنجاح');
@@ -445,7 +482,7 @@ function loadSettingsSection() {
 // تحميل معلومات النسخ الاحتياطية للعرض فقط
 async function loadBackupInfo() {
     try {
-        const status = await API.getTelegramBackupStatus();
+        const status = await API.getDatabaseBackupStatus();
         if (status.success) {
             const backupStatus = status.data;
             
@@ -453,6 +490,8 @@ async function loadBackupInfo() {
             const statusElement = document.getElementById('backupStatusDisplay');
             const lastBackupElement = document.getElementById('lastBackupDisplay');
             const nextBackupElement = document.getElementById('nextBackupDisplay');
+            const backupCountElement = document.getElementById('backupCountDisplay');
+            const backupSizeElement = document.getElementById('backupSizeDisplay');
             
             if (statusElement) {
                 statusElement.textContent = backupStatus.enabled ? 'مفعّل' : 'معطّل';
@@ -460,13 +499,31 @@ async function loadBackupInfo() {
             }
             
             if (lastBackupElement) {
-                lastBackupElement.textContent = backupStatus.last_backup_time ? 
-                    formatDate(backupStatus.last_backup_time) : 'لم يتم إنشاء نسخة احتياطية';
+                if (backupStatus.last_backup && backupStatus.last_backup.date) {
+                    lastBackupElement.textContent = formatDateTime(backupStatus.last_backup.date);
+                } else {
+                    lastBackupElement.textContent = 'لم يتم إنشاء نسخة احتياطية';
+                }
             }
             
             if (nextBackupElement) {
-                nextBackupElement.textContent = backupStatus.next_backup_time ? 
-                    formatDateTime(backupStatus.next_backup_time) : 'غير محدد';
+                if (backupStatus.next_backup_time) {
+                    if (backupStatus.hours_remaining && backupStatus.hours_remaining > 0) {
+                        nextBackupElement.textContent = `${formatDateTime(backupStatus.next_backup_time)} (متبقي: ${backupStatus.hours_remaining.toFixed(1)} ساعة)`;
+                    } else {
+                        nextBackupElement.textContent = 'جاهز الآن';
+                    }
+                } else {
+                    nextBackupElement.textContent = 'غير محدد';
+                }
+            }
+            
+            if (backupCountElement) {
+                backupCountElement.textContent = backupStatus.backup_count || 0;
+            }
+            
+            if (backupSizeElement) {
+                backupSizeElement.textContent = `${backupStatus.total_size_mb || 0} MB`;
             }
         }
     } catch (error) {
@@ -476,6 +533,199 @@ async function loadBackupInfo() {
             statusElement.textContent = 'خطأ في التحميل';
             statusElement.className = 'info-value error';
         }
+    }
+}
+
+// ✅ تحميل قائمة ملفات النسخ الاحتياطية
+async function loadBackupFiles() {
+    try {
+        const listElement = document.getElementById('backupFilesList');
+        if (!listElement) return;
+        
+        listElement.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-light);"><i class="bi bi-hourglass-split"></i> جاري التحميل...</div>';
+        
+        const result = await API.listDatabaseBackups();
+        
+        if (!result || !result.success) {
+            listElement.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> ${result?.message || 'خطأ في تحميل القائمة'}</div>`;
+            return;
+        }
+        
+        const backups = result.data || [];
+        
+        if (backups.length === 0) {
+            listElement.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد نسخ احتياطية محفوظة</div>';
+            return;
+        }
+        
+        let html = '<div class="backup-files-list">';
+        
+        backups.forEach((backup, index) => {
+            html += `
+                <div class="backup-file-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 10px; background: var(--white); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <i class="bi bi-file-earmark-code" style="color: var(--primary-color); font-size: 1.2em;"></i>
+                            <strong style="color: var(--text-dark);">${escapeHtml(backup.filename)}</strong>
+                        </div>
+                        <div style="display: flex; gap: 15px; font-size: 0.9em; color: var(--text-light); margin-top: 5px;">
+                            <span><i class="bi bi-calendar"></i> ${formatDateTime(backup.date)}</span>
+                            <span><i class="bi bi-hdd"></i> ${backup.size_mb} MB</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="restoreDatabaseBackup('${escapeHtml(backup.filename)}')" class="btn btn-sm btn-warning" title="استعادة">
+                            <i class="bi bi-arrow-counterclockwise"></i> استعادة
+                        </button>
+                        <button onclick="downloadBackupFile('${escapeHtml(backup.filename)}')" class="btn btn-sm btn-secondary" title="تحميل">
+                            <i class="bi bi-download"></i> تحميل
+                        </button>
+                        <button onclick="deleteDatabaseBackup('${escapeHtml(backup.filename)}')" class="btn btn-sm btn-danger" title="حذف">
+                            <i class="bi bi-trash"></i> حذف
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        listElement.innerHTML = html;
+    } catch (error) {
+        console.error('خطأ في تحميل قائمة النسخ الاحتياطية:', error);
+        const listElement = document.getElementById('backupFilesList');
+        if (listElement) {
+            listElement.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger-color);"><i class="bi bi-exclamation-triangle"></i> خطأ في تحميل القائمة</div>`;
+        }
+    }
+}
+
+// ✅ إنشاء نسخة احتياطية يدوياً
+async function createDatabaseBackup() {
+    try {
+        const btn = document.getElementById('createBackupBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري الإنشاء...';
+        }
+        
+        showMessage('جاري إنشاء النسخة الاحتياطية...', 'info');
+        
+        const result = await API.createDatabaseBackup();
+        
+        if (result && result.success) {
+            showMessage('تم إنشاء النسخة الاحتياطية بنجاح', 'success');
+            
+            // تحديث المعلومات والقائمة
+            await Promise.all([
+                loadBackupInfo(),
+                loadBackupFiles()
+            ]);
+        } else {
+            showMessage(result?.message || 'فشل إنشاء النسخة الاحتياطية', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في إنشاء النسخة الاحتياطية:', error);
+        showMessage('حدث خطأ أثناء إنشاء النسخة الاحتياطية: ' + (error.message || 'خطأ غير معروف'), 'error');
+    } finally {
+        const btn = document.getElementById('createBackupBtn');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-download"></i> إنشاء نسخة احتياطية الآن';
+        }
+    }
+}
+
+// ✅ استعادة نسخة احتياطية
+async function restoreDatabaseBackup(filename) {
+    try {
+        if (!filename) {
+            showMessage('اسم الملف غير صحيح', 'error');
+            return;
+        }
+        
+        const confirmMessage = `⚠️ تحذير: سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية!\n\nالملف: ${filename}\n\nهل أنت متأكد تماماً من الاستعادة؟\n\nهذا الإجراء لا يمكن التراجع عنه!`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        // تأكيد إضافي
+        const finalConfirm = confirm('⚠️ تحذير نهائي!\n\nسيتم حذف جميع البيانات الحالية واستبدالها بالنسخة الاحتياطية.\n\nهل أنت متأكد 100%؟');
+        
+        if (!finalConfirm) {
+            return;
+        }
+        
+        showMessage('جاري استعادة النسخة الاحتياطية...', 'info');
+        
+        const result = await API.restoreDatabaseBackup(filename);
+        
+        if (result && result.success) {
+            showMessage('تم استعادة النسخة الاحتياطية بنجاح. سيتم إعادة تحميل الصفحة...', 'success');
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showMessage(result?.message || 'فشل استعادة النسخة الاحتياطية', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في استعادة النسخة الاحتياطية:', error);
+        showMessage('حدث خطأ أثناء استعادة النسخة الاحتياطية: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
+// ✅ حذف نسخة احتياطية
+async function deleteDatabaseBackup(filename) {
+    try {
+        if (!filename) {
+            showMessage('اسم الملف غير صحيح', 'error');
+            return;
+        }
+        
+        if (!confirm(`⚠️ هل أنت متأكد من حذف النسخة الاحتياطية:\n${filename}?`)) {
+            return;
+        }
+        
+        const result = await API.deleteDatabaseBackup(filename);
+        
+        if (result && result.success) {
+            showMessage('تم حذف النسخة الاحتياطية بنجاح', 'success');
+            await loadBackupFiles();
+            await loadBackupInfo();
+        } else {
+            showMessage(result?.message || 'فشل حذف النسخة الاحتياطية', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في حذف النسخة الاحتياطية:', error);
+        showMessage('حدث خطأ أثناء حذف النسخة الاحتياطية: ' + (error.message || 'خطأ غير معروف'), 'error');
+    }
+}
+
+// ✅ تحميل ملف نسخة احتياطية
+function downloadBackupFile(filename) {
+    try {
+        if (!filename) {
+            showMessage('اسم الملف غير صحيح', 'error');
+            return;
+        }
+        
+        // ✅ إنشاء رابط تحميل
+        const downloadUrl = `api/database-backup.php?action=download&filename=${encodeURIComponent(filename)}`;
+        
+        // ✅ فتح في نافذة جديدة للتحميل
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showMessage('جاري تحميل الملف...', 'info');
+    } catch (error) {
+        console.error('خطأ في تحميل الملف:', error);
+        showMessage('حدث خطأ أثناء تحميل الملف', 'error');
     }
 }
 
@@ -2095,31 +2345,15 @@ async function deleteUser(id) {
     }
 }
 
+// ✅ دالة قديمة للتوافق - تستدعي createDatabaseBackup
 async function createBackup() {
-    const result = await API.createBackup();
-    if (result.success) {
-        const filename = `backup-${new Date().toISOString().split('T')[0]}.json`;
-        exportToJSON(result.data, filename);
-        showMessage('تم إنشاء النسخة الاحتياطية بنجاح');
-    } else {
-        showMessage(result.message, 'error');
-    }
+    await createDatabaseBackup();
 }
 
+// ✅ دالة قديمة للتوافق - تعرض قائمة الملفات للاستعادة
 function restoreBackup() {
-    if (!confirmAction('هل أنت متأكد من استعادة النسخة الاحتياطية؟ سيتم استبدال جميع البيانات الحالية!')) return;
-
-    importFromJSON(async (data) => {
-        const result = await API.restoreBackup(data);
-        if (result.success) {
-            showMessage('تم استعادة النسخة الاحتياطية بنجاح');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else {
-            showMessage(result.message, 'error');
-        }
-    });
+    loadBackupFiles();
+    showMessage('يرجى اختيار النسخة الاحتياطية من القائمة أدناه', 'info');
 }
 
 // تحديث تردد المزامنة
@@ -2788,6 +3022,16 @@ if (typeof window !== 'undefined') {
     window.deleteSelectedFiles = deleteSelectedFiles;
     window.getImageTypeLabel = getImageTypeLabel;
     window.showDeleteConfirmationModal = showDeleteConfirmationModal;
+    
+    // ✅ دوال النسخ الاحتياطي من قاعدة البيانات
+    window.loadBackupInfo = loadBackupInfo;
+    window.loadBackupFiles = loadBackupFiles;
+    window.createDatabaseBackup = createDatabaseBackup;
+    window.restoreDatabaseBackup = restoreDatabaseBackup;
+    window.deleteDatabaseBackup = deleteDatabaseBackup;
+    window.downloadBackupFile = downloadBackupFile;
+    window.createBackup = createBackup; // للتوافق
+    window.restoreBackup = restoreBackup; // للتوافق
 }
 
 // نافذة تأكيد مخصصة لطلب إدخال كلمة "delete"

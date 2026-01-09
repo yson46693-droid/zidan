@@ -497,12 +497,48 @@
     <!-- زر الرجوع للصفحة السابقة -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // ✅ دالة لمسح الكاش المخزن
+            async function clearAllCache() {
+                try {
+                    // مسح API Cache
+                    if (typeof API_CACHE !== 'undefined' && API_CACHE.clear) {
+                        API_CACHE.clear();
+                        console.log('✅ تم مسح API Cache');
+                    }
+                    
+                    // مسح IndexedDB Cache
+                    if (typeof dbCache !== 'undefined' && dbCache.clear) {
+                        await dbCache.clear();
+                        console.log('✅ تم مسح IndexedDB Cache');
+                    }
+                    
+                    // مسح localStorage cache flags إن وجدت
+                    try {
+                        const cacheKeys = ['products_last_update', 'spare_parts_last_update', 
+                                          'accessories_last_update', 'phones_last_update'];
+                        cacheKeys.forEach(key => {
+                            if (localStorage.getItem(key)) {
+                                localStorage.removeItem(key);
+                            }
+                        });
+                        console.log('✅ تم مسح localStorage cache flags');
+                    } catch (lsError) {
+                        console.warn('⚠️ خطأ في مسح localStorage:', lsError);
+                    }
+                } catch (error) {
+                    console.error('⚠️ خطأ في مسح الكاش:', error);
+                }
+            }
+            
             // دالة للرجوع
-            function handleBackClick(e) {
+            async function handleBackClick(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 
                 try {
+                    // ✅ مسح الكاش قبل العودة
+                    await clearAllCache();
+                    
                     // التحقق من وجود referrer وليس نفس الصفحة
                     const referrer = document.referrer;
                     const currentUrl = window.location.href;

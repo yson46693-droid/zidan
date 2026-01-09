@@ -892,9 +892,11 @@ if ($method === 'POST') {
             throw new Exception('فشل إنشاء سجل الاسترجاع');
         }
         
-        // حساب إجمالي المرتجعات التالفة
-        $totalDamagedAmount = 0;
+        // ✅ حساب الكميات فقط (بدون استخدام الأسعار) لتوزيع المبلغ المدفوع للعميل
+        $totalDamagedQuantity = 0;
+        $totalNormalQuantity = 0;
         $damagedItems = [];
+        $normalItems = [];
         
         // جلب معلومات الفرع من البيع
         $saleInfo = dbSelectOne(
@@ -961,8 +963,12 @@ if ($method === 'POST') {
                 throw new Exception('فشل إنشاء عنصر الاسترجاع');
             }
             
-            // إضافة المنتج للمخزون فقط إذا لم يكن تالفاً
+            // ✅ إضافة المنتج للمخزون فقط إذا لم يكن تالفاً، وحساب الكميات فقط (بدون استخدام الأسعار)
             if ($returnItem['is_damaged'] == 0) {
+                // المنتج سليم - حساب الكمية فقط
+                $totalNormalQuantity += intval($returnItem['returned_quantity']);
+                $normalItems[] = $returnItem;
+                
                 $addToInventory = addReturnedItemToInventory(
                     $saleItem,
                     $returnItem['returned_quantity']
@@ -975,19 +981,104 @@ if ($method === 'POST') {
                     error_log('✅ تم إضافة منتج مرتجع للمخزون بنجاح: ' . $saleItem['item_name'] . ' (الكمية: ' . $returnItem['returned_quantity'] . ')');
                 }
             } else {
-                // المنتج تالف - إضافة للمرجعات التالفة
-                // ✅ استخدام سعر المنتج من الفاتورة (unit_price من sale_items) وليس سعر التكلفة من المخزن
-                // $returnItem['total_price'] = unit_price من sale_items × returned_quantity
-                // وهذا هو سعر البيع في الفاتورة وليس سعر التكلفة
-                $damagedItemPrice = $returnItem['total_price']; // سعر البيع من الفاتورة
-                $totalDamagedAmount += $damagedItemPrice;
+                // المنتج تالف - حساب الكمية فقط
+                $totalDamagedQuantity += intval($returnItem['returned_quantity']);
                 $damagedItems[] = $returnItem;
-                error_log('ℹ️ المنتج المرتجع تالف، لم يتم إضافته للمخزون: ' . $saleItem['item_name'] . ' - السعر من الفاتورة: ' . $damagedItemPrice . ' ج.م');
+                error_log('ℹ️ المنتج المرتجع تالف، لم يتم إضافته للمخزون: ' . $saleItem['item_name'] . ' - الكمية: ' . $returnItem['returned_quantity']);
             }
         }
         
-        // إضافة معاملة في treasury_transactions للمنتجات التالفة
-        if ($totalDamagedAmount > 0 && $returnBranchId) {
+        // ✅ حساب المبلغ المخصص لكل نوع من المرتجعات حسب الكميات فقط (بدون استخدام الأسعار)
+        // استخدام المبلغ المدفوع للعميل فقط وتوزيعه حسب حالة المنتجات (سليم/تالف)
+        $refundForDamaged = 0;
+        $refundForNormal = 0;
+        $totalReturnedQuantity = $totalNormalQuantity + $totalDamagedQuantity;
+        
+        if ($refundAmount > 0 && $totalReturnedQuantity > 0) {
+            if ($totalDamagedQuantity > 0 && $totalNormalQuantity > 0) {
+                // ✅ إذا كان هناك منتجات سليمة وتالفة معاً، نقسم المبلغ المدفوع للعميل حسب نسبة الكميات (وليس الأسعار)
+                $damagedRatio = $totalDamagedQuantity / $totalReturnedQuantity;
+                $normalRatio = $totalNormalQuantity / $totalReturnedQuantity;
+                $refundForDamaged = round($refundAmount * $damagedRatio, 2);
+                $refundForNormal = round($refundAmount * $normalRatio, 2);
+                
+                // ✅ التأكد من أن المجموع يساوي المبلغ المدفوع بالضبط (معالجة أخطاء التقريب)
+                $diff = $refundAmount - ($refundForDamaged + $refundForNormal);
+                if (abs($diff) > 0.01) {
+                    // إضافة الفرق للمبلغ الأكبر
+                    if ($refundForDamaged > $refundForNormal) {
+                        $refundForDamaged += $diff;
+                    } else {
+                        $refundForNormal += $diff;
+                    }
+                }
+            } elseif ($totalDamagedQuantity > 0) {
+                // ✅ إذا كان هناك منتجات تالفة فقط، كل المبلغ المدفوع للعميل يذهب للمرجعات التالفة
+                $refundForDamaged = $refundAmount;
+            } elseif ($totalNormalQuantity > 0) {
+                // ✅ إذا كان هناك منتجات سليمة فقط، كل المبلغ المدفوع للعميل يذهب للمرجعات السليمة
+                $refundForNormal = $refundAmount;
+            }
+        }
+        
+        // ✅ إضافة معاملة في treasury_transactions للمنتجات السليمة (normal_return)
+        if ($refundForNormal > 0 && $returnBranchId) {
+            // التأكد من وجود 'normal_return' في enum
+            if ($conn) {
+                $checkEnumQuery = "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+                                  WHERE TABLE_SCHEMA = DATABASE() 
+                                  AND TABLE_NAME = 'treasury_transactions' 
+                                  AND COLUMN_NAME = 'transaction_type'";
+                $result = $conn->query($checkEnumQuery);
+                if ($result && $row = $result->fetch_assoc()) {
+                    $columnType = $row['COLUMN_TYPE'];
+                    if (strpos($columnType, 'normal_return') === false) {
+                        // إضافة 'normal_return' إلى enum
+                        $alterQuery = "ALTER TABLE treasury_transactions 
+                                      MODIFY COLUMN transaction_type 
+                                      enum('expense','repair_cost','repair_profit','loss_operation','sales_revenue','sales_cost','withdrawal','deposit','damaged_return','normal_return') NOT NULL";
+                        if (!$conn->query($alterQuery)) {
+                            error_log('❌ فشل إضافة normal_return إلى enum: ' . $conn->error);
+                        } else {
+                            error_log('✅ تم إضافة normal_return إلى enum بنجاح');
+                        }
+                    }
+                }
+            }
+            
+            // التحقق من عدم وجود معاملة مسجلة مسبقاً
+            $existingNormalTransaction = dbSelectOne(
+                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'product_return' AND transaction_type = 'normal_return'",
+                [$returnId]
+            );
+            
+            if (!$existingNormalTransaction) {
+                $normalTransactionId = generateId();
+                $normalDescription = 'مرتجع سليم - ' . count($normalItems) . ' منتج - فاتورة: ' . $saleNumber;
+                if (!empty($notes)) {
+                    $normalDescription .= ' - ' . $notes;
+                }
+                
+                // ✅ استخدام المبلغ المدفوع للعميل فقط (refundForNormal) وليس سعر المنتج
+                $normalTransactionResult = dbExecute(
+                    "INSERT INTO treasury_transactions (
+                        id, branch_id, transaction_type, amount, description, 
+                        reference_id, reference_type, created_at, created_by
+                    ) VALUES (?, ?, 'normal_return', ?, ?, ?, 'product_return', NOW(), ?)",
+                    [$normalTransactionId, $returnBranchId, $refundForNormal, $normalDescription, $returnId, $session['user_id']]
+                );
+                
+                if ($normalTransactionResult === false) {
+                    error_log('❌ تحذير: فشل إضافة معاملة المرتجع السليم في treasury_transactions');
+                    // لا نوقف العملية، فقط نسجل التحذير
+                } else {
+                    error_log('✅ تم إضافة معاملة المرتجع السليم في treasury_transactions بنجاح: ' . $refundForNormal . ' ج.م (المبلغ المدفوع للعميل)');
+                }
+            }
+        }
+        
+        // ✅ إضافة معاملة في treasury_transactions للمنتجات التالفة (damaged_return) - استخدام المبلغ المدفوع للعميل فقط
+        if ($refundForDamaged > 0 && $returnBranchId) {
             // التأكد من وجود 'damaged_return' في enum
             if ($conn) {
                 $checkEnumQuery = "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
@@ -1011,60 +1102,40 @@ if ($method === 'POST') {
                 }
             }
             
-            // إضافة معاملة لكل منتج تالف أو معاملة واحدة للمجموع
-            $damagedTransactionId = generateId();
-            $damagedDescription = 'مرتجع تالف - ' . count($damagedItems) . ' منتج - فاتورة: ' . $saleNumber;
-            if (!empty($notes)) {
-                $damagedDescription .= ' - ' . $notes;
-            }
-            
-            $transactionResult = dbExecute(
-                "INSERT INTO treasury_transactions (
-                    id, branch_id, transaction_type, amount, description, 
-                    reference_id, reference_type, created_at, created_by
-                ) VALUES (?, ?, 'damaged_return', ?, ?, ?, 'product_return', NOW(), ?)",
-                [$damagedTransactionId, $returnBranchId, $totalDamagedAmount, $damagedDescription, $returnId, $session['user_id']]
-            );
-            
-            if ($transactionResult === false) {
-                error_log('❌ تحذير: فشل إضافة معاملة المرتجع التالف في treasury_transactions');
-                // لا نوقف العملية، فقط نسجل التحذير
-            } else {
-                error_log('✅ تم إضافة معاملة المرتجع التالف في treasury_transactions بنجاح: ' . $totalDamagedAmount . ' ج.م');
-            }
-        }
-        
-        // ✅ خصم المبلغ المدفوع للعميل من خزنة الفرع
-        if ($refundAmount > 0 && dbTableExists('treasury_transactions') && $returnBranchId) {
             // التحقق من عدم وجود معاملة مسجلة مسبقاً
-            $existingRefundTransaction = dbSelectOne(
-                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'product_return' AND transaction_type = 'withdrawal' AND description LIKE ?",
-                [$returnId, '%المبلغ المدفوع للعميل%']
+            $existingDamagedTransaction = dbSelectOne(
+                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'product_return' AND transaction_type = 'damaged_return'",
+                [$returnId]
             );
             
-            if (!$existingRefundTransaction) {
-                $refundTransactionId = generateId();
-                $refundDescription = "المبلغ المدفوع للعميل - مرتجع فاتورة رقم {$saleNumber}";
+            if (!$existingDamagedTransaction) {
+                $damagedTransactionId = generateId();
+                $damagedDescription = 'مرتجع تالف - ' . count($damagedItems) . ' منتج - فاتورة: ' . $saleNumber;
                 if (!empty($notes)) {
-                    $refundDescription .= ' - ' . $notes;
+                    $damagedDescription .= ' - ' . $notes;
                 }
                 
-                $refundTransactionResult = dbExecute(
+                // ✅ استخدام المبلغ المدفوع للعميل فقط (refundForDamaged) وليس سعر المنتج
+                $transactionResult = dbExecute(
                     "INSERT INTO treasury_transactions (
                         id, branch_id, transaction_type, amount, description, 
                         reference_id, reference_type, created_at, created_by
-                    ) VALUES (?, ?, 'withdrawal', ?, ?, ?, 'product_return', NOW(), ?)",
-                    [$refundTransactionId, $returnBranchId, $refundAmount, $refundDescription, $returnId, $session['user_id']]
+                    ) VALUES (?, ?, 'damaged_return', ?, ?, ?, 'product_return', NOW(), ?)",
+                    [$damagedTransactionId, $returnBranchId, $refundForDamaged, $damagedDescription, $returnId, $session['user_id']]
                 );
                 
-                if ($refundTransactionResult === false) {
-                    error_log('❌ تحذير: فشل خصم المبلغ المدفوع للعميل من خزنة الفرع');
+                if ($transactionResult === false) {
+                    error_log('❌ تحذير: فشل إضافة معاملة المرتجع التالف في treasury_transactions');
                     // لا نوقف العملية، فقط نسجل التحذير
                 } else {
-                    error_log("✅ تم خصم المبلغ المدفوع للعميل ({$refundAmount} ج.م) من خزنة الفرع بنجاح");
+                    error_log('✅ تم إضافة معاملة المرتجع التالف في treasury_transactions بنجاح: ' . $refundForDamaged . ' ج.م (المبلغ المدفوع للعميل)');
                 }
             }
         }
+        
+        // ✅ لا يتم إضافة المبلغ المدفوع للعميل كسحب من الخزنة
+        // المبلغ المدفوع للعميل يتم توزيعه فقط على المرتجعات السليمة والتالفة (normal_return و damaged_return)
+        // ولا يتم إضافته كسحب (withdrawal) من الخزنة
         
         $conn->commit();
         

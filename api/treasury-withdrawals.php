@@ -241,10 +241,23 @@ if ($method === 'POST') {
         $totalWithdrawals += $totalSalaryWithdrawals;
         
         // 5.1. جلب الإيداعات إلى الخزنة
-        $depositsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
-                          WHERE branch_id = ? AND transaction_type = 'deposit' 
-                          AND DATE(created_at) BETWEEN ? AND ?";
-        $depositsResult = dbSelectOne($depositsQuery, [$branchId, $startDate, $endDate]);
+        // ✅ للفرع الثاني: استبعاد معاملات الصيانة (reference_type = 'repair') لأنها تُحسب في totalRepairRevenue
+        if ($isFirstBranch) {
+            // الفرع الأول: جلب جميع الإيداعات (أرباح الصيانة تُسجل كـ repair_profit وليس deposit)
+            $depositsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
+                              WHERE branch_id = ? AND transaction_type = 'deposit' 
+                              AND DATE(created_at) BETWEEN ? AND ?";
+            $depositsParams = [$branchId, $startDate, $endDate];
+        } else {
+            // الفرع الثاني: استبعاد معاملات الصيانة (reference_type = 'repair') لأنها تُحسب في totalRepairRevenue
+            $depositsQuery = "SELECT SUM(amount) as total FROM treasury_transactions 
+                              WHERE branch_id = ? AND transaction_type = 'deposit' 
+                              AND (reference_type IS NULL OR reference_type != 'repair')
+                              AND DATE(created_at) BETWEEN ? AND ?";
+            $depositsParams = [$branchId, $startDate, $endDate];
+        }
+        
+        $depositsResult = dbSelectOne($depositsQuery, $depositsParams);
         $totalDeposits = floatval($depositsResult['total'] ?? 0);
         if ($totalDeposits === null) {
             $totalDeposits = 0;
@@ -260,41 +273,15 @@ if ($method === 'POST') {
             $totalDebtCollections = 0;
         }
         
-        // 5.2. جلب المرتجعات التالفة
-        // ربط المرتجعات التالفة بالفرع من خلال المبيعات
-        $hasCustomerIdColumn = dbColumnExists('sales', 'customer_id');
-        $damagedReturnsQuery = "SELECT SUM(pri.total_price) as total 
-                               FROM product_return_items pri
-                               INNER JOIN product_returns pr ON pri.return_id = pr.id
-                               INNER JOIN sales s ON pr.sale_id = s.id
-                               INNER JOIN users u ON s.created_by = u.id";
-        if ($hasCustomerIdColumn) {
-            $damagedReturnsQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
-        }
-        $damagedReturnsQuery .= " WHERE pri.is_damaged = 1 
-                                 AND DATE(pr.created_at) BETWEEN ? AND ?";
-        $damagedReturnsParams = [$startDate, $endDate];
-        
-        // فلترة حسب الفرع
-        if ($isFirstBranch) {
-            if ($hasCustomerIdColumn) {
-                $damagedReturnsQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
-                $damagedReturnsParams[] = $branchId;
-                $damagedReturnsParams[] = $branchId;
-            } else {
-                $damagedReturnsQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
-                $damagedReturnsParams[] = $branchId;
-            }
-        } else {
-            if ($hasCustomerIdColumn) {
-                $damagedReturnsQuery .= " AND u.branch_id = ? AND (u.role IS NULL OR u.role != 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL)";
-                $damagedReturnsParams[] = $branchId;
-                $damagedReturnsParams[] = $branchId;
-            } else {
-                $damagedReturnsQuery .= " AND u.branch_id = ? AND (u.role IS NULL OR u.role != 'admin')";
-                $damagedReturnsParams[] = $branchId;
-            }
-        }
+        // 5.2. ✅ جلب المرتجعات التالفة - استخدام المبلغ المدفوع للعميل من treasury_transactions (وليس سعر المنتج)
+        $damagedReturnsQuery = "SELECT SUM(tt.amount) as total 
+                               FROM treasury_transactions tt
+                               INNER JOIN product_returns pr ON tt.reference_id = pr.id
+                               WHERE tt.transaction_type = 'damaged_return'
+                               AND tt.reference_type = 'product_return'
+                               AND tt.branch_id = ?
+                               AND DATE(tt.created_at) BETWEEN ? AND ?";
+        $damagedReturnsParams = [$branchId, $startDate, $endDate];
         
         $damagedReturnsResult = dbSelectOne($damagedReturnsQuery, $damagedReturnsParams);
         $totalDamagedReturns = floatval($damagedReturnsResult['total'] ?? 0);
@@ -302,30 +289,17 @@ if ($method === 'POST') {
             $totalDamagedReturns = 0;
         }
         
-        // 5.3. جلب المرتجعات السليمة (للفرع الأول فقط)
+        // 5.3. ✅ جلب المرتجعات السليمة (للفرع الأول فقط) - استخدام المبلغ المدفوع للعميل من treasury_transactions (وليس سعر المنتج)
         $totalNormalReturns = 0;
         if ($isFirstBranch) {
-            $normalReturnsQuery = "SELECT SUM(pri.total_price) as total 
-                                  FROM product_return_items pri
-                                  INNER JOIN product_returns pr ON pri.return_id = pr.id
-                                  INNER JOIN sales s ON pr.sale_id = s.id
-                                  INNER JOIN users u ON s.created_by = u.id";
-            if ($hasCustomerIdColumn) {
-                $normalReturnsQuery .= " LEFT JOIN customers c ON s.customer_id = c.id";
-            }
-            $normalReturnsQuery .= " WHERE pri.is_damaged = 0 
-                                    AND DATE(pr.created_at) BETWEEN ? AND ?";
-            $normalReturnsParams = [$startDate, $endDate];
-            
-            // فلترة حسب الفرع الأول
-            if ($hasCustomerIdColumn) {
-                $normalReturnsQuery .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
-                $normalReturnsParams[] = $branchId;
-                $normalReturnsParams[] = $branchId;
-            } else {
-                $normalReturnsQuery .= " AND (u.branch_id = ? OR u.role = 'admin')";
-                $normalReturnsParams[] = $branchId;
-            }
+            $normalReturnsQuery = "SELECT SUM(tt.amount) as total 
+                                  FROM treasury_transactions tt
+                                  INNER JOIN product_returns pr ON tt.reference_id = pr.id
+                                  WHERE tt.transaction_type = 'normal_return'
+                                  AND tt.reference_type = 'product_return'
+                                  AND tt.branch_id = ?
+                                  AND DATE(tt.created_at) BETWEEN ? AND ?";
+            $normalReturnsParams = [$branchId, $startDate, $endDate];
             
             $normalReturnsResult = dbSelectOne($normalReturnsQuery, $normalReturnsParams);
             $totalNormalReturns = floatval($normalReturnsResult['total'] ?? 0);

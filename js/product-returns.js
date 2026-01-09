@@ -18,6 +18,42 @@ let normalReturnsCurrentPage = 1;
 let damagedReturnsCurrentPage = 1;
 const productReturnsItemsPerPage = 5;
 
+// ✅ دالة لمسح الكاش المخزن
+async function clearProductReturnsCache() {
+    try {
+        // مسح API Cache
+        if (typeof API_CACHE !== 'undefined' && API_CACHE.clear) {
+            API_CACHE.clear();
+            console.log('✅ تم مسح API Cache للمرتجعات');
+        }
+        
+        // مسح IndexedDB Cache إن وجد
+        if (typeof dbCache !== 'undefined' && dbCache.clear) {
+            await dbCache.clear();
+            console.log('✅ تم مسح IndexedDB Cache للمرتجعات');
+        }
+        
+        // مسح localStorage cache flags إن وجدت
+        try {
+            const cacheKeys = Object.keys(localStorage).filter(key => 
+                key.includes('product_return') || 
+                key.includes('product-return') ||
+                key.includes('returns')
+            );
+            cacheKeys.forEach(key => {
+                localStorage.removeItem(key);
+            });
+            if (cacheKeys.length > 0) {
+                console.log('✅ تم مسح localStorage cache flags للمرتجعات');
+            }
+        } catch (lsError) {
+            console.warn('⚠️ خطأ في مسح localStorage:', lsError);
+        }
+    } catch (error) {
+        console.error('⚠️ خطأ في مسح الكاش:', error);
+    }
+}
+
 // Load Product Returns Section
 function loadProductReturnsSection() {
     const section = document.getElementById('product-returns-section');
@@ -742,8 +778,8 @@ function loadProductReturnsSection() {
         </style>
     `;
     
-    // Load returns list
-    loadReturnsList();
+    // ✅ تحميل قائمة المرتجعات مع مسح الكاش لضمان الحصول على أحدث البيانات
+    loadReturnsList(true); // forceRefresh = true
 }
 
 // Search Invoice by Number
@@ -758,7 +794,11 @@ async function searchInvoiceByNumber() {
     }
     
     try {
-        const response = await API.request(`product-returns.php?sale_number=${encodeURIComponent(saleNumber)}`, 'GET');
+        // ✅ مسح الكاش قبل البحث لضمان الحصول على أحدث بيانات الفاتورة
+        await clearProductReturnsCache();
+        
+        // ✅ استخدام skipCache لضمان جلب البيانات من السيرفر
+        const response = await API.request(`product-returns.php?sale_number=${encodeURIComponent(saleNumber)}`, 'GET', null, { skipCache: true });
         
         if (response.success && response.data) {
             currentInvoice = response.data;
@@ -1484,6 +1524,9 @@ async function completeReturn(refundAmount = 0) {
         if (response.success) {
             showMessage('تم إتمام عملية الاسترجاع بنجاح', 'success');
             
+            // ✅ مسح الكاش بعد نجاح العملية لضمان ظهور البيانات المحدثة
+            await clearProductReturnsCache();
+            
             // Reset form
             hideInvoiceDetails();
             const input = document.getElementById('invoiceSearchInput');
@@ -1506,6 +1549,11 @@ async function completeReturn(refundAmount = 0) {
 // Load Returns List
 async function loadReturnsList(forceRefresh = false) {
     try {
+        // ✅ إذا كان forceRefresh = true، مسح الكاش أولاً
+        if (forceRefresh) {
+            await clearProductReturnsCache();
+        }
+        
         // Load all returns (skip cache if forceRefresh)
         const options = forceRefresh ? { silent: false, skipCache: true } : { silent: true };
         const response = await API.request('product-returns.php', 'GET', null, options);
@@ -2307,6 +2355,7 @@ if (typeof window !== 'undefined') {
     window.openQRCodeScanner = openQRCodeScanner;
     window.showInvoiceDetailsModal = showInvoiceDetailsModal;
     window.closeInvoiceDetailsModal = closeInvoiceDetailsModal;
+    window.clearProductReturnsCache = clearProductReturnsCache;
     // Keep backward compatibility
     window.closeBarcodeScannerForReturns = closeBarcodeScannerForReturns;
     window.retryBarcodeScannerForReturns = retryBarcodeScannerForReturns;

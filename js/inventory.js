@@ -3273,12 +3273,6 @@ async function loadInventorySection() {
     const addButtonStyle = (isTechnician || isBaytashUser) ? 'display: none;' : '';
     
     section.innerHTML = `
-        <div class="section-header">
-            <button onclick="showAddInventoryModal()" class="btn btn-primary" data-permission="manager" style="${addButtonStyle}">
-                <i class="bi bi-plus-circle"></i> إضافة
-            </button>
-        </div>
-
         <!-- تبويبات الأقسام -->
         <div class="inventory-tabs">
             <div class="inventory-tab active" onclick="switchInventoryTab('spare_parts', this)">
@@ -3293,6 +3287,12 @@ async function loadInventorySection() {
                 <i class="bi bi-phone"></i>
                 <span>الهواتف</span>
             </div>
+            <button onclick="printInventoryReport()" class="btn btn-secondary inventory-tab-button" title="طباعة جرد القسم">
+                <i class="bi bi-printer"></i> جرد القسم
+            </button>
+            <button onclick="showAddInventoryModal()" class="btn btn-primary inventory-tab-button" data-permission="manager" style="${addButtonStyle}" title="إضافة عنصر جديد">
+                <i class="bi bi-plus-circle"></i> إضافة
+            </button>
         </div>
 
         <!-- قسم قطع الغيار -->
@@ -3632,6 +3632,426 @@ async function printAccessoryBarcode(id) {
     } catch (error) {
         console.error('خطأ في طباعة QR Code الإكسسوار:', error);
         showMessage('حدث خطأ أثناء طباعة QR Code', 'error');
+    }
+}
+
+// دالة مساعدة لتهريب HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// طباعة جرد القسم الحالي
+async function printInventoryReport() {
+    try {
+        const tab = currentInventoryTab;
+        let reportTitle = '';
+        let reportContent = '';
+        
+        if (tab === 'spare_parts') {
+            // جرد قطع الغيار: كل ماركة والموديلات والقطع المتوفرة
+            reportTitle = 'جرد قطع الغيار';
+            
+            // تجميع البيانات حسب الماركة
+            const brandsMap = new Map();
+            
+            allSpareParts.forEach(part => {
+                const brand = part.brand || 'غير محدد';
+                if (!brandsMap.has(brand)) {
+                    brandsMap.set(brand, []);
+                }
+                brandsMap.get(brand).push(part);
+            });
+            
+            // بناء محتوى التقرير
+            let brandsHtml = '';
+            const sortedBrands = Array.from(brandsMap.keys()).sort();
+            
+            sortedBrands.forEach(brand => {
+                const parts = brandsMap.get(brand);
+                let modelsHtml = '';
+                
+                parts.forEach(part => {
+                    const model = part.model || 'غير محدد';
+                    let itemsHtml = '';
+                    
+                    if (part.items && part.items.length > 0) {
+                        itemsHtml = part.items.map(item => {
+                            const itemType = sparePartTypes.find(t => t.id === item.item_type);
+                            const itemName = itemType ? itemType.name : (item.item_type || 'غير محدد');
+                            const quantity = parseInt(item.quantity || 0);
+                            return `
+                                <tr>
+                                    <td style="padding-right: 20px;">${escapeHtml(itemName)}</td>
+                                    <td style="text-align: center; font-weight: bold; color: var(--primary-color);">${quantity}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        itemsHtml = '<tr><td colspan="2" style="text-align: center; color: var(--text-light);">لا توجد قطع متوفرة</td></tr>';
+                    }
+                    
+                    const totalQuantity = (part.items || []).reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+                    
+                    modelsHtml += `
+                        <div style="margin-bottom: 25px; padding: 15px; background: var(--white); border-radius: 8px; border: 1px solid var(--border-color);">
+                            <h4 style="color: var(--primary-color); margin-bottom: 10px; font-size: 1.1em; font-weight: 700;">الموديل: ${escapeHtml(model)}</h4>
+                            <p style="color: var(--text-light); margin-bottom: 10px; font-size: 0.9em;">إجمالي الكمية: <strong style="color: var(--primary-color);">${totalQuantity}</strong></p>
+                            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                                <thead>
+                                    <tr style="background: var(--light-bg);">
+                                        <th style="padding: 8px; text-align: right; border-bottom: 2px solid var(--border-color);">نوع القطعة</th>
+                                        <th style="padding: 8px; text-align: center; border-bottom: 2px solid var(--border-color); width: 100px;">الكمية</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                });
+                
+                brandsHtml += `
+                    <div style="margin-bottom: 30px; padding: 20px; background: var(--light-bg); border-radius: 10px; border-right: 4px solid var(--primary-color);">
+                        <h3 style="color: var(--primary-color); margin-bottom: 15px; font-size: 1.3em; font-weight: 800;">الماركة: ${escapeHtml(brand)}</h3>
+                        ${modelsHtml}
+                    </div>
+                `;
+            });
+            
+            reportContent = brandsHtml;
+            
+        } else if (tab === 'accessories') {
+            // جرد الإكسسوارات: كل نوع والبطاقات المرتبطة والكميات المتوفرة
+            reportTitle = 'جرد الإكسسوارات';
+            
+            // تجميع البيانات حسب النوع
+            const typesMap = new Map();
+            
+            allAccessories.forEach(accessory => {
+                const typeId = accessory.type || 'other';
+                const type = getAllAccessoryTypes().find(t => t.id === typeId);
+                const typeName = type ? type.name : (accessory.type || 'أخرى');
+                
+                if (!typesMap.has(typeName)) {
+                    typesMap.set(typeName, []);
+                }
+                typesMap.get(typeName).push(accessory);
+            });
+            
+            // بناء محتوى التقرير
+            let typesHtml = '';
+            const sortedTypes = Array.from(typesMap.keys()).sort();
+            
+            sortedTypes.forEach(typeName => {
+                const accessories = typesMap.get(typeName);
+                let cardsHtml = '';
+                
+                accessories.forEach(accessory => {
+                    const name = accessory.name || 'غير محدد';
+                    const quantity = parseInt(accessory.quantity || 0);
+                    
+                    cardsHtml += `
+                        <tr>
+                            <td style="padding: 10px; text-align: right;">${escapeHtml(name)}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: bold; color: var(--primary-color);">${quantity}</td>
+                        </tr>
+                    `;
+                });
+                
+                const totalQuantity = accessories.reduce((sum, acc) => sum + (parseInt(acc.quantity || 0)), 0);
+                
+                typesHtml += `
+                    <div style="margin-bottom: 25px; padding: 20px; background: var(--white); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <h3 style="color: var(--primary-color); margin-bottom: 15px; font-size: 1.2em; font-weight: 700;">النوع: ${escapeHtml(typeName)}</h3>
+                        <p style="color: var(--text-light); margin-bottom: 15px; font-size: 0.95em;">إجمالي الكمية: <strong style="color: var(--primary-color); font-size: 1.1em;">${totalQuantity}</strong></p>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                            <thead>
+                                <tr style="background: var(--light-bg);">
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid var(--border-color);">الموديل </th>
+                                    <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-color); width: 100px;">الكمية المتوفرة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cardsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+            
+            reportContent = typesHtml;
+            
+        } else {
+            showMessage('لا يمكن طباعة جرد لهذا القسم', 'warning');
+            return;
+        }
+        
+        // فتح نافذة الطباعة
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            showMessage('فشل فتح نافذة الطباعة. يرجى التحقق من إعدادات المتصفح.', 'error');
+            return;
+        }
+        
+        const currentDate = new Date().toLocaleDateString('ar-EG', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${reportTitle}</title>
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
+                    
+                    :root {
+                        --primary-color: #2196F3;
+                        --secondary-color: #64B5F6;
+                        --success-color: #4CAF50;
+                        --warning-color: #FFA500;
+                        --danger-color: #f44336;
+                        --text-dark: #333;
+                        --text-light: #666;
+                        --border-color: #ddd;
+                        --light-bg: #f5f5f5;
+                        --white: #ffffff;
+                    }
+                    
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        padding: 30px;
+                        background: #fff;
+                        color: var(--text-dark);
+                        line-height: 1.6;
+                    }
+                    
+                    .report-container {
+                        max-width: 1000px;
+                        margin: 0 auto;
+                        background: white;
+                        padding: 40px;
+                        border: 2px solid var(--border-color);
+                        border-radius: 8px;
+                    }
+                    
+                    .report-header {
+                        text-align: center;
+                        margin-bottom: 30px;
+                        padding-bottom: 20px;
+                        border-bottom: 3px solid var(--primary-color);
+                    }
+                    
+                    .report-header h1 {
+                        font-size: 2em;
+                        color: var(--primary-color);
+                        margin-bottom: 10px;
+                        font-weight: 800;
+                    }
+                    
+                    .report-header p {
+                        color: var(--text-light);
+                        font-size: 1em;
+                        margin: 5px 0;
+                    }
+                    
+                    .report-content {
+                        margin-top: 20px;
+                    }
+                    
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                    }
+                    
+                    .no-print {
+                        text-align: center;
+                        margin-top: 30px;
+                        display: flex;
+                        gap: 15px;
+                        justify-content: center;
+                        flex-wrap: wrap;
+                    }
+                    
+                    .no-print button {
+                        padding: 12px 25px;
+                        background: var(--primary-color);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 1em;
+                        font-family: inherit;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    
+                    .no-print button:hover {
+                        background: var(--secondary-color);
+                    }
+                    
+                    @media print {
+                        @page {
+                            margin: 0;
+                            size: 80mm auto;
+                        }
+                        
+                        * {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        
+                        body {
+                            background: white !important;
+                            color: black !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            width: 80mm !important;
+                        }
+                        
+                        .report-container {
+                            width: 80mm !important;
+                            max-width: 80mm !important;
+                            margin: 0 !important;
+                            padding: 8px 4px !important;
+                            box-shadow: none !important;
+                            border: none !important;
+                            border-radius: 0 !important;
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                            overflow: visible !important;
+                            height: auto !important;
+                            max-height: none !important;
+                            display: block !important;
+                            position: static !important;
+                            box-sizing: border-box !important;
+                        }
+                        
+                        .report-container * {
+                            max-width: 100% !important;
+                            box-sizing: border-box !important;
+                        }
+                        
+                        .report-container > * {
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                        }
+                        
+                        .report-header {
+                            margin-bottom: 10px !important;
+                            padding-bottom: 10px !important;
+                            font-size: 0.85em !important;
+                            page-break-inside: avoid !important;
+                        }
+                        
+                        .report-header h1 {
+                            font-size: 1.2em !important;
+                            margin-bottom: 5px !important;
+                        }
+                        
+                        .report-header p {
+                            font-size: 0.75em !important;
+                        }
+                        
+                        .report-content {
+                            margin-top: 10px !important;
+                            font-size: 0.8em !important;
+                        }
+                        
+                        .report-content > div {
+                            margin-bottom: 15px !important;
+                            padding: 10px !important;
+                            font-size: 0.8em !important;
+                            page-break-inside: avoid !important;
+                        }
+                        
+                        .report-content h3 {
+                            font-size: 1em !important;
+                            margin-bottom: 8px !important;
+                        }
+                        
+                        .report-content h4 {
+                            font-size: 0.9em !important;
+                            margin-bottom: 5px !important;
+                        }
+                        
+                        .report-content p {
+                            font-size: 0.75em !important;
+                            margin-bottom: 5px !important;
+                        }
+                        
+                        .report-content table {
+                            font-size: 0.7em !important;
+                            margin-top: 5px !important;
+                        }
+                        
+                        .report-content th,
+                        .report-content td {
+                            padding: 4px 2px !important;
+                            font-size: 0.7em !important;
+                        }
+                        
+                        .no-print {
+                            display: none !important;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="report-container">
+                    <div class="report-header">
+                        <h1><i class="bi bi-clipboard-data"></i> ${reportTitle}</h1>
+                        <p>تاريخ الطباعة: ${currentDate}</p>
+                    </div>
+                    <div class="report-content">
+                        ${reportContent}
+                    </div>
+                </div>
+                <div class="no-print">
+                    <button onclick="window.print()">
+                        <i class="bi bi-printer"></i> طباعة
+                    </button>
+                    <button onclick="window.close()">
+                        <i class="bi bi-x-circle"></i> إغلاق
+                    </button>
+                </div>
+                <script>
+                    window.onload = function() {
+                        setTimeout(() => {
+                            window.print();
+                        }, 300);
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        
+        setTimeout(() => {
+            if (printWindow && !printWindow.closed) {
+                printWindow.focus();
+            }
+        }, 100);
+        
+    } catch (error) {
+        console.error('خطأ في طباعة جرد المخزن:', error);
+        showMessage('حدث خطأ أثناء طباعة الجرد', 'error');
     }
 }
 

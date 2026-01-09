@@ -784,6 +784,151 @@ if (!isset($_SESSION['system_initialized'])) {
 
 // ✅ تضمين نظام حماية API المتعدد الطبقات
 require_once __DIR__ . '/api-security.php';
+
+/* ============== AUTOMATIC DAILY BACKUP ================= */
+
+/**
+ * ✅ استدعاء النسخة الاحتياطية تلقائياً عند أول زيارة (مرة واحدة يومياً)
+ * يعمل في الخلفية بعد إرسال الاستجابة حتى لا يبطئ الموقع
+ */
+function triggerAutomaticBackup() {
+    // ✅ التحقق من وجود lock file (نسخة احتياطية قيد التنفيذ)
+    $lockFile = __DIR__ . '/../data/backup_lock.lock';
+    if (file_exists($lockFile)) {
+        $lockTime = filemtime($lockFile);
+        // ✅ إذا كان lock file موجوداً وأقل من 10 دقائق، لا نعمل نسخة احتياطية
+        if ((time() - $lockTime) < 600) {
+            return; // نسخة احتياطية قيد التنفيذ
+        } else {
+            // ✅ lock file قديم، حذفه
+            @unlink($lockFile);
+        }
+    }
+    
+    // ✅ التحقق من الحاجة لعمل نسخة احتياطية (مرة واحدة يومياً)
+    $lastBackupFile = __DIR__ . '/../data/last_backup_timestamp.json';
+    
+    // قراءة تاريخ آخر نسخة احتياطية
+    $shouldBackup = false;
+    $lastBackup = 0;
+    
+    if (file_exists($lastBackupFile)) {
+        try {
+            $data = json_decode(file_get_contents($lastBackupFile), true);
+            $lastBackup = isset($data['timestamp']) ? (int)$data['timestamp'] : 0;
+            
+            // ✅ التحقق من صحة timestamp (يجب أن يكون أكبر من 0)
+            if ($lastBackup <= 0) {
+                error_log('⚠️ timestamp غير صحيح في last_backup_timestamp.json، سيتم عمل نسخة احتياطية');
+                $shouldBackup = true;
+            } else {
+                // ✅ التحقق من أن timestamp صحيح (أكبر من 0)
+                if ($lastBackup <= 0) {
+                    error_log('⚠️ timestamp غير صحيح في last_backup_timestamp.json، سيتم عمل نسخة احتياطية');
+                    $shouldBackup = true;
+                } else {
+                    // التحقق من مرور 24 ساعة (86400 ثانية)
+                    $hoursSinceLastBackup = (time() - $lastBackup) / 3600;
+                    $shouldBackup = (time() - $lastBackup) >= 86400;
+                    
+                    if ($shouldBackup) {
+                        error_log("🔄 تم اكتشاف حاجة لعمل نسخة احتياطية - آخر نسخة كانت منذ " . round($hoursSinceLastBackup, 2) . " ساعة");
+                    } else {
+                        error_log("ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: " . round(24 - $hoursSinceLastBackup, 2) . " ساعة");
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // في حالة الخطأ، نعمل نسخة احتياطية
+            error_log('⚠️ خطأ في قراءة last_backup_timestamp.json: ' . $e->getMessage() . ' - سيتم عمل نسخة احتياطية');
+            $shouldBackup = true;
+        }
+    } else {
+        // إذا لم توجد نسخة احتياطية سابقة، يجب عمل واحدة
+        error_log('ℹ️ لم يتم العثور على last_backup_timestamp.json - سيتم عمل نسخة احتياطية');
+        $shouldBackup = true;
+    }
+    
+    // ✅ إذا لم يمر 24 ساعة، لا نعمل نسخة احتياطية
+    if (!$shouldBackup) {
+        return;
+    }
+    
+    // ✅ استخدام register_shutdown_function لتنفيذ النسخة الاحتياطية في الخلفية
+    // بعد إرسال الاستجابة للمستخدم (لا يبطئ الموقع)
+    $backupScript = __DIR__ . '/backup_db.php';
+    
+    register_shutdown_function(function() use ($backupScript) {
+        try {
+            error_log('🔄 [BACKUP] بدء تنفيذ النسخة الاحتياطية التلقائية في الخلفية...');
+            
+            // ✅ استخدام fastcgi_finish_request() إذا كان متاحاً (لإرسال الاستجابة فوراً)
+            if (function_exists('fastcgi_finish_request')) {
+                fastcgi_finish_request();
+                error_log('✅ [BACKUP] تم إرسال الاستجابة للمستخدم (fastcgi_finish_request)');
+            } else {
+                // ✅ إذا لم يكن fastcgi متاحاً، نرسل الاستجابة يدوياً
+                // إغلاق output buffer وإرسال الاستجابة
+                if (ob_get_level() > 0) {
+                    ob_end_flush();
+                }
+                flush();
+                error_log('✅ [BACKUP] تم إرسال الاستجابة للمستخدم (flush)');
+            }
+            
+            // ✅ تجاهل انقطاع الاتصال من المستخدم (للاستمرار في الخلفية)
+            ignore_user_abort(true);
+            
+            // ✅ زيادة timeout للسماح بإكمال النسخة الاحتياطية
+            set_time_limit(300); // 5 دقائق
+            
+            // ✅ استدعاء ملف النسخة الاحتياطية مباشرة
+            if (file_exists($backupScript)) {
+                // ✅ تعريف constant للاستدعاء الصامت
+                if (!defined('BACKUP_SILENT_MODE')) {
+                    define('BACKUP_SILENT_MODE', true);
+                }
+                
+                error_log('🔄 [BACKUP] استدعاء backup_db.php...');
+                
+                // ✅ منع أي output محتمل
+                ob_start();
+                
+                // ✅ استدعاء الملف مباشرة
+                try {
+                    include $backupScript;
+                } catch (Exception $e) {
+                    error_log('❌ [BACKUP] خطأ في include backup_db.php: ' . $e->getMessage());
+                } catch (Error $e) {
+                    error_log('❌ [BACKUP] خطأ قاتل في include backup_db.php: ' . $e->getMessage());
+                }
+                
+                $output = ob_get_clean();
+                
+                if (!empty($output)) {
+                    error_log('⚠️ [BACKUP] تم اكتشاف output من backup_db.php: ' . substr($output, 0, 200));
+                }
+                
+                error_log('✅ [BACKUP] تم إكمال استدعاء backup_db.php');
+            } else {
+                error_log('❌ [BACKUP] ملف backup_db.php غير موجود: ' . $backupScript);
+            }
+        } catch (Exception $e) {
+            // تسجيل الخطأ ولكن لا نوقف التنفيذ
+            error_log('❌ [BACKUP] خطأ في استدعاء النسخة الاحتياطية التلقائية: ' . $e->getMessage());
+            error_log('❌ [BACKUP] Stack trace: ' . $e->getTraceAsString());
+        } catch (Error $e) {
+            error_log('❌ [BACKUP] خطأ قاتل في استدعاء النسخة الاحتياطية التلقائية: ' . $e->getMessage());
+            error_log('❌ [BACKUP] Stack trace: ' . $e->getTraceAsString());
+        }
+    });
+}
+
+// ✅ استدعاء النسخة الاحتياطية التلقائية (مرة واحدة يومياً)
+// يعمل فقط إذا مر 24 ساعة منذ آخر نسخة احتياطية
+// ✅ register_shutdown_function لا يسبب أي output لأنه يعمل بعد إرسال الاستجابة
+triggerAutomaticBackup();
+
 ?>
 
 

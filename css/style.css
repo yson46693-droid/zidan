@@ -7081,6 +7081,7 @@ body {
     background: var(--white);
     border-bottom: 2px solid var(--light-bg);
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .inventory-tab {
@@ -7108,6 +7109,33 @@ body {
     color: white;
     border-color: var(--primary-color);
     box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+}
+
+/* أزرار داخل تبويبات المخزن (على الكمبيوتر فقط) */
+.inventory-tab-button {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    font-family: 'Cairo', sans-serif;
+    cursor: pointer;
+    border: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.inventory-tab-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* إخفاء الأزرار على الموبايل */
+@media (max-width: 768px) {
+    .inventory-tab-button {
+        display: none !important;
+    }
 }
 
 /* أزرار الفلترة */

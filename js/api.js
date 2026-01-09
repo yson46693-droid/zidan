@@ -816,6 +816,27 @@ const API = {
         return await this.request('telegram-backup.php?action=list_backups', 'GET');
     },
 
+    // ✅ دوال النسخ الاحتياطي من قاعدة البيانات (SQL)
+    async getDatabaseBackupStatus() {
+        return await this.request('database-backup.php?action=status', 'GET');
+    },
+
+    async listDatabaseBackups() {
+        return await this.request('database-backup.php?action=list', 'GET');
+    },
+
+    async createDatabaseBackup() {
+        return await this.request('database-backup.php?action=create', 'POST');
+    },
+
+    async restoreDatabaseBackup(filename) {
+        return await this.request('database-backup.php?action=restore', 'POST', { filename });
+    },
+
+    async deleteDatabaseBackup(filename) {
+        return await this.request('database-backup.php', 'DELETE', { filename });
+    },
+
     async getCleanupStatus() {
         return await this.request('telegram-backup.php?action=get_cleanup_status', 'GET');
     },

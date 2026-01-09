@@ -1050,57 +1050,7 @@ if ($method === 'POST') {
                     }
                 }
                 
-                // ✅ إضافة معاملة sales_cost لخصم تكلفة المنتجات من صافي الأرباح
-                if ($totalProductsCost > 0) {
-                    // التأكد من وجود 'sales_cost' في enum
-                    $conn = getDBConnection();
-                    if ($conn) {
-                        $checkEnumQuery = "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
-                                          WHERE TABLE_SCHEMA = DATABASE() 
-                                          AND TABLE_NAME = 'treasury_transactions' 
-                                          AND COLUMN_NAME = 'transaction_type'";
-                        $result = $conn->query($checkEnumQuery);
-                        if ($result && $row = $result->fetch_assoc()) {
-                            $columnType = $row['COLUMN_TYPE'];
-                            if (strpos($columnType, 'sales_cost') === false) {
-                                // إضافة 'sales_cost' إلى enum
-                                $alterQuery = "ALTER TABLE treasury_transactions 
-                                              MODIFY COLUMN transaction_type 
-                                              enum('expense','repair_cost','repair_profit','loss_operation','sales_revenue','sales_cost','withdrawal','deposit','damaged_return') NOT NULL";
-                                if (!$conn->query($alterQuery)) {
-                                    error_log('❌ فشل إضافة sales_cost إلى enum: ' . $conn->error);
-                                } else {
-                                    error_log('✅ تم إضافة sales_cost إلى enum بنجاح');
-                                }
-                            }
-                        }
-                    }
-                    
-                    // التحقق من عدم وجود معاملة مسجلة مسبقاً
-                    $existingCostTransaction = dbSelectOne(
-                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'sale' AND transaction_type = 'sales_cost'",
-                        [$saleId]
-                    );
-                    
-                    if (!$existingCostTransaction) {
-                        $costTransactionId = generateId();
-                        $costDescription = "تكلفة المنتجات المباعة - فاتورة رقم {$saleNumber}";
-                        
-                        $costResult = dbExecute(
-                            "INSERT INTO treasury_transactions (
-                                id, branch_id, transaction_type, amount, description, 
-                                reference_id, reference_type, created_at, created_by
-                            ) VALUES (?, ?, 'sales_cost', ?, ?, ?, 'sale', NOW(), ?)",
-                            [$costTransactionId, $customerBranchId, $totalProductsCost, $costDescription, $saleId, $session['user_id']]
-                        );
-                        
-                        if ($costResult === false) {
-                            error_log('تحذير: فشل تسجيل معاملة تكلفة المنتجات في الخزنة - لن نوقف العملية');
-                        } else {
-                            error_log("✅ تم تسجيل معاملة تكلفة المنتجات ({$totalProductsCost} ج.م) في الخزنة - فاتورة رقم {$saleNumber}");
-                        }
-                    }
-                }
+                // ✅ تم إزالة كود تسجيل تكلفة المبيعات (sales_cost) - لا يجب تسجيلها في سجل معاملات الخزنة
             } else {
                 error_log('تحذير: لا يمكن تحديد branch_id لتسجيل معاملة الخزنة للمبيعات');
             }

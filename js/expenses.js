@@ -51,20 +51,8 @@ function loadExpensesSection() {
                     </select>
                 </div>
             ` : ''}
-            <button onclick="showTreasuryReportModal()" class="btn btn-primary" style="background: var(--primary-color); color: var(--white); padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                <i class="bi bi-printer"></i> طباعة كشف حساب الخزنة
-            </button>
-        </div>
-
-        <!-- خزنة الفرع الأول -->
-        <div id="branch1-treasury-section" class="treasury-section" style="display: none;">
-            <div class="treasury-header">
-                <h2><i class="bi bi-bank"></i> خزنة الفرع الأول</h2>
-            </div>
-            
-            <!-- فلترة المبيعات (للفرع الأول فقط) -->
-            <div class="sales-filter-section" style="margin-bottom: 20px; padding: 15px; background: var(--light-bg); border-radius: 8px;">
-                <h3 style="margin-bottom: 15px;"><i class="bi bi-cart-check"></i> المبيعات</h3>
+             <!-- فلترة خزنة الفرع (تطبق على جميع البيانات: المصروفات، الإيرادات، التحصيلات، السحوبات، إلخ) -->
+            <div class="treasury-filter-section" style="margin-bottom: 20px; padding: 15px; background: var(--light-bg); border-radius: 8px;">
                 <div class="filters-bar" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                     <label>نوع الفلترة:</label>
                     <select id="branch1SalesFilterType" onchange="updateBranch1SalesFilter()" class="filter-select">
@@ -79,20 +67,16 @@ function loadExpensesSection() {
                         <button onclick="loadBranch1TreasuryData()" class="btn btn-sm btn-primary">تطبيق</button>
                     </div>
                 </div>
-                <div id="branch1SalesSummary" class="sales-summary" style="margin-top: 15px; padding: 15px; background: var(--white); border-radius: 8px; border: 1px solid var(--border-color);">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                        <div>
-                            <label style="color: var(--text-light); font-size: 0.9em;">إجمالي المبيعات:</label>
-                            <div style="font-size: 1.2em; font-weight: bold; color: var(--primary-color);" id="branch1TotalSales">0 ج.م</div>
-                        </div>
-                        ${isOwner ? `
-                        <div>
-                            <label style="color: var(--text-light); font-size: 0.9em;">صافي أرباح المبيعات:</label>
-                            <div style="font-size: 1.2em; font-weight: bold; color: var(--success-color);" id="branch1SalesProfit">0 ج.م</div>
-                        </div>
-                        ` : ''}
-                    </div>
-                </div>
+            </div>
+            <button onclick="showTreasuryReportModal()" class="btn btn-primary" style="background: var(--primary-color); color: var(--white); padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-printer"></i> طباعة كشف حساب الخزنة
+            </button>
+        </div>
+
+        <!-- خزنة الفرع الأول -->
+        <div id="branch1-treasury-section" class="treasury-section" style="display: none;">
+            <div class="treasury-header">
+                <h2><i class="bi bi-bank"></i> خزنة الفرع الأول</h2>
             </div>
             
             <!-- ملخص الخزنة -->
@@ -123,7 +107,7 @@ function loadExpensesSection() {
                         <div style="font-size: 1.5em; font-weight: bold; color: var(--danger-color);" id="branch1NormalReturns">0 ج.م</div>
                     </div>
                     <div class="summary-card" style="padding: 15px; background: var(--white); border-radius: 8px; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
-                        <label style="color: var(--text-light); font-size: 0.9em;">إجمالي الإيرادات:</label>
+                        <label style="color: var(--text-light); font-size: 0.9em;">إجمالي المبيعات:</label>
                         <div style="font-size: 1.5em; font-weight: bold; color: var(--primary-color);" id="branch1TotalRevenue">0 ج.م</div>
                     </div>
                     <div class="summary-card" style="padding: 15px; background: var(--white); border-radius: 8px; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
@@ -4052,15 +4036,62 @@ function updateBranch1SalesFilter() {
     }
 }
 
-// تحميل المصروفات للفرع
+// ✅ دالة لفلترة البيانات حسب التاريخ بناءً على نوع الفلترة
+function filterDataByDateRange(data, dateField = 'date', filterType = 'month', startDate = null, endDate = null) {
+    if (!data || !Array.isArray(data)) return [];
+    
+    const now = new Date();
+    let filterStart = null;
+    let filterEnd = null;
+    
+    if (filterType === 'today') {
+        filterStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        filterEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    } else if (filterType === 'month') {
+        filterStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        filterEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (filterType === 'custom' && startDate && endDate) {
+        filterStart = new Date(startDate);
+        filterEnd = new Date(endDate);
+        filterEnd.setHours(23, 59, 59, 999);
+    } else {
+        // إذا لم يكن هناك فلترة محددة، إرجاع جميع البيانات
+        return data;
+    }
+    
+    return data.filter(item => {
+        if (!item[dateField]) return false;
+        const itemDate = new Date(item[dateField]);
+        return itemDate >= filterStart && itemDate <= filterEnd;
+    });
+}
+
+// تحميل المصروفات للفرع (مع تطبيق الفلترة)
 async function loadExpensesForBranch(branchId, suffix = '') {
     try {
         const result = await API.getExpenses(branchId);
         if (result.success) {
-            allExpenses = result.data || [];
+            let expenses = result.data || [];
+            
+            // ✅ تطبيق الفلترة بناءً على نوع الفلترة المحدد
+            const filterType = document.getElementById('branch1SalesFilterType')?.value || 
+                              document.getElementById('branch2SalesFilterType')?.value || 'month';
+            let startDate = null;
+            let endDate = null;
+            
+            if (filterType === 'custom') {
+                startDate = document.getElementById('branch1SalesStartDate')?.value || 
+                           document.getElementById('branch2SalesStartDate')?.value;
+                endDate = document.getElementById('branch1SalesEndDate')?.value || 
+                         document.getElementById('branch2SalesEndDate')?.value;
+            }
+            
+            expenses = filterDataByDateRange(expenses, 'date', filterType, startDate, endDate);
+            allExpenses = expenses;
+            
             const tableId = suffix ? `expensesTable${suffix}` : 'expensesTable';
             const tbodyId = suffix ? `expensesTableBody${suffix}` : 'expensesTableBody';
-            displayExpensesForBranch(allExpenses, tableId, tbodyId, suffix);
+            displayExpensesForBranch(expenses, tableId, tbodyId, suffix);
         }
     } catch (error) {
         console.error('خطأ في تحميل المصروفات:', error);
@@ -4105,14 +4136,37 @@ function displayExpensesForBranch(expenses, tableId, tbodyId, suffix = '') {
     }
 }
 
-// تحميل المستحقات للفرع
+// تحميل المستحقات للفرع (مع تطبيق الفلترة)
 async function loadSalariesForBranch(branchId, suffix = '') {
     try {
         const result = await API.getSalaries(branchId);
         if (result.success) {
-            allSalaries = result.data || [];
+            let salaries = result.data || [];
+            
+            // ✅ تطبيق الفلترة بناءً على نوع الفلترة المحدد
+            const filterType = document.getElementById('branch1SalesFilterType')?.value || 
+                              document.getElementById('branch2SalesFilterType')?.value || 'month';
+            let startDate = null;
+            let endDate = null;
+            
+            if (filterType === 'custom') {
+                startDate = document.getElementById('branch1SalesStartDate')?.value || 
+                           document.getElementById('branch2SalesStartDate')?.value;
+                endDate = document.getElementById('branch1SalesEndDate')?.value || 
+                         document.getElementById('branch2SalesEndDate')?.value;
+            }
+            
+            // فلترة الرواتب حسب تاريخ الدفع (payment_date) أو تاريخ الراتب (salary_date)
+            salaries = filterDataByDateRange(salaries, 'payment_date', filterType, startDate, endDate);
+            // إذا لم توجد نتائج، جرب فلترة حسب salary_date
+            if (salaries.length === 0 && filterType !== 'month') {
+                const allSalariesData = result.data || [];
+                salaries = filterDataByDateRange(allSalariesData, 'salary_date', filterType, startDate, endDate);
+            }
+            
+            allSalaries = salaries;
             const tbodyId = suffix ? `salariesTableBody${suffix}` : 'salariesTableBody';
-            displaySalariesForBranch(allSalaries, tbodyId, suffix);
+            displaySalariesForBranch(salaries, tbodyId, suffix);
         }
     } catch (error) {
         console.error('خطأ في تحميل المستحقات:', error);

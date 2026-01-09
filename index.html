@@ -309,7 +309,7 @@
             <div class="login-footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center;">
                 <small style="color: var(--text-light); font-size: 0.85em;">
                     <i class="bi bi-code-slash"></i> 
-                    <span id="appVersionDisplay">v2.0.1</span>
+                    <span id="appVersionDisplay">جاري التحميل...</span>
                 </small>
             </div>
         </div>
@@ -1288,56 +1288,163 @@
         }(typeof global !== "undefined" ? global : this));
     </script>
     
-    <!-- تحديث رقم الإصدار من version.json -->
+    <!-- تحديث رقم الإصدار من version.json - يضمن التحديث حتى بعد مسح الكاش -->
     <script>
         (function() {
-            // دالة لتحديث رقم الإصدار في الواجهة
+            // ✅ Flag لمنع التحديث المتكرر
+            let versionUpdateInProgress = false;
+            let lastFetchedVersion = null;
+            
+            // دالة لتحديث رقم الإصدار في الواجهة مباشرة من version.json
             async function updateVersionDisplay() {
+                // منع التحديث المتكرر
+                if (versionUpdateInProgress) {
+                    return;
+                }
+                
                 try {
                     const versionElement = document.getElementById('appVersionDisplay');
                     if (!versionElement) {
                         return; // العنصر غير موجود
                     }
                     
+                    versionUpdateInProgress = true;
+                    
                     // محاولة استخدام window.getAppVersionClean من version.js إذا كان متاحاً
                     if (typeof window !== 'undefined' && window.getAppVersionClean) {
                         const cleanVersion = window.getAppVersionClean();
-                        if (cleanVersion) {
+                        if (cleanVersion && cleanVersion !== lastFetchedVersion) {
                             versionElement.textContent = 'v' + cleanVersion;
+                            lastFetchedVersion = cleanVersion;
+                            console.log('✅ [Version] تم تحديث الإصدار من version.js:', cleanVersion);
+                            versionUpdateInProgress = false;
+                            
+                            // التحقق مرة أخرى بعد تأخير للتأكد من التحديث
+                            setTimeout(() => {
+                                if (versionElement.textContent !== 'v' + cleanVersion) {
+                                    fetchVersionDirectly();
+                                }
+                            }, 500);
                             return;
                         }
                     }
                     
                     // إذا لم يكن version.js محمّل بعد، قراءة مباشرة من version.json
-                    try {
-                        const response = await fetch('version.json?v=' + Date.now());
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data.version) {
-                                versionElement.textContent = 'v' + data.version;
-                            }
-                        }
-                    } catch (error) {
-                        // في حالة الخطأ، استخدام الإصدار الافتراضي
-                        console.warn('[Version] تعذر جلب الإصدار من version.json:', error);
-                    }
+                    await fetchVersionDirectly();
                 } catch (error) {
                     console.warn('[Version] خطأ في تحديث رقم الإصدار:', error);
+                } finally {
+                    versionUpdateInProgress = false;
                 }
             }
+            
+            // دالة لجلب الإصدار مباشرة من version.json بدون cache
+            async function fetchVersionDirectly() {
+                try {
+                    const versionElement = document.getElementById('appVersionDisplay');
+                    if (!versionElement) return;
+                    
+                    // استخدام timestamp لضمان عدم استخدام cache
+                    const cacheBuster = Date.now() + '&nocache=' + Math.random();
+                    const response = await fetch('version.json?v=' + cacheBuster, {
+                        cache: 'no-store',
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.version) {
+                            // تحديث حتى لو كان نفس الإصدار (للتأكد من التحديث)
+                            const versionText = 'v' + data.version;
+                            versionElement.textContent = versionText;
+                            lastFetchedVersion = data.version;
+                            console.log('✅ [Version] تم تحديث الإصدار مباشرة من version.json:', data.version);
+                            
+                            // تحديث window.APP_VERSION_CLEAN إذا كان متاحاً
+                            if (typeof window !== 'undefined') {
+                                window.APP_VERSION_CLEAN = data.version;
+                            }
+                        } else {
+                            console.warn('[Version] لا يوجد حقل version في version.json');
+                        }
+                    } else {
+                        console.warn('[Version] فشل جلب version.json - Status:', response.status);
+                    }
+                } catch (error) {
+                    console.warn('[Version] تعذر جلب الإصدار من version.json:', error);
+                    // في حالة الخطأ، إبقاء placeholder أو عرض رسالة خطأ
+                    const versionElement = document.getElementById('appVersionDisplay');
+                    if (versionElement && versionElement.textContent === 'جاري التحميل...') {
+                        versionElement.textContent = 'v?';
+                    }
+                }
+            }
+            
+            // ✅ دالة للتأكد من التحديث بعد تحميل version.js
+            function ensureVersionUpdated() {
+                const versionElement = document.getElementById('appVersionDisplay');
+                if (!versionElement) return;
+                
+                // إذا كان الإصدار لا يزال placeholder أو لا يبدأ بـ 'v'، جلب من version.json
+                const currentVersion = versionElement.textContent.trim();
+                if (currentVersion === 'جاري التحميل...' || currentVersion === 'Loading...' || !currentVersion.startsWith('v')) {
+                    fetchVersionDirectly();
+                }
+            }
+            
+            // ✅ تحديث الإصدار فوراً عند تحميل الصفحة (قبل DOMContentLoaded إذا أمكن)
+            // محاولة التحديث الفوري
+            updateVersionDisplay();
             
             // تحديث الإصدار عند تحميل الصفحة
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() {
-                    // انتظار قليل لضمان تحميل version.js أولاً
-                    setTimeout(updateVersionDisplay, 200);
+                    updateVersionDisplay();
+                    setTimeout(updateVersionDisplay, 300);
+                    setTimeout(updateVersionDisplay, 1000);
+                    setTimeout(ensureVersionUpdated, 2000);
                 });
             } else {
-                setTimeout(updateVersionDisplay, 200);
+                setTimeout(updateVersionDisplay, 100);
+                setTimeout(updateVersionDisplay, 500);
+                setTimeout(updateVersionDisplay, 1000);
+                setTimeout(ensureVersionUpdated, 2000);
             }
             
-            // تحديث الإصدار مرة أخرى بعد تحميل version.js (إذا كان متأخراً)
-            setTimeout(updateVersionDisplay, 1000);
+            // ✅ تحديث الإصدار عند تحميل version.js (إذا كان متأخراً)
+            if (typeof window !== 'undefined') {
+                // استبدال window.updateVersionDisplay إذا كان موجوداً
+                const checkVersionJs = setInterval(() => {
+                    if (window.getAppVersionClean && window.updateVersionDisplay) {
+                        clearInterval(checkVersionJs);
+                        
+                        const originalUpdateVersionDisplay = window.updateVersionDisplay;
+                        window.updateVersionDisplay = function() {
+                            if (originalUpdateVersionDisplay) {
+                                originalUpdateVersionDisplay();
+                            }
+                            setTimeout(() => {
+                                updateVersionDisplay();
+                                ensureVersionUpdated();
+                            }, 200);
+                        };
+                        
+                        // استدعاء التحديث فوراً
+                        updateVersionDisplay();
+                    }
+                }, 100);
+                
+                // إيقاف الفحص بعد 10 ثوان
+                setTimeout(() => clearInterval(checkVersionJs), 10000);
+            }
+            
+            // ✅ إضافة event listener عند تحميل جميع الملفات
+            window.addEventListener('load', function() {
+                setTimeout(ensureVersionUpdated, 500);
+            });
         })();
     </script>
 </body>
