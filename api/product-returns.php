@@ -839,7 +839,9 @@ if ($method === 'POST') {
             return;
         }
         
-        $unitPrice = floatval($saleItem['unit_price'] ?? 0);
+        // ✅ استخدام سعر المنتج من الفاتورة (unit_price من sale_items) وليس سعر التكلفة من المخزن
+        // unit_price من sale_items هو سعر البيع في الفاتورة وليس purchase_price من المخزن
+        $unitPrice = floatval($saleItem['unit_price'] ?? 0); // سعر البيع من الفاتورة
         $totalPrice = $unitPrice * $returnedQuantity;
         $totalReturnedAmount += $totalPrice;
         
@@ -972,9 +974,13 @@ if ($method === 'POST') {
                 }
             } else {
                 // المنتج تالف - إضافة للمرجعات التالفة
-                $totalDamagedAmount += $returnItem['total_price'];
+                // ✅ استخدام سعر المنتج من الفاتورة (unit_price من sale_items) وليس سعر التكلفة من المخزن
+                // $returnItem['total_price'] = unit_price من sale_items × returned_quantity
+                // وهذا هو سعر البيع في الفاتورة وليس سعر التكلفة
+                $damagedItemPrice = $returnItem['total_price']; // سعر البيع من الفاتورة
+                $totalDamagedAmount += $damagedItemPrice;
                 $damagedItems[] = $returnItem;
-                error_log('ℹ️ المنتج المرتجع تالف، لم يتم إضافته للمخزون: ' . $saleItem['item_name']);
+                error_log('ℹ️ المنتج المرتجع تالف، لم يتم إضافته للمخزون: ' . $saleItem['item_name'] . ' - السعر من الفاتورة: ' . $damagedItemPrice . ' ج.م');
             }
         }
         
