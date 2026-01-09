@@ -42,7 +42,7 @@ function loadExpensesSection() {
     // لكن الميزات المتقدمة (مثل اختيار الفرع) تظهر فقط للمالك والمدير
     
     section.innerHTML = `
-        <div class="section-header">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
             ${isOwner ? `
                 <div class="branch-switcher" style="margin-right: 15px;">
                     <label for="treasuryBranchSelect" style="margin-left: 10px;">اختر الفرع:</label>
@@ -51,6 +51,9 @@ function loadExpensesSection() {
                     </select>
                 </div>
             ` : ''}
+            <button onclick="showTreasuryReportModal()" class="btn btn-primary" style="background: var(--primary-color); color: var(--white); padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <i class="bi bi-printer"></i> طباعة كشف حساب الخزنة
+            </button>
         </div>
 
         <!-- خزنة الفرع الأول -->
@@ -647,6 +650,42 @@ function loadExpensesSection() {
             </div>
         </div>
 
+        <!-- مودال تقرير كشف حساب الخزنة -->
+        <div id="treasuryReportModal" class="modal">
+            <div class="modal-content modal-sm">
+                <div class="modal-header">
+                    <h3><i class="bi bi-printer"></i> طباعة كشف حساب الخزنة</h3>
+                    <button onclick="closeTreasuryReportModal()" class="btn-close">&times;</button>
+                </div>
+                <form id="treasuryReportForm" onsubmit="generateTreasuryReport(event)">
+                    <div class="form-group">
+                        <label for="treasuryReportFilterType">نوع الفلترة *</label>
+                        <select id="treasuryReportFilterType" required onchange="updateTreasuryReportDateFields()">
+                            <option value="month">شهر محدد</option>
+                            <option value="custom">فترة مخصصة</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="treasuryReportMonthGroup">
+                        <label for="treasuryReportMonth">اختر الشهر *</label>
+                        <input type="month" id="treasuryReportMonth" required>
+                    </div>
+
+                    <div class="form-group" id="treasuryReportDateRangeGroup" style="display: none;">
+                        <label for="treasuryReportStartDate">تاريخ البداية *</label>
+                        <input type="date" id="treasuryReportStartDate">
+                        <label for="treasuryReportEndDate" style="margin-top: 10px;">تاريخ النهاية *</label>
+                        <input type="date" id="treasuryReportEndDate">
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" onclick="closeTreasuryReportModal()" class="btn btn-secondary">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">طباعة التقرير</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- جدول سجل المعاملات -->
         <div class="treasury-transactions-section" style="margin-top: 30px;">
             <div class="section-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -1126,7 +1165,9 @@ async function loadExpenses(force = false) {
             }
         }
         
-        const result = await API.getExpenses(branchId);
+        // ✅ عند force = true، نستخدم skipCache لضمان الحصول على أحدث البيانات
+        const cacheOptions = force ? { skipCache: true } : {};
+        const result = await API.getExpenses(branchId, cacheOptions);
         if (result.success) {
             allExpenses = result.data || [];
             filterExpenses();
@@ -4901,6 +4942,553 @@ function cancelEdit(cell, originalValue) {
     }
 }
 
+// ========== دوال تقرير كشف حساب الخزنة ==========
+
+// ✅ دالة لفتح نموذج تقرير كشف حساب الخزنة
+function showTreasuryReportModal() {
+    try {
+        const modal = document.getElementById('treasuryReportModal');
+        if (!modal) {
+            showMessage('النموذج غير موجود', 'error');
+            return;
+        }
+        
+        // تعيين القيم الافتراضية
+        const monthInput = document.getElementById('treasuryReportMonth');
+        const filterType = document.getElementById('treasuryReportFilterType');
+        
+        if (monthInput) {
+            // تعيين الشهر الحالي كقيمة افتراضية
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            monthInput.value = `${year}-${month}`;
+        }
+        
+        if (filterType) {
+            filterType.value = 'month';
+            updateTreasuryReportDateFields();
+        }
+        
+        modal.style.display = 'flex';
+    } catch (error) {
+        console.error('خطأ في فتح نموذج التقرير:', error);
+        showMessage('حدث خطأ أثناء فتح النموذج', 'error');
+    }
+}
+
+// ✅ دالة لإغلاق نموذج تقرير كشف حساب الخزنة
+function closeTreasuryReportModal() {
+    try {
+        const modal = document.getElementById('treasuryReportModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('خطأ في إغلاق النموذج:', error);
+    }
+}
+
+// ✅ دالة لتحديث حقول التاريخ حسب نوع الفلترة
+function updateTreasuryReportDateFields() {
+    try {
+        const filterType = document.getElementById('treasuryReportFilterType')?.value || 'month';
+        const monthGroup = document.getElementById('treasuryReportMonthGroup');
+        const dateRangeGroup = document.getElementById('treasuryReportDateRangeGroup');
+        const monthInput = document.getElementById('treasuryReportMonth');
+        const startDateInput = document.getElementById('treasuryReportStartDate');
+        const endDateInput = document.getElementById('treasuryReportEndDate');
+        
+        if (filterType === 'month') {
+            if (monthGroup) monthGroup.style.display = 'block';
+            if (dateRangeGroup) dateRangeGroup.style.display = 'none';
+            if (monthInput) monthInput.required = true;
+            if (startDateInput) startDateInput.required = false;
+            if (endDateInput) endDateInput.required = false;
+        } else {
+            if (monthGroup) monthGroup.style.display = 'none';
+            if (dateRangeGroup) dateRangeGroup.style.display = 'block';
+            if (monthInput) monthInput.required = false;
+            if (startDateInput) startDateInput.required = true;
+            if (endDateInput) endDateInput.required = true;
+        }
+    } catch (error) {
+        console.error('خطأ في تحديث حقول التاريخ:', error);
+    }
+}
+
+// ✅ دالة لجلب المعاملات المالية حسب الفترة المحددة
+async function fetchTreasuryTransactionsForReport(branchId, startDate, endDate) {
+    try {
+        if (!branchId) {
+            throw new Error('معرف الفرع مطلوب');
+        }
+        
+        // جلب جميع المعاملات في الفترة المحددة
+        const url = `treasury-transactions.php?branch_id=${branchId}&page=1&per_page=100000&start_date=${startDate}&end_date=${endDate}&_t=${Date.now()}`;
+        const result = await API.request(url, 'GET');
+        
+        if (result && result.success && result.data) {
+            return result.data.transactions || [];
+        }
+        
+        return [];
+    } catch (error) {
+        console.error('خطأ في جلب المعاملات:', error);
+        showMessage('حدث خطأ أثناء جلب المعاملات', 'error');
+        return [];
+    }
+}
+
+// ✅ دالة لتوليد وطباعة تقرير كشف حساب الخزنة
+async function generateTreasuryReport(event) {
+    try {
+        event.preventDefault();
+        
+        const filterType = document.getElementById('treasuryReportFilterType')?.value;
+        const monthInput = document.getElementById('treasuryReportMonth')?.value;
+        const startDateInput = document.getElementById('treasuryReportStartDate')?.value;
+        const endDateInput = document.getElementById('treasuryReportEndDate')?.value;
+        
+        let startDate, endDate, reportTitle;
+        
+        if (filterType === 'month') {
+            if (!monthInput) {
+                showMessage('يرجى اختيار الشهر', 'error');
+                return;
+            }
+            
+            // تحويل الشهر إلى تاريخ بداية ونهاية
+            const [year, month] = monthInput.split('-');
+            startDate = `${year}-${month}-01`;
+            const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+            endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+            
+            const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            const monthName = monthNames[parseInt(month) - 1];
+            reportTitle = `كشف حساب الخزنة - ${monthName} ${year}`;
+        } else {
+            if (!startDateInput || !endDateInput) {
+                showMessage('يرجى تحديد تاريخ البداية والنهاية', 'error');
+                return;
+            }
+            
+            startDate = startDateInput;
+            endDate = endDateInput;
+            
+            const formattedStart = formatDate(startDate);
+            const formattedEnd = formatDate(endDate);
+            reportTitle = `كشف حساب الخزنة - من ${formattedStart} إلى ${formattedEnd}`;
+        }
+        
+        // الحصول على معرف الفرع الحالي
+        const branchId = currentTreasuryBranchId || document.getElementById('treasuryBranchSelect')?.value;
+        if (!branchId) {
+            showMessage('يرجى اختيار الفرع', 'error');
+            return;
+        }
+        
+        // جلب بيانات الفرع
+        const branchesResult = await API.request('branches.php', 'GET');
+        let branchName = 'غير محدد';
+        if (branchesResult && branchesResult.success && branchesResult.data) {
+            const branch = branchesResult.data.find(b => b.id === branchId);
+            if (branch) {
+                branchName = branch.name;
+            }
+        }
+        
+        // إظهار رسالة التحميل
+        if (window.loadingOverlay && typeof window.loadingOverlay.show === 'function') {
+            window.loadingOverlay.show('جاري تحميل البيانات...');
+        }
+        
+        // جلب المعاملات
+        const transactions = await fetchTreasuryTransactionsForReport(branchId, startDate, endDate);
+        
+        // إخفاء رسالة التحميل
+        if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+            window.loadingOverlay.hide();
+        }
+        
+        // حساب الإحصائيات
+        let totalPositive = 0; // إجمالي المبالغ المضافة (+)
+        let totalNegative = 0; // إجمالي المبالغ المنقوصة (-)
+        
+        const positiveTypes = ['repair_profit', 'sales_revenue', 'deposit', 'debt_collection'];
+        const negativeTypes = ['expense', 'repair_cost', 'loss_operation', 'sales_cost', 'withdrawal', 'damaged_return'];
+        
+        transactions.forEach(transaction => {
+            const amount = parseFloat(transaction.amount || 0);
+            const type = transaction.transaction_type;
+            
+            if (positiveTypes.includes(type)) {
+                totalPositive += amount;
+            } else if (negativeTypes.includes(type)) {
+                totalNegative += amount;
+            }
+        });
+        
+        // طباعة التقرير
+        printTreasuryReport(transactions, reportTitle, branchName, startDate, endDate, totalPositive, totalNegative);
+        
+        // إغلاق النموذج
+        closeTreasuryReportModal();
+        
+    } catch (error) {
+        console.error('خطأ في توليد التقرير:', error);
+        showMessage('حدث خطأ أثناء توليد التقرير', 'error');
+        if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+            window.loadingOverlay.hide();
+        }
+    }
+}
+
+// ✅ دالة لطباعة تقرير كشف حساب الخزنة
+function printTreasuryReport(transactions, reportTitle, branchName, startDate, endDate, totalPositive, totalNegative) {
+    try {
+        const printWindow = window.open('', '_blank', 'width=1000,height=800');
+        
+        if (!printWindow) {
+            showMessage('يرجى السماح بفتح النوافذ المنبثقة للطباعة', 'error');
+            return;
+        }
+        
+        // جلب إعدادات المتجر
+        const shopSettings = window.shopSettings || {};
+        const shopName = shopSettings.shop_name || 'المتجر';
+        const shopPhone = shopSettings.shop_phone || '';
+        const shopAddress = shopSettings.shop_address || '';
+        const currency = shopSettings.currency || 'ج.م';
+        
+        // تنسيق التواريخ
+        const formattedStartDate = formatDate(startDate);
+        const formattedEndDate = formatDate(endDate);
+        
+        // Escape جميع القيم النصية
+        const safeShopName = escapeHtml(shopName);
+        const safeShopPhone = escapeHtml(shopPhone);
+        const safeShopAddress = escapeHtml(shopAddress);
+        const safeBranchName = escapeHtml(branchName);
+        const safeReportTitle = escapeHtml(reportTitle);
+        
+        // بناء جدول المعاملات
+        const transactionsRows = transactions.map(transaction => {
+            const amount = parseFloat(transaction.amount || 0);
+            const isNegative = ['expense', 'repair_cost', 'loss_operation', 'sales_cost', 'withdrawal', 'damaged_return'].includes(transaction.transaction_type);
+            const amountColor = isNegative ? 'var(--danger-color)' : 'var(--success-color)';
+            const amountSign = isNegative ? '-' : '+';
+            const typeText = transaction.type_text || transaction.transaction_type || '-';
+            const description = escapeHtml(transaction.description || '-');
+            const date = formatDate(transaction.created_at);
+            const user = escapeHtml(transaction.created_by_name || '-');
+            
+            return `
+                <tr>
+                    <td>${date}</td>
+                    <td>${escapeHtml(typeText)}</td>
+                    <td style="color: ${amountColor}; font-weight: bold;">${amountSign}${formatCurrency(Math.abs(amount))}</td>
+                    <td>${description}</td>
+                    <td>${user}</td>
+                </tr>
+            `;
+        }).join('');
+        
+        // بناء HTML للتقرير
+        const reportHtml = `
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${safeReportTitle}</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
+                
+                :root {
+                    --primary-color: #2196F3;
+                    --secondary-color: #64B5F6;
+                    --success-color: #4CAF50;
+                    --warning-color: #FFA500;
+                    --danger-color: #f44336;
+                    --text-dark: #333;
+                    --text-light: #666;
+                    --border-color: #ddd;
+                    --light-bg: #f5f5f5;
+                    --white: #ffffff;
+                }
+                
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    padding: 30px;
+                    background: #fff;
+                    color: var(--text-dark);
+                    line-height: 1.6;
+                }
+                
+                .report-container {
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    background: white;
+                    padding: 40px;
+                    border: 2px solid var(--border-color);
+                    border-radius: 8px;
+                }
+                
+                .report-header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid var(--primary-color);
+                }
+                
+                .report-header h1 {
+                    font-size: 2em;
+                    color: var(--primary-color);
+                    margin-bottom: 10px;
+                    font-weight: 800;
+                }
+                
+                .report-header h2 {
+                    font-size: 1.5em;
+                    color: var(--text-dark);
+                    margin-bottom: 10px;
+                    font-weight: 700;
+                }
+                
+                .report-header p {
+                    color: var(--text-light);
+                    font-size: 1em;
+                    margin: 5px 0;
+                }
+                
+                .report-info {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 20px;
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background: var(--light-bg);
+                    border-radius: 8px;
+                }
+                
+                .report-info-section h3 {
+                    color: var(--primary-color);
+                    margin-bottom: 10px;
+                    font-size: 1.1em;
+                    font-weight: 700;
+                }
+                
+                .report-info-section p {
+                    margin: 5px 0;
+                    color: var(--text-dark);
+                    font-size: 0.95em;
+                }
+                
+                .report-summary {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                    gap: 15px;
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, var(--light-bg) 0%, var(--white) 100%);
+                    border-radius: 8px;
+                    border: 1px solid var(--border-color);
+                }
+                
+                .summary-card {
+                    padding: 15px;
+                    background: var(--white);
+                    border-radius: 8px;
+                    border: 1px solid var(--border-color);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }
+                
+                .summary-card.positive {
+                    border-right: 4px solid var(--success-color);
+                }
+                
+                .summary-card.negative {
+                    border-right: 4px solid var(--danger-color);
+                }
+                
+                .summary-card label {
+                    color: var(--text-light);
+                    font-size: 0.9em;
+                    display: block;
+                    margin-bottom: 8px;
+                }
+                
+                .summary-card .value {
+                    font-size: 1.8em;
+                    font-weight: bold;
+                }
+                
+                .summary-card.positive .value {
+                    color: var(--success-color);
+                }
+                
+                .summary-card.negative .value {
+                    color: var(--danger-color);
+                }
+                
+                .report-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 30px;
+                }
+                
+                .report-table thead {
+                    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+                    color: white;
+                }
+                
+                .report-table th {
+                    padding: 15px;
+                    text-align: right;
+                    font-weight: 700;
+                    font-size: 1.05em;
+                }
+                
+                .report-table td {
+                    padding: 12px 15px;
+                    border-bottom: 1px solid var(--border-color);
+                    text-align: right;
+                }
+                
+                .report-table tbody tr:hover {
+                    background: var(--light-bg);
+                }
+                
+                .report-footer {
+                    text-align: center;
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 2px solid var(--border-color);
+                    color: var(--text-light);
+                }
+                
+                @media print {
+                    @page {
+                        margin: 1cm;
+                    }
+                    
+                    body {
+                        padding: 0;
+                        background: white;
+                    }
+                    
+                    .report-container {
+                        border: none;
+                        padding: 0;
+                        box-shadow: none;
+                    }
+                    
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-container">
+                <div class="report-header">
+                    <h1>${safeShopName}</h1>
+                    <h2>${safeReportTitle}</h2>
+                    <p><i class="bi bi-building"></i> ${safeBranchName}</p>
+                    ${safeShopAddress ? `<p><i class="bi bi-geo-alt-fill"></i> ${safeShopAddress}</p>` : ''}
+                    ${safeShopPhone ? `<p><i class="bi bi-telephone-fill"></i> ${safeShopPhone}</p>` : ''}
+                    <p style="margin-top: 15px; color: var(--text-light); font-size: 0.9em;">
+                        من ${formattedStartDate} إلى ${formattedEndDate}
+                    </p>
+                </div>
+                
+                <div class="report-info">
+                    <div class="report-info-section">
+                        <h3>معلومات التقرير</h3>
+                        <p><strong>الفرع:</strong> ${safeBranchName}</p>
+                        <p><strong>الفترة:</strong> من ${formattedStartDate} إلى ${formattedEndDate}</p>
+                        <p><strong>عدد المعاملات:</strong> ${transactions.length}</p>
+                    </div>
+                    <div class="report-info-section">
+                        <h3>إحصائيات</h3>
+                        <p><strong>إجمالي الإضافات (+):</strong> <span style="color: var(--success-color); font-weight: bold;">${formatCurrency(totalPositive)}</span></p>
+                        <p><strong>إجمالي الناقص (-):</strong> <span style="color: var(--danger-color); font-weight: bold;">${formatCurrency(totalNegative)}</span></p>
+                        <p><strong>صافي الرصيد:</strong> <span style="color: ${(totalPositive - totalNegative) >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}; font-weight: bold;">${formatCurrency(totalPositive - totalNegative)}</span></p>
+                    </div>
+                </div>
+                
+                <div class="report-summary">
+                    <div class="summary-card positive">
+                        <label>إجمالي المبالغ المضافة (+)</label>
+                        <div class="value">${formatCurrency(totalPositive)}</div>
+                    </div>
+                    <div class="summary-card negative">
+                        <label>إجمالي المبالغ المنقوصة (-)</label>
+                        <div class="value">${formatCurrency(totalNegative)}</div>
+                    </div>
+                    <div class="summary-card" style="border-right: 4px solid var(--primary-color);">
+                        <label>صافي الرصيد</label>
+                        <div class="value" style="color: var(--primary-color);">${formatCurrency(totalPositive - totalNegative)}</div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-bottom: 15px; color: var(--primary-color);">
+                    <i class="bi bi-list-ul"></i> تفاصيل المعاملات المالية
+                </h3>
+                
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>نوع المعاملة</th>
+                            <th>المبلغ</th>
+                            <th>الوصف</th>
+                            <th>المستخدم</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${transactionsRows || '<tr><td colspan="5" style="text-align: center;">لا توجد معاملات</td></tr>'}
+                    </tbody>
+                </table>
+                
+                <div class="report-footer">
+                    <p>تم إنشاء التقرير في ${formatDate(new Date().toISOString())}</p>
+                    <p style="margin-top: 10px; font-size: 0.9em;">شكراً لاستخدامك نظام إدارة الخزنة</p>
+                </div>
+            </div>
+            
+            <div class="no-print" style="text-align: center; margin-top: 20px; padding: 20px;">
+                <button onclick="window.print()" style="padding: 12px 30px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">
+                    <i class="bi bi-printer"></i> طباعة
+                </button>
+            </div>
+        </body>
+        </html>
+        `;
+        
+        printWindow.document.write(reportHtml);
+        printWindow.document.close();
+        
+        // الانتظار قليلاً ثم فتح نافذة الطباعة
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 500);
+        
+    } catch (error) {
+        console.error('خطأ في طباعة التقرير:', error);
+        showMessage('حدث خطأ أثناء طباعة التقرير', 'error');
+    }
+}
+
 // ✅ تصدير الدوال إلى window لجعلها متاحة عالمياً
 window.showAddExpenseModal = showAddExpenseModal;
 window.closeExpenseModal = closeExpenseModal;
@@ -4926,6 +5514,10 @@ window.closeEditSalaryModal = closeEditSalaryModal;
 window.saveSalary = saveSalary;
 window.loadBranch1TreasuryData = loadBranch1TreasuryData;
 window.filterUserProfileDeductions = filterUserProfileDeductions;
+window.showTreasuryReportModal = showTreasuryReportModal;
+window.closeTreasuryReportModal = closeTreasuryReportModal;
+window.updateTreasuryReportDateFields = updateTreasuryReportDateFields;
+window.generateTreasuryReport = generateTreasuryReport;
 
 } // ✅ نهاية حماية من التحميل المكرر
 

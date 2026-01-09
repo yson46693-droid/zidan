@@ -83,9 +83,28 @@ if ($method === 'GET') {
         response(false, 'معرف الفرع غير صحيح', null, 400);
     }
     
+    // ✅ فلترة حسب التاريخ (اختياري)
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
+    
+    $dateFilter = '';
+    $dateParams = [];
+    
+    if ($startDate && $endDate) {
+        $dateFilter = " AND DATE(t.created_at) >= ? AND DATE(t.created_at) <= ?";
+        $dateParams = [$startDate, $endDate];
+    } elseif ($startDate) {
+        $dateFilter = " AND DATE(t.created_at) >= ?";
+        $dateParams = [$startDate];
+    } elseif ($endDate) {
+        $dateFilter = " AND DATE(t.created_at) <= ?";
+        $dateParams = [$endDate];
+    }
+    
     // جلب إجمالي عدد المعاملات
-    $totalQuery = "SELECT COUNT(*) as total FROM treasury_transactions WHERE branch_id = ?";
-    $totalResult = dbSelectOne($totalQuery, [$branchId]);
+    $totalQuery = "SELECT COUNT(*) as total FROM treasury_transactions t WHERE t.branch_id = ?" . $dateFilter;
+    $totalParams = array_merge([$branchId], $dateParams);
+    $totalResult = dbSelectOne($totalQuery, $totalParams);
     if ($totalResult === false) {
         response(false, 'خطأ في جلب عدد المعاملات', null, 500);
     }
@@ -93,15 +112,14 @@ if ($method === 'GET') {
     $totalPages = ceil($total / $perPage);
     
     // جلب المعاملات مع pagination
-    $transactions = dbSelect(
-        "SELECT t.*, u.name as created_by_name 
+    $transactionsQuery = "SELECT t.*, u.name as created_by_name 
          FROM treasury_transactions t
          LEFT JOIN users u ON t.created_by = u.id
-         WHERE t.branch_id = ?
+         WHERE t.branch_id = ?" . $dateFilter . "
          ORDER BY t.created_at DESC
-         LIMIT ? OFFSET ?",
-        [$branchId, $perPage, $offset]
-    );
+         LIMIT ? OFFSET ?";
+    $transactionsParams = array_merge([$branchId], $dateParams, [$perPage, $offset]);
+    $transactions = dbSelect($transactionsQuery, $transactionsParams);
     
     if ($transactions === false) {
         response(false, 'خطأ في جلب المعاملات', null, 500);

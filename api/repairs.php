@@ -1108,6 +1108,7 @@ if ($method === 'PUT') {
         }
         
         // ✅ عند تغيير الحالة إلى "تم التسليم" للعملاء التجاريين: إضافة المبلغ المتبقي للديون إذا لم يتم إضافته من قبل
+        // ✅ إذا كان المبلغ المدفوع = 0، يتم إضافة السعر للعميل بالكامل (customer_price) إلى الديون
         if ($currentCustomerId && $newStatus === 'delivered' && $currentStatus !== 'delivered' && dbColumnExists('customers', 'total_debt')) {
             // جلب نوع العميل والدين الحالي
             $customer = dbSelectOne(
@@ -1115,12 +1116,26 @@ if ($method === 'PUT') {
                 [$currentCustomerId]
             );
             
-            if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial' && $newRemainingAmount > 0) {
-                // التحقق من أن المبلغ المتبقي لم يتم إضافته للديون من قبل (عند تغيير الحالة إلى ready_for_delivery)
-                // إذا كانت الحالة السابقة ليست ready_for_delivery، فيجب إضافة المبلغ المتبقي للديون
-                if ($currentStatus !== 'ready_for_delivery') {
+            if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial') {
+                // تحديد المبلغ المراد إضافته للديون
+                $amountToAdd = 0;
+                
+                // ✅ إذا كان المبلغ المدفوع = 0، يتم إضافة السعر للعميل بالكامل (customer_price) إلى الديون
+                if ($newPaidAmount == 0 || $currentPaidAmount == 0) {
+                    $amountToAdd = floatval($newCustomerPrice > 0 ? $newCustomerPrice : $currentCustomerPrice);
+                    error_log("ℹ️ [Repairs API] المبلغ المدفوع = 0 للعميل التجاري - سيتم إضافة السعر للعميل بالكامل ({$amountToAdd} ج.م) إلى الديون");
+                } else if ($newRemainingAmount > 0) {
+                    // إذا كان هناك مبلغ مدفوع، يتم إضافة المبلغ المتبقي فقط
+                    // التحقق من أن المبلغ المتبقي لم يتم إضافته للديون من قبل (عند تغيير الحالة إلى ready_for_delivery)
+                    // إذا كانت الحالة السابقة ليست ready_for_delivery، فيجب إضافة المبلغ المتبقي للديون
+                    if ($currentStatus !== 'ready_for_delivery') {
+                        $amountToAdd = $newRemainingAmount;
+                    }
+                }
+                
+                if ($amountToAdd > 0) {
                     $currentTotalDebt = floatval($customer['total_debt'] ?? 0);
-                    $newTotalDebt = $currentTotalDebt + $newRemainingAmount;
+                    $newTotalDebt = $currentTotalDebt + $amountToAdd;
                     
                     $updateDebtResult = dbExecute(
                         "UPDATE customers SET total_debt = ? WHERE id = ?",
@@ -1130,7 +1145,7 @@ if ($method === 'PUT') {
                     if ($updateDebtResult === false) {
                         error_log('⚠️ فشل تحديث دين العميل بعد تغيير الحالة إلى "تم التسليم"');
                     } else {
-                        error_log("✅ تم إضافة المبلغ المتبقي ({$newRemainingAmount}) إلى دين العميل عند تغيير الحالة إلى 'تم التسليم': {$currentTotalDebt} + {$newRemainingAmount} = {$newTotalDebt}");
+                        error_log("✅ تم إضافة المبلغ ({$amountToAdd} ج.م) إلى دين العميل التجاري عند تغيير الحالة إلى 'تم التسليم': {$currentTotalDebt} + {$amountToAdd} = {$newTotalDebt}");
                     }
                 }
             }
@@ -1212,19 +1227,25 @@ if ($method === 'PUT') {
         
         // ✅ إضافة المبلغ المتبقي إلى الخزنة عند تغيير الحالة إلى "delivered"
         // ✅ تسجيل المبلغ حسب نوع الفرع: repair_profit للفرع الأول، deposit للفرع الثاني
-        // ✅ إذا كان العميل تجاري (commercial): لا يتم إضافة المبلغ المتبقي للخزنة على الإطلاق - يُضاف فقط للديون
+        // ✅ إذا كان العميل تجاري (commercial) والمبلغ المدفوع = 0: لا يتم إضافة أي ربح صيانة للخزنة - يُضاف فقط للديون
         if (isset($data['status']) && $data['status'] === 'delivered' && $currentStatus !== 'delivered') {
             $remainingAmount = floatval($updatedRepair['remaining_amount'] ?? 0);
+            $paidAmount = floatval($updatedRepair['paid_amount'] ?? 0);
             $customerId = $updatedRepair['customer_id'] ?? null;
             
             if ($remainingAmount > 0 && $branchId && dbTableExists('treasury_transactions')) {
                 // التحقق من نوع العميل - إذا كان commercial فلا يُضاف للخزنة على الإطلاق
+                // ✅ إذا كان العميل تجاري والمبلغ المدفوع = 0: لا يتم إضافة أي ربح صيانة للخزنة
                 $shouldAddToRevenue = true;
                 if ($customerId) {
                     $customer = dbSelectOne("SELECT customer_type FROM customers WHERE id = ?", [$customerId]);
                     if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial') {
                         $shouldAddToRevenue = false;
-                        error_log("ℹ️ [Repairs API] المبلغ المتبقي ({$remainingAmount} ج.م) لا يُضاف للخزنة لأن العميل تجاري (commercial) - سيتم إضافته للديون فقط - العملية {$repairNumberText}");
+                        if ($paidAmount == 0) {
+                            error_log("ℹ️ [Repairs API] العملية للعميل التجاري والمبلغ المدفوع = 0 - لا يتم إضافة أي ربح صيانة للخزنة، سيتم إضافة السعر للعميل بالكامل ({$updatedRepair['customer_price']} ج.م) للديون فقط - العملية {$repairNumberText}");
+                        } else {
+                            error_log("ℹ️ [Repairs API] المبلغ المتبقي ({$remainingAmount} ج.م) لا يُضاف للخزنة لأن العميل تجاري (commercial) - سيتم إضافته للديون فقط - العملية {$repairNumberText}");
+                        }
                     }
                 }
                 

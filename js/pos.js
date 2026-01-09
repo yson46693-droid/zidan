@@ -147,55 +147,63 @@ async function loadFirstBranchId() {
 }
 
 // Load All Products
-async function loadAllProducts() {
+async function loadAllProducts(forceRefresh = false) {
     try {
         const productsGrid = document.getElementById('productsGrid');
         if (productsGrid) {
             productsGrid.innerHTML = '<div class="pos-loading"><i class="bi bi-arrow-repeat"></i> جاري التحميل...</div>';
         }
         
-        // ✅ محاولة تحميل من Cache أولاً (سريع جداً)
+        // ✅ تعريف cachedProducts خارج if لاستخدامه لاحقاً
         let cachedProducts = null;
-        try {
-            if (typeof dbCache !== 'undefined') {
-                cachedProducts = await dbCache.loadProducts(3600000); // cache صالح لمدة ساعة
-                if (cachedProducts && cachedProducts.length > 0) {
-                    allProducts = cachedProducts;
-                    filteredProducts = [...allProducts];
-                    renderProducts();
-                    updateCartDisplay();
-                    
-                    // عرض رسالة أن البيانات من الكاش (فقط إذا كانت موجودة)
-                    if (productsGrid && productsGrid.parentElement) {
-                        // التحقق من عدم وجود رسالة سابقة
-                        const existingNotice = productsGrid.parentElement.querySelector('.pos-cache-notice');
-                        if (!existingNotice) {
-                            const cacheNotice = document.createElement('div');
-                            cacheNotice.className = 'pos-cache-notice';
-                            cacheNotice.innerHTML = '<i class="bi bi-database"></i> البيانات من التخزين المحلي - جاري تحديث البيانات في الخلفية...';
-                            cacheNotice.style.cssText = 'padding: 8px; background: var(--light-bg); color: var(--text-light); font-size: 12px; text-align: center; border-radius: 4px; margin-bottom: 10px;';
-                            productsGrid.parentElement.insertBefore(cacheNotice, productsGrid);
-                            
-                            // إخفاء الرسالة بعد 5 ثوان
-                            setTimeout(() => {
-                                if (cacheNotice.parentElement) {
-                                    cacheNotice.remove();
-                                }
-                            }, 5000);
+        
+        // ✅ إذا كان forceRefresh = true، نتخطى الكاش تماماً
+        if (!forceRefresh) {
+            // ✅ محاولة تحميل من Cache أولاً (سريع جداً)
+            try {
+                if (typeof dbCache !== 'undefined') {
+                    cachedProducts = await dbCache.loadProducts(3600000); // cache صالح لمدة ساعة
+                    if (cachedProducts && cachedProducts.length > 0) {
+                        allProducts = cachedProducts;
+                        filteredProducts = [...allProducts];
+                        renderProducts();
+                        updateCartDisplay();
+                        
+                        // عرض رسالة أن البيانات من الكاش (فقط إذا كانت موجودة)
+                        if (productsGrid && productsGrid.parentElement) {
+                            // التحقق من عدم وجود رسالة سابقة
+                            const existingNotice = productsGrid.parentElement.querySelector('.pos-cache-notice');
+                            if (!existingNotice) {
+                                const cacheNotice = document.createElement('div');
+                                cacheNotice.className = 'pos-cache-notice';
+                                cacheNotice.innerHTML = '<i class="bi bi-database"></i> البيانات من التخزين المحلي - جاري تحديث البيانات في الخلفية...';
+                                cacheNotice.style.cssText = 'padding: 8px; background: var(--light-bg); color: var(--text-light); font-size: 12px; text-align: center; border-radius: 4px; margin-bottom: 10px;';
+                                productsGrid.parentElement.insertBefore(cacheNotice, productsGrid);
+                                
+                                // إخفاء الرسالة بعد 5 ثوان
+                                setTimeout(() => {
+                                    if (cacheNotice.parentElement) {
+                                        cacheNotice.remove();
+                                    }
+                                }, 5000);
+                            }
                         }
                     }
                 }
+            } catch (error) {
+                // تجاهل الأخطاء في تحميل Cache
             }
-        } catch (error) {
-            // تجاهل الأخطاء في تحميل Cache
         }
         
         // ✅ تحميل البيانات الجديدة من الخادم في الخلفية (Silent)
+        // ✅ عند forceRefresh = true، نستخدم skipCache لضمان الحصول على أحدث البيانات
+        const requestOptions = forceRefresh ? { silent: true, skipCache: true } : { silent: true };
+        
         try {
             const [sparePartsRes, accessoriesRes, phonesRes] = await Promise.all([
-                API.request('inventory.php?type=spare_parts', 'GET', null, { silent: true }),
-                API.request('inventory.php?type=accessories', 'GET', null, { silent: true }),
-                API.request('inventory.php?type=phones', 'GET', null, { silent: true })
+                API.request('inventory.php?type=spare_parts', 'GET', null, requestOptions),
+                API.request('inventory.php?type=accessories', 'GET', null, requestOptions),
+                API.request('inventory.php?type=phones', 'GET', null, requestOptions)
             ]);
             
             allProducts = [];
@@ -274,7 +282,7 @@ async function loadAllProducts() {
             }
             
             // ✅ تحديث العرض إذا تغيرت البيانات
-            if (!cachedProducts || cachedProducts.length !== allProducts.length) {
+            if (forceRefresh || !cachedProducts || cachedProducts.length !== allProducts.length) {
                 renderProducts();
                 updateCartDisplay();
             }
@@ -1855,8 +1863,8 @@ async function processPayment() {
             cart = [];
             updateCartDisplay();
             
-            // إعادة تحميل المنتجات لتحديث الكميات
-            await loadAllProducts();
+            // ✅ إعادة تحميل المنتجات لتحديث الكميات (مع skipCache)
+            await loadAllProducts(true); // forceRefresh = true
             filterProducts();
             
             showMessage('تم إتمام عملية البيع بنجاح', 'success');

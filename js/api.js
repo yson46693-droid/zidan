@@ -698,9 +698,9 @@ const API = {
     },
 
     // المصروفات
-    async getExpenses(branchId = null) {
+    async getExpenses(branchId = null, requestOptions = {}) {
         const url = branchId ? `expenses.php?branch_id=${encodeURIComponent(branchId)}` : 'expenses.php';
-        return await this.request(url, 'GET');
+        return await this.request(url, 'GET', null, requestOptions);
     },
 
     async addExpense(expenseData) {

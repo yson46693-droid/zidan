@@ -4821,14 +4821,23 @@ async function deleteRepair(id) {
 // ✅ دالة لطباعة فاتورة التسليم باستخدام القالب الجديد
 async function printDeliveredRepairInvoice(repair) {
     try {
-        console.log('🚀 بدء طباعة فاتورة التسليم');
-        console.log('بيانات العملية:', repair);
+        console.log('🚀 ========== بدء طباعة فاتورة التسليم ==========');
+        console.log('📋 بيانات العملية الكاملة:', JSON.stringify(repair, null, 2));
         
-        if (!repair || !repair.id) {
-            console.error('❌ بيانات العملية غير صحيحة');
-            showMessage('بيانات العملية غير صحيحة', 'error');
-            return;
+        if (!repair) {
+            console.error('❌ بيانات العملية غير موجودة (repair is null/undefined)');
+            showMessage('بيانات العملية غير موجودة', 'error');
+            throw new Error('بيانات العملية غير موجودة');
         }
+        
+        if (!repair.id) {
+            console.error('❌ معرف العملية غير موجود (repair.id is missing)');
+            console.error('بيانات العملية:', repair);
+            showMessage('معرف العملية غير موجود', 'error');
+            throw new Error('معرف العملية غير موجود');
+        }
+        
+        console.log('✅ التحقق من البيانات نجح - ID:', repair.id, 'Status:', repair.status);
         // ✅ جلب بيانات الفرع
         let branchData = null;
         let branchSettings = null;
@@ -4942,11 +4951,21 @@ async function printDeliveredRepairInvoice(repair) {
             // ✅ بناء المسار الصحيح للقالب
             let templateUrl = 'last.html';
             const currentPath = window.location.pathname;
-            const currentDir = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
             
-            // إذا كان الملف الحالي في مجلد فرعي، استخدم المسار النسبي
-            if (currentDir && currentDir !== '/') {
-                templateUrl = currentDir + 'last.html';
+            // ✅ بناء المسار النسبي بناءً على موقع الملف الحالي
+            if (currentPath && currentPath !== '/') {
+                const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html' && p !== 'dashboard.html');
+                if (pathParts.length > 0) {
+                    // إزالة اسم الملف الحالي
+                    pathParts.pop();
+                    if (pathParts.length > 0) {
+                        templateUrl = '/' + pathParts.join('/') + '/last.html';
+                    } else {
+                        templateUrl = '/last.html';
+                    }
+                } else {
+                    templateUrl = '/last.html';
+                }
             } else {
                 templateUrl = '/last.html';
             }
@@ -4954,6 +4973,11 @@ async function printDeliveredRepairInvoice(repair) {
             // ✅ بناء URL كامل
             const baseUrl = window.location.origin;
             const urlWithData = baseUrl + templateUrl + '?data=' + dataParam;
+            
+            console.log('📍 معلومات المسار:');
+            console.log('  - المسار الحالي:', currentPath);
+            console.log('  - المسار النسبي للقالب:', templateUrl);
+            console.log('  - URL الكامل:', urlWithData);
             
             console.log('✅ فتح فاتورة التسليم');
             console.log('المسار النسبي:', templateUrl);
@@ -4970,6 +4994,8 @@ async function printDeliveredRepairInvoice(repair) {
             
             // ✅ إعطاء النافذة وقت للتحميل
             printWindow.focus();
+            console.log('✅ تم فتح نافذة الفاتورة بنجاح');
+            console.log('📄 النافذة مفتوحة، البيانات موجودة في URL وسيتم تحميلها تلقائياً');
             
             // ✅ محاولة تحديث البيانات بعد تحميل الصفحة (اختياري - البيانات موجودة في URL)
             let attempts = 0;
@@ -4979,6 +5005,7 @@ async function printDeliveredRepairInvoice(repair) {
                 attempts++;
                 try {
                     if (printWindow.closed) {
+                        console.log('⚠️ تم إغلاق نافذة الفاتورة');
                         clearInterval(checkAndUpdate);
                         return;
                     }
@@ -4994,7 +5021,7 @@ async function printDeliveredRepairInvoice(repair) {
                             }
                         } catch (e) {
                             // CORS error متوقع - البيانات موجودة في URL وسيتم تحميلها تلقائياً
-                            console.log('البيانات موجودة في URL، سيتم تحميلها تلقائياً من last.html');
+                            console.log('ℹ️ البيانات موجودة في URL، سيتم تحميلها تلقائياً من last.html');
                         }
                         
                         // التوقف بعد عدد محاولات معين
@@ -5005,15 +5032,24 @@ async function printDeliveredRepairInvoice(repair) {
                     }
                 } catch (error) {
                     // CORS error متوقع - البيانات موجودة في URL
+                    console.log('ℹ️ CORS error متوقع - البيانات موجودة في URL');
                     if (attempts >= maxAttempts) {
                         clearInterval(checkAndUpdate);
                     }
                 }
             }, 200);
             
+            console.log('✅ ========== انتهى استدعاء printDeliveredRepairInvoice ==========');
+            
         } catch (error) {
             console.error('❌ خطأ في فتح نافذة الفاتورة:', error);
+            console.error('تفاصيل الخطأ:', {
+                message: error.message,
+                stack: error.stack,
+                url: urlWithData
+            });
             showMessage('حدث خطأ أثناء فتح الفاتورة: ' + (error.message || 'خطأ غير معروف'), 'error');
+            throw error; // ✅ إعادة رمي الخطأ ليتم التقاطه في printRepairReceipt
         }
         
     } catch (error) {
@@ -5056,11 +5092,19 @@ async function printRepairReceipt(id) {
         if (status === 'delivered') {
             console.log('✅ استخدام قالب فاتورة التسليم - حالة: تم التسليم');
             console.log('📄 استدعاء printDeliveredRepairInvoice...');
-            await printDeliveredRepairInvoice(repair);
-            return;
+            try {
+                await printDeliveredRepairInvoice(repair);
+                console.log('✅ تم استدعاء printDeliveredRepairInvoice بنجاح');
+                return; // ✅ مهم: إرجاع هنا لمنع استمرار الكود
+            } catch (error) {
+                console.error('❌ خطأ في printDeliveredRepairInvoice:', error);
+                // لا نستمر إلى الإيصال العادي، نعرض رسالة خطأ
+                showMessage('حدث خطأ أثناء طباعة فاتورة التسليم: ' + (error.message || 'خطأ غير معروف'), 'error');
+                return; // ✅ إرجاع هنا أيضاً لمنع استمرار الكود
+            }
         }
         
-        console.log('ℹ️ استخدام قالب الإيصال العادي - الحالة:', repair.status);
+        console.log('ℹ️ استخدام قالب الإيصال العادي - الحالة:', repair.status, '(ليست delivered)');
         
         // ✅ جلب بيانات الفرع
         let branchData = null;
