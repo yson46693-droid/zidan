@@ -108,6 +108,25 @@ function loadProductReturnsSection() {
                             </button>
                         </div>
 
+                        <!-- المبلغ المدفوع للعميل -->
+                        <div id="refundAmountContainer" style="width: 100%; max-width: 100%; margin-top: 20px; display: none; box-sizing: border-box;">
+                            <label for="refundAmountInput" style="display: block; margin-bottom: 8px; color: var(--text-dark); font-size: 14px; font-weight: 600;">
+                                <i class="bi bi-cash-coin"></i> المبلغ المدفوع للعميل (ج.م)
+                            </label>
+                            <input type="number" 
+                                   id="refundAmountInput"
+                                   min="0" 
+                                   step="0.01"
+                                   value="0"
+                                   placeholder="0.00"
+                                   style="width: 100%; max-width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 16px; box-sizing: border-box; transition: all 0.3s ease;"
+                                   onfocus="this.style.borderColor='var(--primary-color)'; this.style.boxShadow='0 0 0 3px rgba(33, 150, 243, 0.1)';"
+                                   onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
+                            <p style="margin: 5px 0 0 0; color: var(--text-light); font-size: 12px;">
+                                <i class="bi bi-info-circle"></i> سيتم خصم هذا المبلغ من خزنة الفرع
+                            </p>
+                        </div>
+
                         <button onclick="completeReturn()" 
                                 id="completeReturnBtn"
                                 class="btn btn-success"
@@ -869,6 +888,16 @@ function displayInvoiceDetails(invoiceData) {
     
     card.style.display = 'block';
     completeBtn.style.display = 'none';
+    
+    // إخفاء حقل المبلغ المدفوع وإعادة تعيينه
+    const refundAmountContainer = document.getElementById('refundAmountContainer');
+    const refundAmountInput = document.getElementById('refundAmountInput');
+    if (refundAmountContainer) {
+        refundAmountContainer.style.display = 'none';
+    }
+    if (refundAmountInput) {
+        refundAmountInput.value = '0';
+    }
 }
 
 // Hide Invoice Details
@@ -879,6 +908,16 @@ function hideInvoiceDetails() {
     }
     currentInvoice = null;
     returnItems = {};
+    
+    // إخفاء حقل المبلغ المدفوع وإعادة تعيينه
+    const refundAmountContainer = document.getElementById('refundAmountContainer');
+    const refundAmountInput = document.getElementById('refundAmountInput');
+    if (refundAmountContainer) {
+        refundAmountContainer.style.display = 'none';
+    }
+    if (refundAmountInput) {
+        refundAmountInput.value = '0';
+    }
 }
 
 // Show Invoice Details Modal
@@ -1155,10 +1194,16 @@ function toggleReturnItem(itemId, maxQuantity) {
         }
     }
     
-    // Show/hide complete button
+    // Show/hide complete button and refund amount input
     const hasSelectedItems = Object.values(returnItems).some(item => item.selected);
+    const refundAmountContainer = document.getElementById('refundAmountContainer');
+    
     if (completeBtn) {
         completeBtn.style.display = hasSelectedItems ? 'block' : 'none';
+    }
+    
+    if (refundAmountContainer) {
+        refundAmountContainer.style.display = hasSelectedItems ? 'block' : 'none';
     }
 }
 
@@ -1220,10 +1265,16 @@ function toggleItemDamaged(itemId) {
         }
     }
     
-    // Show/hide complete button
+    // Show/hide complete button and refund amount input
     const hasSelectedItems = Object.values(returnItems).some(item => item.selected);
+    const refundAmountContainer = document.getElementById('refundAmountContainer');
+    
     if (completeBtn) {
         completeBtn.style.display = hasSelectedItems ? 'block' : 'none';
+    }
+    
+    if (refundAmountContainer) {
+        refundAmountContainer.style.display = hasSelectedItems ? 'block' : 'none';
     }
 }
 
@@ -1249,8 +1300,14 @@ function returnAllItems() {
     });
     
     const completeBtn = document.getElementById('completeReturnBtn');
+    const refundAmountContainer = document.getElementById('refundAmountContainer');
+    
     if (completeBtn) {
         completeBtn.style.display = 'block';
+    }
+    
+    if (refundAmountContainer) {
+        refundAmountContainer.style.display = 'block';
     }
 }
 
@@ -1274,8 +1331,19 @@ function clearAllItems() {
     });
     
     const completeBtn = document.getElementById('completeReturnBtn');
+    const refundAmountContainer = document.getElementById('refundAmountContainer');
+    const refundAmountInput = document.getElementById('refundAmountInput');
+    
     if (completeBtn) {
         completeBtn.style.display = 'none';
+    }
+    
+    if (refundAmountContainer) {
+        refundAmountContainer.style.display = 'none';
+    }
+    
+    if (refundAmountInput) {
+        refundAmountInput.value = '0';
     }
 }
 
@@ -1315,11 +1383,21 @@ async function completeReturn() {
         }
     }
     
+    // جلب المبلغ المدفوع للعميل
+    const refundAmountInput = document.getElementById('refundAmountInput');
+    const refundAmount = refundAmountInput ? parseFloat(refundAmountInput.value) || 0 : 0;
+    
+    if (refundAmount < 0) {
+        showMessage('المبلغ المدفوع للعميل لا يمكن أن يكون سالباً', 'error');
+        return;
+    }
+    
     try {
         const response = await API.request('product-returns.php', 'POST', {
             sale_number: currentInvoice.sale_number || currentInvoice.id,
             items: itemsToReturn,
-            notes: ''
+            notes: '',
+            refund_amount: refundAmount
         });
         
         if (response.success) {

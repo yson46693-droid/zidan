@@ -753,6 +753,7 @@ if ($method === 'POST') {
     $saleNumber = trim($data['sale_number'] ?? '');
     $items = $data['items'] ?? [];
     $notes = trim($data['notes'] ?? '');
+    $refundAmount = floatval($data['refund_amount'] ?? 0); // المبلغ المدفوع للعميل
     
     if (empty($saleNumber)) {
         response(false, 'رقم الفاتورة مطلوب', null, 400);
@@ -1022,6 +1023,38 @@ if ($method === 'POST') {
                 // لا نوقف العملية، فقط نسجل التحذير
             } else {
                 error_log('✅ تم إضافة معاملة المرتجع التالف في treasury_transactions بنجاح: ' . $totalDamagedAmount . ' ج.م');
+            }
+        }
+        
+        // ✅ خصم المبلغ المدفوع للعميل من خزنة الفرع
+        if ($refundAmount > 0 && dbTableExists('treasury_transactions') && $returnBranchId) {
+            // التحقق من عدم وجود معاملة مسجلة مسبقاً
+            $existingRefundTransaction = dbSelectOne(
+                "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'product_return' AND transaction_type = 'withdrawal' AND description LIKE ?",
+                [$returnId, '%المبلغ المدفوع للعميل%']
+            );
+            
+            if (!$existingRefundTransaction) {
+                $refundTransactionId = generateId();
+                $refundDescription = "المبلغ المدفوع للعميل - مرتجع فاتورة رقم {$saleNumber}";
+                if (!empty($notes)) {
+                    $refundDescription .= ' - ' . $notes;
+                }
+                
+                $refundTransactionResult = dbExecute(
+                    "INSERT INTO treasury_transactions (
+                        id, branch_id, transaction_type, amount, description, 
+                        reference_id, reference_type, created_at, created_by
+                    ) VALUES (?, ?, 'withdrawal', ?, ?, ?, 'product_return', NOW(), ?)",
+                    [$refundTransactionId, $returnBranchId, $refundAmount, $refundDescription, $returnId, $session['user_id']]
+                );
+                
+                if ($refundTransactionResult === false) {
+                    error_log('❌ تحذير: فشل خصم المبلغ المدفوع للعميل من خزنة الفرع');
+                    // لا نوقف العملية، فقط نسجل التحذير
+                } else {
+                    error_log("✅ تم خصم المبلغ المدفوع للعميل ({$refundAmount} ج.م) من خزنة الفرع بنجاح");
+                }
             }
         }
         

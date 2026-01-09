@@ -5103,6 +5103,15 @@ async function generateTreasuryReport(event) {
             window.loadingOverlay.show('جاري تحميل البيانات...');
         }
         
+        // جلب بيانات الخزنة (المربعات الـ12)
+        const treasuryDataUrl = `branch-treasury.php?branch_id=${branchId}&filter_type=custom&start_date=${startDate}&end_date=${endDate}&_t=${Date.now()}`;
+        const treasuryDataResult = await API.request(treasuryDataUrl, 'GET');
+        
+        let treasurySummary = null;
+        if (treasuryDataResult && treasuryDataResult.success && treasuryDataResult.data) {
+            treasurySummary = treasuryDataResult.data;
+        }
+        
         // جلب المعاملات
         const transactions = await fetchTreasuryTransactionsForReport(branchId, startDate, endDate);
         
@@ -5111,26 +5120,8 @@ async function generateTreasuryReport(event) {
             window.loadingOverlay.hide();
         }
         
-        // حساب الإحصائيات
-        let totalPositive = 0; // إجمالي المبالغ المضافة (+)
-        let totalNegative = 0; // إجمالي المبالغ المنقوصة (-)
-        
-        const positiveTypes = ['repair_profit', 'sales_revenue', 'deposit', 'debt_collection'];
-        const negativeTypes = ['expense', 'repair_cost', 'loss_operation', 'sales_cost', 'withdrawal', 'damaged_return'];
-        
-        transactions.forEach(transaction => {
-            const amount = parseFloat(transaction.amount || 0);
-            const type = transaction.transaction_type;
-            
-            if (positiveTypes.includes(type)) {
-                totalPositive += amount;
-            } else if (negativeTypes.includes(type)) {
-                totalNegative += amount;
-            }
-        });
-        
-        // طباعة التقرير
-        printTreasuryReport(transactions, reportTitle, branchName, startDate, endDate, totalPositive, totalNegative);
+        // طباعة التقرير مع ملخص المربعات
+        printTreasuryReport(transactions, reportTitle, branchName, startDate, endDate, treasurySummary);
         
         // إغلاق النموذج
         closeTreasuryReportModal();
@@ -5145,7 +5136,7 @@ async function generateTreasuryReport(event) {
 }
 
 // ✅ دالة لطباعة تقرير كشف حساب الخزنة
-function printTreasuryReport(transactions, reportTitle, branchName, startDate, endDate, totalPositive, totalNegative) {
+function printTreasuryReport(transactions, reportTitle, branchName, startDate, endDate, treasurySummary) {
     try {
         const printWindow = window.open('', '_blank', 'width=1000,height=800');
         
@@ -5171,6 +5162,32 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
         const safeShopAddress = escapeHtml(shopAddress);
         const safeBranchName = escapeHtml(branchName);
         const safeReportTitle = escapeHtml(reportTitle);
+        
+        // استخراج بيانات المربعات الـ12 من treasurySummary
+        const summary = treasurySummary || {};
+        const expenses = summary.expenses || {};
+        const repairs = summary.repairs || {};
+        const lossOperations = summary.loss_operations || {};
+        const withdrawals = summary.withdrawals || {};
+        const deposits = summary.deposits || {};
+        const debtCollections = summary.debt_collections || {};
+        const damagedReturns = summary.damaged_returns || {};
+        const normalReturns = summary.normal_returns || {};
+        const revenue = summary.revenue || {};
+        const netBalance = parseFloat(summary.net_balance || 0);
+        
+        // القيم من المربعات الـ12
+        const totalLossOperations = parseFloat(lossOperations.total || 0);
+        const totalRepairProfits = parseFloat(repairs.total_profits || 0);
+        const totalRepairCosts = parseFloat(repairs.total_costs || 0);
+        const totalExpenses = parseFloat(expenses.total || 0);
+        const totalSalaryWithdrawals = parseFloat(withdrawals.salary_withdrawals || 0);
+        const totalRevenue = parseFloat(revenue.total || 0);
+        const totalNormalReturns = parseFloat(normalReturns?.total || 0);
+        const totalDamagedReturns = parseFloat(damagedReturns.total || 0);
+        const totalDebtCollections = parseFloat(debtCollections.total || 0);
+        const totalDeposits = parseFloat(deposits.total || 0);
+        const totalTreasuryWithdrawals = parseFloat(withdrawals.treasury_withdrawals || 0);
         
         // بناء جدول المعاملات
         const transactionsRows = transactions.map(transaction => {
@@ -5409,22 +5426,62 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
                     </p>
                 </div>
                 
+                <h3 style="margin-bottom: 15px; color: var(--primary-color); margin-top: 30px;">
+                    <i class="bi bi-grid-3x3-gap"></i> ملخص حسابات الخزنة
+                </h3>
+                
                 <div class="report-summary">
+                    <div class="summary-card negative">
+                        <label>إجمالي العمليات الخاسرة</label>
+                        <div class="value">${formatCurrency(totalLossOperations)}</div>
+                    </div>
                     <div class="summary-card positive">
-                        <label>إجمالي المبالغ المضافة (+)</label>
-                        <div class="value">${formatCurrency(totalPositive)}</div>
+                        <label>إجمالي أرباح عمليات الصيانة</label>
+                        <div class="value">${formatCurrency(totalRepairProfits)}</div>
                     </div>
                     <div class="summary-card negative">
-                        <label>إجمالي المبالغ المنقوصة (-)</label>
-                        <div class="value">${formatCurrency(totalNegative)}</div>
+                        <label>إجمالي تكاليف عمليات الصيانة</label>
+                        <div class="value">${formatCurrency(totalRepairCosts)}</div>
+                    </div>
+                    <div class="summary-card negative">
+                        <label>إجمالي مصروفات الفرع</label>
+                        <div class="value">${formatCurrency(totalExpenses)}</div>
+                    </div>
+                    <div class="summary-card negative">
+                        <label>إجمالي المسحوبات</label>
+                        <div class="value">${formatCurrency(totalSalaryWithdrawals)}</div>
                     </div>
                     <div class="summary-card" style="border-right: 4px solid var(--primary-color);">
-                        <label>صافي الرصيد</label>
-                        <div class="value" style="color: var(--primary-color);">${formatCurrency(totalPositive - totalNegative)}</div>
+                        <label>إجمالي الإيرادات</label>
+                        <div class="value" style="color: var(--primary-color);">${formatCurrency(totalRevenue)}</div>
+                    </div>
+                    <div class="summary-card negative">
+                        <label>المرتجعات السليمة</label>
+                        <div class="value">${formatCurrency(totalNormalReturns)}</div>
+                    </div>
+                    <div class="summary-card negative">
+                        <label>المرتجعات التالفة</label>
+                        <div class="value">${formatCurrency(totalDamagedReturns)}</div>
+                    </div>
+                    <div class="summary-card" style="background: var(--primary-color); color: var(--white); border-right: 4px solid var(--primary-color);">
+                        <label style="color: var(--white);">صافي رصيد الخزنة</label>
+                        <div class="value" style="color: var(--white); font-size: 2em;">${formatCurrency(netBalance)}</div>
+                    </div>
+                    <div class="summary-card positive">
+                        <label>إجمالي تحصيلات الدين</label>
+                        <div class="value">${formatCurrency(totalDebtCollections)}</div>
+                    </div>
+                    <div class="summary-card positive">
+                        <label>إجمالي الإضافات</label>
+                        <div class="value">${formatCurrency(totalDeposits)}</div>
+                    </div>
+                    <div class="summary-card negative">
+                        <label>سحوبات من الخزنة</label>
+                        <div class="value">${formatCurrency(totalTreasuryWithdrawals)}</div>
                     </div>
                 </div>
                 
-                <h3 style="margin-bottom: 15px; color: var(--primary-color);">
+                <h3 style="margin-bottom: 15px; color: var(--primary-color); margin-top: 30px;">
                     <i class="bi bi-list-ul"></i> تفاصيل المعاملات المالية
                 </h3>
                 

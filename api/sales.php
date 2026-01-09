@@ -912,6 +912,62 @@ if ($method === 'POST') {
             }
         }
         
+        // ✅ خصم تكلفة المنتجات من المتبقي عند وجود خصم من خزنة الفرع
+        $totalProductsCost = 0;
+        if ($discount > 0 && $remainingAmount > 0) {
+            // حساب إجمالي تكلفة المنتجات المباعة
+            foreach ($items as $item) {
+                $itemType = trim($item['item_type'] ?? '');
+                $originalItemId = trim($item['item_id'] ?? '');
+                $quantity = intval($item['quantity'] ?? 1);
+                
+                if (empty($itemType) || empty($originalItemId)) {
+                    continue;
+                }
+                
+                // جلب سعر التكلفة حسب نوع المنتج
+                $purchasePrice = 0;
+                if ($itemType === 'spare_part') {
+                    // لقطع الغيار، جلب سعر التكلفة من spare_parts
+                    $sparePart = dbSelectOne("SELECT purchase_price FROM spare_parts WHERE id = ?", [$originalItemId]);
+                    $purchasePrice = floatval($sparePart['purchase_price'] ?? 0);
+                } elseif ($itemType === 'accessory') {
+                    // للإكسسوارات
+                    $accessory = dbSelectOne("SELECT purchase_price FROM accessories WHERE id = ?", [$originalItemId]);
+                    $purchasePrice = floatval($accessory['purchase_price'] ?? 0);
+                } elseif ($itemType === 'phone') {
+                    // للهواتف
+                    $phone = dbSelectOne("SELECT purchase_price FROM phones WHERE id = ?", [$originalItemId]);
+                    $purchasePrice = floatval($phone['purchase_price'] ?? 0);
+                } elseif ($itemType === 'inventory') {
+                    // للمخزن القديم
+                    $inventoryItem = dbSelectOne("SELECT purchase_price FROM inventory WHERE id = ?", [$originalItemId]);
+                    $purchasePrice = floatval($inventoryItem['purchase_price'] ?? 0);
+                }
+                
+                $totalProductsCost += ($purchasePrice * $quantity);
+            }
+            
+            // خصم تكلفة المنتجات من المتبقي
+            if ($totalProductsCost > 0) {
+                $remainingAmount = max(0, $remainingAmount - $totalProductsCost);
+                
+                // تحديث remaining_amount في قاعدة البيانات
+                if (dbColumnExists('sales', 'remaining_amount')) {
+                    $updateRemainingResult = dbExecute(
+                        "UPDATE sales SET remaining_amount = ? WHERE id = ?",
+                        [$remainingAmount, $saleId]
+                    );
+                    
+                    if ($updateRemainingResult !== false) {
+                        error_log("✅ تم خصم تكلفة المنتجات ({$totalProductsCost} ج.م) من المتبقي في الفاتورة رقم {$saleNumber}");
+                    } else {
+                        error_log("⚠️ فشل تحديث المتبقي بعد خصم تكلفة المنتجات");
+                    }
+                }
+            }
+        }
+        
         // تحديث دين العميل إذا كان عميل تجاري ولديه دين
         if ($customerType === 'commercial' && $remainingAmount > 0) {
             // التحقق من وجود عمود total_debt قبل التحديث
