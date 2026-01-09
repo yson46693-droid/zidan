@@ -108,26 +108,7 @@ function loadProductReturnsSection() {
                             </button>
                         </div>
 
-                        <!-- المبلغ المدفوع للعميل -->
-                        <div id="refundAmountContainer" style="width: 100%; max-width: 100%; margin-top: 20px; display: none; box-sizing: border-box;">
-                            <label for="refundAmountInput" style="display: block; margin-bottom: 8px; color: var(--text-dark); font-size: 14px; font-weight: 600;">
-                                <i class="bi bi-cash-coin"></i> المبلغ المدفوع للعميل (ج.م)
-                            </label>
-                            <input type="number" 
-                                   id="refundAmountInput"
-                                   min="0" 
-                                   step="0.01"
-                                   value="0"
-                                   placeholder="0.00"
-                                   style="width: 100%; max-width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 16px; box-sizing: border-box; transition: all 0.3s ease;"
-                                   onfocus="this.style.borderColor='var(--primary-color)'; this.style.boxShadow='0 0 0 3px rgba(33, 150, 243, 0.1)';"
-                                   onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';">
-                            <p style="margin: 5px 0 0 0; color: var(--text-light); font-size: 12px;">
-                                <i class="bi bi-info-circle"></i> سيتم خصم هذا المبلغ من خزنة الفرع
-                            </p>
-                        </div>
-
-                        <button onclick="completeReturn()" 
+                        <button onclick="showRefundAmountModal()" 
                                 id="completeReturnBtn"
                                 class="btn btn-success"
                                 style="width: 100%; max-width: 100%; margin-top: 25px; padding: 15px; background: var(--success-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: 600; display: none; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">
@@ -888,16 +869,6 @@ function displayInvoiceDetails(invoiceData) {
     
     card.style.display = 'block';
     completeBtn.style.display = 'none';
-    
-    // إخفاء حقل المبلغ المدفوع وإعادة تعيينه
-    const refundAmountContainer = document.getElementById('refundAmountContainer');
-    const refundAmountInput = document.getElementById('refundAmountInput');
-    if (refundAmountContainer) {
-        refundAmountContainer.style.display = 'none';
-    }
-    if (refundAmountInput) {
-        refundAmountInput.value = '0';
-    }
 }
 
 // Hide Invoice Details
@@ -908,16 +879,6 @@ function hideInvoiceDetails() {
     }
     currentInvoice = null;
     returnItems = {};
-    
-    // إخفاء حقل المبلغ المدفوع وإعادة تعيينه
-    const refundAmountContainer = document.getElementById('refundAmountContainer');
-    const refundAmountInput = document.getElementById('refundAmountInput');
-    if (refundAmountContainer) {
-        refundAmountContainer.style.display = 'none';
-    }
-    if (refundAmountInput) {
-        refundAmountInput.value = '0';
-    }
 }
 
 // Show Invoice Details Modal
@@ -1194,16 +1155,11 @@ function toggleReturnItem(itemId, maxQuantity) {
         }
     }
     
-    // Show/hide complete button and refund amount input
+    // Show/hide complete button
     const hasSelectedItems = Object.values(returnItems).some(item => item.selected);
-    const refundAmountContainer = document.getElementById('refundAmountContainer');
     
     if (completeBtn) {
         completeBtn.style.display = hasSelectedItems ? 'block' : 'none';
-    }
-    
-    if (refundAmountContainer) {
-        refundAmountContainer.style.display = hasSelectedItems ? 'block' : 'none';
     }
 }
 
@@ -1265,16 +1221,11 @@ function toggleItemDamaged(itemId) {
         }
     }
     
-    // Show/hide complete button and refund amount input
+    // Show/hide complete button
     const hasSelectedItems = Object.values(returnItems).some(item => item.selected);
-    const refundAmountContainer = document.getElementById('refundAmountContainer');
     
     if (completeBtn) {
         completeBtn.style.display = hasSelectedItems ? 'block' : 'none';
-    }
-    
-    if (refundAmountContainer) {
-        refundAmountContainer.style.display = hasSelectedItems ? 'block' : 'none';
     }
 }
 
@@ -1300,14 +1251,9 @@ function returnAllItems() {
     });
     
     const completeBtn = document.getElementById('completeReturnBtn');
-    const refundAmountContainer = document.getElementById('refundAmountContainer');
     
     if (completeBtn) {
         completeBtn.style.display = 'block';
-    }
-    
-    if (refundAmountContainer) {
-        refundAmountContainer.style.display = 'block';
     }
 }
 
@@ -1331,24 +1277,14 @@ function clearAllItems() {
     });
     
     const completeBtn = document.getElementById('completeReturnBtn');
-    const refundAmountContainer = document.getElementById('refundAmountContainer');
-    const refundAmountInput = document.getElementById('refundAmountInput');
     
     if (completeBtn) {
         completeBtn.style.display = 'none';
     }
-    
-    if (refundAmountContainer) {
-        refundAmountContainer.style.display = 'none';
-    }
-    
-    if (refundAmountInput) {
-        refundAmountInput.value = '0';
-    }
 }
 
-// Complete Return
-async function completeReturn() {
+// Show Refund Amount Modal
+function showRefundAmountModal() {
     if (!currentInvoice) {
         showMessage('لا توجد فاتورة محددة', 'error');
         return;
@@ -1383,13 +1319,158 @@ async function completeReturn() {
         }
     }
     
-    // جلب المبلغ المدفوع للعميل
-    const refundAmountInput = document.getElementById('refundAmountInput');
+    // حساب إجمالي المبلغ المرتجع
+    let totalReturnAmount = 0;
+    itemsToReturn.forEach(item => {
+        const saleItem = currentInvoice.items.find(i => i.id === item.sale_item_id);
+        if (saleItem) {
+            const itemTotal = parseFloat(saleItem.unit_price || 0) * item.returned_quantity;
+            totalReturnAmount += itemTotal;
+        }
+    });
+    
+    // إنشاء modal
+    const modal = document.createElement('div');
+    modal.id = 'refundAmountModal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);';
+    modal.innerHTML = `
+        <div style="background: var(--white); border-radius: 16px; padding: 30px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); animation: modalSlideIn 0.3s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3 style="margin: 0; color: var(--text-dark); font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+                    <i class="bi bi-cash-coin" style="color: var(--primary-color); font-size: 24px;"></i>
+                    المبلغ المدفوع للعميل
+                </h3>
+                <button onclick="closeRefundAmountModal()" style="background: transparent; border: none; font-size: 28px; color: var(--text-light); cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.3s;" onmouseover="this.style.background='var(--light-bg)'; this.style.color='var(--text-dark)';" onmouseout="this.style.background='transparent'; this.style.color='var(--text-light)';">&times;</button>
+            </div>
+            
+            <div style="margin-bottom: 20px; padding: 15px; background: var(--light-bg); border-radius: 8px; border-right: 3px solid var(--primary-color);">
+                <p style="margin: 0 0 8px 0; color: var(--text-light); font-size: 14px;">إجمالي المبلغ المرتجع:</p>
+                <p style="margin: 0; color: var(--text-dark); font-size: 20px; font-weight: 700;">${totalReturnAmount.toFixed(2)} ج.م</p>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label for="refundAmountInputModal" style="display: block; margin-bottom: 10px; color: var(--text-dark); font-size: 16px; font-weight: 600;">
+                    <i class="bi bi-cash-stack"></i> المبلغ المدفوع للعميل (ج.م)
+                </label>
+                <input type="number" 
+                       id="refundAmountInputModal"
+                       min="0" 
+                       step="0.01"
+                       value="${totalReturnAmount.toFixed(2)}"
+                       placeholder="0.00"
+                       style="width: 100%; padding: 15px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 18px; box-sizing: border-box; transition: all 0.3s ease;"
+                       onfocus="this.style.borderColor='var(--primary-color)'; this.style.boxShadow='0 0 0 3px rgba(33, 150, 243, 0.1)';"
+                       onblur="this.style.borderColor='var(--border-color)'; this.style.boxShadow='none';"
+                       onkeypress="if(event.key === 'Enter') confirmRefundAmount();">
+                <p style="margin: 8px 0 0 0; color: var(--text-light); font-size: 13px;">
+                    <i class="bi bi-info-circle"></i> سيتم خصم هذا المبلغ من خزنة الفرع
+                </p>
+            </div>
+            
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button onclick="closeRefundAmountModal()" 
+                        style="padding: 12px 24px; background: var(--text-light); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s;"
+                        onmouseover="this.style.background='#555'; this.style.transform='translateY(-2px)';"
+                        onmouseout="this.style.background='var(--text-light)'; this.style.transform='translateY(0)';">
+                    <i class="bi bi-x-circle"></i> إلغاء
+                </button>
+                <button onclick="confirmRefundAmount()" 
+                        style="padding: 12px 24px; background: var(--success-color); color: var(--white); border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s; display: flex; align-items: center; gap: 8px;"
+                        onmouseover="this.style.background='#45a049'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.4)';"
+                        onmouseout="this.style.background='var(--success-color)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <i class="bi bi-check-circle"></i> تأكيد
+                </button>
+            </div>
+        </div>
+        <style>
+            @keyframes modalSlideIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+        </style>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Focus on input
+    setTimeout(() => {
+        const input = document.getElementById('refundAmountInputModal');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 100);
+}
+
+// Close Refund Amount Modal
+function closeRefundAmountModal() {
+    const modal = document.getElementById('refundAmountModal');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+            modal.remove();
+        }, 300);
+    }
+}
+
+// Confirm Refund Amount and Complete Return
+async function confirmRefundAmount() {
+    const refundAmountInput = document.getElementById('refundAmountInputModal');
     const refundAmount = refundAmountInput ? parseFloat(refundAmountInput.value) || 0 : 0;
     
     if (refundAmount < 0) {
         showMessage('المبلغ المدفوع للعميل لا يمكن أن يكون سالباً', 'error');
         return;
+    }
+    
+    // Close modal
+    closeRefundAmountModal();
+    
+    // Complete return with refund amount
+    await completeReturn(refundAmount);
+}
+
+// Complete Return
+async function completeReturn(refundAmount = 0) {
+    if (!currentInvoice) {
+        showMessage('لا توجد فاتورة محددة', 'error');
+        return;
+    }
+    
+    // Prepare return items
+    const itemsToReturn = [];
+    for (const [itemId, itemData] of Object.entries(returnItems)) {
+        if (itemData.selected) {
+            const saleItem = currentInvoice.items.find(i => i.id === itemId);
+            if (saleItem) {
+                itemsToReturn.push({
+                    sale_item_id: itemId,
+                    returned_quantity: itemData.quantity,
+                    is_damaged: itemData.is_damaged ? 1 : 0
+                });
+            }
+        }
+    }
+    
+    if (itemsToReturn.length === 0) {
+        showMessage('الرجاء تحديد منتج واحد على الأقل للإرجاع', 'error');
+        return;
+    }
+    
+    // Validate quantities
+    for (const item of itemsToReturn) {
+        const saleItem = currentInvoice.items.find(i => i.id === item.sale_item_id);
+        if (saleItem && item.returned_quantity > saleItem.quantity) {
+            showMessage(`الكمية المراد إرجاعها (${item.returned_quantity}) أكبر من الكمية المباعة (${saleItem.quantity})`, 'error');
+            return;
+        }
     }
     
     try {
@@ -2215,6 +2296,9 @@ if (typeof window !== 'undefined') {
     window.toggleItemDamaged = toggleItemDamaged;
     window.returnAllItems = returnAllItems;
     window.clearAllItems = clearAllItems;
+    window.showRefundAmountModal = showRefundAmountModal;
+    window.closeRefundAmountModal = closeRefundAmountModal;
+    window.confirmRefundAmount = confirmRefundAmount;
     window.completeReturn = completeReturn;
     window.changePage = changePage;
     window.closeQRCodeScannerForReturns = closeQRCodeScannerForReturns;

@@ -647,7 +647,8 @@ if ($method === 'GET') {
             return;
         }
         
-        // جلب عناصر الفاتورة
+        // ✅ جلب عناصر الفاتورة مع الأسعار من sale_items (أسعار الفاتورة وليس أسعار المخزن)
+        // sale_items يحتوي على unit_price وهو سعر البيع في الفاتورة وليس purchase_price من المخزن
         $items = dbSelect(
             "SELECT * FROM sale_items WHERE sale_id = ? ORDER BY created_at ASC",
             [$sale['id']]
@@ -656,6 +657,7 @@ if ($method === 'GET') {
         // معالجة عناصر البيع
         $processedItems = [];
         foreach ($items as $item) {
+            // ✅ unit_price من sale_items هو سعر البيع في الفاتورة - سيتم استخدامه في عملية الإرجاع
             // إذا كان العنصر هاتف وله بيانات في notes (JSON)
             if ($item['item_type'] === 'phone' && !empty($item['notes'])) {
                 $phoneData = json_decode($item['notes'], true);

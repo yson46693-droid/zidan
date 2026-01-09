@@ -912,58 +912,56 @@ if ($method === 'POST') {
             }
         }
         
-        // ✅ خصم تكلفة المنتجات من المتبقي عند وجود خصم من خزنة الفرع
+        // ✅ حساب تكلفة المنتجات المباعة (للاستخدام في خصم تكلفة المنتجات من المتبقي وصافي الأرباح)
         $totalProductsCost = 0;
-        if ($discount > 0 && $remainingAmount > 0) {
-            // حساب إجمالي تكلفة المنتجات المباعة
-            foreach ($items as $item) {
-                $itemType = trim($item['item_type'] ?? '');
-                $originalItemId = trim($item['item_id'] ?? '');
-                $quantity = intval($item['quantity'] ?? 1);
-                
-                if (empty($itemType) || empty($originalItemId)) {
-                    continue;
-                }
-                
-                // جلب سعر التكلفة حسب نوع المنتج
-                $purchasePrice = 0;
-                if ($itemType === 'spare_part') {
-                    // لقطع الغيار، جلب سعر التكلفة من spare_parts
-                    $sparePart = dbSelectOne("SELECT purchase_price FROM spare_parts WHERE id = ?", [$originalItemId]);
-                    $purchasePrice = floatval($sparePart['purchase_price'] ?? 0);
-                } elseif ($itemType === 'accessory') {
-                    // للإكسسوارات
-                    $accessory = dbSelectOne("SELECT purchase_price FROM accessories WHERE id = ?", [$originalItemId]);
-                    $purchasePrice = floatval($accessory['purchase_price'] ?? 0);
-                } elseif ($itemType === 'phone') {
-                    // للهواتف
-                    $phone = dbSelectOne("SELECT purchase_price FROM phones WHERE id = ?", [$originalItemId]);
-                    $purchasePrice = floatval($phone['purchase_price'] ?? 0);
-                } elseif ($itemType === 'inventory') {
-                    // للمخزن القديم
-                    $inventoryItem = dbSelectOne("SELECT purchase_price FROM inventory WHERE id = ?", [$originalItemId]);
-                    $purchasePrice = floatval($inventoryItem['purchase_price'] ?? 0);
-                }
-                
-                $totalProductsCost += ($purchasePrice * $quantity);
+        foreach ($items as $item) {
+            $itemType = trim($item['item_type'] ?? '');
+            $originalItemId = trim($item['item_id'] ?? '');
+            $quantity = intval($item['quantity'] ?? 1);
+            
+            if (empty($itemType) || empty($originalItemId)) {
+                continue;
             }
             
+            // جلب سعر التكلفة حسب نوع المنتج
+            $purchasePrice = 0;
+            if ($itemType === 'spare_part') {
+                // لقطع الغيار، جلب سعر التكلفة من spare_parts
+                $sparePart = dbSelectOne("SELECT purchase_price FROM spare_parts WHERE id = ?", [$originalItemId]);
+                $purchasePrice = floatval($sparePart['purchase_price'] ?? 0);
+            } elseif ($itemType === 'accessory') {
+                // للإكسسوارات
+                $accessory = dbSelectOne("SELECT purchase_price FROM accessories WHERE id = ?", [$originalItemId]);
+                $purchasePrice = floatval($accessory['purchase_price'] ?? 0);
+            } elseif ($itemType === 'phone') {
+                // للهواتف
+                $phone = dbSelectOne("SELECT purchase_price FROM phones WHERE id = ?", [$originalItemId]);
+                $purchasePrice = floatval($phone['purchase_price'] ?? 0);
+            } elseif ($itemType === 'inventory') {
+                // للمخزن القديم
+                $inventoryItem = dbSelectOne("SELECT purchase_price FROM inventory WHERE id = ?", [$originalItemId]);
+                $purchasePrice = floatval($inventoryItem['purchase_price'] ?? 0);
+            }
+            
+            $totalProductsCost += ($purchasePrice * $quantity);
+        }
+        
+        // ✅ خصم تكلفة المنتجات من المتبقي عند وجود خصم من خزنة الفرع
+        if ($discount > 0 && $remainingAmount > 0 && $totalProductsCost > 0) {
             // خصم تكلفة المنتجات من المتبقي
-            if ($totalProductsCost > 0) {
-                $remainingAmount = max(0, $remainingAmount - $totalProductsCost);
+            $remainingAmount = max(0, $remainingAmount - $totalProductsCost);
+            
+            // تحديث remaining_amount في قاعدة البيانات
+            if (dbColumnExists('sales', 'remaining_amount')) {
+                $updateRemainingResult = dbExecute(
+                    "UPDATE sales SET remaining_amount = ? WHERE id = ?",
+                    [$remainingAmount, $saleId]
+                );
                 
-                // تحديث remaining_amount في قاعدة البيانات
-                if (dbColumnExists('sales', 'remaining_amount')) {
-                    $updateRemainingResult = dbExecute(
-                        "UPDATE sales SET remaining_amount = ? WHERE id = ?",
-                        [$remainingAmount, $saleId]
-                    );
-                    
-                    if ($updateRemainingResult !== false) {
-                        error_log("✅ تم خصم تكلفة المنتجات ({$totalProductsCost} ج.م) من المتبقي في الفاتورة رقم {$saleNumber}");
-                    } else {
-                        error_log("⚠️ فشل تحديث المتبقي بعد خصم تكلفة المنتجات");
-                    }
+                if ($updateRemainingResult !== false) {
+                    error_log("✅ تم خصم تكلفة المنتجات ({$totalProductsCost} ج.م) من المتبقي في الفاتورة رقم {$saleNumber}");
+                } else {
+                    error_log("⚠️ فشل تحديث المتبقي بعد خصم تكلفة المنتجات");
                 }
             }
         }
@@ -1048,6 +1046,58 @@ if ($method === 'POST') {
                             error_log('تحذير: فشل تسجيل معاملة الخزنة للمبيعات - لن نوقف العملية');
                         } else {
                             error_log("✅ تم تسجيل معاملة خزنة للمبيعات: {$amountToAdd} ج.م - نوع العميل: {$customerType} - فاتورة رقم {$saleNumber}");
+                        }
+                    }
+                }
+                
+                // ✅ إضافة معاملة sales_cost لخصم تكلفة المنتجات من صافي الأرباح
+                if ($totalProductsCost > 0) {
+                    // التأكد من وجود 'sales_cost' في enum
+                    $conn = getDBConnection();
+                    if ($conn) {
+                        $checkEnumQuery = "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+                                          WHERE TABLE_SCHEMA = DATABASE() 
+                                          AND TABLE_NAME = 'treasury_transactions' 
+                                          AND COLUMN_NAME = 'transaction_type'";
+                        $result = $conn->query($checkEnumQuery);
+                        if ($result && $row = $result->fetch_assoc()) {
+                            $columnType = $row['COLUMN_TYPE'];
+                            if (strpos($columnType, 'sales_cost') === false) {
+                                // إضافة 'sales_cost' إلى enum
+                                $alterQuery = "ALTER TABLE treasury_transactions 
+                                              MODIFY COLUMN transaction_type 
+                                              enum('expense','repair_cost','repair_profit','loss_operation','sales_revenue','sales_cost','withdrawal','deposit','damaged_return') NOT NULL";
+                                if (!$conn->query($alterQuery)) {
+                                    error_log('❌ فشل إضافة sales_cost إلى enum: ' . $conn->error);
+                                } else {
+                                    error_log('✅ تم إضافة sales_cost إلى enum بنجاح');
+                                }
+                            }
+                        }
+                    }
+                    
+                    // التحقق من عدم وجود معاملة مسجلة مسبقاً
+                    $existingCostTransaction = dbSelectOne(
+                        "SELECT id FROM treasury_transactions WHERE reference_id = ? AND reference_type = 'sale' AND transaction_type = 'sales_cost'",
+                        [$saleId]
+                    );
+                    
+                    if (!$existingCostTransaction) {
+                        $costTransactionId = generateId();
+                        $costDescription = "تكلفة المنتجات المباعة - فاتورة رقم {$saleNumber}";
+                        
+                        $costResult = dbExecute(
+                            "INSERT INTO treasury_transactions (
+                                id, branch_id, transaction_type, amount, description, 
+                                reference_id, reference_type, created_at, created_by
+                            ) VALUES (?, ?, 'sales_cost', ?, ?, ?, 'sale', NOW(), ?)",
+                            [$costTransactionId, $customerBranchId, $totalProductsCost, $costDescription, $saleId, $session['user_id']]
+                        );
+                        
+                        if ($costResult === false) {
+                            error_log('تحذير: فشل تسجيل معاملة تكلفة المنتجات في الخزنة - لن نوقف العملية');
+                        } else {
+                            error_log("✅ تم تسجيل معاملة تكلفة المنتجات ({$totalProductsCost} ج.م) في الخزنة - فاتورة رقم {$saleNumber}");
                         }
                     }
                 }
