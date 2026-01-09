@@ -5110,6 +5110,14 @@ async function generateTreasuryReport(event) {
         let treasurySummary = null;
         if (treasuryDataResult && treasuryDataResult.success && treasuryDataResult.data) {
             treasurySummary = treasuryDataResult.data;
+            console.log('✅ تم جلب بيانات الخزنة بنجاح:', treasurySummary);
+        } else {
+            console.error('❌ فشل جلب بيانات الخزنة:', treasuryDataResult);
+            showMessage('حدث خطأ في جلب بيانات الخزنة، يرجى المحاولة مرة أخرى', 'error');
+            if (window.loadingOverlay && typeof window.loadingOverlay.hide === 'function') {
+                window.loadingOverlay.hide();
+            }
+            return;
         }
         
         // جلب المعاملات
@@ -5163,6 +5171,13 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
         const safeBranchName = escapeHtml(branchName);
         const safeReportTitle = escapeHtml(reportTitle);
         
+        // ✅ التحقق من وجود treasurySummary
+        if (!treasurySummary) {
+            console.error('⚠️ treasurySummary غير موجود - سيتم استخدام قيم افتراضية');
+            showMessage('حدث خطأ في جلب بيانات الخزنة، يرجى المحاولة مرة أخرى', 'error');
+            return;
+        }
+        
         // استخراج بيانات المربعات الـ12 من treasurySummary
         const summary = treasurySummary || {};
         const expenses = summary.expenses || {};
@@ -5188,6 +5203,22 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
         const totalDebtCollections = parseFloat(debtCollections.total || 0);
         const totalDeposits = parseFloat(deposits.total || 0);
         const totalTreasuryWithdrawals = parseFloat(withdrawals.treasury_withdrawals || 0);
+        
+        // ✅ تسجيل البيانات للتحقق
+        console.log('📊 بيانات الخزنة:', {
+            totalLossOperations,
+            totalRepairProfits,
+            totalRepairCosts,
+            totalExpenses,
+            totalSalaryWithdrawals,
+            totalRevenue,
+            totalNormalReturns,
+            totalDamagedReturns,
+            totalDebtCollections,
+            totalDeposits,
+            totalTreasuryWithdrawals,
+            netBalance
+        });
         
         // بناء جدول المعاملات
         const transactionsRows = transactions.map(transaction => {
@@ -5515,14 +5546,26 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
         </html>
         `;
         
+        // ✅ كتابة التقرير في النافذة
+        printWindow.document.open();
         printWindow.document.write(reportHtml);
         printWindow.document.close();
         
-        // الانتظار قليلاً ثم فتح نافذة الطباعة
+        // ✅ التأكد من تحميل المحتوى قبل الطباعة
+        printWindow.onload = function() {
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+            }, 500);
+        };
+        
+        // ✅ بديل في حالة عدم عمل onload
         setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-        }, 500);
+            if (printWindow.document.readyState === 'complete') {
+                printWindow.focus();
+                printWindow.print();
+            }
+        }, 1000);
         
     } catch (error) {
         console.error('خطأ في طباعة التقرير:', error);
