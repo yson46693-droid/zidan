@@ -4492,6 +4492,31 @@ async function printRepairReceiptFromCustomerPage(repairId) {
             return;
         }
         
+        // ✅ إذا كانت الحالة "تم التسليم"، استخدم القالب الجديد (last.html)
+        const status = String(repair.status || '').toLowerCase().trim();
+        if (status === 'delivered') {
+            console.log('✅ استخدام قالب فاتورة التسليم - حالة: تم التسليم');
+            console.log('📄 استدعاء printDeliveredRepairInvoice...');
+            try {
+                // التحقق من وجود الدالة في window
+                if (typeof window.printDeliveredRepairInvoice === 'function') {
+                    await window.printDeliveredRepairInvoice(repair);
+                    console.log('✅ تم استدعاء printDeliveredRepairInvoice بنجاح');
+                    return; // ✅ مهم: إرجاع هنا لمنع استمرار الكود
+                } else {
+                    console.error('❌ دالة printDeliveredRepairInvoice غير متاحة');
+                    showMessage('دالة طباعة فاتورة التسليم غير متاحة', 'error');
+                    return;
+                }
+            } catch (error) {
+                console.error('❌ خطأ في printDeliveredRepairInvoice:', error);
+                showMessage('حدث خطأ أثناء طباعة فاتورة التسليم: ' + (error.message || 'خطأ غير معروف'), 'error');
+                return; // ✅ إرجاع هنا أيضاً لمنع استمرار الكود
+            }
+        }
+        
+        console.log('ℹ️ استخدام قالب الإيصال العادي - الحالة:', repair.status, '(ليست delivered)');
+        
         // ✅ جلب بيانات الفرع المرتبط بالعملية
         let branchData = null;
         let branchSettings = null;

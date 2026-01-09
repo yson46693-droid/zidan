@@ -8141,6 +8141,7 @@ window.addInvoiceField = addInvoiceField;
 window.removeInvoiceField = removeInvoiceField;
 window.handleDeviceTypeChange = handleDeviceTypeChange;
 window.printRepairReceipt = printRepairReceipt;
+window.printDeliveredRepairInvoice = printDeliveredRepairInvoice;
 window.showLossOperationModal = showLossOperationModal;
 window.closeLossOperationModal = closeLossOperationModal;
 window.openLossBarcodeScanner = openLossBarcodeScanner;
