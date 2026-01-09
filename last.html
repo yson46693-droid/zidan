@@ -628,9 +628,21 @@
     </div>
 
     <script>
-        // ✅ دالة لتحديث الفاتورة ببيانات عملية الصيانة
+        // ✅ Flag لمنع تحديث البيانات المتكرر
+        let invoiceDataLoaded = false;
+        let currentInvoiceData = null;
+
+        // ✅ دالة لتحديث الفاتورة ببيانات عملية الصيانة (مرة واحدة فقط لكل بيانات)
         function setInvoiceData(data) {
+            // منع التحديث المتكرر بنفس البيانات
+            if (invoiceDataLoaded && JSON.stringify(data) === JSON.stringify(currentInvoiceData)) {
+                console.log('البيانات محملة بالفعل، تم تخطي التحديث');
+                return;
+            }
+
             try {
+                currentInvoiceData = JSON.parse(JSON.stringify(data)); // نسخ البيانات
+                invoiceDataLoaded = true;
                 // Shop Info
                 if (data.shopInfo) {
                     if (data.shopInfo.address) {
@@ -726,14 +738,31 @@
         // ✅ جعل الدالة متاحة عالمياً
         window.setInvoiceData = setInvoiceData;
 
-        // ✅ دالة لقراءة البيانات من URL parameters
+        // ✅ Flag لمنع التحميل المتكرر من URL
+        let urlDataLoaded = false;
+        let loadingTimeout = null;
+
+        // ✅ دالة لقراءة البيانات من URL parameters (مرة واحدة فقط)
         function loadDataFromURL() {
+            // منع التحميل المتكرر
+            if (urlDataLoaded || invoiceDataLoaded) {
+                return false;
+            }
+
             try {
                 const params = new URLSearchParams(window.location.search);
                 const dataParam = params.get('data');
                 if (dataParam) {
                     const data = JSON.parse(decodeURIComponent(dataParam));
                     setInvoiceData(data);
+                    urlDataLoaded = true;
+                    
+                    // إلغاء أي timeout معلق
+                    if (loadingTimeout) {
+                        clearTimeout(loadingTimeout);
+                        loadingTimeout = null;
+                    }
+                    
                     return true;
                 }
             } catch (error) {
@@ -742,20 +771,41 @@
             return false;
         }
 
-        // ✅ تحميل البيانات عند تحميل الصفحة
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(loadDataFromURL, 100);
-            });
-        } else {
-            // الصفحة محملة بالفعل
-            setTimeout(loadDataFromURL, 100);
+        // ✅ تحميل البيانات مرة واحدة فقط عند تحميل الصفحة
+        function initializeInvoiceData() {
+            if (urlDataLoaded || invoiceDataLoaded) return;
+            
+            // إلغاء أي timeout سابق
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                loadingTimeout = null;
+            }
+            
+            // محاولة تحميل البيانات فوراً إذا كانت الصفحة جاهزة
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                if (document.body && document.body.children.length > 0) {
+                    loadDataFromURL();
+                    return;
+                }
+            }
+            
+            // إذا لم تكن الصفحة جاهزة، انتظر DOMContentLoaded (مرة واحدة فقط)
+            if (document.readyState === 'loading') {
+                const loadHandler = function() {
+                    if (!urlDataLoaded && !invoiceDataLoaded) {
+                        loadingTimeout = setTimeout(loadDataFromURL, 50);
+                    }
+                };
+                document.addEventListener('DOMContentLoaded', loadHandler, { once: true });
+            } else {
+                loadingTimeout = setTimeout(loadDataFromURL, 50);
+            }
         }
 
-        // ✅ محاولة أخرى بعد تحميل كامل للصفحة
-        window.addEventListener('load', function() {
-            setTimeout(loadDataFromURL, 200);
-        });
+        // ✅ بدء التحميل (مرة واحدة فقط)
+        if (!urlDataLoaded && !invoiceDataLoaded) {
+            initializeInvoiceData();
+        }
     </script>
 </body>
 
