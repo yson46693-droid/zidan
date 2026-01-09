@@ -5400,7 +5400,6 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
         <body>
             <div class="report-container">
                 <div class="report-header">
-                    <h1>${safeShopName}</h1>
                     <h2>${safeReportTitle}</h2>
                     <p><i class="bi bi-building"></i> ${safeBranchName}</p>
                     ${safeShopAddress ? `<p><i class="bi bi-geo-alt-fill"></i> ${safeShopAddress}</p>` : ''}
@@ -5408,21 +5407,6 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
                     <p style="margin-top: 15px; color: var(--text-light); font-size: 0.9em;">
                         من ${formattedStartDate} إلى ${formattedEndDate}
                     </p>
-                </div>
-                
-                <div class="report-info">
-                    <div class="report-info-section">
-                        <h3>معلومات التقرير</h3>
-                        <p><strong>الفرع:</strong> ${safeBranchName}</p>
-                        <p><strong>الفترة:</strong> من ${formattedStartDate} إلى ${formattedEndDate}</p>
-                        <p><strong>عدد المعاملات:</strong> ${transactions.length}</p>
-                    </div>
-                    <div class="report-info-section">
-                        <h3>إحصائيات</h3>
-                        <p><strong>إجمالي الإضافات (+):</strong> <span style="color: var(--success-color); font-weight: bold;">${formatCurrency(totalPositive)}</span></p>
-                        <p><strong>إجمالي الناقص (-):</strong> <span style="color: var(--danger-color); font-weight: bold;">${formatCurrency(totalNegative)}</span></p>
-                        <p><strong>صافي الرصيد:</strong> <span style="color: ${(totalPositive - totalNegative) >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}; font-weight: bold;">${formatCurrency(totalPositive - totalNegative)}</span></p>
-                    </div>
                 </div>
                 
                 <div class="report-summary">
