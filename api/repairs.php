@@ -1078,37 +1078,14 @@ if ($method === 'PUT') {
             error_log("✅ [Repairs API] تحديث remaining_amount تلقائياً: customer_price ({$newCustomerPrice}) - paid_amount ({$newPaidAmount}) = {$calculatedRemainingAmount}");
         }
         
-        // ✅ تحديث دين العميل للعملاء التجاريين فقط عند تغيير الحالة إلى "جاهز للتسليم" أو "تم التسليم"
+        // ✅ تحديث دين العميل للعملاء التجاريين فقط عند تغيير الحالة إلى "تم التسليم"
+        // ✅ لا يتم إضافة أي مبالغ إلى الديون حتى يتم تغيير الحالة إلى "تم التسليم"
         $newStatus = isset($data['status']) ? $data['status'] : $currentStatus;
         $newRemainingAmount = isset($data['remaining_amount']) ? floatval($data['remaining_amount']) : $currentRemainingAmount;
         
-        // عند تغيير الحالة إلى "جاهز للتسليم" يتم إضافة المبلغ المتبقي إلى الديون
-        if ($currentCustomerId && $newStatus === 'ready_for_delivery' && $currentStatus !== 'ready_for_delivery' && dbColumnExists('customers', 'total_debt')) {
-            // جلب نوع العميل والدين الحالي
-            $customer = dbSelectOne(
-                "SELECT customer_type, total_debt FROM customers WHERE id = ?",
-                [$currentCustomerId]
-            );
-            
-            if ($customer && ($customer['customer_type'] ?? 'retail') === 'commercial' && $newRemainingAmount > 0) {
-                $currentTotalDebt = floatval($customer['total_debt'] ?? 0);
-                $newTotalDebt = $currentTotalDebt + $newRemainingAmount;
-                
-                $updateDebtResult = dbExecute(
-                    "UPDATE customers SET total_debt = ? WHERE id = ?",
-                    [$newTotalDebt, $currentCustomerId]
-                );
-                
-                if ($updateDebtResult === false) {
-                    error_log('⚠️ فشل تحديث دين العميل بعد تغيير الحالة إلى "جاهز للتسليم"');
-                } else {
-                    error_log("✅ تم إضافة المبلغ المتبقي ({$newRemainingAmount}) إلى دين العميل عند تغيير الحالة إلى 'جاهز للتسليم': {$currentTotalDebt} + {$newRemainingAmount} = {$newTotalDebt}");
-                }
-            }
-        }
-        
-        // ✅ عند تغيير الحالة إلى "تم التسليم" للعملاء التجاريين: إضافة المبلغ المتبقي للديون إذا لم يتم إضافته من قبل
+        // ✅ عند تغيير الحالة إلى "تم التسليم" للعملاء التجاريين: إضافة المبلغ المستحق إلى الديون
         // ✅ إذا كان المبلغ المدفوع = 0، يتم إضافة السعر للعميل بالكامل (customer_price) إلى الديون
+        // ✅ إذا كان المبلغ المدفوع > 0، يتم إضافة المبلغ المتبقي فقط
         if ($currentCustomerId && $newStatus === 'delivered' && $currentStatus !== 'delivered' && dbColumnExists('customers', 'total_debt')) {
             // جلب نوع العميل والدين الحالي
             $customer = dbSelectOne(
@@ -1126,11 +1103,8 @@ if ($method === 'PUT') {
                     error_log("ℹ️ [Repairs API] المبلغ المدفوع = 0 للعميل التجاري - سيتم إضافة السعر للعميل بالكامل ({$amountToAdd} ج.م) إلى الديون");
                 } else if ($newRemainingAmount > 0) {
                     // إذا كان هناك مبلغ مدفوع، يتم إضافة المبلغ المتبقي فقط
-                    // التحقق من أن المبلغ المتبقي لم يتم إضافته للديون من قبل (عند تغيير الحالة إلى ready_for_delivery)
-                    // إذا كانت الحالة السابقة ليست ready_for_delivery، فيجب إضافة المبلغ المتبقي للديون
-                    if ($currentStatus !== 'ready_for_delivery') {
-                        $amountToAdd = $newRemainingAmount;
-                    }
+                    $amountToAdd = $newRemainingAmount;
+                    error_log("ℹ️ [Repairs API] سيتم إضافة المبلغ المتبقي ({$amountToAdd} ج.م) إلى دين العميل التجاري");
                 }
                 
                 if ($amountToAdd > 0) {
