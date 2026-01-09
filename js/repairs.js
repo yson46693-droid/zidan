@@ -3730,8 +3730,8 @@ async function saveRepair(event) {
 
     // ✅ إصلاح: إنشاء العميل الجديد قبل حفظ عملية الصيانة (فقط للعمليات الجديدة)
     if (!repairId) {
-        const selectedCustomerId = document.getElementById('selectedCustomerId').value;
-        if (!selectedCustomerId) {
+        // ✅ التحقق من customerSource بدلاً من selectedCustomerId فقط
+        if (customerSource === 'new') {
             // عميل جديد - إنشاء عميل جديد أولاً
             try {
                 const customerData = {
@@ -3754,17 +3754,32 @@ async function saveRepair(event) {
                 if (customerResult && customerResult.success && customerResult.data && customerResult.data.id) {
                     // ✅ إضافة customer_id إلى repairData قبل حفظ العملية
                     repairData.customer_id = customerResult.data.id;
+                    console.log('✅ تم إنشاء عميل جديد بنجاح:', customerResult.data.id);
                 } else {
-                    console.warn('⚠️ تم إنشاء العميل لكن لم يتم الحصول على customer_id');
+                    const errorMsg = customerResult?.message || 'فشل في إنشاء العميل';
+                    console.error('⚠️ خطأ في إنشاء العميل:', errorMsg);
+                    showMessage(`حدث خطأ أثناء إنشاء العميل: ${errorMsg}`, 'error');
+                    return;
                 }
             } catch (error) {
                 console.error('خطأ في إنشاء العميل:', error);
                 showMessage('حدث خطأ أثناء إنشاء العميل. يرجى المحاولة مرة أخرى', 'error');
                 return;
             }
-        } else {
+        } else if (customerSource === 'existing') {
             // عميل موجود - استخدام customer_id المحدد
-            repairData.customer_id = selectedCustomerId;
+            const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
+            if (!selectedCustomerIdInput || !selectedCustomerIdInput.value) {
+                showMessage('يجب اختيار عميل من القائمة', 'error');
+                return;
+            }
+            repairData.customer_id = selectedCustomerIdInput.value;
+            console.log('✅ استخدام عميل موجود:', repairData.customer_id);
+        } else {
+            // حالة غير متوقعة
+            console.error('⚠️ customerSource غير معروف:', customerSource);
+            showMessage('خطأ في تحديد نوع العميل', 'error');
+            return;
         }
     }
 
@@ -3807,6 +3822,34 @@ async function saveRepair(event) {
             await loadDashboardData();
         }
         
+        // ✅ تحديث قائمة العملاء إذا كان هناك عميل جديد تم إنشاؤه
+        if (customerSource === 'new' && repairData.customer_id && typeof loadCustomers === 'function') {
+            // مسح cache العملاء لإجبار إعادة التحميل
+            if (typeof API_CACHE !== 'undefined' && API_CACHE.cache && API_CACHE.cache instanceof Map) {
+                try {
+                    // مسح فقط cache العملاء
+                    const cacheKeys = Array.from(API_CACHE.cache.keys());
+                    cacheKeys.forEach(key => {
+                        if (typeof key === 'string' && key.includes('customers')) {
+                            API_CACHE.cache.delete(key);
+                        }
+                    });
+                } catch (error) {
+                    console.error('⚠️ خطأ في مسح cache العملاء:', error);
+                }
+            }
+            // إعادة تحميل العملاء في الخلفية
+            setTimeout(async () => {
+                try {
+                    if (typeof loadCustomers === 'function') {
+                        await loadCustomers(true);
+                    }
+                } catch (error) {
+                    console.error('⚠️ خطأ في تحديث قائمة العملاء:', error);
+                }
+            }, 1000);
+        }
+        
         // ✅ إنشاء رابط التتبع وعرضه للعميل (فقط للعمليات الجديدة)
         if (!repairId && result.data && result.data.repair_number) {
             const trackingLink = generateRepairTrackingLink(result.data.repair_number);
@@ -3815,7 +3858,9 @@ async function saveRepair(event) {
             showTrackingLinkModal(result.data.repair_number, trackingLink, repairData);
         }
     } else {
-        showMessage(result.message, 'error');
+        const errorMsg = result.message || 'حدث خطأ أثناء حفظ عملية الصيانة';
+        console.error('⚠️ خطأ في حفظ عملية الصيانة:', errorMsg);
+        showMessage(errorMsg, 'error');
     }
 }
 
