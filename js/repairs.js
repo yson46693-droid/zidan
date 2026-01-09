@@ -4821,6 +4821,7 @@ async function deleteRepair(id) {
 // ✅ دالة لطباعة فاتورة التسليم باستخدام القالب الجديد
 async function printDeliveredRepairInvoice(repair) {
     try {
+        console.log('بدء طباعة فاتورة التسليم:', repair);
         // ✅ جلب بيانات الفرع
         let branchData = null;
         let branchSettings = null;
@@ -4901,13 +4902,13 @@ async function printDeliveredRepairInvoice(repair) {
         // ✅ تحضير البيانات للقالب
         const invoiceData = {
             shopInfo: {
-                address: finalShopAddress,
-                whatsapp: whatsappNumber,
-                phone: finalShopPhone,
+                address: finalShopAddress || '',
+                whatsapp: whatsappNumber || '',
+                phone: finalShopPhone || '',
                 logo: finalShopLogo || 'vertopal.com_photo_5922357566287580087_y.png'
             },
-            repairId: repair.id,
-            repairNumber: repair.repair_number || repair.id,
+            repairId: repair.id || '',
+            repairNumber: repair.repair_number || repair.id || '',
             customerName: repair.customer_name || '-',
             customerPhone: repair.customer_phone || '-',
             deviceType: repair.device_type || '-',
@@ -4916,59 +4917,76 @@ async function printDeliveredRepairInvoice(repair) {
             problem: repair.problem || '-',
             accessories: repair.accessories || '',
             technicianName: repair.technician_name || 'غير محدد',
-            deliveryDate: repair.delivered_at ? formatDateTime(repair.delivered_at) : (repair.delivery_date ? formatDateFunc(repair.delivery_date) : formatDateFunc(repair.created_at)),
-            repairCost: repair.customer_price || repair.cost || 0,
-            paidAmount: repair.paid_amount || 0,
-            remainingAmount: repair.remaining_amount || 0,
-            total: repair.customer_price || repair.cost || 0,
+            deliveryDate: repair.delivered_at ? formatDateTime(repair.delivered_at) : (repair.delivery_date ? formatDateFunc(repair.delivery_date) : formatDateFunc(repair.created_at || new Date())),
+            repairCost: parseFloat(repair.customer_price || repair.cost || 0),
+            paidAmount: parseFloat(repair.paid_amount || 0),
+            remainingAmount: parseFloat(repair.remaining_amount || 0),
+            total: parseFloat(repair.customer_price || repair.cost || 0),
             notes: repair.notes || '',
-            currency: currency
+            currency: currency || 'ج.م'
         };
         
-        // ✅ فتح القالب في نافذة جديدة
-        const templateUrl = 'last.html';
-        const printWindow = window.open(templateUrl, '_blank', 'width=900,height=700');
+        console.log('بيانات الفاتورة المحضرة:', invoiceData);
         
-        if (!printWindow) {
-            showMessage('يرجى السماح بالنوافذ المنبثقة لطباعة الإيصال', 'error');
-            return;
-        }
-        
-        // ✅ انتظار تحميل الصفحة ثم تحديث البيانات
-        printWindow.onload = function() {
-            setTimeout(() => {
+        // ✅ فتح القالب في نافذة جديدة مع تمرير البيانات عبر URL
+        try {
+            const dataParam = encodeURIComponent(JSON.stringify(invoiceData));
+            // ✅ بناء المسار الصحيح للقالب
+            let templateUrl = 'last.html';
+            // إذا كان المسار يحتوي على مجلدات، احتفظ بها
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/')) {
+                const pathParts = currentPath.split('/');
+                pathParts.pop(); // إزالة اسم الملف الحالي
+                const basePath = pathParts.join('/');
+                templateUrl = basePath + (basePath.endsWith('/') ? '' : '/') + 'last.html';
+            }
+            const urlWithData = `${templateUrl}?data=${dataParam}`;
+            
+            console.log('فتح فاتورة التسليم - المسار:', templateUrl);
+            console.log('URL الكامل:', urlWithData);
+            console.log('بيانات الفاتورة:', invoiceData);
+            
+            const printWindow = window.open(urlWithData, '_blank', 'width=900,height=700');
+            
+            if (!printWindow) {
+                showMessage('يرجى السماح بالنوافذ المنبثقة لطباعة الإيصال', 'error');
+                return;
+            }
+            
+            // ✅ محاولة تحديث البيانات بعد تحميل الصفحة
+            const checkAndUpdate = setInterval(() => {
                 try {
-                    if (printWindow.setInvoiceData) {
-                        printWindow.setInvoiceData(invoiceData);
-                    } else {
-                        // إذا فشل التحديث المباشر، استخدم URL parameters
-                        const dataParam = encodeURIComponent(JSON.stringify(invoiceData));
-                        const urlWithData = `${templateUrl}?data=${dataParam}`;
-                        printWindow.location.href = urlWithData;
+                    if (printWindow.closed) {
+                        clearInterval(checkAndUpdate);
+                        return;
+                    }
+                    
+                    if (printWindow.document && printWindow.document.readyState === 'complete') {
+                        try {
+                            if (printWindow.setInvoiceData && typeof printWindow.setInvoiceData === 'function') {
+                                printWindow.setInvoiceData(invoiceData);
+                                clearInterval(checkAndUpdate);
+                                console.log('تم تحديث بيانات الفاتورة بنجاح');
+                            }
+                        } catch (e) {
+                            // قد يكون هناك CORS error، لكن البيانات موجودة في URL
+                            console.log('البيانات موجودة في URL، سيتم تحميلها تلقائياً');
+                        }
+                        
+                        // التوقف بعد 3 ثوان
+                        setTimeout(() => clearInterval(checkAndUpdate), 3000);
                     }
                 } catch (error) {
-                    console.error('خطأ في تحديث بيانات الفاتورة:', error);
-                    showMessage('تم فتح الفاتورة، لكن حدث خطأ في تحميل البيانات', 'warning');
+                    // CORS error متوقع عند الوصول للنافذة، البيانات موجودة في URL
+                    clearInterval(checkAndUpdate);
                 }
-            }, 500);
-        };
-        
-        // ✅ إذا تم تحميل الصفحة بالفعل
-        setTimeout(() => {
-            try {
-                if (printWindow.document.readyState === 'complete') {
-                    if (printWindow.setInvoiceData) {
-                        printWindow.setInvoiceData(invoiceData);
-                    } else {
-                        const dataParam = encodeURIComponent(JSON.stringify(invoiceData));
-                        const urlWithData = `${templateUrl}?data=${dataParam}`;
-                        printWindow.location.href = urlWithData;
-                    }
-                }
-            } catch (error) {
-                console.error('خطأ في تحديث بيانات الفاتورة:', error);
-            }
-        }, 1000);
+            }, 200);
+            
+        } catch (error) {
+            console.error('خطأ في فتح نافذة الفاتورة:', error);
+            showMessage('حدث خطأ أثناء فتح الفاتورة: ' + (error.message || 'خطأ غير معروف'), 'error');
+        }
         
     } catch (error) {
         console.error('خطأ في طباعة فاتورة التسليم:', error);
@@ -4994,9 +5012,14 @@ async function printRepairReceipt(id) {
         }
         
         // ✅ إذا كانت الحالة "تم التسليم"، استخدم القالب الجديد
-        if (repair.status === 'delivered') {
+        console.log('حالة عملية الصيانة:', repair.status);
+        const status = (repair.status || '').toLowerCase().trim();
+        if (status === 'delivered') {
+            console.log('استخدام قالب فاتورة التسليم - حالة: تم التسليم');
             return await printDeliveredRepairInvoice(repair);
         }
+        
+        console.log('استخدام قالب الإيصال العادي - الحالة:', repair.status);
         
         // ✅ جلب بيانات الفرع
         let branchData = null;

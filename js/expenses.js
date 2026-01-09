@@ -3877,11 +3877,16 @@ async function loadBranch1TreasuryData() {
             }
             
             // تحديث صافي رصيد الخزنة
-            const netBalance = data.net_balance || 0;
+            const netBalance = parseFloat(data.net_balance || 0);
             const netBalanceEl = document.getElementById('branch1NetBalance');
             if (netBalanceEl) {
-                netBalanceEl.textContent = formatCurrency(Math.abs(netBalance));
-                netBalanceEl.style.color = netBalance >= 0 ? 'rgba(27, 228, 33, 1)' : 'rgba(18, 253, 108, 1)';
+                // ✅ عرض الرصيد مع الإشارة (سالب أو موجب)
+                const balanceText = netBalance >= 0 
+                    ? formatCurrency(netBalance) 
+                    : `-${formatCurrency(Math.abs(netBalance))}`;
+                netBalanceEl.textContent = balanceText;
+                // ✅ اللون: أخضر للرصيد الموجب، أحمر للرصيد السالب
+                netBalanceEl.style.color = netBalance >= 0 ? 'rgba(27, 228, 33, 1)' : 'var(--danger-color)';
             }
             
             // تحميل المصروفات والمستحقات
@@ -3946,10 +3951,15 @@ async function loadBranch2TreasuryData() {
             }
             
             // تحديث صافي رصيد الخزنة
-            const netBalance = data.net_balance || 0;
+            const netBalance = parseFloat(data.net_balance || 0);
             const netBalanceEl = document.getElementById('branch2NetBalance');
             if (netBalanceEl) {
-                netBalanceEl.textContent = formatCurrency(Math.abs(netBalance));
+                // ✅ عرض الرصيد مع الإشارة (سالب أو موجب)
+                const balanceText = netBalance >= 0 
+                    ? formatCurrency(netBalance) 
+                    : `-${formatCurrency(Math.abs(netBalance))}`;
+                netBalanceEl.textContent = balanceText;
+                // ✅ اللون: أخضر للرصيد الموجب، أحمر للرصيد السالب
                 netBalanceEl.style.color = netBalance >= 0 ? 'rgba(13, 242, 20, 1)' : 'var(--danger-color)';
             }
             
@@ -4227,18 +4237,8 @@ window.saveWithdrawal = async function(event) {
                          document.getElementById('branch2SalesEndDate')?.value;
             }
             
-            const url = `branch-treasury.php?branch_id=${currentTreasuryBranchId}&filter_type=${filterType}${startDate ? `&start_date=${startDate}&end_date=${endDate}` : ''}&_t=${Date.now()}`;
-            const balanceResult = await API.request(url, 'GET');
-            
-            if (balanceResult && balanceResult.success && balanceResult.data) {
-                const currentNetBalance = parseFloat(balanceResult.data.net_balance || 0);
-                
-                if (currentNetBalance < amount) {
-                    const availableBalance = Math.max(0, currentNetBalance);
-                    showMessage(`رصيد الخزنة غير كافٍ. الرصيد المتاح: ${formatCurrency(availableBalance)} والمبلغ المطلوب: ${formatCurrency(amount)}`, 'error');
-                    return;
-                }
-            }
+            // ✅ إزالة التحقق من الرصيد الكافي - يُسمح بالرصيد السالب عند السحب
+            // التحقق الأساسي سيكون في الـ API (treasury-withdrawals.php)
         } catch (error) {
             console.error('خطأ في التحقق من رصيد الخزنة:', error);
             // نستمر في العملية لأن التحقق الأساسي سيكون في الـ API

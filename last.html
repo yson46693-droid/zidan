@@ -652,6 +652,7 @@
                 }
 
                 // Basic Info  
+                
                 document.getElementById('customerName').textContent = data.customerName || '-';
                 document.getElementById('customerPhone').textContent = data.customerPhone || '-';
                 document.getElementById('repairNumber').textContent = data.repairNumber || '-';
@@ -725,19 +726,36 @@
         // ✅ جعل الدالة متاحة عالمياً
         window.setInvoiceData = setInvoiceData;
 
-        // ✅ إذا كانت هناك بيانات في URL parameters
-        if (window.location.search) {
+        // ✅ دالة لقراءة البيانات من URL parameters
+        function loadDataFromURL() {
             try {
                 const params = new URLSearchParams(window.location.search);
                 const dataParam = params.get('data');
                 if (dataParam) {
                     const data = JSON.parse(decodeURIComponent(dataParam));
                     setInvoiceData(data);
+                    return true;
                 }
             } catch (error) {
                 console.error('خطأ في قراءة البيانات من URL:', error);
             }
+            return false;
         }
+
+        // ✅ تحميل البيانات عند تحميل الصفحة
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(loadDataFromURL, 100);
+            });
+        } else {
+            // الصفحة محملة بالفعل
+            setTimeout(loadDataFromURL, 100);
+        }
+
+        // ✅ محاولة أخرى بعد تحميل كامل للصفحة
+        window.addEventListener('load', function() {
+            setTimeout(loadDataFromURL, 200);
+        });
     </script>
 </body>
 
