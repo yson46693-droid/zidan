@@ -6,11 +6,11 @@
 
 // إعدادات قاعدة البيانات - Live Server
 define('DB_PORT', '3306');
-define('DB_NAME', 'zidan_v1');
-define('DB_PASS', '2m8a&gA00');
+define('DB_NAME', '1');
+define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 define('DB_HOST', 'localhost');
-define('DB_USER', 'azstore');
+define('DB_USER', 'root');
 // define('DB_PASS', '');   1
 
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
