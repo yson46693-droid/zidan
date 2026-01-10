@@ -1344,13 +1344,32 @@
                     const versionElement = document.getElementById('appVersionDisplay');
                     if (!versionElement) return;
                     
-                    // استخدام timestamp لضمان عدم استخدام cache
-                    const cacheBuster = Date.now() + '&nocache=' + Math.random();
-                    const response = await fetch('version.json?v=' + cacheBuster, {
+                    // ✅ مسح جميع الكاش المخزن للإصدار قبل جلب البيانات
+                    const cacheKeys = [
+                        'version_json_cache',
+                        'version_json_cache_time',
+                        'version_check_cache',
+                        'version_check_cache_time',
+                        'version_check_timestamp'
+                    ];
+                    
+                    cacheKeys.forEach(key => {
+                        try {
+                            localStorage.removeItem(key);
+                            sessionStorage.removeItem(key);
+                        } catch (e) {
+                            // تجاهل الأخطاء
+                        }
+                    });
+                    
+                    // ✅ استخدام cache busting parameters لضمان عدم استخدام cache
+                    const cacheBuster = Date.now() + '&nocache=' + Math.random() + '&v=' + Date.now();
+                    const response = await fetch('version.json?' + cacheBuster, {
                         cache: 'no-store',
                         headers: {
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache'
+                            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
                         }
                     });
                     

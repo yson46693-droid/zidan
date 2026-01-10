@@ -1001,6 +1001,14 @@ function loadExpensesSectionLegacy() {
             filterSalaries();
         }, 300));
     }
+    
+    // ✅ إضافة event listener لحقل البحث الثاني للمستحقات (الفرع الثاني)
+    const salarySearchInput2 = document.getElementById('salarySearch2');
+    if (salarySearchInput2) {
+        salarySearchInput2.addEventListener('input', debounce(() => {
+            filterSalaries();
+        }, 300));
+    }
 }
 
 // إعداد فلاتر الفروع حسب نوع المستخدم
@@ -1849,114 +1857,176 @@ async function loadSalaries(force = false) {
 }
 
 function filterSalaries() {
-    const branchFilter = document.getElementById('salaryBranchFilter');
-    const searchInput = document.getElementById('salarySearch');
-    
-    if (!searchInput) return;
-    
-    const branchId = branchFilter ? (branchFilter.value || '') : '';
-    const searchTerm = searchInput.value.toLowerCase().trim();
-    
-    currentBranchId = branchId || null;
-    
-    let filtered = allSalaries;
-    
-    // فلترة حسب الفرع
-    if (branchId) {
-        filtered = filtered.filter(s => s.branch_id === branchId);
+    try {
+        // ✅ البحث في جميع حقول البحث (salarySearch و salarySearch2)
+        const branchFilter = document.getElementById('salaryBranchFilter');
+        const searchInput = document.getElementById('salarySearch');
+        const searchInput2 = document.getElementById('salarySearch2');
+        
+        // إذا لم توجد أي حقول بحث، استخدام القيم الافتراضية
+        const searchTerm = (searchInput?.value || searchInput2?.value || '').toLowerCase().trim();
+        const branchId = branchFilter ? (branchFilter.value || '') : '';
+        
+        currentBranchId = branchId || null;
+        
+        // التأكد من أن allSalaries هي مصفوفة
+        if (!Array.isArray(allSalaries)) {
+            console.warn('تحذير: allSalaries ليست مصفوفة:', allSalaries);
+            allSalaries = [];
+        }
+        
+        let filtered = allSalaries || [];
+        
+        // فلترة حسب الفرع
+        if (branchId) {
+            filtered = filtered.filter(s => s.branch_id === branchId);
+        }
+        
+        // فلترة حسب البحث
+        if (searchTerm) {
+            filtered = filtered.filter(s => {
+                const name = (s.name || '').toLowerCase();
+                const username = (s.username || '').toLowerCase();
+                return name.includes(searchTerm) || username.includes(searchTerm);
+            });
+        }
+        
+        displaySalaries(filtered);
+    } catch (error) {
+        console.error('خطأ في فلترة المستحقات:', error);
+        // عرض رسالة خطأ في الجداول
+        const tbody1 = document.getElementById('salariesTableBody');
+        const tbody2 = document.getElementById('salariesTableBody2');
+        if (tbody1) {
+            tbody1.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--danger-color);">حدث خطأ أثناء فلترة المستحقات</td></tr>';
+        }
+        if (tbody2) {
+            tbody2.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--danger-color);">حدث خطأ أثناء فلترة المستحقات</td></tr>';
+        }
     }
-    
-    // فلترة حسب البحث
-    if (searchTerm) {
-        filtered = filtered.filter(s => {
-            const name = (s.name || '').toLowerCase();
-            const username = (s.username || '').toLowerCase();
-            return name.includes(searchTerm) || username.includes(searchTerm);
-        });
-    }
-    
-    displaySalaries(filtered);
 }
 
 function displaySalaries(salaries) {
-    const tbody = document.getElementById('salariesTableBody');
-    if (!tbody) return;
-    
-    const paginated = paginate(salaries, currentSalaryPage, salariesPerPage);
-    
-    if (paginated.data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">لا توجد مستحقات</td></tr>';
-        const paginationDiv = document.getElementById('salariesPagination');
-        if (paginationDiv) paginationDiv.innerHTML = '';
-        return;
+    try {
+        // ✅ التأكد من وجود دوال المساعدة
+        const formatCurrency = window.formatCurrency || function(amount) {
+            return parseFloat(amount || 0).toFixed(2) + ' ج.م';
+        };
+        
+        const escapeHtml = window.escapeHtml || function(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+        
+        // ✅ عرض البيانات في جميع الجداول الموجودة (salariesTableBody و salariesTableBody2)
+        const tbody1 = document.getElementById('salariesTableBody');
+        const tbody2 = document.getElementById('salariesTableBody2');
+        
+        // إذا لم توجد أي جداول، الخروج
+        if (!tbody1 && !tbody2) {
+            console.warn('تحذير: لم يتم العثور على جداول المستحقات');
+            return;
+        }
+        
+        // التأكد من أن salaries هي مصفوفة
+        if (!Array.isArray(salaries)) {
+            console.warn('تحذير: salaries ليست مصفوفة:', salaries);
+            salaries = [];
+        }
+        
+        const paginated = paginate(salaries, currentSalaryPage, salariesPerPage);
+        
+        // دالة مساعدة لعرض البيانات في جدول معين
+        const renderTable = (tbody, paginationId) => {
+            if (!tbody) return;
+            
+            if (paginated.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد مستحقات</td></tr>';
+                const paginationDiv = document.getElementById(paginationId);
+                if (paginationDiv) paginationDiv.innerHTML = '';
+                return;
+            }
+            
+            // استخدام DocumentFragment لتحسين الأداء
+            const fragment = document.createDocumentFragment();
+            
+            paginated.data.forEach(salary => {
+                // التحقق من أن salary.id موجود
+                if (!salary.id || salary.id === null || salary.id === undefined) {
+                    console.error('تحذير: معرف المستخدم غير موجود في بيانات الراتب:', salary);
+                    return; // تخطي هذا السطر إذا لم يكن id موجوداً
+                }
+                
+                const tr = document.createElement('tr');
+                const salaryAmount = parseFloat(salary.salary || 0);
+                const totalDeductions = parseFloat(salary.total_deductions || 0); // الخصومات فقط
+                const totalWithdrawals = parseFloat(salary.total_withdrawals || 0); // المسحوبات فقط
+                const netSalary = salaryAmount - totalDeductions - totalWithdrawals;
+                
+                // ID في قاعدة البيانات هو varchar(50) ويمكن أن يكون رقم أو UUID
+                // استخدام ID كما هو (string) دون تحويله إلى رقم
+                const userId = String(salary.id).trim();
+                if (!userId || userId === '' || userId === 'null' || userId === 'undefined') {
+                    console.error('تحذير: معرف المستخدم غير صحيح في بيانات الراتب:', salary.id, salary);
+                    return; // تخطي هذا السطر إذا كان ID غير صحيح
+                }
+                
+                // تنظيف ID من الأحرف الخاصة للاستخدام في HTML
+                const safeId = userId.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                
+                tr.innerHTML = `
+                    <td>
+                        <div><strong>${escapeHtml(salary.name || '')}</strong></div>
+                        <div style="font-size: 0.85em; color: var(--text-light);">${escapeHtml(salary.username || '')}</div>
+                    </td>
+                    <td><strong style="color: var(--primary-color);">${formatCurrency(salaryAmount)}</strong></td>
+                    <td><strong style="color: var(--danger-color);">${formatCurrency(totalWithdrawals)}</strong></td>
+                    <td><strong style="color: var(--warning-color);">${formatCurrency(totalDeductions)}</strong></td>
+                    <td><strong style="color: var(--success-color);">${formatCurrency(netSalary)}</strong></td>
+                    <td>
+                        <button onclick="showAddDeductionModal('${safeId}')" class="btn btn-sm btn-icon" title="إضافة سحب/خصم" data-permission="manager"><i class="bi bi-plus-circle"></i></button>
+                    </td>
+                `;
+                fragment.appendChild(tr);
+            });
+            
+            tbody.innerHTML = '';
+            tbody.appendChild(fragment);
+            
+            // إضافة pagination
+            const paginationDiv = document.getElementById(paginationId);
+            if (paginationDiv) {
+                createPaginationButtons(
+                    paginationDiv,
+                    paginated.totalPages,
+                    currentSalaryPage,
+                    (page) => {
+                        currentSalaryPage = page;
+                        filterSalaries();
+                    }
+                );
+            }
+        };
+        
+        // عرض البيانات في كلا الجدولين إذا كانا موجودين
+        renderTable(tbody1, 'salariesPagination');
+        renderTable(tbody2, 'salariesPagination2');
+        
+        hideByPermission();
+    } catch (error) {
+        console.error('خطأ في عرض المستحقات:', error);
+        // عرض رسالة خطأ في الجداول
+        const tbody1 = document.getElementById('salariesTableBody');
+        const tbody2 = document.getElementById('salariesTableBody2');
+        if (tbody1) {
+            tbody1.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--danger-color);">حدث خطأ أثناء تحميل المستحقات</td></tr>';
+        }
+        if (tbody2) {
+            tbody2.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--danger-color);">حدث خطأ أثناء تحميل المستحقات</td></tr>';
+        }
     }
-    
-    // استخدام DocumentFragment لتحسين الأداء
-    const fragment = document.createDocumentFragment();
-    
-    paginated.data.forEach(salary => {
-        // التحقق من أن salary.id موجود
-        if (!salary.id || salary.id === null || salary.id === undefined) {
-            console.error('تحذير: معرف المستخدم غير موجود في بيانات الراتب:', salary);
-            return; // تخطي هذا السطر إذا لم يكن id موجوداً
-        }
-        
-        const tr = document.createElement('tr');
-        const salaryAmount = parseFloat(salary.salary || 0);
-        const totalDeductions = parseFloat(salary.total_deductions || 0); // الخصومات فقط
-        const totalWithdrawals = parseFloat(salary.total_withdrawals || 0); // المسحوبات فقط
-        const netSalary = salaryAmount - totalDeductions - totalWithdrawals;
-        
-        // ID في قاعدة البيانات هو varchar(50) ويمكن أن يكون رقم أو UUID
-        // استخدام ID كما هو (string) دون تحويله إلى رقم
-        const userId = String(salary.id).trim();
-        if (!userId || userId === '' || userId === 'null' || userId === 'undefined') {
-            console.error('تحذير: معرف المستخدم غير صحيح في بيانات الراتب:', salary.id, salary);
-            return; // تخطي هذا السطر إذا كان ID غير صحيح
-        }
-        
-        // تنظيف ID من الأحرف الخاصة للاستخدام في HTML
-        const safeId = userId.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        
-        // سجل للتحقق من ID
-        console.log('عرض بيانات المستخدم:', {
-            name: salary.name,
-            username: salary.username,
-            id_from_data: salary.id,
-            id_used: userId,
-            safeId: safeId
-        });
-        
-        tr.innerHTML = `
-            <td>
-                <div><strong>${escapeHtml(salary.name || '')}</strong></div>
-                <div style="font-size: 0.85em; color: var(--text-light);">${escapeHtml(salary.username || '')}</div>
-            </td>
-            <td><strong style="color: var(--primary-color);">${formatCurrency(salaryAmount)}</strong></td>
-            <td><strong style="color: var(--danger-color);">${formatCurrency(totalWithdrawals)}</strong></td>
-            <td><strong style="color: var(--warning-color);">${formatCurrency(totalDeductions)}</strong></td>
-            <td><strong style="color: var(--success-color);">${formatCurrency(netSalary)}</strong></td>
-            <td>
-                <button onclick="showAddDeductionModal('${safeId}')" class="btn btn-sm btn-icon" title="إضافة سحب/خصم" data-permission="manager"><i class="bi bi-plus-circle"></i></button>
-            </td>
-        `;
-        fragment.appendChild(tr);
-    });
-    
-    tbody.innerHTML = '';
-    tbody.appendChild(fragment);
-    
-    createPaginationButtons(
-        document.getElementById('salariesPagination'),
-        paginated.totalPages,
-        currentSalaryPage,
-        (page) => {
-            currentSalaryPage = page;
-            filterSalaries();
-        }
-    );
-    
-    hideByPermission();
 }
 
 // ✅ دالة لإظهار/إخفاء فلاتر المستحقات
@@ -4139,138 +4209,92 @@ function displayExpensesForBranch(expenses, tableId, tbodyId, suffix = '') {
 // تحميل المستحقات للفرع (مع تطبيق الفلترة)
 async function loadSalariesForBranch(branchId, suffix = '') {
     try {
-        const result = await API.getSalaries(branchId);
-        if (result.success) {
+        // ✅ الحصول على الشهر المختار (من أي من الحقلين المتاحين حسب الـ suffix)
+        // في قسم الخزنة، الحقول هي salaryMonthFilter و salaryMonthFilter2
+        let monthYear = null;
+        
+        if (suffix === '2') {
+            // للفرع الثاني، استخدام salaryMonthFilter2
+            const monthFilter2 = document.getElementById('salaryMonthFilter2');
+            if (monthFilter2 && monthFilter2.value) {
+                monthYear = monthFilter2.value;
+            }
+        } else {
+            // للفرع الأول أو بدون suffix، استخدام salaryMonthFilter
+            const monthFilter = document.getElementById('salaryMonthFilter');
+            if (monthFilter && monthFilter.value) {
+                monthYear = monthFilter.value;
+            }
+        }
+        
+        // إذا لم يتم تحديد شهر من الحقول، محاولة القراءة من الحقل الآخر
+        if (!monthYear) {
+            const monthFilter = document.getElementById('salaryMonthFilter');
+            const monthFilter2 = document.getElementById('salaryMonthFilter2');
+            if (monthFilter && monthFilter.value) {
+                monthYear = monthFilter.value;
+            } else if (monthFilter2 && monthFilter2.value) {
+                monthYear = monthFilter2.value;
+            }
+        }
+        
+        // إذا لم يتم تحديد شهر، استخدام الشهر الحالي
+        if (!monthYear) {
+            const now = new Date();
+            monthYear = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            // ✅ تعيين الشهر في الحقول إذا كانت موجودة
+            const monthFilter = document.getElementById('salaryMonthFilter');
+            const monthFilter2 = document.getElementById('salaryMonthFilter2');
+            if (monthFilter && !monthFilter.value) {
+                monthFilter.value = monthYear;
+            }
+            if (monthFilter2 && !monthFilter2.value) {
+                monthFilter2.value = monthYear;
+            }
+        }
+        
+        console.log(`🔍 جلب المستحقات للفرع ${branchId} للشهر ${monthYear} (suffix: ${suffix})`);
+        
+        // ✅ تمرير monthYear إلى API.getSalaries()
+        const result = await API.getSalaries(branchId, monthYear);
+        if (result && result.success) {
             let salaries = result.data || [];
             
-            // ✅ تطبيق الفلترة بناءً على نوع الفلترة المحدد
-            const filterType = document.getElementById('branch1SalesFilterType')?.value || 
-                              document.getElementById('branch2SalesFilterType')?.value || 'month';
-            let startDate = null;
-            let endDate = null;
-            
-            if (filterType === 'custom') {
-                startDate = document.getElementById('branch1SalesStartDate')?.value || 
-                           document.getElementById('branch2SalesStartDate')?.value;
-                endDate = document.getElementById('branch1SalesEndDate')?.value || 
-                         document.getElementById('branch2SalesEndDate')?.value;
+            // ✅ التأكد من أن salaries هي مصفوفة
+            if (!Array.isArray(salaries)) {
+                console.warn('تحذير: salaries ليست مصفوفة:', salaries);
+                salaries = [];
             }
             
-            // فلترة الرواتب حسب تاريخ الدفع (payment_date) أو تاريخ الراتب (salary_date)
-            salaries = filterDataByDateRange(salaries, 'payment_date', filterType, startDate, endDate);
-            // إذا لم توجد نتائج، جرب فلترة حسب salary_date
-            if (salaries.length === 0 && filterType !== 'month') {
-                const allSalariesData = result.data || [];
-                salaries = filterDataByDateRange(allSalariesData, 'salary_date', filterType, startDate, endDate);
+            console.log(`✅ تم تحميل ${salaries.length} مستحق للفرع ${branchId} للشهر ${monthYear}`);
+            if (salaries.length > 0) {
+                console.log('عينة من البيانات:', salaries[0]);
             }
             
+            // ✅ حفظ البيانات في allSalaries لعرضها في جميع الجداول
             allSalaries = salaries;
-            const tbodyId = suffix ? `salariesTableBody${suffix}` : 'salariesTableBody';
-            displaySalariesForBranch(salaries, tbodyId, suffix);
+            
+            // ✅ استخدام displaySalaries() لعرض البيانات في جميع الجداول
+            // بدلاً من displaySalariesForBranch() التي تعرض في جدول واحد فقط
+            displaySalaries(salaries);
+        } else {
+            console.error('❌ خطأ في تحميل المستحقات:', result?.message || 'خطأ غير معروف');
+            allSalaries = [];
+            displaySalaries([]);
         }
     } catch (error) {
-        console.error('خطأ في تحميل المستحقات:', error);
+        console.error('❌ خطأ في تحميل المستحقات:', error);
+        allSalaries = [];
+        displaySalaries([]);
     }
 }
 
-// عرض المستحقات للفرع
+// عرض المستحقات للفرع (مهملة - تم دمجها في displaySalaries())
+// يتم الاحتفاظ بها للتوافق مع الكود القديم، لكن displaySalaries() تستخدم الآن
 function displaySalariesForBranch(salaries, tbodyId, suffix = '') {
-    try {
-        const tbody = document.getElementById(tbodyId);
-        if (!tbody) return;
-        
-        const paginated = paginate(salaries, currentSalaryPage, salariesPerPage);
-        
-        if (paginated.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">لا توجد مستحقات</td></tr>';
-            return;
-        }
-        
-        const fragment = document.createDocumentFragment();
-        
-        paginated.data.forEach(salary => {
-            // التحقق من أن salary.id موجود
-            if (!salary.id || salary.id === null || salary.id === undefined) {
-                console.error('تحذير: معرف المستخدم غير موجود في بيانات الراتب:', salary);
-                return; // تخطي هذا السطر إذا لم يكن id موجوداً
-            }
-            
-            const tr = document.createElement('tr');
-            const salaryAmount = parseFloat(salary.salary || 0);
-            const totalDeductions = parseFloat(salary.total_deductions || 0); // الخصومات فقط
-            const totalWithdrawals = parseFloat(salary.total_withdrawals || 0); // المسحوبات فقط
-            const netSalary = salaryAmount - totalDeductions - totalWithdrawals;
-            
-            // ID في قاعدة البيانات هو varchar(50) ويمكن أن يكون رقم أو UUID
-            // استخدام ID كما هو (string) دون تحويله إلى رقم
-            const userId = String(salary.id).trim();
-            if (!userId || userId === '' || userId === 'null' || userId === 'undefined') {
-                console.error('تحذير: معرف المستخدم غير صحيح في بيانات الراتب:', salary.id, salary);
-                return; // تخطي هذا السطر إذا كان ID غير صحيح
-            }
-            
-            // تنظيف ID من الأحرف الخاصة للاستخدام في HTML
-            const safeId = userId.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            
-            // سجل للتحقق من ID
-            console.log('عرض بيانات المستخدم (للفرع):', {
-                name: salary.name,
-                username: salary.username,
-                id_from_data: salary.id,
-                id_used: userId,
-                safeId: safeId
-            });
-            
-            // التحقق من صلاحيات المالك
-            const currentUser = getCurrentUser();
-            const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
-            
-            // زر تعديل الراتب (للمالك فقط)
-            const editSalaryButton = isOwner ? `
-                <button onclick="showEditSalaryModal('${safeId}', '${escapeHtml(salary.name || '')}', ${salaryAmount})" class="btn btn-sm btn-icon" title="تعديل الراتب" style="color: var(--primary-color); margin-right: 5px;">
-                    <i class="bi bi-pencil-square"></i>
-                </button>
-            ` : '';
-            
-            tr.innerHTML = `
-                <td>
-                    <div><strong>${escapeHtml(salary.name || '')}</strong></div>
-                    <div style="font-size: 0.85em; color: var(--text-light);">${escapeHtml(salary.username || '')}</div>
-                </td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 5px;">
-                        <strong style="color: var(--primary-color);">${formatCurrency(salaryAmount)}</strong>
-                        ${editSalaryButton}
-                    </div>
-                </td>
-                <td><strong style="color: var(--danger-color);">${formatCurrency(totalWithdrawals)}</strong></td>
-                <td><strong style="color: var(--warning-color);">${formatCurrency(totalDeductions)}</strong></td>
-                <td><strong style="color: var(--success-color);">${formatCurrency(netSalary)}</strong></td>
-                <td>
-                    <button onclick="showAddDeductionModal('${safeId}')" class="btn btn-sm btn-icon" title="إضافة سحب/خصم" data-permission="manager"><i class="bi bi-plus-circle"></i></button>
-                </td>
-            `;
-            fragment.appendChild(tr);
-        });
-        
-        tbody.innerHTML = '';
-        tbody.appendChild(fragment);
-        
-        const paginationId = suffix ? `salariesPagination${suffix}` : 'salariesPagination';
-        createPaginationButtons(
-            document.getElementById(paginationId),
-            paginated.totalPages,
-            currentSalaryPage,
-            (page) => {
-                currentSalaryPage = page;
-                displaySalariesForBranch(salaries, tbodyId, suffix);
-            }
-        );
-        
-        hideByPermission();
-    } catch (error) {
-        console.error('خطأ في عرض المستحقات:', error);
-    }
+    // ✅ استخدام displaySalaries() الموحدة بدلاً من هذا الكود
+    // للحفاظ على التوافق، نستدعي displaySalaries() التي تعرض في جميع الجداول
+    displaySalaries(salaries || []);
 }
 
 // ========== دوال السحب من الخزنة ==========

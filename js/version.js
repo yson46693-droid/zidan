@@ -13,71 +13,55 @@ var APP_VERSION = window.APP_VERSION || '2.0.1.' + Date.now();
 // تاريخ آخر تحديث
 var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
 
-// قراءة الإصدار من ملف version.json (مع cache لتقليل الاستدعاءات)
+// قراءة الإصدار من ملف version.json (بدون cache لضمان دائماً أحدث إصدار)
 (async function() {
     try {
-        // ✅ إصلاح: التحقق من مسح الكاش (hard refresh) ومسح localStorage cache
-        const cacheKey = 'version_json_cache';
-        const cacheTimeKey = 'version_json_cache_time';
-        const versionCheckKey = 'version_check_timestamp';
-        const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
+        // ✅ حذف جميع الكاش المخزن للإصدار (localStorage و sessionStorage)
+        const cacheKeys = [
+            'version_json_cache',
+            'version_json_cache_time',
+            'version_check_cache',
+            'version_check_cache_time',
+            'version_check_timestamp'
+        ];
         
-        // التحقق من وجود علامة مسح الكاش (hard refresh)
-        // عند hard refresh (Ctrl+F5)، يتم إعادة تحميل جميع الملفات بما فيها version.js
-        // لذلك نتحقق من timestamp آخر تحقق - إذا كان قديماً جداً، نمسح cache
-        const lastCheck = sessionStorage.getItem(versionCheckKey);
-        const now = Date.now();
-        
-        // إذا كان آخر تحقق قديم جداً (أكثر من 10 ثوان) أو غير موجود، نمسح cache
-        // هذا يعني أن المستخدم قام بمسح الكاش
-        if (!lastCheck || (now - parseInt(lastCheck)) > 10000) {
-            console.log('🔄 [Version] تم اكتشاف مسح الكاش - مسح localStorage cache');
-            localStorage.removeItem(cacheKey);
-            localStorage.removeItem(cacheTimeKey);
-        }
-        
-        // حفظ timestamp التحقق الحالي
-        sessionStorage.setItem(versionCheckKey, now.toString());
-        
-        const cachedTime = localStorage.getItem(cacheTimeKey);
-        
-        // إذا كان cache موجوداً وحديثاً (أقل من 5 دقائق)، استخدامه
-        if (cachedTime && (now - parseInt(cachedTime)) < CACHE_DURATION) {
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-                try {
-                    const data = JSON.parse(cached);
-                    APP_VERSION = data.version + '.' + Date.now();
-                    LAST_UPDATE = data.last_updated;
-                    
-                    if (typeof window !== 'undefined') {
-                        window.APP_VERSION = APP_VERSION;
-                        window.APP_LAST_UPDATE = LAST_UPDATE;
-                        window.APP_VERSION_CLEAN = data.version;
-                    }
-                    // لا نعود مباشرة - نتابع لاستدعاء API للتأكد من التحديث
-                } catch (e) {
-                    // إذا فشل parsing cache، نتابع لاستدعاء API
-                }
-            }
-        }
-        
-        // ✅ إصلاح: استخدام timestamp و random لضمان عدم استخدام cache
-        const response = await fetch('/version.json?v=' + Date.now() + '&nocache=' + Math.random(), {
-            cache: 'no-store', // منع المتصفح من استخدام cache
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
+        // مسح جميع مفاتيح الكاش من localStorage
+        cacheKeys.forEach(key => {
+            try {
+                localStorage.removeItem(key);
+            } catch (e) {
+                // تجاهل الأخطاء
             }
         });
+        
+        // مسح جميع مفاتيح الكاش من sessionStorage
+        cacheKeys.forEach(key => {
+            try {
+                sessionStorage.removeItem(key);
+            } catch (e) {
+                // تجاهل الأخطاء
+            }
+        });
+        
+        console.log('🔄 [Version] تم مسح جميع الكاش المخزن للإصدار');
+        
+        // ✅ جلب الإصدار مباشرة من version.json بدون أي cache
+        const cacheBuster = Date.now() + '&nocache=' + Math.random() + '&v=' + Date.now();
+        const response = await fetch('/version.json?' + cacheBuster, {
+            cache: 'no-store', // منع المتصفح من استخدام cache
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
+        
         if (response.ok) {
             const data = await response.json();
             APP_VERSION = data.version + '.' + Date.now();
             LAST_UPDATE = data.last_updated;
             
-            // حفظ في cache
-            localStorage.setItem(cacheKey, JSON.stringify(data));
-            localStorage.setItem(cacheTimeKey, now.toString());
+            // ✅ لا نحفظ في cache أبداً - دائماً نجلبه من الملف مباشرة
             
             // تحديث window.APP_VERSION
             if (typeof window !== 'undefined') {
@@ -85,6 +69,8 @@ var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
                 window.APP_LAST_UPDATE = LAST_UPDATE;
                 window.APP_VERSION_CLEAN = data.version; // رقم الإصدار بدون timestamp
             }
+            
+            console.log('✅ [Version] تم جلب الإصدار مباشرة من version.json:', data.version);
         }
     } catch (error) {
         console.warn('[Version] تعذر جلب الإصدار من version.json، استخدام الإصدار الافتراضي');
@@ -105,7 +91,7 @@ var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
             return window.APP_VERSION_CLEAN || APP_VERSION.split('.').slice(0, 3).join('.');
         };
         
-        // دالة للتحقق من وجود تحديث جديد (مع cache لتقليل الاستدعاءات)
+        // دالة للتحقق من وجود تحديث جديد (بدون cache لضمان دائماً أحدث إصدار)
         window.checkForUpdates = async function() {
             try {
                 if (!navigator.onLine) {
@@ -113,46 +99,39 @@ var LAST_UPDATE = window.APP_LAST_UPDATE || new Date().toISOString();
                     return false;
                 }
                 
-                // ✅ استخدام cache - التحقق فقط كل 5 دقائق
-                const cacheKey = 'version_check_cache';
-                const cacheTimeKey = 'version_check_cache_time';
-                const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
+                // ✅ مسح جميع الكاش المخزن للإصدار قبل التحقق
+                const cacheKeys = [
+                    'version_json_cache',
+                    'version_json_cache_time',
+                    'version_check_cache',
+                    'version_check_cache_time',
+                    'version_check_timestamp'
+                ];
                 
-                const cachedTime = localStorage.getItem(cacheTimeKey);
-                const now = Date.now();
-                
-                // إذا كان cache موجوداً وحديثاً، استخدامه
-                if (cachedTime && (now - parseInt(cachedTime)) < CACHE_DURATION) {
-                    const cached = localStorage.getItem(cacheKey);
-                    if (cached) {
-                        try {
-                            const data = JSON.parse(cached);
-                            const currentVersion = window.getAppVersionClean ? window.getAppVersionClean() : APP_VERSION.split('.').slice(0, 3).join('.');
-                            if (data.version !== currentVersion) {
-                                console.log('🔄 تم اكتشاف تحديث جديد:', data.version);
-                                return true;
-                            }
-                            return false; // لا يوجد تحديث
-                        } catch (e) {
-                            // إذا فشل parsing cache، نتابع لاستدعاء API
-                        }
-                    }
-                }
-                
-                // ✅ إصلاح: استخدام timestamp و random لضمان عدم استخدام cache
-                const response = await fetch('/version.json?v=' + Date.now() + '&nocache=' + Math.random(), {
-                    cache: 'no-store', // منع المتصفح من استخدام cache
-                    headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache'
+                cacheKeys.forEach(key => {
+                    try {
+                        localStorage.removeItem(key);
+                        sessionStorage.removeItem(key);
+                    } catch (e) {
+                        // تجاهل الأخطاء
                     }
                 });
+                
+                // ✅ جلب الإصدار مباشرة من version.json بدون أي cache
+                const cacheBuster = Date.now() + '&nocache=' + Math.random() + '&v=' + Date.now();
+                const response = await fetch('/version.json?' + cacheBuster, {
+                    cache: 'no-store', // منع المتصفح من استخدام cache
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+                
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // حفظ في cache
-                    localStorage.setItem(cacheKey, JSON.stringify(data));
-                    localStorage.setItem(cacheTimeKey, Date.now().toString());
+                    // ✅ لا نحفظ في cache أبداً
                     
                     const currentVersion = window.getAppVersionClean ? window.getAppVersionClean() : APP_VERSION.split('.').slice(0, 3).join('.');
                     if (data.version !== currentVersion) {

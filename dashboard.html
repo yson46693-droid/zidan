@@ -5738,15 +5738,56 @@
                 // إظهار modal
                 modal.style.display = 'flex';
                 
-                // تحميل بيانات الإصدار
+                // ✅ حذف جميع الكاش المخزن للإصدار قبل تحميل البيانات
+                const cacheKeys = [
+                    'version_json_cache',
+                    'version_json_cache_time',
+                    'version_check_cache',
+                    'version_check_cache_time',
+                    'version_check_timestamp'
+                ];
+                
+                // مسح جميع مفاتيح الكاش من localStorage
+                cacheKeys.forEach(key => {
+                    try {
+                        localStorage.removeItem(key);
+                    } catch (e) {
+                        // تجاهل الأخطاء
+                    }
+                });
+                
+                // مسح جميع مفاتيح الكاش من sessionStorage
+                cacheKeys.forEach(key => {
+                    try {
+                        sessionStorage.removeItem(key);
+                    } catch (e) {
+                        // تجاهل الأخطاء
+                    }
+                });
+                
+                console.log('🔄 [Version Modal] تم مسح جميع الكاش قبل تحميل معلومات الإصدار');
+                
+                // تحميل بيانات الإصدار مباشرة من version.json بدون أي cache
                 try {
-                    const response = await fetch('version.json');
+                    // ✅ استخدام cache busting parameters لضمان عدم استخدام cache
+                    const cacheBuster = Date.now() + '&nocache=' + Math.random() + '&v=' + Date.now();
+                    const response = await fetch('version.json?' + cacheBuster, {
+                        cache: 'no-store', // منع المتصفح من استخدام cache
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
+                    });
+                    
                     if (!response.ok) {
                         throw new Error('Failed to fetch version.json');
                     }
                     
                     const versionData = await response.json();
                     renderVersionInfo(versionData, modalBody);
+                    
+                    console.log('✅ [Version Modal] تم جلب معلومات الإصدار مباشرة من version.json:', versionData.version);
                 } catch (error) {
                     console.error('❌ Error loading version data:', error);
                     modalBody.innerHTML = `
@@ -6216,13 +6257,32 @@
                     const versionElement = document.getElementById('appVersionDisplay');
                     if (!versionElement) return;
                     
-                    // استخدام timestamp لضمان عدم استخدام cache
-                    const cacheBuster = Date.now() + '&nocache=' + Math.random();
-                    const response = await fetch('version.json?v=' + cacheBuster, {
+                    // ✅ مسح جميع الكاش المخزن للإصدار قبل جلب البيانات
+                    const cacheKeys = [
+                        'version_json_cache',
+                        'version_json_cache_time',
+                        'version_check_cache',
+                        'version_check_cache_time',
+                        'version_check_timestamp'
+                    ];
+                    
+                    cacheKeys.forEach(key => {
+                        try {
+                            localStorage.removeItem(key);
+                            sessionStorage.removeItem(key);
+                        } catch (e) {
+                            // تجاهل الأخطاء
+                        }
+                    });
+                    
+                    // ✅ استخدام cache busting parameters لضمان عدم استخدام cache
+                    const cacheBuster = Date.now() + '&nocache=' + Math.random() + '&v=' + Date.now();
+                    const response = await fetch('version.json?' + cacheBuster, {
                         cache: 'no-store',
                         headers: {
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache'
+                            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
                         }
                     });
                     
