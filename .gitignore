@@ -1,0 +1,34 @@
+# ملفات البيئة (تحتوي على بيانات حساسة)
+.env
+
+# ملفات النظام
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ملفات السجلات
+logs/*.log
+*.log
+
+# ملفات النسخ الاحتياطي
+backups/*.sql
+*.sql.bak
+
+# ملفات التطوير
+.vscode/
+.idea/
+*.code-workspace
+
+# ملفات PHP
+php_errors.log
+
+# ملفات Cache
+.cache/
+*.cache
+
+# ملفات المؤقتة
+tmp/
+temp/
+*.tmp

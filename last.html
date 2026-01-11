@@ -594,7 +594,7 @@
                 <i class="bi bi-check-circle-fill"></i>
                 <p>تم التسليم بنجاح</p>
             </div>
-            <img id="qrcodeImage" src="" alt="QR Code رقم العملية">
+            <img id="qrcodeImage" src="" alt="QR Code رقم العملية" loading="lazy" decoding="async">
             <div class="invoice-qrcode-info">
                 <p>رقم العملية: <strong id="qrcodeRepairNumber">-</strong></p>
                 <p>يمكنك مسح QR Code للحصول على رقم العملية</p>
@@ -659,7 +659,7 @@
                     }
                     if (data.shopInfo.logo) {
                         const logoSection = document.getElementById('logoSection');
-                        logoSection.innerHTML = `<img src="${data.shopInfo.logo}" alt="شعار المحل" class="invoice-logo" onerror="this.style.display='none';">`;
+                        logoSection.innerHTML = `<img src="${data.shopInfo.logo}" alt="شعار المحل" class="invoice-logo" loading="lazy" decoding="async" onerror="this.style.display='none';">`;
                     }
                 }
 

@@ -498,9 +498,6 @@ async function loadRepairTechnicians(branchId, preserveValue = false) {
                 if (techniciansResult.data && Array.isArray(techniciansResult.data) && techniciansResult.data.length > 0) {
                     // ✅ حفظ البيانات بشكل دائم - لا يتم استبدالها إلا عند استدعاء جديد ناجح
                     repairTechnicians = techniciansResult.data;
-                    console.log('✅ [Repairs] تم جلب الفنيين بنجاح:', repairTechnicians.length, 'فني');
-                    console.log('📋 [Repairs] قائمة الفنيين:', repairTechnicians.map(t => ({ id: t.id, name: t.name, role: t.role })));
-                    
                     // ✅ تحديث dropdown الفنيين مع معامل preserveValue
                     updateTechnicianSelect(preserveValue);
                     return true; // إرجاع true للإشارة إلى نجاح التحميل
@@ -532,12 +529,8 @@ async function loadRepairTechnicians(branchId, preserveValue = false) {
                 }
             }
         } catch (error) {
-            console.error('❌ [Repairs] خطأ في جلب الفنيين:', error);
-            console.error('   - error.message:', error.message);
-            console.error('   - error.stack:', error.stack);
             // ✅ لا نمسح البيانات الموجودة عند الخطأ - نستخدم البيانات المحفوظة
             if (repairTechnicians && repairTechnicians.length > 0) {
-                console.log('✅ [Repairs] استخدام البيانات المحفوظة بعد الخطأ:', repairTechnicians.length, 'فني');
                 // إذا كانت هناك بيانات محفوظة، نستخدمها
                 updateTechnicianSelect(preserveValue);
                 return true; // إرجاع true لأن لدينا بيانات محفوظة
@@ -548,14 +541,10 @@ async function loadRepairTechnicians(branchId, preserveValue = false) {
                 return false; // إرجاع false للإشارة إلى فشل التحميل
             }
         }
-    } catch (error) {
-        console.error('❌ [Repairs] خطأ عام في جلب الفنيين:', error);
-        console.error('   - error.message:', error.message);
-        console.error('   - error.stack:', error.stack);
+    } catch (error) {                               
         // ✅ لا نمسح البيانات الموجودة عند الخطأ - نستخدم البيانات المحفوظة
         if (repairTechnicians && repairTechnicians.length > 0) {
-            console.log('✅ [Repairs] استخدام البيانات المحفوظة بعد الخطأ العام:', repairTechnicians.length, 'فني');
-            // إذا كانت هناك بيانات محفوظة، نستخدمها
+            // إذا كانت هناك بيانات محفوظة
             updateTechnicianSelect(preserveValue);
             return true; // إرجاع true لأن لدينا بيانات محفوظة
         } else {
@@ -1121,11 +1110,9 @@ async function loadRepairBranches(force = false) {
     // ✅ تحسين الأداء: منع التحميل المكرر
     const now = Date.now();
     if (isLoadingRepairBranches && !force) {
-        console.log('⏸️ [Repairs] تحميل الفروع قيد التنفيذ بالفعل');
         return;
     }
     if (!force && (now - lastRepairBranchesLoadTime) < REPAIR_MIN_LOAD_INTERVAL) {
-        console.log('⏸️ [Repairs] تم تحميل الفروع مؤخراً، تخطي الطلب');
         return;
     }
     
@@ -1140,14 +1127,11 @@ async function loadRepairBranches(force = false) {
     lastRepairBranchesLoadTime = now;
     
     try {
-        console.log('🔄 [Repairs] بدء تحميل الفروع...');
         // جلب جميع الفروع النشطة
         const result = await API.request('branches.php', 'GET');
-        console.log('📥 [Repairs] استجابة API:', result);
         
         if (result && result.success && result.data && Array.isArray(result.data)) {
             repairBranches = result.data;
-            console.log(`📊 [Repairs] تم جلب ${repairBranches.length} فرع من API`);
             
             // تحديد الفرع الأول (للاستخدام الافتراضي)
             if (repairBranches.length > 0) {
@@ -1161,7 +1145,6 @@ async function loadRepairBranches(force = false) {
                     return (a.id || '').localeCompare(b.id || '');
                 });
                 repairFirstBranchId = sortedBranches[0].id;
-                console.log(`✅ [Repairs] الفرع الأول: ${sortedBranches[0].name} (${repairFirstBranchId})`);
             }
             
             const currentUser = getCurrentUser();
@@ -1175,16 +1158,12 @@ async function loadRepairBranches(force = false) {
             
             // إذا لم يكن العنصر موجوداً، ننتظر قليلاً ثم نحاول مرة أخرى
             while (!branchFilter && retries < maxRetries) {
-                console.log(`⏳ [Repairs] انتظار repairBranchFilter في DOM، المحاولة ${retries + 1}/${maxRetries}...`);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 branchFilter = document.getElementById('repairBranchFilter');
                 retries++;
             }
             
-            if (branchFilter) {
-                console.log('🔍 [Repairs] تم العثور على repairBranchFilter في DOM');
-                console.log('📊 [Repairs] عدد الفروع المتاحة:', repairBranches?.length || 0);
-                
+            if (branchFilter) {                
                 // ✅ مسح الخيارات الحالية (بدون خيار "جميع الفروع")
                 branchFilter.innerHTML = '<option value="">اختر الفرع</option>';
                 
@@ -1194,18 +1173,13 @@ async function loadRepairBranches(force = false) {
                         option.value = branch.id;
                         option.textContent = branch.name;
                         branchFilter.appendChild(option);
-                        console.log(`  ✅ [${index + 1}] تمت إضافة: ${branch.name} (ID: ${branch.id})`);
                     });
-                    console.log(`✅ [Repairs] تم تحميل ${repairBranches.length} فرع في repairBranchFilter`);
-                    console.log(`🔍 [Repairs] عدد الخيارات في الـ select: ${branchFilter.options.length}`);
                     
                     // للمالك: ضبط الفرع الأول كقيمة افتراضية
                     if (isOwner && repairFirstBranchId) {
                         branchFilter.value = repairFirstBranchId;
-                        console.log(`✅ [Repairs] تم تعيين الفرع الأول كقيمة افتراضية للمالك: ${repairFirstBranchId}`);
                     }
                 } else {
-                    console.warn('⚠️ [Repairs] لا توجد فروع متاحة لتحميلها في repairBranchFilter');
                 }
                 
                 // إعادة تطبيق إعدادات العرض حسب نوع المستخدم
@@ -1213,17 +1187,14 @@ async function loadRepairBranches(force = false) {
                     branchFilter.style.display = 'block';
                     branchFilter.style.visibility = 'visible';
                     branchFilter.style.opacity = '1';
-                    console.log('✅ [Repairs] تم إظهار repairBranchFilter للمالك');
                 } else {
                     branchFilter.style.display = 'none';
                 }
             } else {
-                console.error(`❌ [Repairs] العنصر repairBranchFilter غير موجود في DOM بعد ${maxRetries} محاولة`);
                 // محاولة أخيرة بعد تأخير أطول
                 setTimeout(async () => {
                     const retryElement = document.getElementById('repairBranchFilter');
                     if (retryElement && repairBranches && repairBranches.length > 0) {
-                        console.log('🔄 [Repairs] محاولة أخيرة لملء repairBranchFilter');
                         retryElement.innerHTML = '<option value="">اختر الفرع</option>';
                         repairBranches.forEach(branch => {
                             const option = document.createElement('option');
@@ -1256,14 +1227,12 @@ async function loadRepairBranches(force = false) {
                         option.textContent = branch.name;
                         branchSelect.appendChild(option);
                     });
-                    console.log(`✅ [Repairs] تم تحميل ${repairBranches.length} فرع في قائمة repairBranchSelect`);
                     
                     // تحديد الفرع الأول كقيمة افتراضية للمالك
                     if (isOwner && repairFirstBranchId) {
                         branchSelect.value = repairFirstBranchId;
                     }
                 } else {
-                    console.warn('⚠️ [Repairs] لا توجد فروع متاحة للتحميل');
                 }
                 
                 // استعادة القيمة إذا كانت موجودة
@@ -1281,23 +1250,16 @@ async function loadRepairBranches(force = false) {
                 }
             } else {
                 // العنصر غير موجود - هذا طبيعي إذا كان النموذج غير مفتوح
-                console.log('ℹ️ [Repairs] العنصر repairBranchSelect غير موجود في DOM (قد يكون النموذج غير مفتوح)');
             }
         } else {
-            console.warn('⚠️ [Repairs] لم يتم العثور على فروع أو البيانات غير صحيحة:', result);
             // إظهار رسالة خطأ للمستخدم
             if (result && !result.success) {
-                console.error('❌ [Repairs] خطأ من API:', result.message || 'خطأ غير معروف');
             } else if (!result) {
-                console.error('❌ [Repairs] لم يتم الحصول على استجابة من API');
             } else if (!result.data) {
-                console.error('❌ [Repairs] لا توجد بيانات في الاستجابة');
             } else if (!Array.isArray(result.data)) {
-                console.error('❌ [Repairs] البيانات ليست مصفوفة:', typeof result.data, result.data);
             }
         }
     } catch (error) {
-        console.error('❌ [Repairs] خطأ في تحميل الفروع:', error);
         showMessage('حدث خطأ أثناء تحميل الفروع. يرجى المحاولة مرة أخرى.', 'error');
     } finally {
         isLoadingRepairBranches = false;
@@ -1307,15 +1269,12 @@ async function loadRepairBranches(force = false) {
 // ✅ تحسين الأداء: دالة مساعدة لتحديث فلاتر الفروع من البيانات المحفوظة
 function updateRepairBranchFilters() {
     try {
-        console.log('🔄 [Repairs] تحديث فلاتر الفروع من الكاش...');
         const currentUser = getCurrentUser();
         const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
         
-        console.log('📊 [Repairs] عدد الفروع في الكاش:', repairBranches?.length || 0);
-        
+
         const branchFilter = document.getElementById('repairBranchFilter');
         if (branchFilter) {
-            console.log('🔍 [Repairs] تم العثور على repairBranchFilter في updateRepairBranchFilters');
             if (repairBranches && repairBranches.length > 0) {
                 const currentValue = branchFilter.value;
                 branchFilter.innerHTML = '<option value="">اختر الفرع</option>';
@@ -1324,16 +1283,12 @@ function updateRepairBranchFilters() {
                     option.value = branch.id;
                     option.textContent = branch.name;
                     branchFilter.appendChild(option);
-                    console.log(`  ✅ [${index + 1}] تمت إضافة: ${branch.name} (ID: ${branch.id})`);
                 });
                 if (currentValue) branchFilter.value = currentValue;
                 branchFilter.style.display = isOwner ? 'block' : 'none';
-                console.log(`✅ [Repairs] تم تحديث repairBranchFilter بـ ${repairBranches.length} فرع`);
             } else {
-                console.warn('⚠️ [Repairs] لا توجد فروع في الكاش لتحديث الفلاتر');
             }
         } else {
-            console.warn('⚠️ [Repairs] العنصر repairBranchFilter غير موجود في DOM في updateRepairBranchFilters');
         }
         
         const branchSelect = document.getElementById('repairBranchSelect');
@@ -1350,7 +1305,6 @@ function updateRepairBranchFilters() {
             if (currentValue) branchSelect.value = currentValue;
         }
     } catch (error) {
-        console.error('❌ [Repairs] خطأ في تحديث فلاتر الفروع:', error);
     }
 }
 
@@ -1364,21 +1318,14 @@ async function loadBranches() {
 // الدالة القديمة - deprecated
 async function loadBranches_OLD() {
     try {
-        console.log('🔄 [Repairs] بدء تحميل الفروع...');
-        console.log('🔄 [Repairs] استدعاء API.request("branches.php", "GET", null, { silent: true })');
         const result = await API.request('branches.php', 'GET', null, { silent: true });
-        console.log('📥 [Repairs] استجابة API:', result);
-        
         if (!result) {
-            console.error('❌ [Repairs] API request لم يُرجع نتيجة');
             return;
         }
         
         if (result && result.success && result.data && Array.isArray(result.data)) {
             // حفظ الفروع في المتغير العام
             repairBranches = result.data;
-            console.log(`📊 [Repairs] تم جلب ${repairBranches.length} فرع من API`);
-            console.log('📊 [Repairs] الفروع:', repairBranches);
             
             // تحديد الفرع الأول (للاستخدام الافتراضي)
             if (repairBranches.length > 0) {
@@ -1392,73 +1339,46 @@ async function loadBranches_OLD() {
                     return (a.id || '').localeCompare(b.id || '');
                 });
                 repairFirstBranchId = sortedBranches[0].id;
-                console.log(`🔍 [Repairs] الفرع الأول: ${sortedBranches[0].name} (${repairFirstBranchId})`);
             }
             
             const currentUser = getCurrentUser();
             const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
-            console.log('🔍 [Repairs] isOwner:', isOwner);
             
             // ملء Branch Filter في section-header - ملء الفروع دائماً
             const branchFilter = document.getElementById('repairBranchFilter');
-            if (branchFilter) {
-                console.log('🔍 [Repairs] تم العثور على repairBranchFilter في DOM');
-                console.log('🔍 [Repairs] عدد الفروع المتاحة:', repairBranches?.length || 0);
-                
+            if (branchFilter) {                
                 // ✅ مسح الخيارات الحالية (بدون خيار "جميع الفروع")
                 branchFilter.innerHTML = '<option value="">اختر الفرع</option>';
-                console.log('🔍 [Repairs] تم مسح الخيارات، عدد الخيارات الآن:', branchFilter.options.length);
-                
                 if (repairBranches && repairBranches.length > 0) {
-                    console.log('🔍 [Repairs] بدء إضافة الفروع...');
                     repairBranches.forEach((branch, index) => {
-                        console.log(`🔍 [Repairs] إضافة فرع ${index + 1}: ${branch.name} (${branch.id})`);
                         const option = document.createElement('option');
                         option.value = branch.id;
                         option.textContent = branch.name;
                         branchFilter.appendChild(option);
-                        console.log(`  ✅ تمت إضافة الخيار: ${option.value} - ${option.textContent}`);
                     });
-                    console.log(`✅ تم تحميل ${repairBranches.length} فرع في repairBranchFilter`);
-                    console.log('🔍 [Repairs] عدد الخيارات بعد الإضافة:', branchFilter.options.length);
-                    
                     // التحقق من أن الفروع تمت إضافتها
                     if (branchFilter.options.length <= 1) {
-                        console.error('❌ [Repairs] المشكلة: الفروع لم تُضف بشكل صحيح!');
-                        console.error('❌ [Repairs] عدد الخيارات:', branchFilter.options.length);
-                        console.error('❌ [Repairs] الفروع:', repairBranches);
                     } else {
-                        console.log(`✅ [Repairs] تم إضافة ${branchFilter.options.length - 1} فرع بنجاح`);
-                        // طباعة جميع الخيارات للتأكد
-                        for (let i = 0; i < branchFilter.options.length; i++) {
-                            console.log(`  - Option ${i}: value="${branchFilter.options[i].value}", text="${branchFilter.options[i].text}"`);
-                        }
                     }
                     
                     // للمالك: ضبط الفرع الأول كقيمة افتراضية (الهانوفيل)
                     if (isOwner && repairFirstBranchId) {
                         branchFilter.value = repairFirstBranchId;
-                        console.log(`✅ تم تعيين الفرع الأول كقيمة افتراضية للمالك: ${repairFirstBranchId}`);
                     }
                 } else {
-                    console.warn('⚠️ لا توجد فروع متاحة لتحميلها في repairBranchFilter');
-                    console.warn('⚠️ repairBranches:', repairBranches);
                 }
                 
                 // إعادة تطبيق إعدادات العرض حسب نوع المستخدم
                 if (isOwner) {
                     branchFilter.style.display = 'block';
-                    console.log('✅ [Repairs] تم إظهار repairBranchFilter للمالك');
                 } else {
                     branchFilter.style.display = 'none';
                 }
             } else {
-                console.warn('⚠️ العنصر repairBranchFilter غير موجود في DOM - سيتم إعادة المحاولة...');
                 // إعادة المحاولة بعد تأخير قصير
                 setTimeout(() => {
                     const retryBranchFilter = document.getElementById('repairBranchFilter');
                     if (retryBranchFilter && repairBranches && repairBranches.length > 0) {
-                        console.log('🔄 [Repairs] إعادة المحاولة لملء repairBranchFilter...');
                         retryBranchFilter.innerHTML = '<option value="">اختر الفرع</option>';
                         repairBranches.forEach(branch => {
                             const option = document.createElement('option');
@@ -1472,11 +1392,8 @@ async function loadBranches_OLD() {
                         if (isOwner) {
                             retryBranchFilter.style.display = 'block';
                         }
-                        console.log(`✅ [Repairs] تم ملء ${repairBranches.length} فرع في المحاولة الثانية`);
                     } else if (!retryBranchFilter) {
-                        console.error('❌ [Repairs] العنصر repairBranchFilter غير موجود حتى بعد إعادة المحاولة');
                     } else if (!repairBranches || repairBranches.length === 0) {
-                        console.error('❌ [Repairs] لا توجد فروع متاحة للتحميل');
                     }
                 }, 500);
             }
@@ -1510,10 +1427,6 @@ async function loadBranches_OLD() {
                 }
             }
         } else {
-            console.error('❌ [Repairs] استجابة API غير صحيحة أو لا تحتوي على بيانات');
-            console.error('❌ [Repairs] result:', result);
-            console.error('❌ [Repairs] result.success:', result?.success);
-            console.error('❌ [Repairs] result.data:', result?.data);
             const branchFilter = document.getElementById('repairBranchFilter');
             if (branchFilter) {
                 const currentUser = getCurrentUser();
@@ -1524,8 +1437,6 @@ async function loadBranches_OLD() {
             }
         }
     } catch (error) {
-        console.error('❌ [Repairs] خطأ في تحميل الفروع:', error);
-        console.error('❌ [Repairs] Stack trace:', error.stack);
         // إظهار القائمة المنسدلة بدون خيارات في حالة الخطأ
         const branchFilter = document.getElementById('repairBranchFilter');
         if (branchFilter) {
@@ -1542,11 +1453,9 @@ async function loadRepairs(force = false) {
     // ✅ تحسين الأداء: منع التحميل المكرر
     const now = Date.now();
     if (isLoadingRepairs && !force) {
-        console.log('⏸️ [Repairs] تحميل العمليات قيد التنفيذ بالفعل');
         return;
     }
     if (!force && (now - lastRepairsLoadTime) < REPAIRS_MIN_LOAD_INTERVAL) {
-        console.log('⏸️ [Repairs] تم تحميل العمليات مؤخراً، تخطي الطلب');
         return;
     }
     
@@ -1575,10 +1484,8 @@ async function loadRepairs(force = false) {
                     branchId = repairFirstBranchId;
                     selectedRepairBranchId = branchId;
                     branchFilter.value = branchId;
-                    console.log('✅ [Repairs] تم تحديد الفرع الأول كافتراضي:', repairFirstBranchId);
                 } else {
-                    // ✅ إذا لم يكن هناك فروع، لا نعرض عمليات
-                    console.warn('⚠️ [Repairs] لا توجد فروع متاحة - لا يمكن عرض العمليات');
+                    // ✅ إذا لم يكن هناك ف
                     allRepairs = [];
                     displayRepairs();
                     return;
@@ -1588,7 +1495,6 @@ async function loadRepairs(force = false) {
                 branchId = repairFirstBranchId;
                 selectedRepairBranchId = branchId;
             } else {
-                console.warn('⚠️ [Repairs] لا توجد فروع متاحة - لا يمكن عرض العمليات');
                 allRepairs = [];
                 displayRepairs();
                 return;
@@ -1601,7 +1507,6 @@ async function loadRepairs(force = false) {
         
         // ✅ تحسين: يجب أن يكون branchId محدداً دائماً للمالك
         if (isOwner && !branchId) {
-            console.warn('⚠️ [Repairs] يجب تحديد فرع لعرض العمليات');
             allRepairs = [];
             filterRepairs(); // ✅ استخدام filterRepairs() بدلاً من displayRepairs() مباشرة
             return;
@@ -1619,26 +1524,19 @@ async function loadRepairs(force = false) {
             // ✅ فلترة قطعية حسب branch_id - منع ظهور عمليات من فروع أخرى
             const branchIdStr = branchId ? String(branchId) : null;
             if (branchIdStr) {
-                console.log('🔍 [Repairs] فلترة العمليات حسب branch_id:', branchIdStr);
-                console.log('📊 [Repairs] قبل الفلترة:', repairs.length);
-                
                 repairs = repairs.filter(repair => {
                     const repairBranchId = repair.branch_id ? String(repair.branch_id) : null;
                     const matches = repairBranchId === branchIdStr;
                     if (!matches) {
                         if (repairBranchId) {
-                            console.log(`  ⏭️ [Repairs] تخطي عملية ${repair.id} (branch_id: ${repairBranchId} !== ${branchIdStr})`);
                         } else {
-                            console.log(`  ⏭️ [Repairs] تخطي عملية ${repair.id} (لا يوجد branch_id)`);
                         }
                     }
                     return matches;
                 });
                 
-                console.log('📊 [Repairs] بعد الفلترة:', repairs.length);
             } else if (isOwner) {
                 // ✅ للمالك: إذا لم يكن هناك branchId، لا نعرض أي عمليات
-                console.warn('⚠️ [Repairs] لا يمكن عرض العمليات بدون branch_id للمالك');
                 repairs = [];
             } else {
                 // ✅ للمستخدمين العاديين: فلترة حسب فرعهم
@@ -1656,7 +1554,6 @@ async function loadRepairs(force = false) {
             }
             
             // ✅ تسجيل الحالات للتحقق من التحديث
-            console.log('✅ [Repairs] البيانات المجلوبة من السيرفر:', repairs.map(r => ({ id: r.id, status: r.status })));
             
             allRepairs = repairs;
             
@@ -1667,11 +1564,9 @@ async function loadRepairs(force = false) {
                     branchFilter.value = String(branchId);
                     selectedRepairBranchId = String(branchId);
                 }
-                console.log(`✅ [Repairs] تم تحميل ${allRepairs.length} عملية من الفرع ${branchId}`);
             }
         } else {
             // ✅ التعامل مع حالة فشل API - عرض رسالة خطأ وتعيين قائمة فارغة
-            console.error('❌ [Repairs] فشل تحميل العمليات:', repairsResult.message || 'خطأ غير معروف');
             
             // ✅ تحسين: إذا كانت البيانات من cache (offline mode)، نعرض رسالة مختلفة
             if (repairsResult.offline) {
@@ -1701,7 +1596,6 @@ async function loadRepairs(force = false) {
         // ✅ تحديث إحصائيات العمليات جاهزة للتسليم
         updateReadyForDeliveryStats();
     } catch (error) {
-        console.error('❌ [Repairs] خطأ في تحميل البيانات:', error);
         showMessage('خطأ في تحميل البيانات', 'error');
         // ✅ في حالة الخطأ، نعرض جدول فارغ بدلاً من عدم عرض الجدول
         allRepairs = [];
@@ -1720,7 +1614,6 @@ function updateReadyForDeliveryStats() {
         const totalRemainingElement = document.getElementById('totalReadyForDeliveryRemaining');
         
         if (!statsContainer || !totalRemainingElement) {
-            console.warn('⚠️ [Repairs] عناصر الإحصائيات غير موجودة في DOM');
             return;
         }
         
@@ -1730,8 +1623,6 @@ function updateReadyForDeliveryStats() {
             const readyForDeliveryRepairs = allRepairs.filter(repair => {
                 return repair.status === 'ready_for_delivery';
             });
-            
-            console.log(`📊 [Repairs] عدد العمليات جاهزة للتسليم: ${readyForDeliveryRepairs.length}`);
             
             totalRemaining = readyForDeliveryRepairs.reduce((sum, repair) => {
                 const remaining = parseFloat(repair.remaining_amount || 0);
@@ -1745,9 +1636,7 @@ function updateReadyForDeliveryStats() {
         // ✅ إظهار الإحصائيات دائماً
         statsContainer.style.display = 'block';
         
-        console.log(`✅ [Repairs] تم تحديث إحصائيات العمليات جاهزة للتسليم: ${totalRemaining.toFixed(2)} ج.م`);
     } catch (error) {
-        console.error('❌ [Repairs] خطأ في تحديث إحصائيات العمليات جاهزة للتسليم:', error);
     }
 }
 
@@ -1770,8 +1659,7 @@ function getTechnicianName(userId) {
             if (user && user.name) {
                 return user.name;
             }
-        }
-        console.warn('getTechnicianName: repairTechnicians غير محمّل - userId =', userId);
+        }               
         return 'غير محدد';
     }
     
@@ -1786,7 +1674,6 @@ function getTechnicianName(userId) {
         return technician.name;
     }
     
-    console.warn('getTechnicianName: لم يتم العثور على الفني - userId =', userId);
     return 'غير محدد';
 }
 
@@ -1821,7 +1708,6 @@ function switchRepairType(type) {
 function filterRepairs() {
     const statusFilterElement = document.getElementById('statusFilter');
     if (!statusFilterElement) {
-        console.warn('[Repairs] قسم الصيانة غير محمّل - تخطي الفلترة');
         return;
     }
     
@@ -1857,14 +1743,12 @@ function filterRepairs() {
         filtered = filtered.filter(r => {
             const repairBranchId = r.branch_id ? String(r.branch_id) : null;
             if (repairBranchId !== targetBranchId) {
-                console.warn(`⚠️ [Repairs] فلترة: تخطي عملية ${r.id} (branch_id: ${repairBranchId} !== ${targetBranchId})`);
                 return false;
             }
             return true;
         });
     } else if (isOwner) {
         // ✅ للمالك: إذا لم يكن هناك branchId، لا نعرض أي عمليات
-        console.warn('⚠️ [Repairs] فلترة: لا يمكن عرض العمليات بدون branch_id للمالك');
         filtered = [];
     } else {
         // ✅ للمستخدمين العاديين: إذا لم يكن لهم فرع، لا نعرض أي عمليات
@@ -1911,7 +1795,6 @@ function filterRepairs() {
                 
                 return true;
             } catch (error) {
-                console.error('خطأ في فلترة التاريخ:', error);
                 return true; // في حالة الخطأ، نعرض العملية
             }
         });
@@ -1929,14 +1812,11 @@ function displayRepairs(repairs) {
         repairs = [];
     }
     
-    console.log('عرض العمليات:', repairs);
-    
     const paginated = paginate(repairs, currentRepairPage, repairsPerPage);
     const tbody = document.getElementById('repairsTableBody');
     
     // ✅ التأكد من وجود tbody قبل التعديل
     if (!tbody) {
-        console.warn('⚠️ [Repairs] جدول العمليات غير موجود في DOM');
         return;
     }
 
@@ -1961,7 +1841,6 @@ function displayRepairs(repairs) {
         // ✅ إصلاح: التأكد من وجود حالة افتراضية
         const repairStatus = repair.status || 'received';
         // ✅ تسجيل الحالة للتحقق من التحديث - تسجيل جميع الحالات للتحقق
-        console.log('✅ [Repairs] عرض العملية:', repair.id, 'الحالة:', repairStatus, 'البيانات الكاملة:', repair);
         const statusBadge = `<span class="status-badge" style="background: ${getStatusColor(repairStatus)}">${getStatusText(repairStatus)}</span>`;
         
         // ✅ إصلاح: استخدام customer_price بدلاً من cost
@@ -6686,14 +6565,9 @@ function printQRCode(qrCodeImage, repairNumber) {
         </head>
         <body>
                 <div class="qr-container">
-                    <h3><i class="bi bi-qr-code-scan"></i> QR Code العملية</h3>
                     <div class="qr-code-wrapper">
                         <img src="${qrCodeImage}" alt="QR Code ${repairNumber}" onerror="this.onerror=null; this.src='${qrCodeImage}';">
-                        <p class="repair-number">رقم العملية: ${repairNumber}</p>
-            </div>
-                    <p style="margin-top: 15px; color: #666; font-size: 0.95em;">
-                        يمكنك مسح QR Code لمتابعة حالة العملية
-                    </p>
+                    </div>
                 </div>
                 <div class="no-print">
                     <button onclick="window.print()" class="btn-print">
@@ -6838,7 +6712,6 @@ function printLabel(labelImage, repairNumber) {
         </head>
         <body>
             <div class="label-container">
-                    <h3><i class="bi bi-tag-fill"></i> ملصق العملية: ${repairNumber}</h3>
                     <img src="${labelImage}" alt="ملصق ${repairNumber}" onerror="this.onerror=null; this.src='${labelImage}';">
             </div>
                 <div class="no-print">

@@ -1,17 +1,70 @@
 <?php
 /**
  * ملف إعدادات قاعدة البيانات MySQL
- * قم بتعديل هذه الإعدادات حسب بيئة الاستضافة الخاصة بك
+ * 
+ * ✅ تم تحديث الملف لقراءة البيانات من ملف .env
+ * 
+ * لاستخدام ملف .env:
+ * 1. أنشئ ملف .env في المجلد الرئيسي للمشروع (بجانب index.html)
+ * 2. أضف السطور التالية إلى ملف .env:
+ * 
+ * DB_HOST=localhost
+ * DB_PORT=3306
+ * DB_NAME=اسم_قاعدة_البيانات
+ * DB_USER=اسم_المستخدم
+ * DB_PASS=كلمة_المرور
+ * DB_CHARSET=utf8mb4
+ * 
+ * ملاحظة: ملف .env موجود في .gitignore ولن يتم رفعه إلى Git
+ * ملاحظة: إذا لم يكن ملف .env موجوداً، سيتم استخدام القيم الافتراضية
  */
 
-// إعدادات قاعدة البيانات - Live Server
-define('DB_PORT', '3306');
-define('DB_NAME', 'zidan_v1');
-define('DB_PASS', '2m8a&gA00');
-define('DB_CHARSET', 'utf8mb4');
-define('DB_HOST', 'localhost');
-define('DB_USER', 'azstore');
-// define('DB_PASS', '');  
+// ✅ دالة لقراءة متغيرات .env
+function loadEnv($filePath) {
+    if (!file_exists($filePath)) {
+        return [];
+    }
+    
+    $env = [];
+    $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    
+    foreach ($lines as $line) {
+        // تجاهل التعليقات
+        if (strpos(trim($line), '#') === 0) {
+            continue;
+        }
+        
+        // تقسيم السطر إلى key=value
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            
+            // إزالة علامات الاقتباس إذا كانت موجودة
+            if ((substr($value, 0, 1) === '"' && substr($value, -1) === '"') ||
+                (substr($value, 0, 1) === "'" && substr($value, -1) === "'")) {
+                $value = substr($value, 1, -1);
+            }
+            
+            $env[$key] = $value;
+        }
+    }
+    
+    return $env;
+}
+
+// ✅ قراءة بيانات .env من المجلد الرئيسي
+$envPath = __DIR__ . '/../.env';
+$env = loadEnv($envPath);
+
+// ✅ إعدادات قاعدة البيانات - قراءة من .env أو استخدام القيم الافتراضية
+define('DB_HOST', $env['DB_HOST'] ?? 'localhost');
+define('DB_PORT', $env['DB_PORT'] ?? '3306');
+define('DB_NAME', $env['DB_NAME'] ?? '1');
+define('DB_USER', $env['DB_USER'] ?? 'root');
+define('DB_PASS', $env['DB_PASS'] ?? '');
+define('DB_CHARSET', $env['DB_CHARSET'] ?? 'utf8mb4');
+
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
 $lastDbError = null;
 
