@@ -44,7 +44,6 @@ jobs:
             **/tmp/**
             **/.DS_Store
             **/Thumbs.db
-            .gitignore
             .editorconfig
             **/.git*
             **/.git*/**
