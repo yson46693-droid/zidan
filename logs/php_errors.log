@@ -1,202 +1,50 @@
-[11-Jan-2026 17:32:27 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.73 ساعة
-[11-Jan-2026 17:35:05 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:05 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - checkAuth called
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - Session status before start: 2
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - Cookies received: {"PHPSESSID":"447ada40907055f923e932ea4c2f39eb","PHPSESSDATA":"eyJkYXRhIjoiZGJfc2V0dXBfY2hlY2tlZHxiOjE7c3lzdGVtX2luaXRpYWxpemVkfGI6MTt1c2VyX2lkfHM6MjM6XCI2OTYyMjdhMzc3MDRjOS4yNjgzODExM1wiO3VzZXJuYW1lfHM6MjpcIjAzXCI7bmFtZXxzOjE5OlwiXHUwNjQ1XHUwNjQ4XHUwNjM4XHUwNjQxIFx1MDYyOFx1MDY0YVx1MDYzN1x1MDYyN1x1MDYzNFwiO3JvbGV8czo4OlwiZW1wbG95ZWVcIjticmFuY2hfaWR8czozMDpcImJyYW5jaF82OTRlMWYyZTk0MDFiMS44Njk3OTUxMFwiO2NzcmZfdG9rZW58czo2NDpcIjJmYTEzY2JkMzJkZTA1MjFmZTFmYWJmNWI3NThmN2JhZGMyN2QyZDIwYjAwZDY0OTNjMjkxNjdlNjAxNTkwYmVcIjthcGlfdG9rZW5zfGE6MTp7aTowO2E6Mzp7czo1OlwidG9rZW5cIjtzOjE4ODpcIk1UYzJPREEzTnpBeE9YdzBORGRoWkdFME1Ea3dOekExTldZNU1qTmxPVE15WldFMFl6Sm1NemxsWW54ak0yTTVaVGcyWmpWa01EUTRORFEyTlRZeU5HUTBORFJoWXprM05qUXpaSHhpTVRZNE5HTmhNekpsTldSak5XVmpNelZrTXpGbE1XUTVaVEEzTlRFd05XUmlNek0zWVRrd05qZzFOakprWlRZNU5HSXlZMlptT1RJd1pqY3pOekprXCI7czo5OlwidGltZXN0YW1wXCI7aToxNzY4MDc3MDE5O3M6NDpcInVzZWRcIjtiOjA7fX0iLCJleHBpcmVzIjoxNzY4MTYzNDE5fQ=="}
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - Session already active. Session ID: 447ada40907055f923e932ea4c2f39eb
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - Session status after start: 2
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","csrf_token":"2fa13cbd32de0521fe1fabf5b758f7badc27d2d20b00d6493c29167e601590be","api_tokens":[{"token":"MTc2ODA3NzAxOXw0NDdhZGE0MDkwNzA1NWY5MjNlOTMyZWE0YzJmMzllYnxjM2M5ZTg2ZjVkMDQ4NDQ2NTYyNGQ0NDRhYzk3NjQzZHxiMTY4NGNhMzJlNWRjNWVjMzVkMzFlMWQ5ZTA3NTEwNWRiMzM3YTkwNjg1NjJkZTY5NGIyY2ZmOTIwZjczNzJk","timestamp":1768077019,"used":false}]}
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - User ID found in session: 696227a37704c9.26838113
-[11-Jan-2026 17:35:07 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
-[11-Jan-2026 17:35:07 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
-[11-Jan-2026 17:35:07 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
-[11-Jan-2026 17:35:07 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
-[11-Jan-2026 17:35:07 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] ✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: 2
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات في النظام:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - delivered: 2 عملية
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي عمليات الفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات للفرع branch_694e1f2e9401b1.86979510:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - delivered: 1 عملية
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: 2
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] وجدت 1 عملية بحالة 'delivered' للفرع branch_694e1f2e9401b1.86979510
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] عينة من العمليات المسلمة للفرع:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - 2BRJIL: الربح=500, الحالة=delivered, delivery_date=2026-01-17, updated_at=2026-01-10 22:55:28, created_at=2026-01-10 21:37:10
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة (2026-01-01 - 2026-01-31): 1 عمليات، إجمالي الربح: 500
-[11-Jan-2026 17:35:07 Africa/Cairo] ✅ [Branch Treasury] الفرع الثاني - الإيرادات الفعلية: المدفوع مقدماً: 500 ج.م، المتبقي: 500 ج.م، الاسترجاع: 0 ج.م، الإجمالي: 1000 ج.م
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] الفرع الثاني - حساب الرصيد:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الإيرادات: 1000
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الإيداعات: 1000
-[11-Jan-2026 17:35:07 Africa/Cairo]    - تحصيلات الدين: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - المصروفات: 1000
-[11-Jan-2026 17:35:07 Africa/Cairo]    - تكاليف الصيانة: 500
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الخسائر: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - مسحوبات الرواتب: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - سحوبات الخزنة: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الرصيد الصافي: 500
-[11-Jan-2026 17:35:07 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
-[11-Jan-2026 17:35:07 Africa/Cairo] ✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: 2
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات في النظام:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - delivered: 2 عملية
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي عمليات الفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات للفرع branch_694e1f2e9401b1.86979510:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - delivered: 1 عملية
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: 2
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] وجدت 1 عملية بحالة 'delivered' للفرع branch_694e1f2e9401b1.86979510
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] عينة من العمليات المسلمة للفرع:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - 2BRJIL: الربح=500, الحالة=delivered, delivery_date=2026-01-17, updated_at=2026-01-10 22:55:28, created_at=2026-01-10 21:37:10
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة (2026-01-01 - 2026-01-31): 1 عمليات، إجمالي الربح: 500
-[11-Jan-2026 17:35:07 Africa/Cairo] ✅ [Branch Treasury] الفرع الثاني - الإيرادات الفعلية: المدفوع مقدماً: 500 ج.م، المتبقي: 500 ج.م، الاسترجاع: 0 ج.م، الإجمالي: 1000 ج.م
-[11-Jan-2026 17:35:07 Africa/Cairo] 🔍 [Branch Treasury Debug] الفرع الثاني - حساب الرصيد:
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الإيرادات: 1000
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الإيداعات: 1000
-[11-Jan-2026 17:35:07 Africa/Cairo]    - تحصيلات الدين: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - المصروفات: 1000
-[11-Jan-2026 17:35:07 Africa/Cairo]    - تكاليف الصيانة: 500
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الخسائر: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - مسحوبات الرواتب: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - سحوبات الخزنة: 0
-[11-Jan-2026 17:35:07 Africa/Cairo]    - الرصيد الصافي: 500
-[11-Jan-2026 17:35:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [expenses.php GET] userRole: employee, userBranchId: branch_694e1f2e9401b1.86979510
-[11-Jan-2026 17:35:08 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
-[11-Jan-2026 17:35:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:08 Africa/Cairo] ✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: 2
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات في النظام:
-[11-Jan-2026 17:35:08 Africa/Cairo]    - delivered: 2 عملية
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي عمليات الفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات للفرع branch_694e1f2e9401b1.86979510:
-[11-Jan-2026 17:35:08 Africa/Cairo]    - delivered: 1 عملية
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: 2
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] وجدت 1 عملية بحالة 'delivered' للفرع branch_694e1f2e9401b1.86979510
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] عينة من العمليات المسلمة للفرع:
-[11-Jan-2026 17:35:08 Africa/Cairo]    - 2BRJIL: الربح=500, الحالة=delivered, delivery_date=2026-01-17, updated_at=2026-01-10 22:55:28, created_at=2026-01-10 21:37:10
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة (2026-01-01 - 2026-01-31): 1 عمليات، إجمالي الربح: 500
-[11-Jan-2026 17:35:08 Africa/Cairo] ✅ [Branch Treasury] الفرع الثاني - الإيرادات الفعلية: المدفوع مقدماً: 500 ج.م، المتبقي: 500 ج.م، الاسترجاع: 0 ج.م، الإجمالي: 1000 ج.م
-[11-Jan-2026 17:35:08 Africa/Cairo] 🔍 [Branch Treasury Debug] الفرع الثاني - حساب الرصيد:
-[11-Jan-2026 17:35:08 Africa/Cairo]    - الإيرادات: 1000
-[11-Jan-2026 17:35:08 Africa/Cairo]    - الإيداعات: 1000
-[11-Jan-2026 17:35:08 Africa/Cairo]    - تحصيلات الدين: 0
-[11-Jan-2026 17:35:08 Africa/Cairo]    - المصروفات: 1000
-[11-Jan-2026 17:35:08 Africa/Cairo]    - تكاليف الصيانة: 500
-[11-Jan-2026 17:35:08 Africa/Cairo]    - الخسائر: 0
-[11-Jan-2026 17:35:08 Africa/Cairo]    - مسحوبات الرواتب: 0
-[11-Jan-2026 17:35:08 Africa/Cairo]    - سحوبات الخزنة: 0
-[11-Jan-2026 17:35:08 Africa/Cairo]    - الرصيد الصافي: 500
-[11-Jan-2026 17:35:12 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:20 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:20 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:20 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:20 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:20 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:20 Africa/Cairo] 🔍 [expenses.php GET] userRole: employee, userBranchId: branch_694e1f2e9401b1.86979510
-[11-Jan-2026 17:35:20 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
-[11-Jan-2026 17:35:20 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:34 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:37 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.68 ساعة
-[11-Jan-2026 17:35:46 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
-[11-Jan-2026 17:35:46 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
-[11-Jan-2026 17:35:46 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
-[11-Jan-2026 17:35:46 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
-[11-Jan-2026 17:35:48 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
-[11-Jan-2026 17:35:49 Africa/Cairo] 🔍 [Repairs] البحث عن عملية صيانة - ID: 6962aa666a5730.02422554, repair_number: null
-[11-Jan-2026 17:35:49 Africa/Cairo] 🔍 [Repairs] Query: SELECT r.*, 
-              b.name as branch_name, 
-              b.id as branch_id,
-              u.name as technician_name,
-              u.username as technician_username,
-              u.role as technician_role,
-              COALESCE(c.phone, r.customer_phone) as customer_phone
-              FROM repairs r 
-              LEFT JOIN branches b ON r.branch_id = b.id 
-              LEFT JOIN users u ON r.created_by = u.id 
-              LEFT JOIN customers c ON r.customer_id = c.id
-              WHERE 1=1 AND r.id = ? AND r.branch_id = ? ORDER BY r.created_at DESC
-[11-Jan-2026 17:35:49 Africa/Cairo] 🔍 [Repairs] Params: ["6962aa666a5730.02422554","branch_694e1f2e9401b1.86979510"]
-[11-Jan-2026 17:35:49 Africa/Cairo] ✅ إرجاع بيانات الصيانة (id): 6962aa666a5730.02422554
-[11-Jan-2026 17:35:49 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
-[11-Jan-2026 17:35:49 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
-[11-Jan-2026 17:35:49 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
-[11-Jan-2026 17:35:49 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
-[11-Jan-2026 17:35:49 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
-[11-Jan-2026 17:36:22 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.66 ساعة
-[11-Jan-2026 17:36:41 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.66 ساعة
-[11-Jan-2026 17:36:41 Africa/Cairo] ✅ [Branch Treasury] تم تحديث delivery_date للعمليات المسلمة بدون تاريخ تسليم
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات في النظام: 2
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات في النظام:
-[11-Jan-2026 17:36:41 Africa/Cairo]    - delivered: 2 عملية
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي عمليات الفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] توزيع الحالات للفرع branch_694e1f2e9401b1.86979510:
-[11-Jan-2026 17:36:41 Africa/Cairo]    - delivered: 1 عملية
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] إجمالي العمليات المسلمة (delivered) في النظام: 2
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة (delivered) للفرع branch_694e1f2e9401b1.86979510: 1
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] وجدت 1 عملية بحالة 'delivered' للفرع branch_694e1f2e9401b1.86979510
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] عينة من العمليات المسلمة للفرع:
-[11-Jan-2026 17:36:41 Africa/Cairo]    - 2BRJIL: الربح=500, الحالة=delivered, delivery_date=2026-01-17, updated_at=2026-01-10 22:55:28, created_at=2026-01-10 21:37:10
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] العمليات المسلمة للفرع في الفترة (2026-01-01 - 2026-01-31): 1 عمليات، إجمالي الربح: 500
-[11-Jan-2026 17:36:41 Africa/Cairo] ✅ [Branch Treasury] الفرع الثاني - الإيرادات الفعلية: المدفوع مقدماً: 500 ج.م، المتبقي: 500 ج.م، الاسترجاع: 0 ج.م، الإجمالي: 1000 ج.م
-[11-Jan-2026 17:36:41 Africa/Cairo] 🔍 [Branch Treasury Debug] الفرع الثاني - حساب الرصيد:
-[11-Jan-2026 17:36:41 Africa/Cairo]    - الإيرادات: 1000
-[11-Jan-2026 17:36:41 Africa/Cairo]    - الإيداعات: 1000
-[11-Jan-2026 17:36:41 Africa/Cairo]    - تحصيلات الدين: 0
-[11-Jan-2026 17:36:41 Africa/Cairo]    - المصروفات: 1000
-[11-Jan-2026 17:36:41 Africa/Cairo]    - تكاليف الصيانة: 500
-[11-Jan-2026 17:36:41 Africa/Cairo]    - الخسائر: 0
-[11-Jan-2026 17:36:41 Africa/Cairo]    - مسحوبات الرواتب: 0
-[11-Jan-2026 17:36:41 Africa/Cairo]    - سحوبات الخزنة: 0
-[11-Jan-2026 17:36:41 Africa/Cairo]    - الرصيد الصافي: 500
-[11-Jan-2026 17:37:06 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.65 ساعة
-[11-Jan-2026 17:40:12 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.6 ساعة
-[11-Jan-2026 17:45:25 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:27 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:27 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:29 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - checkAuth called
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - Session status before start: 2
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - Cookies received: {"PHPSESSID":"447ada40907055f923e932ea4c2f39eb","PHPSESSDATA":"eyJkYXRhIjoiZGJfc2V0dXBfY2hlY2tlZHxiOjE7c3lzdGVtX2luaXRpYWxpemVkfGI6MTt1c2VyX2lkfHM6MjM6XCI2OTYyMjdhMzc3MDRjOS4yNjgzODExM1wiO3VzZXJuYW1lfHM6MjpcIjAzXCI7bmFtZXxzOjE5OlwiXHUwNjQ1XHUwNjQ4XHUwNjM4XHUwNjQxIFx1MDYyOFx1MDY0YVx1MDYzN1x1MDYyN1x1MDYzNFwiO3JvbGV8czo4OlwiZW1wbG95ZWVcIjticmFuY2hfaWR8czozMDpcImJyYW5jaF82OTRlMWYyZTk0MDFiMS44Njk3OTUxMFwiO2NzcmZfdG9rZW58czo2NDpcIjJmYTEzY2JkMzJkZTA1MjFmZTFmYWJmNWI3NThmN2JhZGMyN2QyZDIwYjAwZDY0OTNjMjkxNjdlNjAxNTkwYmVcIjthcGlfdG9rZW5zfGE6MTp7aTowO2E6Mzp7czo1OlwidG9rZW5cIjtzOjE4ODpcIk1UYzJPREEzTnpBeE9YdzBORGRoWkdFME1Ea3dOekExTldZNU1qTmxPVE15WldFMFl6Sm1NemxsWW54ak0yTTVaVGcyWmpWa01EUTRORFEyTlRZeU5HUTBORFJoWXprM05qUXpaSHhpTVRZNE5HTmhNekpsTldSak5XVmpNelZrTXpGbE1XUTVaVEEzTlRFd05XUmlNek0zWVRrd05qZzFOakprWlRZNU5HSXlZMlptT1RJd1pqY3pOekprXCI7czo5OlwidGltZXN0YW1wXCI7aToxNzY4MDc3MDE5O3M6NDpcInVzZWRcIjtiOjA7fX0iLCJleHBpcmVzIjoxNzY4MTYzNDE5fQ=="}
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - Session already active. Session ID: 447ada40907055f923e932ea4c2f39eb
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - Session status after start: 2
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","csrf_token":"2fa13cbd32de0521fe1fabf5b758f7badc27d2d20b00d6493c29167e601590be","api_tokens":[{"token":"MTc2ODA3NzAxOXw0NDdhZGE0MDkwNzA1NWY5MjNlOTMyZWE0YzJmMzllYnxjM2M5ZTg2ZjVkMDQ4NDQ2NTYyNGQ0NDRhYzk3NjQzZHxiMTY4NGNhMzJlNWRjNWVjMzVkMzFlMWQ5ZTA3NTEwNWRiMzM3YTkwNjg1NjJkZTY5NGIyY2ZmOTIwZjczNzJk","timestamp":1768077019,"used":false}]}
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - User ID found in session: 696227a37704c9.26838113
-[11-Jan-2026 17:45:30 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
-[11-Jan-2026 17:45:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:30 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
-[11-Jan-2026 17:45:30 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
-[11-Jan-2026 17:45:30 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
-[11-Jan-2026 17:45:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:43 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:43 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:43 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:43 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:43 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:45:43 Africa/Cairo] 🔍 [expenses.php GET] userRole: employee, userBranchId: branch_694e1f2e9401b1.86979510
-[11-Jan-2026 17:45:43 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
-[11-Jan-2026 17:45:43 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.51 ساعة
-[11-Jan-2026 17:46:15 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.5 ساعة
-[11-Jan-2026 17:50:35 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.43 ساعة
-[11-Jan-2026 17:53:37 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.38 ساعة
-[11-Jan-2026 17:53:41 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.38 ساعة
-[11-Jan-2026 17:53:41 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.38 ساعة
-[11-Jan-2026 17:53:48 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.37 ساعة
-[11-Jan-2026 17:53:59 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.37 ساعة
-[11-Jan-2026 17:53:59 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.37 ساعة
-[11-Jan-2026 17:53:59 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.37 ساعة
-[11-Jan-2026 17:56:25 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.33 ساعة
+[11-Jan-2026 19:00:35 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:35 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:36 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:36 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:36 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:36 Africa/Cairo] 🔍 [expenses.php GET] userRole: admin, userBranchId: null
+[11-Jan-2026 19:00:36 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
+[11-Jan-2026 19:00:36 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:46 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:46 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:53 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:53 Africa/Cairo] تسجيل الدخول - اسم المستخدم: 03
+[11-Jan-2026 19:00:53 Africa/Cairo] ✅ تم الاتصال بقاعدة البيانات بنجاح
+[11-Jan-2026 19:00:53 Africa/Cairo] نتيجة البحث عن المستخدم: موجود
+[11-Jan-2026 19:00:53 Africa/Cairo] المستخدم موجود - التحقق من كلمة المرور...
+[11-Jan-2026 19:00:53 Africa/Cairo] نتيجة التحقق من كلمة المرور: صحيحة
+[11-Jan-2026 19:00:53 Africa/Cairo] ✅ تم تسجيل الدخول بنجاح للمستخدم: 03 - branch_id: branch_694e1f2e9401b1.86979510
+[11-Jan-2026 19:00:53 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:53 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
+[11-Jan-2026 19:00:53 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
+[11-Jan-2026 19:00:53 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
+[11-Jan-2026 19:00:54 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:54 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - checkAuth called
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - Session status before start: 2
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - Cookies received: {"PHPSESSID":"bb08967a373d475169e6632f505c1599","PHPSESSDATA":"eyJkYXRhIjoiZGJfc2V0dXBfY2hlY2tlZHxiOjE7c3lzdGVtX2luaXRpYWxpemVkfGI6MTt1c2VyX2lkfHM6MjM6XCI2OTYyMjdhMzc3MDRjOS4yNjgzODExM1wiO3VzZXJuYW1lfHM6MjpcIjAzXCI7bmFtZXxzOjE5OlwiXHUwNjQ1XHUwNjQ4XHUwNjM4XHUwNjQxIFx1MDYyOFx1MDY0YVx1MDYzN1x1MDYyN1x1MDYzNFwiO3JvbGV8czo4OlwiZW1wbG95ZWVcIjticmFuY2hfaWR8czozMDpcImJyYW5jaF82OTRlMWYyZTk0MDFiMS44Njk3OTUxMFwiO2NzcmZfdG9rZW58czo2NDpcIjU3ODViNDllY2Y5NjMzMDdiNjhlZjNjOTM0ZmU0MzMzYzk4YTQ0NjRjYjkxYzc3NWY1ZmMzYzgyMGNlMTUxMzBcIjthcGlfdG9rZW5zfGE6MTp7aTowO2E6Mzp7czo1OlwidG9rZW5cIjtzOjE4ODpcIk1UYzJPREUxTURnMU0zeGlZakE0T1RZM1lUTTNNMlEwTnpVeE5qbGxOall6TW1ZMU1EVmpNVFU1T1h4aVpUTTNZakkyT0Rnd016bG1NbUV4Tm1aaFlURXlObVl5T1RnNFpHUXdOM3hqTURrNVlXUTJaVGN6TjJKaU1ESXlPV05pTVRBMFlqZ3dZV05qWVdKa05UWmhaamcwT0RneVlqbGhOelJrTW1Nek5qTmxaRGt5TXpjek16QmtPVGt3XCI7czo5OlwidGltZXN0YW1wXCI7aToxNzY4MTUwODUzO3M6NDpcInVzZWRcIjtiOjA7fX0iLCJleHBpcmVzIjoxNzY4MjM3MjUzfQ=="}
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - Session already active. Session ID: bb08967a373d475169e6632f505c1599
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - Session status after start: 2
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","csrf_token":"5785b49ecf963307b68ef3c934fe4333c98a4464cb91c775f5fc3c820ce15130","api_tokens":[{"token":"MTc2ODE1MDg1M3xiYjA4OTY3YTM3M2Q0NzUxNjllNjYzMmY1MDVjMTU5OXxiZTM3YjI2ODgwMzlmMmExNmZhYTEyNmYyOTg4ZGQwN3xjMDk5YWQ2ZTczN2JiMDIyOWNiMTA0YjgwYWNjYWJkNTZhZjg0ODgyYjlhNzRkMmMzNjNlZDkyMzczMzBkOTkw","timestamp":1768150853,"used":false}]}
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - User ID found in session: 696227a37704c9.26838113
+[11-Jan-2026 19:00:54 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
+[11-Jan-2026 19:00:54 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:55 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:55 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:55 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:55 Africa/Cairo] WebAuthn Credentials for user 696227a37704c9.26838113: 0 credentials found
+[11-Jan-2026 19:00:55 Africa/Cairo] No credentials found for user 696227a37704c9.26838113
+[11-Jan-2026 19:00:55 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.26 ساعة
+[11-Jan-2026 19:00:59 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:08 Africa/Cairo] 🔍 [expenses.php GET] userRole: employee, userBranchId: branch_694e1f2e9401b1.86979510
+[11-Jan-2026 19:01:08 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
+[11-Jan-2026 19:01:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:09 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:29 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
+[11-Jan-2026 19:01:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.24 ساعة

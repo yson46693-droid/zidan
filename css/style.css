@@ -5295,21 +5295,31 @@ body {
         min-height: 44px;
         display: flex;
         align-items: center;
-        overflow: hidden;
+        overflow: visible;
         text-indent: -9999px;
+    }
+    
+    /* إخفاء النص فقط وليس الأيقونات */
+    #repairs-section .header-actions .btn > *:not(i) {
+        display: none !important;
     }
     
     #repairs-section .header-actions .btn i {
         display: block !important;
         font-size: 1.3em !important;
         margin: 0 !important;
-        line-height: 1;
-        text-indent: 0;
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
+        padding: 0 !important;
+        line-height: 1 !important;
+        text-indent: 0 !important;
+        position: absolute !important;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%, -50%) !important;
         flex-shrink: 0;
+        width: 1em !important;
+        height: 1em !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     /* استعادة اللون للأيقونة */

@@ -44,11 +44,14 @@ jobs:
             **/tmp/**
             **/.DS_Store
             **/Thumbs.db
+            .gitignore
             .editorconfig
             **/.git*
             **/.git*/**
             **/.github/**
             **/node_modules/**
+            **/.env
+            **/.env.*
             **/.vscode/**
             **/.idea/**
             **/README.md
