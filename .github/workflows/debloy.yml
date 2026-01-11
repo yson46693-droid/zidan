@@ -50,8 +50,6 @@ jobs:
             **/.git*/**
             **/.github/**
             **/node_modules/**
-            **/.env
-            **/.env.*
             **/.vscode/**
             **/.idea/**
             **/README.md
