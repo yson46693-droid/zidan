@@ -48,3 +48,58 @@
 [11-Jan-2026 19:01:09 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
 [11-Jan-2026 19:01:29 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.25 ساعة
 [11-Jan-2026 19:01:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.24 ساعة
+[11-Jan-2026 19:02:25 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.23 ساعة
+[11-Jan-2026 19:03:10 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.22 ساعة
+[11-Jan-2026 19:03:55 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.21 ساعة
+[11-Jan-2026 19:04:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.19 ساعة
+[11-Jan-2026 19:05:25 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.18 ساعة
+[11-Jan-2026 19:05:25 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.18 ساعة
+[11-Jan-2026 19:06:10 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.17 ساعة
+[11-Jan-2026 19:06:55 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.16 ساعة
+[11-Jan-2026 19:06:59 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.15 ساعة
+[11-Jan-2026 19:07:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:49 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:50 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:50 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - checkAuth called
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - Session status before start: 2
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - Cookies received: {"PHPSESSID":"bb08967a373d475169e6632f505c1599","PHPSESSDATA":"eyJkYXRhIjoiZGJfc2V0dXBfY2hlY2tlZHxiOjE7c3lzdGVtX2luaXRpYWxpemVkfGI6MTt1c2VyX2lkfHM6MjM6XCI2OTYyMjdhMzc3MDRjOS4yNjgzODExM1wiO3VzZXJuYW1lfHM6MjpcIjAzXCI7bmFtZXxzOjE5OlwiXHUwNjQ1XHUwNjQ4XHUwNjM4XHUwNjQxIFx1MDYyOFx1MDY0YVx1MDYzN1x1MDYyN1x1MDYzNFwiO3JvbGV8czo4OlwiZW1wbG95ZWVcIjticmFuY2hfaWR8czozMDpcImJyYW5jaF82OTRlMWYyZTk0MDFiMS44Njk3OTUxMFwiO2NzcmZfdG9rZW58czo2NDpcIjU3ODViNDllY2Y5NjMzMDdiNjhlZjNjOTM0ZmU0MzMzYzk4YTQ0NjRjYjkxYzc3NWY1ZmMzYzgyMGNlMTUxMzBcIjthcGlfdG9rZW5zfGE6MTp7aTowO2E6Mzp7czo1OlwidG9rZW5cIjtzOjE4ODpcIk1UYzJPREUxTURnMU0zeGlZakE0T1RZM1lUTTNNMlEwTnpVeE5qbGxOall6TW1ZMU1EVmpNVFU1T1h4aVpUTTNZakkyT0Rnd016bG1NbUV4Tm1aaFlURXlObVl5T1RnNFpHUXdOM3hqTURrNVlXUTJaVGN6TjJKaU1ESXlPV05pTVRBMFlqZ3dZV05qWVdKa05UWmhaamcwT0RneVlqbGhOelJrTW1Nek5qTmxaRGt5TXpjek16QmtPVGt3XCI7czo5OlwidGltZXN0YW1wXCI7aToxNzY4MTUwODUzO3M6NDpcInVzZWRcIjtiOjA7fX0iLCJleHBpcmVzIjoxNzY4MjM3MjUzfQ=="}
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - Session already active. Session ID: bb08967a373d475169e6632f505c1599
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - Session status after start: 2
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","csrf_token":"5785b49ecf963307b68ef3c934fe4333c98a4464cb91c775f5fc3c820ce15130","api_tokens":[{"token":"MTc2ODE1MDg1M3xiYjA4OTY3YTM3M2Q0NzUxNjllNjYzMmY1MDVjMTU5OXxiZTM3YjI2ODgwMzlmMmExNmZhYTEyNmYyOTg4ZGQwN3xjMDk5YWQ2ZTczN2JiMDIyOWNiMTA0YjgwYWNjYWJkNTZhZjg0ODgyYjlhNzRkMmMzNjNlZDkyMzczMzBkOTkw","timestamp":1768150853,"used":false}]}
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - User ID found in session: 696227a37704c9.26838113
+[11-Jan-2026 19:07:50 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
+[11-Jan-2026 19:07:50 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:50 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
+[11-Jan-2026 19:07:50 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
+[11-Jan-2026 19:07:50 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
+[11-Jan-2026 19:07:50 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:53 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - checkAuth called
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - Session status before start: 2
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - Cookies received: {"PHPSESSID":"bb08967a373d475169e6632f505c1599","PHPSESSDATA":"eyJkYXRhIjoiZGJfc2V0dXBfY2hlY2tlZHxiOjE7c3lzdGVtX2luaXRpYWxpemVkfGI6MTt1c2VyX2lkfHM6MjM6XCI2OTYyMjdhMzc3MDRjOS4yNjgzODExM1wiO3VzZXJuYW1lfHM6MjpcIjAzXCI7bmFtZXxzOjE5OlwiXHUwNjQ1XHUwNjQ4XHUwNjM4XHUwNjQxIFx1MDYyOFx1MDY0YVx1MDYzN1x1MDYyN1x1MDYzNFwiO3JvbGV8czo4OlwiZW1wbG95ZWVcIjticmFuY2hfaWR8czozMDpcImJyYW5jaF82OTRlMWYyZTk0MDFiMS44Njk3OTUxMFwiO2NzcmZfdG9rZW58czo2NDpcIjU3ODViNDllY2Y5NjMzMDdiNjhlZjNjOTM0ZmU0MzMzYzk4YTQ0NjRjYjkxYzc3NWY1ZmMzYzgyMGNlMTUxMzBcIjthcGlfdG9rZW5zfGE6MTp7aTowO2E6Mzp7czo1OlwidG9rZW5cIjtzOjE4ODpcIk1UYzJPREUxTURnMU0zeGlZakE0T1RZM1lUTTNNMlEwTnpVeE5qbGxOall6TW1ZMU1EVmpNVFU1T1h4aVpUTTNZakkyT0Rnd016bG1NbUV4Tm1aaFlURXlObVl5T1RnNFpHUXdOM3hqTURrNVlXUTJaVGN6TjJKaU1ESXlPV05pTVRBMFlqZ3dZV05qWVdKa05UWmhaamcwT0RneVlqbGhOelJrTW1Nek5qTmxaRGt5TXpjek16QmtPVGt3XCI7czo5OlwidGltZXN0YW1wXCI7aToxNzY4MTUwODUzO3M6NDpcInVzZWRcIjtiOjA7fX0iLCJleHBpcmVzIjoxNzY4MjM3MjUzfQ=="}
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - Session already active. Session ID: bb08967a373d475169e6632f505c1599
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - Session status after start: 2
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","csrf_token":"5785b49ecf963307b68ef3c934fe4333c98a4464cb91c775f5fc3c820ce15130","api_tokens":[{"token":"MTc2ODE1MDg1M3xiYjA4OTY3YTM3M2Q0NzUxNjllNjYzMmY1MDVjMTU5OXxiZTM3YjI2ODgwMzlmMmExNmZhYTEyNmYyOTg4ZGQwN3xjMDk5YWQ2ZTczN2JiMDIyOWNiMTA0YjgwYWNjYWJkNTZhZjg0ODgyYjlhNzRkMmMzNjNlZDkyMzczMzBkOTkw","timestamp":1768150853,"used":false}]}
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - User ID found in session: 696227a37704c9.26838113
+[11-Jan-2026 19:07:53 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
+[11-Jan-2026 19:07:53 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:53 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:07:55 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:08:04 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - checkAuth called
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - Session status before start: 2
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - Cookies received: {"PHPSESSID":"bb08967a373d475169e6632f505c1599","PHPSESSDATA":"eyJkYXRhIjoiZGJfc2V0dXBfY2hlY2tlZHxiOjE7c3lzdGVtX2luaXRpYWxpemVkfGI6MTt1c2VyX2lkfHM6MjM6XCI2OTYyMjdhMzc3MDRjOS4yNjgzODExM1wiO3VzZXJuYW1lfHM6MjpcIjAzXCI7bmFtZXxzOjE5OlwiXHUwNjQ1XHUwNjQ4XHUwNjM4XHUwNjQxIFx1MDYyOFx1MDY0YVx1MDYzN1x1MDYyN1x1MDYzNFwiO3JvbGV8czo4OlwiZW1wbG95ZWVcIjticmFuY2hfaWR8czozMDpcImJyYW5jaF82OTRlMWYyZTk0MDFiMS44Njk3OTUxMFwiO2NzcmZfdG9rZW58czo2NDpcIjU3ODViNDllY2Y5NjMzMDdiNjhlZjNjOTM0ZmU0MzMzYzk4YTQ0NjRjYjkxYzc3NWY1ZmMzYzgyMGNlMTUxMzBcIjthcGlfdG9rZW5zfGE6MTp7aTowO2E6Mzp7czo1OlwidG9rZW5cIjtzOjE4ODpcIk1UYzJPREUxTURnMU0zeGlZakE0T1RZM1lUTTNNMlEwTnpVeE5qbGxOall6TW1ZMU1EVmpNVFU1T1h4aVpUTTNZakkyT0Rnd016bG1NbUV4Tm1aaFlURXlObVl5T1RnNFpHUXdOM3hqTURrNVlXUTJaVGN6TjJKaU1ESXlPV05pTVRBMFlqZ3dZV05qWVdKa05UWmhaamcwT0RneVlqbGhOelJrTW1Nek5qTmxaRGt5TXpjek16QmtPVGt3XCI7czo5OlwidGltZXN0YW1wXCI7aToxNzY4MTUwODUzO3M6NDpcInVzZWRcIjtiOjA7fX0iLCJleHBpcmVzIjoxNzY4MjM3MjUzfQ=="}
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - Session already active. Session ID: bb08967a373d475169e6632f505c1599
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - Session status after start: 2
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","csrf_token":"5785b49ecf963307b68ef3c934fe4333c98a4464cb91c775f5fc3c820ce15130","api_tokens":[{"token":"MTc2ODE1MDg1M3xiYjA4OTY3YTM3M2Q0NzUxNjllNjYzMmY1MDVjMTU5OXxiZTM3YjI2ODgwMzlmMmExNmZhYTEyNmYyOTg4ZGQwN3xjMDk5YWQ2ZTczN2JiMDIyOWNiMTA0YjgwYWNjYWJkNTZhZjg0ODgyYjlhNzRkMmMzNjNlZDkyMzczMzBkOTkw","timestamp":1768150853,"used":false}]}
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - User ID found in session: 696227a37704c9.26838113
+[11-Jan-2026 19:08:04 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
+[11-Jan-2026 19:08:04 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:08:04 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:08:04 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:08:04 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:08:04 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
+[11-Jan-2026 19:08:04 Africa/Cairo] 🔍 [expenses.php GET] userRole: employee, userBranchId: branch_694e1f2e9401b1.86979510
+[11-Jan-2026 19:08:04 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
+[11-Jan-2026 19:08:04 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 22.14 ساعة
