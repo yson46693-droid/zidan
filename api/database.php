@@ -12,7 +12,6 @@ define('DB_CHARSET', 'utf8mb4');
 define('DB_HOST', 'localhost');
 define('DB_USER', 'azstore');
 // define('DB_PASS', '');  
-
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
 $lastDbError = null;
 

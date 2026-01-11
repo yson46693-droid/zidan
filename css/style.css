@@ -5274,21 +5274,65 @@ body {
         width: auto !important;
     }
     
-    /* أزرار قسم الصيانة - grid 2 أعمدة */
+    /* أزرار قسم الصيانة - grid 2 أعمدة مع أيقونات فقط */
     #repairs-section .header-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
+        gap: 8px;
         width: 100%;
     }
     
+    /* إخفاء النص وإظهار الأيقونات فقط في أزرار header-actions على الهواتف */
     #repairs-section .header-actions .btn {
         width: 100%;
         justify-content: center;
-        padding: 12px 10px;
-        font-size: 0.9em;
+        padding: 10px;
+        font-size: 0 !important;
+        line-height: 0;
         border-radius: 8px;
         font-weight: 500;
+        position: relative;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        text-indent: -9999px;
+    }
+    
+    #repairs-section .header-actions .btn i {
+        display: block !important;
+        font-size: 1.3em !important;
+        margin: 0 !important;
+        line-height: 1;
+        text-indent: 0;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        flex-shrink: 0;
+    }
+    
+    /* استعادة اللون للأيقونة */
+    #repairs-section .header-actions .btn.btn-primary i {
+        color: var(--white) !important;
+    }
+    
+    #repairs-section .header-actions .btn.btn-info i {
+        color: var(--white) !important;
+    }
+    
+    #repairs-section .header-actions .btn.btn-danger i {
+        color: var(--white) !important;
+    }
+    
+    /* عرض select الفرع بشكل مختلف */
+    #repairs-section .header-actions select.filter-select {
+        display: block;
+        grid-column: 1 / -1;
+        width: 100%;
+        padding: 10px;
+        font-size: 0.85em;
+        min-height: 44px;
     }
     
     .header-actions .btn {
@@ -5308,11 +5352,43 @@ body {
         margin: 2px;
     }
     
-    /* شريط التصفية */
-    .filters-bar {
+    /* شريط التصفية - grid بأربعة أعمدة متساوية في الهواتف */
+    #repairs-section .filters-bar {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 6px !important;
+        padding: 8px !important;
+        flex-direction: row !important;
+    }
+    
+    .filters-bar:not(#repairs-section .filters-bar) {
         flex-direction: column;
         gap: 10px;
         padding: 15px;
+    }
+    
+    #repairs-section .search-input,
+    #repairs-section .filter-select {
+        width: 100%;
+        max-width: none;
+        padding: 8px 6px !important;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        font-size: 0.8em !important;
+        transition: border-color 0.3s ease;
+        min-height: 36px;
+    }
+    
+    /* تحسين placeholder في الهواتف */
+    #repairs-section .search-input::placeholder {
+        font-size: 0.8em;
+        opacity: 0.7;
+    }
+    
+    /* تحسين select option في الهواتف */
+    #repairs-section .filter-select option {
+        font-size: 0.9em;
+        padding: 4px;
     }
     
     .search-input,
@@ -5324,6 +5400,13 @@ body {
         border: 1px solid #ddd;
         font-size: 1em;
         transition: border-color 0.3s ease;
+    }
+    
+    #repairs-section .search-input:focus,
+    #repairs-section .filter-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
     }
     
     .search-input:focus,
@@ -7131,10 +7214,25 @@ body {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* إخفاء الأزرار على الموبايل */
+/* تحسين الأزرار على الموبايل - أيقونات فقط */
 @media (max-width: 768px) {
     .inventory-tab-button {
+        display: flex !important;
+        padding: 10px 12px !important;
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .inventory-tab-button span {
         display: none !important;
+    }
+    
+    .inventory-tab-button i {
+        display: inline-block !important;
+        font-size: 1.2em;
+        margin: 0;
     }
 }
 
@@ -7877,13 +7975,23 @@ body {
     }
     
     .inventory-tabs {
-        padding: 15px;
-        gap: 8px;
+        padding: 12px;
+        gap: 6px;
+        flex-wrap: wrap;
     }
     
     .inventory-tab {
-        padding: 10px 15px;
-        font-size: 0.9em;
+        padding: 8px 12px;
+        font-size: 0.85em;
+        flex: 1;
+        min-width: calc(33.333% - 4px);
+    }
+    
+    /* تحسين أزرار المخزن في الهواتف الصغيرة */
+    .inventory-tab-button {
+        flex: 1;
+        min-width: 44px;
+        padding: 8px !important;
     }
     
     .inventory-search {
@@ -7918,6 +8026,36 @@ body {
     .inventory-search input {
         padding: 10px 15px;
         font-size: 0.95em;
+    }
+    
+    /* تحسين inventory-tabs في الهواتف الصغيرة جدًا */
+    .inventory-tabs {
+        padding: 10px;
+        gap: 4px;
+    }
+    
+    .inventory-tab {
+        padding: 8px 10px;
+        font-size: 0.8em;
+    }
+    
+    .inventory-tab-button {
+        min-width: 44px;
+        padding: 8px !important;
+    }
+    
+    /* تصغير حجم filters-bar في الهواتف الصغيرة جداً */
+    #repairs-section .filters-bar {
+        gap: 4px !important;
+        padding: 6px !important;
+    }
+    
+    #repairs-section .search-input,
+    #repairs-section .filter-select {
+        padding: 6px 4px !important;
+        font-size: 0.75em !important;
+        min-height: 32px;
+        border-radius: 3px;
     }
     
     .preview-modal {

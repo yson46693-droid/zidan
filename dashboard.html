@@ -1577,12 +1577,46 @@
             }
             
             if (isEmployee) {
+                // ✅ الموظف المرتبط بالفرع الثاني يمكنه الوصول إلى العملاء والخزنة
+                // جلب branch_code للموظف للتحقق من الفرع (مع محاولة جلب من cache إذا لم يكن موجوداً)
+                let employeeBranchCode = user.branch_code || localStorage.getItem('branch_code') || '';
+                
+                // ✅ إذا لم يكن branch_code موجوداً، محاولة جلب من branches_cache
+                if (!employeeBranchCode && user.branch_id) {
+                    try {
+                        const branchesCache = localStorage.getItem('branches_cache');
+                        if (branchesCache) {
+                            const branches = JSON.parse(branchesCache);
+                            const branch = branches.find(b => String(b.id) === String(user.branch_id));
+                            if (branch && branch.code) {
+                                employeeBranchCode = branch.code;
+                                // تحديث بيانات المستخدم
+                                user.branch_code = employeeBranchCode;
+                                localStorage.setItem('currentUser', JSON.stringify(user));
+                                localStorage.setItem('branch_code', employeeBranchCode);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('خطأ في جلب branch_code من cache:', e);
+                    }
+                }
+                
+                // ✅ التحقق من أن branch_code هو 'BITASH' (فرع البيطاش) - مع trim لإزالة المسافات
+                const isSecondBranchEmployee = String(employeeBranchCode).trim() === 'BITASH';
+                
+                console.log('🔍 [Employee Access] user.branch_id:', user.branch_id, 'branch_code:', employeeBranchCode, 'isSecondBranch:', isSecondBranchEmployee);
+                
                 // الأقسام المسموحة للموظف: repairs, inventory, profile, product-returns
-                // الأقسام المحظورة للموظف
-                const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings'];
+                // الموظف من الفرع الثاني: يمكنه الوصول إلى customers و expenses أيضاً
+                let forbiddenSections = ['dashboard', 'reports', 'settings'];
+                
+                // إذا لم يكن الموظف من الفرع الثاني، حظر customers و expenses
+                if (!isSecondBranchEmployee) {
+                    forbiddenSections.push('customers', 'expenses');
+                }
                 
                 if (forbiddenSections.includes(section)) {
-                    console.warn('🚫 محاولة الوصول إلى قسم محظور للموظف:', section);
+                    console.warn('🚫 محاولة الوصول إلى قسم محظور للموظف:', section, 'branch_code:', employeeBranchCode);
                     if (typeof showMessage === 'function') {
                         showMessage('ليس لديك صلاحية للوصول إلى هذا القسم', 'error');
                     }
@@ -2299,6 +2333,42 @@
 
         // التحقق من تسجيل الدخول عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', async () => {
+            // ✅ تحميل branches_cache إذا لم يكن موجوداً (للمساعدة في التحقق من branch_code)
+            try {
+                const branchesCache = localStorage.getItem('branches_cache');
+                if (!branchesCache) {
+                    console.log('🔄 تحميل branches_cache عند تحميل dashboard...');
+                    if (typeof API !== 'undefined' && typeof API.request === 'function') {
+                        const branchesResult = await API.request('branches.php', 'GET');
+                        if (branchesResult && branchesResult.success && branchesResult.data) {
+                            localStorage.setItem('branches_cache', JSON.stringify(branchesResult.data));
+                            console.log('✅ تم تحميل branches_cache بنجاح');
+                            
+                            // ✅ تحديث branch_code في currentUser إذا كان branch_id موجوداً
+                            const currentUserStr = localStorage.getItem('currentUser');
+                            if (currentUserStr) {
+                                try {
+                                    const currentUser = JSON.parse(currentUserStr);
+                                    if (currentUser.branch_id && !currentUser.branch_code) {
+                                        const branch = branchesResult.data.find(b => String(b.id) === String(currentUser.branch_id));
+                                        if (branch && branch.code) {
+                                            currentUser.branch_code = branch.code;
+                                            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                                            localStorage.setItem('branch_code', branch.code);
+                                            console.log('✅ تم تحديث branch_code للمستخدم:', branch.code);
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('خطأ في تحديث branch_code:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ فشل تحميل branches_cache:', e);
+            }
+            
             // تحميل الشعار من الكاش المحلي أولاً
             const logoImg = document.querySelector('.sidebar-logo');
             if (logoImg && typeof getCachedDefaultLogo === 'function') {
@@ -2629,6 +2699,31 @@
             const isAdmin = currentUser && currentUser.role === 'admin';
             const isTechnician = currentUser && currentUser.role === 'technician';
             
+            // ✅ التحقق من أن الموظف مرتبط بالفرع الثاني (BITASH)
+            let isSecondBranchEmployee = false;
+            if (isEmployee && currentUser) {
+                let branchCode = currentUser.branch_code || localStorage.getItem('branch_code') || '';
+                // إذا لم يكن branch_code موجوداً، محاولة جلب من branches_cache
+                if (!branchCode && currentUser.branch_id) {
+                    try {
+                        const branchesCache = localStorage.getItem('branches_cache');
+                        if (branchesCache) {
+                            const branches = JSON.parse(branchesCache);
+                            const branch = branches.find(b => String(b.id) === String(currentUser.branch_id));
+                            if (branch && branch.code) {
+                                branchCode = branch.code;
+                                currentUser.branch_code = branchCode;
+                                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                                localStorage.setItem('branch_code', branchCode);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('خطأ في جلب branch_code:', e);
+                    }
+                }
+                isSecondBranchEmployee = String(branchCode).trim() === 'BITASH';
+            }
+            
             // إذا لم يكن هناك قسم محفوظ أو كان محظوراً، تحديد الصفحة الافتراضية
             if (!savedSection) {
                 if (isAdmin) {
@@ -2644,8 +2739,11 @@
             } else {
                 // التحقق من أن القسم المحفوظ مسموح للمستخدم
                 if (isEmployee) {
-                    // الأقسام المسموحة للموظف: repairs, inventory, profile, product-returns
-                    const forbiddenSections = ['dashboard', 'customers', 'expenses', 'reports', 'settings'];
+                    // ✅ الموظف من الفرع الثاني: يمكنه الوصول إلى customers و expenses
+                    let forbiddenSections = ['dashboard', 'reports', 'settings'];
+                    if (!isSecondBranchEmployee) {
+                        forbiddenSections.push('customers', 'expenses');
+                    }
                     if (forbiddenSections.includes(savedSection)) {
                         savedSection = 'profile';
                         saveCurrentPage('profile');

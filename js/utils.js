@@ -140,31 +140,36 @@ function canRequestInventoryItem() {
             return false; // المالك لا يحتاج زر الطلب لأنه يرى أزرار التعديل
         }
         
-        // الحصول على branch_code من البيانات المتاحة
-        let branchCode = user.branch_code || localStorage.getItem('branch_code');
+        // ✅ الحصول على branch_code من البيانات المتاحة
+        let branchCode = user.branch_code || localStorage.getItem('branch_code') || '';
         
-        // إذا كان branch_code غير موجود لكن branch_id موجود، محاولة جلب branch_code
+        // ✅ إذا كان branch_code غير موجود لكن branch_id موجود، محاولة جلب branch_code
         if (!branchCode && user.branch_id) {
             // محاولة جلب branch_code من cache الفروع إذا كان متوفراً
             try {
                 const branchesCache = localStorage.getItem('branches_cache');
                 if (branchesCache) {
                     const branches = JSON.parse(branchesCache);
-                    const branch = branches.find(b => b.id === user.branch_id);
+                    const branch = branches.find(b => String(b.id) === String(user.branch_id));
                     if (branch && branch.code) {
                         branchCode = branch.code;
                         // تحديث بيانات المستخدم
                         user.branch_code = branchCode;
                         localStorage.setItem('currentUser', JSON.stringify(user));
+                        localStorage.setItem('branch_code', branchCode);
                     }
                 }
             } catch (e) {
-                // تجاهل الأخطاء في قراءة cache
+                console.error('خطأ في قراءة branches_cache:', e);
             }
         }
         
-        // فقط فرع البيطاش يمكنه طلب قطع الغيار
-        return branchCode === 'BITASH';
+        const canRequest = String(branchCode).trim() === 'BITASH';
+        console.log('🔍 [canRequestInventoryItem] user.role:', user.role, 'branch_id:', user.branch_id, 'branch_code:', branchCode, 'canRequest:', canRequest);
+        
+        // ✅ فقط فرع البيطاش (BITASH) يمكنه طلب قطع الغيار
+        // يشمل الموظفين والمديرين والفنيين من الفرع الثاني
+        return canRequest;
     } catch (e) {
         console.error('خطأ في التحقق من صلاحيات طلب قطع الغيار:', e);
         return false;

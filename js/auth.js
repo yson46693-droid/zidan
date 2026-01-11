@@ -191,6 +191,11 @@ async function checkLogin() {
                 return null;
             }
             
+            // ✅ حفظ branch_code في localStorage إذا كان موجوداً
+            if (user.branch_code) {
+                localStorage.setItem('branch_code', user.branch_code);
+            }
+            
             localStorage.setItem('currentUser', JSON.stringify(user));
             // حفظ في التخزين المؤقت
             cachedAuthResult = user;
@@ -326,8 +331,29 @@ async function login(username, password, rememberMe = false) {
             localStorage.clear();
             sessionStorage.clear();
             
+            // ✅ حفظ branch_code بشكل منفصل إذا كان موجوداً
+            if (userData.branch_code) {
+                localStorage.setItem('branch_code', userData.branch_code);
+                console.log('✅ تم حفظ branch_code:', userData.branch_code);
+            }
+            
             // حفظ بيانات المستخدم الجديدة
             localStorage.setItem('currentUser', JSON.stringify(userData));
+            
+            // ✅ تحميل branches_cache إذا لم يكن موجوداً (للمساعدة في التحقق من branch_code لاحقاً)
+            try {
+                const branchesCache = localStorage.getItem('branches_cache');
+                if (!branchesCache) {
+                    // محاولة جلب الفروع وحفظها في cache
+                    const branchesResult = await API.request('branches.php', 'GET');
+                    if (branchesResult && branchesResult.success && branchesResult.data) {
+                        localStorage.setItem('branches_cache', JSON.stringify(branchesResult.data));
+                        console.log('✅ تم تحميل branches_cache بعد تسجيل الدخول');
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ فشل تحميل branches_cache:', e);
+            }
             
             // ✅ حفظ اسم المستخدم إذا تم تفعيل "تذكرني" (بعد localStorage.clear())
             if (rememberMe) {
@@ -473,7 +499,44 @@ async function logout() {
 // الحصول على المستخدم الحالي
 function getCurrentUser() {
     const userStr = localStorage.getItem('currentUser');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) return null;
+    
+    try {
+        const user = JSON.parse(userStr);
+        
+        // ✅ إذا كان branch_code غير موجود لكن branch_id موجود، محاولة جلب branch_code
+        if (!user.branch_code && user.branch_id) {
+            try {
+                // محاولة قراءة من localStorage أولاً
+                let branchCode = localStorage.getItem('branch_code');
+                if (branchCode) {
+                    user.branch_code = branchCode;
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                    return user;
+                }
+                
+                // محاولة جلب من branches_cache
+                const branchesCache = localStorage.getItem('branches_cache');
+                if (branchesCache) {
+                    const branches = JSON.parse(branchesCache);
+                    const branch = branches.find(b => b.id === user.branch_id);
+                    if (branch && branch.code) {
+                        user.branch_code = branch.code;
+                        localStorage.setItem('currentUser', JSON.stringify(user));
+                        localStorage.setItem('branch_code', branch.code);
+                        return user;
+                    }
+                }
+            } catch (e) {
+                console.error('خطأ في جلب branch_code:', e);
+            }
+        }
+        
+        return user;
+    } catch (e) {
+        console.error('خطأ في parse currentUser:', e);
+        return null;
+    }
 }
 
 // التحقق من الصلاحية
@@ -603,7 +666,11 @@ async function hideByPermission() {
             .nav-link[onclick*="'product-returns'"],
             .nav-link[onclick*="'settings'"],
             .sidebar-nav [data-permission="admin"],
-            .mobile-nav-container [data-permission="admin"] {
+            .mobile-nav-container [data-permission="admin"],
+            /* ✅ إخفاء زر "جرد القسم" للمستخدمين المرتبطين بفرع البيطاش */
+            #printInventoryReportBtn,
+            button[onclick*="printInventoryReport()"],
+            .inventory-tab-button[title*="جرد القسم"] {
                 display: none !important;
                 visibility: hidden !important;
                 opacity: 0 !important;
@@ -685,27 +752,79 @@ async function hideByPermission() {
             link.style.overflow = 'hidden';
         });
         
-        // إخفاء العملاء والمصروفات للموظف فقط (وليس للمدير والفني)
+        // ✅ إخفاء العملاء والمصروفات للموظف فقط من غير الفرع الثاني
         if (user.role === 'employee') {
-            document.querySelectorAll('a[href="#customers"]').forEach(link => {
-                link.style.display = 'none';
-                link.style.visibility = 'hidden';
-                link.style.position = 'absolute';
-                link.style.opacity = '0';
-                link.style.width = '0';
-                link.style.height = '0';
-                link.style.overflow = 'hidden';
-            });
+            // التحقق من أن الموظف مرتبط بالفرع الثاني (BITASH)
+            // استخدام getCurrentUser() الذي يقوم بجلب branch_code تلقائياً
+            let branchCode = user.branch_code || localStorage.getItem('branch_code') || '';
             
-            document.querySelectorAll('a[href="#expenses"]').forEach(link => {
-                link.style.display = 'none';
-                link.style.visibility = 'hidden';
-                link.style.position = 'absolute';
-                link.style.opacity = '0';
-                link.style.width = '0';
-                link.style.height = '0';
-                link.style.overflow = 'hidden';
-            });
+            // ✅ إذا لم يكن branch_code موجوداً، محاولة جلب من branches_cache
+            if (!branchCode && user.branch_id) {
+                try {
+                    const branchesCache = localStorage.getItem('branches_cache');
+                    if (branchesCache) {
+                        const branches = JSON.parse(branchesCache);
+                        const branch = branches.find(b => String(b.id) === String(user.branch_id));
+                        if (branch && branch.code) {
+                            branchCode = branch.code;
+                            // تحديث بيانات المستخدم
+                            user.branch_code = branchCode;
+                            localStorage.setItem('currentUser', JSON.stringify(user));
+                            localStorage.setItem('branch_code', branchCode);
+                        }
+                    }
+                } catch (e) {
+                    console.error('خطأ في جلب branch_code من cache:', e);
+                }
+            }
+            
+            const isSecondBranchEmployee = String(branchCode).trim() === 'BITASH';
+            
+            console.log('🔍 [hideByPermission] employee branch_code:', branchCode, 'isSecondBranch:', isSecondBranchEmployee);
+            
+            // إخفاء الروابط فقط إذا لم يكن الموظف من الفرع الثاني
+            if (!isSecondBranchEmployee) {
+                document.querySelectorAll('a[href="#customers"]').forEach(link => {
+                    link.style.display = 'none';
+                    link.style.visibility = 'hidden';
+                    link.style.position = 'absolute';
+                    link.style.opacity = '0';
+                    link.style.width = '0';
+                    link.style.height = '0';
+                    link.style.overflow = 'hidden';
+                });
+                
+                document.querySelectorAll('a[href="#expenses"]').forEach(link => {
+                    link.style.display = 'none';
+                    link.style.visibility = 'hidden';
+                    link.style.position = 'absolute';
+                    link.style.opacity = '0';
+                    link.style.width = '0';
+                    link.style.height = '0';
+                    link.style.overflow = 'hidden';
+                });
+            } else {
+                // ✅ إظهار الروابط للموظف من الفرع الثاني
+                document.querySelectorAll('a[href="#customers"]').forEach(link => {
+                    link.style.display = '';
+                    link.style.visibility = 'visible';
+                    link.style.position = '';
+                    link.style.opacity = '1';
+                    link.style.width = '';
+                    link.style.height = '';
+                    link.style.overflow = '';
+                });
+                
+                document.querySelectorAll('a[href="#expenses"]').forEach(link => {
+                    link.style.display = '';
+                    link.style.visibility = 'visible';
+                    link.style.position = '';
+                    link.style.opacity = '1';
+                    link.style.width = '';
+                    link.style.height = '';
+                    link.style.overflow = '';
+                });
+            }
         }
         
         // إضافة CSS مباشرة لإخفاء العناصر

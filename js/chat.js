@@ -704,16 +704,32 @@ function createMessageElement(message) {
             // audioPlayer.crossOrigin = 'anonymous';
             
             // تحديد المسار
-            if (filePath) {
-                // إذا كان المسار Base64 data URL
-                if (filePath.startsWith('data:audio')) {
-                    audioPlayer.src = filePath;
-                } else {
-                    // إذا كان مسار ملف
-                    const audioPath = filePath.startsWith('/') ? filePath : '/' + filePath;
-                    // ✅ إضافة timestamp لمنع cache issues على الهاتف
-                    audioPlayer.src = audioPath + (audioPath.includes('?') ? '&' : '?') + 't=' + Date.now();
+            let audioSrcSet = false;
+            if (filePath && filePath.trim() !== '') {
+                try {
+                    // إذا كان المسار Base64 data URL
+                    if (filePath.startsWith('data:audio')) {
+                        audioPlayer.src = filePath;
+                        audioSrcSet = true;
+                    } else {
+                        // إذا كان مسار ملف
+                        const audioPath = filePath.startsWith('/') ? filePath : '/' + filePath;
+                        // ✅ إضافة timestamp لمنع cache issues على الهاتف
+                        audioPlayer.src = audioPath + (audioPath.includes('?') ? '&' : '?') + 't=' + Date.now();
+                        audioSrcSet = true;
+                    }
+                    
+                    // ✅ محاولة تحميل الملف فوراً للتحقق من وجوده
+                    if (audioSrcSet) {
+                        audioPlayer.load();
+                    }
+                } catch (loadError) {
+                    console.error('خطأ في تحميل الملف الصوتي:', loadError);
+                    audioSrcSet = false;
                 }
+            } else {
+                console.error('مسار الملف الصوتي غير موجود:', message);
+                audioPlayer.src = ''; // تعيين مسار فارغ لتجنب محاولة التحميل
             }
             
             // حاوية المشغل
@@ -778,29 +794,66 @@ function createMessageElement(message) {
                 let shouldRetry = false;
                 
                 if (error) {
-                    switch (error.code) {
-                        case error.MEDIA_ERR_ABORTED:
-                            errorMessage = 'تم إلغاء تحميل الملف الصوتي';
-                            shouldRetry = true;
-                            break;
-                        case error.MEDIA_ERR_NETWORK:
-                            errorMessage = 'خطأ في الشبكة - يرجى التحقق من الاتصال';
-                            shouldRetry = true;
-                            break;
-                        case error.MEDIA_ERR_DECODE:
-                            errorMessage = 'خطأ في فك تشفير الملف الصوتي - قد يكون التنسيق غير مدعوم على هذا الجهاز';
-                            break;
-                        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                            // ✅ كشف iOS وإظهار رسالة مناسبة
-                            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                            if (isIOS) {
-                                errorMessage = 'تنسيق الملف الصوتي (.webm) غير مدعوم على أجهزة iOS - يرجى استخدام جهاز Android أو الكمبيوتر';
+                    // ✅ استخدام القيم الرقمية مباشرة لضمان التعامل مع جميع الحالات
+                    const errorCode = error.code;
+                    
+                    // MEDIA_ERR_ABORTED = 1
+                    if (errorCode === 1 || errorCode === error.MEDIA_ERR_ABORTED) {
+                        errorMessage = 'تم إلغاء تحميل الملف الصوتي';
+                        shouldRetry = true;
+                    }
+                    // MEDIA_ERR_NETWORK = 2
+                    else if (errorCode === 2 || errorCode === error.MEDIA_ERR_NETWORK) {
+                        errorMessage = 'خطأ في الشبكة - يرجى التحقق من الاتصال';
+                        shouldRetry = true;
+                    }
+                    // MEDIA_ERR_DECODE = 3
+                    else if (errorCode === 3 || errorCode === error.MEDIA_ERR_DECODE) {
+                        errorMessage = 'خطأ في فك تشفير الملف الصوتي - قد يكون التنسيق غير مدعوم على هذا الجهاز';
+                    }
+                    // MEDIA_ERR_SRC_NOT_SUPPORTED = 4 (Format error)
+                    else if (errorCode === 4 || errorCode === error.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                        // ✅ كشف iOS وإظهار رسالة مناسبة
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                        const isAndroid = /Android/.test(navigator.userAgent);
+                        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+                        
+                        // ✅ كشف تنسيق الملف من المسار
+                        const fileExtension = filePath ? filePath.split('.').pop().toLowerCase() : 'unknown';
+                        
+                        if (isIOS || isSafari) {
+                            if (fileExtension === 'webm' || fileExtension === 'ogg') {
+                                errorMessage = 'تنسيق الملف الصوتي (.webm/.ogg) غير مدعوم على أجهزة iOS/Safari - يرجى استخدام جهاز Android أو الكمبيوتر';
                             } else {
                                 errorMessage = 'تنسيق الملف الصوتي غير مدعوم على هذا الجهاز - يرجى المحاولة على جهاز آخر';
                             }
-                            console.warn('تنسيق webm غير مدعوم على هذا الجهاز:', navigator.userAgent);
-                            break;
+                        } else if (isAndroid && (fileExtension === 'aac' || fileExtension === 'm4a')) {
+                            errorMessage = 'تنسيق الملف الصوتي قد لا يكون مدعوماً بشكل كامل - يرجى المحاولة على جهاز آخر';
+                        } else {
+                            errorMessage = 'تنسيق الملف الصوتي غير مدعوم على هذا الجهاز - يرجى المحاولة على جهاز آخر';
+                        }
+                        
+                        console.warn('تنسيق الملف غير مدعوم:', {
+                            code: errorCode,
+                            message: error.message,
+                            extension: fileExtension,
+                            userAgent: navigator.userAgent,
+                            filePath: filePath
+                        });
                     }
+                    // حالة غير معروفة
+                    else {
+                        errorMessage = `خطأ غير معروف في تحميل الملف الصوتي (Code: ${errorCode})`;
+                        console.warn('خطأ غير معروف في MediaError:', {
+                            code: errorCode,
+                            message: error.message,
+                            filePath: filePath
+                        });
+                    }
+                } else {
+                    // ✅ حالة عدم وجود error object
+                    errorMessage = 'فشل في تحميل الملف الصوتي - يرجى التحقق من المسار والتنسيق';
+                    console.warn('لا يوجد error object، فشل في تحميل الملف:', filePath);
                 }
                 
                 // ✅ محاولة إعادة التحميل إذا كان الخطأ قابل للمعالجة

@@ -320,6 +320,12 @@ function loadSettingsSection() {
                         </select>
                     </div>
 
+                    <div class="form-group">
+                        <label for="userSalary">الراتب (ج.م)</label>
+                        <input type="number" id="userSalary" name="userSalary" step="0.01" min="0" value="0" placeholder="0.00">
+                        <small style="color: var(--text-light); font-size: 0.85em;">الراتب الشهري للمستخدم (اختياري)</small>
+                    </div>
+
                     <div class="modal-footer">
                         <button type="button" onclick="closeUserModal()" class="btn btn-secondary">إلغاء</button>
                         <button type="submit" class="btn btn-primary">حفظ</button>
@@ -1869,6 +1875,12 @@ async function showAddUserModal() {
         roleField.value = 'employee';
         passwordField.required = true;
         
+        // ✅ تعيين قيمة الراتب الافتراضية
+        const salaryField = document.getElementById('userSalary');
+        if (salaryField) {
+            salaryField.value = '0';
+        }
+        
         // إظهار حقل كلمة المرور
         const passwordGroup = passwordField?.closest('.form-group');
         if (passwordGroup) {
@@ -2254,6 +2266,7 @@ async function saveUser(event) {
         });
 
         const branchId = userForm.querySelector('#userBranch')?.value || null;
+        const salary = parseFloat(userForm.querySelector('#userSalary')?.value || 0) || 0;
         
         // ✅ بناء بيانات المستخدم للإضافة فقط
         const userData = {
@@ -2261,7 +2274,8 @@ async function saveUser(event) {
             username: username.trim(),
             password: password.trim(),
             role: finalRole,
-            branch_id: branchId || null
+            branch_id: branchId || null,
+            salary: salary
         };
         
         // التحقق من الفرع (مطلوب لجميع الأدوار عدا المالك)

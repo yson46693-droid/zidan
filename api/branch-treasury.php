@@ -16,10 +16,25 @@ if ($method === 'GET') {
     $isManager = ($userRole === 'manager');
     $isTechnician = ($userRole === 'technician');
     
-    // التحقق من الصلاحيات - المالك والمدير وفني الصيانة يمكنهم رؤية بيانات الخزنة
-    // فني الصيانة يمكنه رؤية بيانات فرعه فقط
-    if (!$isOwner && !$isManager && !$isTechnician) {
+    // ✅ التحقق من الصلاحيات - المالك والمدير وفني الصيانة يمكنهم رؤية بيانات الخزنة
+    // ✅ الموظف المرتبط بالفرع الثاني يمكنه أيضاً رؤية بيانات خزنة فرعه
+    $isEmployee = ($userRole === 'employee');
+    
+    if (!$isOwner && !$isManager && !$isTechnician && !$isEmployee) {
         response(false, 'ليس لديك صلاحية لعرض بيانات الخزنة', null, 403);
+    }
+    
+    // ✅ الموظف يجب أن يكون مرتبطاً بفرع ويفلتر حسب فرعه فقط
+    if ($isEmployee) {
+        if (!$userBranchId) {
+            response(false, 'المستخدم غير مرتبط بفرع', null, 403);
+        }
+        
+        // جلب معلومات الفرع للتحقق من أنه الفرع الثاني
+        $branch = dbSelectOne("SELECT code FROM branches WHERE id = ?", [$userBranchId]);
+        if (!$branch || $branch['code'] !== 'BITASH') {
+            response(false, 'الموظفون من الفرع الثاني فقط يمكنهم الوصول إلى بيانات الخزنة', null, 403);
+        }
     }
     
     // ✅ تنظيف المدخلات
@@ -32,7 +47,7 @@ if ($method === 'GET') {
     $endDate = !empty($endDate) ? $endDate : null;
     $filterType = cleanInput($_GET['filter_type'] ?? 'month'); // 'today', 'month', 'custom'
     
-    // إذا لم يكن المستخدم مالك، يجب أن يطلب فرعه فقط (يشمل المدير وفني الصيانة)
+    // إذا لم يكن المستخدم مالك، يجب أن يطلب فرعه فقط (يشمل المدير وفني الصيانة والموظف)
     if (!$isOwner) {
         if (!$userBranchId) {
             response(false, 'المستخدم غير مرتبط بفرع', null, 403);

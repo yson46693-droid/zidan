@@ -4883,25 +4883,38 @@ async function printDeliveredRepairInvoice(repair) {
         }
         
         console.log('✅ التحقق من البيانات نجح - ID:', repair.id, 'Status:', repair.status);
-        // ✅ جلب بيانات الفرع
+        // ✅ جلب بيانات الفرع والتحقق من الفرع الثاني
         let branchData = null;
-        let branchSettings = null;
+        let isSecondBranch = false;
         
         if (repair.branch_id) {
             try {
+                // جلب بيانات الفرع المحدد
                 const branchResponse = await API.request(`branches.php?id=${repair.branch_id}`, 'GET');
                 if (branchResponse && branchResponse.success && branchResponse.data) {
                     branchData = Array.isArray(branchResponse.data) ? branchResponse.data[0] : branchResponse.data;
                 }
                 
-                if (branchData) {
-                    const branchSettingsResponse = await API.request(`settings.php?branch_id=${repair.branch_id}`, 'GET');
-                    if (branchSettingsResponse && branchSettingsResponse.success && branchSettingsResponse.data) {
-                        branchSettings = branchSettingsResponse.data;
+                // ✅ جلب جميع الفروع للبحث عن فرع "البيطاش"
+                const allBranchesResponse = await API.request('branches.php', 'GET');
+                if (allBranchesResponse && allBranchesResponse.success && allBranchesResponse.data) {
+                    const branches = Array.isArray(allBranchesResponse.data) ? allBranchesResponse.data : [allBranchesResponse.data];
+                    
+                    // البحث عن فرع "البيطاش"
+                    const baytashBranch = branches.find(branch => {
+                        const branchName = (branch.name || '').trim();
+                        return branchName === 'البيطاش';
+                    });
+                    
+                    if (baytashBranch && String(repair.branch_id) === String(baytashBranch.id)) {
+                        isSecondBranch = true;
+                        console.log('✅ تم تحديد الفرع الثاني (البيطاش) للعملية - branch_id:', repair.branch_id);
+                    } else {
+                        console.log('ℹ️ العملية مرتبطة بالفرع الأول - branch_id:', repair.branch_id, 'baytash_id:', baytashBranch?.id);
                     }
                 }
             } catch (error) {
-                console.log('خطأ في جلب بيانات الفرع:', error);
+                console.error('خطأ في جلب بيانات الفرع:', error);
             }
         }
         
@@ -4912,25 +4925,46 @@ async function printDeliveredRepairInvoice(repair) {
             shop_address: '',
             shop_logo: '',
             currency: 'ج.م',
-            whatsapp_number: ''
+            whatsapp_number: '',
+            shop_name_2: '',
+            shop_phone_2: '',
+            shop_address_2: '',
+            currency_2: 'ج.م',
+            whatsapp_number_2: ''
         };
         
         try {
             const settingsResponse = await API.request('settings.php', 'GET');
             if (settingsResponse && settingsResponse.success && settingsResponse.data) {
                 shopSettings = settingsResponse.data;
+                console.log('✅ تم جلب إعدادات المحل:', shopSettings);
             }
         } catch (error) {
-            console.log('لم يتم تحميل إعدادات المحل:', error);
+            console.error('خطأ في جلب إعدادات المحل:', error);
         }
         
-        // ✅ استخدام إعدادات الفرع إذا كانت متوفرة
-        const finalShopName = (branchSettings && branchSettings.shop_name) || (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
-        const finalShopPhone = (branchSettings && branchSettings.shop_phone) || (branchData && branchData.phone) || shopSettings.shop_phone || '';
-        const finalShopAddress = (branchSettings && branchSettings.shop_address) || (branchData && branchData.address) || shopSettings.shop_address || '';
-        const finalShopLogo = (branchSettings && branchSettings.shop_logo) || (branchData && branchData.logo) || shopSettings.shop_logo || '';
-        const currency = (branchSettings && branchSettings.currency) || shopSettings.currency || 'ج.م';
-        const whatsappNumber = (branchSettings && branchSettings.whatsapp_number) || shopSettings.whatsapp_number || '';
+        // ✅ استخدام إعدادات الفرع الثاني إذا كانت العملية مرتبطة به، وإلا استخدام إعدادات الفرع الأول
+        let finalShopName, finalShopPhone, finalShopAddress, finalShopLogo, currency, whatsappNumber;
+        
+        if (isSecondBranch) {
+            // ✅ استخدام إعدادات الفرع الثاني (المفاتيح التي تنتهي بـ _2)
+            finalShopName = (branchData && branchData.name) || shopSettings.shop_name_2 || shopSettings.shop_name || 'محل صيانة الهواتف';
+            finalShopPhone = shopSettings.shop_phone_2 || shopSettings.shop_phone || '';
+            finalShopAddress = shopSettings.shop_address_2 || shopSettings.shop_address || '';
+            finalShopLogo = shopSettings.shop_logo || '';
+            currency = shopSettings.currency_2 || shopSettings.currency || 'ج.م';
+            whatsappNumber = shopSettings.whatsapp_number_2 || shopSettings.whatsapp_number || '';
+            console.log('✅ استخدام إعدادات الفرع الثاني:', { finalShopName, finalShopPhone, finalShopAddress, currency, whatsappNumber });
+        } else {
+            // ✅ استخدام إعدادات الفرع الأول (المفاتيح العادية)
+            finalShopName = (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
+            finalShopPhone = shopSettings.shop_phone || '';
+            finalShopAddress = shopSettings.shop_address || '';
+            finalShopLogo = shopSettings.shop_logo || '';
+            currency = shopSettings.currency || 'ج.م';
+            whatsappNumber = shopSettings.whatsapp_number || '';
+            console.log('✅ استخدام إعدادات الفرع الأول:', { finalShopName, finalShopPhone, finalShopAddress, currency, whatsappNumber });
+        }
         
         // ✅ دوال مساعدة
         const formatDateFunc = (dateString) => {
@@ -5151,25 +5185,38 @@ async function printRepairReceipt(id) {
         
         console.log('ℹ️ استخدام قالب الإيصال العادي - الحالة:', repair.status, '(ليست delivered)');
         
-        // ✅ جلب بيانات الفرع
+        // ✅ جلب بيانات الفرع والتحقق من الفرع الثاني
         let branchData = null;
-        let branchSettings = null;
+        let isSecondBranch = false;
         
         if (repair.branch_id) {
             try {
+                // جلب بيانات الفرع المحدد
                 const branchResponse = await API.request(`branches.php?id=${repair.branch_id}`, 'GET');
                 if (branchResponse && branchResponse.success && branchResponse.data) {
                     branchData = Array.isArray(branchResponse.data) ? branchResponse.data[0] : branchResponse.data;
                 }
                 
-                if (branchData) {
-                    const branchSettingsResponse = await API.request(`settings.php?branch_id=${repair.branch_id}`, 'GET');
-                    if (branchSettingsResponse && branchSettingsResponse.success && branchSettingsResponse.data) {
-                        branchSettings = branchSettingsResponse.data;
+                // ✅ جلب جميع الفروع للبحث عن فرع "البيطاش"
+                const allBranchesResponse = await API.request('branches.php', 'GET');
+                if (allBranchesResponse && allBranchesResponse.success && allBranchesResponse.data) {
+                    const branches = Array.isArray(allBranchesResponse.data) ? allBranchesResponse.data : [allBranchesResponse.data];
+                    
+                    // البحث عن فرع "البيطاش"
+                    const baytashBranch = branches.find(branch => {
+                        const branchName = (branch.name || '').trim();
+                        return branchName === 'البيطاش';
+                    });
+                    
+                    if (baytashBranch && String(repair.branch_id) === String(baytashBranch.id)) {
+                        isSecondBranch = true;
+                        console.log('✅ تم تحديد الفرع الثاني (البيطاش) للعملية - branch_id:', repair.branch_id);
+                    } else {
+                        console.log('ℹ️ العملية مرتبطة بالفرع الأول - branch_id:', repair.branch_id, 'baytash_id:', baytashBranch?.id);
                     }
                 }
             } catch (error) {
-                console.log('خطأ في جلب بيانات الفرع:', error);
+                console.error('خطأ في جلب بيانات الفرع:', error);
             }
         }
         
@@ -5180,25 +5227,46 @@ async function printRepairReceipt(id) {
             shop_address: '',
             shop_logo: '',
             currency: 'ج.م',
-            whatsapp_number: ''
+            whatsapp_number: '',
+            shop_name_2: '',
+            shop_phone_2: '',
+            shop_address_2: '',
+            currency_2: 'ج.م',
+            whatsapp_number_2: ''
         };
         
         try {
             const settingsResponse = await API.request('settings.php', 'GET');
             if (settingsResponse && settingsResponse.success && settingsResponse.data) {
                 shopSettings = settingsResponse.data;
+                console.log('✅ تم جلب إعدادات المحل:', shopSettings);
             }
         } catch (error) {
-            console.log('لم يتم تحميل إعدادات المحل:', error);
+            console.error('خطأ في جلب إعدادات المحل:', error);
         }
         
-        // ✅ استخدام إعدادات الفرع إذا كانت متوفرة
-        const finalShopName = (branchSettings && branchSettings.shop_name) || (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
-        const finalShopPhone = (branchSettings && branchSettings.shop_phone) || (branchData && branchData.phone) || shopSettings.shop_phone || '';
-        const finalShopAddress = (branchSettings && branchSettings.shop_address) || (branchData && branchData.address) || shopSettings.shop_address || '';
-        const finalShopLogo = (branchSettings && branchSettings.shop_logo) || (branchData && branchData.logo) || shopSettings.shop_logo || '';
-        const currency = (branchSettings && branchSettings.currency) || shopSettings.currency || 'ج.م';
-        const whatsappNumber = (branchSettings && branchSettings.whatsapp_number) || shopSettings.whatsapp_number || '';
+        // ✅ استخدام إعدادات الفرع الثاني إذا كانت العملية مرتبطة به، وإلا استخدام إعدادات الفرع الأول
+        let finalShopName, finalShopPhone, finalShopAddress, finalShopLogo, currency, whatsappNumber;
+        
+        if (isSecondBranch) {
+            // ✅ استخدام إعدادات الفرع الثاني (المفاتيح التي تنتهي بـ _2)
+            finalShopName = (branchData && branchData.name) || shopSettings.shop_name_2 || shopSettings.shop_name || 'محل صيانة الهواتف';
+            finalShopPhone = shopSettings.shop_phone_2 || shopSettings.shop_phone || '';
+            finalShopAddress = shopSettings.shop_address_2 || shopSettings.shop_address || '';
+            finalShopLogo = shopSettings.shop_logo || '';
+            currency = shopSettings.currency_2 || shopSettings.currency || 'ج.م';
+            whatsappNumber = shopSettings.whatsapp_number_2 || shopSettings.whatsapp_number || '';
+            console.log('✅ استخدام إعدادات الفرع الثاني:', { finalShopName, finalShopPhone, finalShopAddress, currency, whatsappNumber });
+        } else {
+            // ✅ استخدام إعدادات الفرع الأول (المفاتيح العادية)
+            finalShopName = (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
+            finalShopPhone = shopSettings.shop_phone || '';
+            finalShopAddress = shopSettings.shop_address || '';
+            finalShopLogo = shopSettings.shop_logo || '';
+            currency = shopSettings.currency || 'ج.م';
+            whatsappNumber = shopSettings.whatsapp_number || '';
+            console.log('✅ استخدام إعدادات الفرع الأول:', { finalShopName, finalShopPhone, finalShopAddress, currency, whatsappNumber });
+        }
         
         // ✅ إنشاء رابط التتبع
         const repairNumber = repair.repair_number || repair.id;

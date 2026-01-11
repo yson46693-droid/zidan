@@ -32,16 +32,59 @@ $user     = defined('DB_USER') ? DB_USER : '';
 $password = defined('DB_PASS') ? DB_PASS : '';
 $database = defined('DB_NAME') ? DB_NAME : '';
 
-// ✅ قراءة إعدادات Telegram
-$telegramConfigFile = __DIR__ . '/../data/telegram-backup-config.json';
-$telegramBotToken = '';
-$telegramChatId   = '';
-
-if (file_exists($telegramConfigFile)) {
-    $config = json_decode(file_get_contents($telegramConfigFile), true);
-    $telegramBotToken = $config['bot_token'] ?? '';
-    $telegramChatId   = $config['chat_id'] ?? '';
+// ✅ دالة لقراءة إعدادات Telegram من قاعدة البيانات أو ملف JSON
+function loadTelegramConfig($host, $user, $password, $database) {
+    $telegramBotToken = '';
+    $telegramChatId   = '';
+    
+    // ✅ محاولة قراءة من قاعدة البيانات أولاً
+    try {
+        if (!empty($host) && !empty($user) && !empty($database)) {
+            $conn = @new mysqli($host, $user, $password, $database);
+            if (!$conn->connect_error) {
+                $conn->set_charset("utf8mb4");
+                $result = $conn->query("SELECT bot_token, chat_id, enabled FROM telegram_backup_config LIMIT 1");
+                if ($result && $result->num_rows > 0) {
+                    $dbConfig = $result->fetch_assoc();
+                    if ($dbConfig && !empty($dbConfig['bot_token']) && !empty($dbConfig['chat_id']) && $dbConfig['enabled']) {
+                        $telegramBotToken = $dbConfig['bot_token'] ?? '';
+                        $telegramChatId   = $dbConfig['chat_id'] ?? '';
+                        error_log('✅ [BACKUP_DB] تم تحميل إعدادات Telegram من قاعدة البيانات');
+                    }
+                }
+                $conn->close();
+            }
+        }
+    } catch (Exception $e) {
+        error_log('⚠️ [BACKUP_DB] خطأ في قراءة إعدادات Telegram من قاعدة البيانات: ' . $e->getMessage());
+    }
+    
+    // ✅ إذا فشلت قراءة من قاعدة البيانات، محاولة قراءة من ملف JSON (نسخة احتياطية)
+    if (empty($telegramBotToken) || empty($telegramChatId)) {
+        $telegramConfigFile = __DIR__ . '/../data/telegram-backup-config.json';
+        if (file_exists($telegramConfigFile)) {
+            try {
+                $config = json_decode(file_get_contents($telegramConfigFile), true);
+                if ($config) {
+                    $telegramBotToken = $config['bot_token'] ?? '';
+                    $telegramChatId   = $config['chat_id'] ?? '';
+                    if (!empty($telegramBotToken) && !empty($telegramChatId)) {
+                        error_log('✅ [BACKUP_DB] تم تحميل إعدادات Telegram من ملف JSON (نسخة احتياطية)');
+                    }
+                }
+            } catch (Exception $e) {
+                error_log('⚠️ [BACKUP_DB] خطأ في قراءة ملف JSON: ' . $e->getMessage());
+            }
+        }
+    }
+    
+    return ['bot_token' => $telegramBotToken, 'chat_id' => $telegramChatId];
 }
+
+// ✅ قراءة إعدادات Telegram
+$telegramConfig = loadTelegramConfig($host, $user, $password, $database);
+$telegramBotToken = $telegramConfig['bot_token'];
+$telegramChatId   = $telegramConfig['chat_id'];
 
 /* ============== PATH CONFIG ================= */
 // ✅ التأكد من أن المسار دائماً string وليس null
@@ -240,20 +283,13 @@ function performBackup($force = false) {
     
     // ✅ إعادة تحميل إعدادات Telegram إذا كانت فارغة (للتأكد من تحميلها)
     if (empty($telegramBotToken) || empty($telegramChatId)) {
-        $telegramConfigFile = __DIR__ . '/../data/telegram-backup-config.json';
-        if (file_exists($telegramConfigFile)) {
-            $config = json_decode(file_get_contents($telegramConfigFile), true);
-            if ($config) {
-                $telegramBotToken = $config['bot_token'] ?? '';
-                $telegramChatId   = $config['chat_id'] ?? '';
-                if (!empty($telegramBotToken) && !empty($telegramChatId)) {
-                    error_log('✅ [BACKUP_DB] تم إعادة تحميل إعدادات Telegram بنجاح');
-                } else {
-                    error_log('⚠️ [BACKUP_DB] إعدادات Telegram فارغة في ملف الإعدادات');
-                }
-            }
+        $reloadedConfig = loadTelegramConfig($host, $user, $password, $database);
+        if (!empty($reloadedConfig['bot_token']) && !empty($reloadedConfig['chat_id'])) {
+            $telegramBotToken = $reloadedConfig['bot_token'];
+            $telegramChatId   = $reloadedConfig['chat_id'];
+            error_log('✅ [BACKUP_DB] تم إعادة تحميل إعدادات Telegram بنجاح');
         } else {
-            error_log('⚠️ [BACKUP_DB] ملف إعدادات Telegram غير موجود: ' . $telegramConfigFile);
+            error_log('⚠️ [BACKUP_DB] إعدادات Telegram غير متاحة (فارغة أو معطلة)');
         }
     }
 

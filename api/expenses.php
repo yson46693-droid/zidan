@@ -21,6 +21,33 @@ if ($method === 'GET') {
     $userRole = $session['role'] ?? 'employee';
     $userBranchId = $session['branch_id'] ?? null;
     $isOwner = ($userRole === 'admin');
+    $isManager = ($userRole === 'manager');
+    $isTechnician = ($userRole === 'technician');
+    $isEmployee = ($userRole === 'employee');
+    
+    // ✅ تسجيل للتشخيص
+    error_log("🔍 [expenses.php GET] userRole: $userRole, userBranchId: " . ($userBranchId ?? 'null'));
+    
+    // ✅ التحقق من أن branch_id موجود إذا لم يكن مالك
+    if (!$isOwner && !$userBranchId) {
+        // محاولة جلب branch_id من قاعدة البيانات
+        if (isset($session['user_id'])) {
+            $user = dbSelectOne("SELECT branch_id FROM users WHERE id = ?", [$session['user_id']]);
+            if ($user && isset($user['branch_id'])) {
+                $userBranchId = $user['branch_id'];
+                $_SESSION['branch_id'] = $userBranchId;
+                error_log("✅ [expenses.php GET] تم جلب branch_id من قاعدة البيانات: $userBranchId");
+            }
+        }
+        
+        // إذا لم يكن branch_id موجوداً بعد، رفض الطلب للموظف
+        if (!$userBranchId && $isEmployee) {
+            error_log("❌ [expenses.php GET] الموظف غير مرتبط بفرع - رفض الطلب");
+            response(false, 'المستخدم غير مرتبط بفرع', null, 403);
+        }
+    }
+    
+    error_log("✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...");
     
     // فلترة حسب الفرع - للمالك يمكنه الفلترة حسب branch_id المرسل، للمستخدم العادي يرى فرعه فقط
     $branchId = $_GET['branch_id'] ?? $data['branch_id'] ?? null;
@@ -60,7 +87,8 @@ if ($method === 'GET') {
 
 // إضافة مصروف جديد
 if ($method === 'POST') {
-    checkPermission('manager');
+    // ✅ السماح لجميع المستخدمين بإضافة مصروفات
+    checkAuth(); // التحقق من تسجيل الدخول فقط
     if (!isset($data['type'])) {
         $data = getRequestData();
     }
@@ -147,7 +175,8 @@ if ($method === 'POST') {
 
 // تعديل مصروف
 if ($method === 'PUT') {
-    checkPermission('manager');
+    // ✅ السماح لجميع المستخدمين بتعديل مصروفات
+    checkAuth(); // التحقق من تسجيل الدخول فقط
     if (!isset($data['id'])) {
         $data = getRequestData();
     }

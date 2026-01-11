@@ -29,16 +29,35 @@ async function loadCustomersSection() {
     const currentUser = getCurrentUser();
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
     
+    // ✅ التحقق من أن الموظف مرتبط بالفرع الثاني
+    const isEmployee = currentUser && currentUser.role === 'employee';
+    let branchCode = currentUser?.branch_code || localStorage.getItem('branch_code') || '';
+    if (!branchCode && currentUser?.branch_id) {
+        try {
+            const branchesCache = localStorage.getItem('branches_cache');
+            if (branchesCache) {
+                const branches = JSON.parse(branchesCache);
+                const branch = branches.find(b => b.id === currentUser.branch_id);
+                if (branch && branch.code) {
+                    branchCode = branch.code;
+                }
+            }
+        } catch (e) {
+            // تجاهل الأخطاء
+        }
+    }
+    const isSecondBranchEmployee = isEmployee && String(branchCode).trim() === 'BITASH';
+    
     section.innerHTML = `
         <div class="section-header">
             <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
                 <select id="customerBranchFilterHeader" onchange="applyBranchFilter()" class="filter-select" required style="${isOwner ? 'display: block;' : 'display: none;'} min-width: 180px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--white); color: var(--text-dark); font-size: 0.95em; cursor: pointer; position: relative; z-index: 10;">
                     <option value="">اختر الفرع</option>
                 </select>
-                <button id="exportCustomersBtn" onclick="exportCustomersToCSV()" class="btn btn-success btn-sm" data-permission="admin">
+                <button id="exportCustomersBtn" onclick="exportCustomersToCSV()" class="btn btn-success btn-sm" data-permission="admin" style="${isOwner ? '' : 'display: none;'}">
                     <i class="bi bi-file-earmark-spreadsheet"></i> تصدير CSV
                 </button>
-                <button onclick="showAddCustomerModal()" class="btn btn-primary">
+                <button onclick="showAddCustomerModal()" class="btn btn-primary" id="addCustomerBtn" style="${(isOwner || isSecondBranchEmployee) ? '' : 'display: none;'}">
                     <i class="bi bi-person-plus"></i> إضافة عميل جديد
                 </button>
             </div>
@@ -306,10 +325,25 @@ async function loadCustomersSection() {
 async function loadCustomers() {
     const currentUser = getCurrentUser();
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    const isEmployee = currentUser && currentUser.role === 'employee';
     
     // ✅ تحسين: استخدام selectedBranchId المحفوظ أو قراءته من DOM
     let branchId = selectedBranchId;
-    if (isOwner) {
+    
+    // ✅ للموظف من الفرع الثاني: استخدام branch_id الخاص به
+    if (isEmployee && !isOwner) {
+        if (currentUser.branch_id) {
+            branchId = currentUser.branch_id;
+            selectedBranchId = branchId;
+        } else {
+            console.warn('⚠️ [Customers] الموظف غير مرتبط بفرع - لا يمكن عرض العملاء');
+            retailCustomers = [];
+            commercialCustomers = [];
+            allCustomers = [];
+            switchCustomerType(currentCustomerType);
+            return;
+        }
+    } else if (isOwner) {
         const branchFilterHeader = document.getElementById('customerBranchFilterHeader');
         if (branchFilterHeader) {
             // إذا كان هناك قيمة في DOM، نستخدمها ونحدث selectedBranchId
@@ -363,11 +397,11 @@ async function loadCustomers() {
     }
     
     // ✅ تحسين: استخدام cache للطلبات (يعمل تلقائياً في API.request)
-    // بناء URL مع branch_id (مطلوب دائماً للمالك)
+    // بناء URL مع branch_id (مطلوب فقط للمالك)
     let retailUrl = 'customers.php?type=retail';
     let commercialUrl = 'customers.php?type=commercial';
     
-    // ✅ تحسين: إضافة branch_id دائماً للمالك (مطلوب)
+    // ✅ إضافة branch_id فقط للمالك (API يقوم بالفلترة تلقائياً للمستخدمين الآخرين حسب branch_id الخاص بهم)
     if (isOwner && branchId) {
         retailUrl += `&branch_id=${encodeURIComponent(branchId)}`;
         commercialUrl += `&branch_id=${encodeURIComponent(branchId)}`;
@@ -380,6 +414,9 @@ async function loadCustomers() {
         allCustomers = [];
         switchCustomerType(currentCustomerType);
         return;
+    } else if (isEmployee && branchId) {
+        // ✅ للموظف: API سيقوم بالفلترة تلقائياً حسب branch_id الخاص به
+        console.log('🔍 [Customers] جلب عملاء الفرع للموظف:', branchId);
     }
     
     // تحميل العملاء بشكل متوازي (سيستخدم cache تلقائياً)
@@ -4517,25 +4554,38 @@ async function printRepairReceiptFromCustomerPage(repairId) {
         
         console.log('ℹ️ استخدام قالب الإيصال العادي - الحالة:', repair.status, '(ليست delivered)');
         
-        // ✅ جلب بيانات الفرع المرتبط بالعملية
+        // ✅ جلب بيانات الفرع والتحقق من الفرع الثاني
         let branchData = null;
-        let branchSettings = null;
+        let isSecondBranch = false;
         
         if (repair.branch_id) {
             try {
+                // جلب بيانات الفرع المحدد
                 const branchResponse = await API.request(`branches.php?id=${repair.branch_id}`, 'GET');
                 if (branchResponse && branchResponse.success && branchResponse.data) {
                     branchData = Array.isArray(branchResponse.data) ? branchResponse.data[0] : branchResponse.data;
                 }
                 
-                if (branchData) {
-                    const branchSettingsResponse = await API.request(`settings.php?branch_id=${repair.branch_id}`, 'GET');
-                    if (branchSettingsResponse && branchSettingsResponse.success && branchSettingsResponse.data) {
-                        branchSettings = branchSettingsResponse.data;
+                // ✅ جلب جميع الفروع للبحث عن فرع "البيطاش"
+                const allBranchesResponse = await API.request('branches.php', 'GET');
+                if (allBranchesResponse && allBranchesResponse.success && allBranchesResponse.data) {
+                    const branches = Array.isArray(allBranchesResponse.data) ? allBranchesResponse.data : [allBranchesResponse.data];
+                    
+                    // البحث عن فرع "البيطاش"
+                    const baytashBranch = branches.find(branch => {
+                        const branchName = (branch.name || '').trim();
+                        return branchName === 'البيطاش';
+                    });
+                    
+                    if (baytashBranch && String(repair.branch_id) === String(baytashBranch.id)) {
+                        isSecondBranch = true;
+                        console.log('✅ تم تحديد الفرع الثاني (البيطاش) للعملية - branch_id:', repair.branch_id);
+                    } else {
+                        console.log('ℹ️ العملية مرتبطة بالفرع الأول - branch_id:', repair.branch_id, 'baytash_id:', baytashBranch?.id);
                     }
                 }
             } catch (error) {
-                console.log('خطأ في جلب بيانات الفرع، سيتم استخدام الإعدادات العامة:', error);
+                console.error('خطأ في جلب بيانات الفرع، سيتم استخدام الإعدادات العامة:', error);
             }
         }
         
@@ -4546,7 +4596,12 @@ async function printRepairReceiptFromCustomerPage(repairId) {
             shop_address: 'القاهرة، مصر',
             shop_logo: '',
             currency: 'ج.م',
-            whatsapp_number: ''
+            whatsapp_number: '',
+            shop_name_2: '',
+            shop_phone_2: '',
+            shop_address_2: '',
+            currency_2: 'ج.م',
+            whatsapp_number_2: ''
         };
         
         try {
@@ -4558,13 +4613,28 @@ async function printRepairReceiptFromCustomerPage(repairId) {
             console.log('لم يتم تحميل إعدادات المحل، سيتم استخدام القيم الافتراضية:', error);
         }
         
-        // ✅ استخدام إعدادات الفرع إذا كانت متوفرة
-        const finalShopName = (branchSettings && branchSettings.shop_name) || (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
-        const finalShopPhone = (branchSettings && branchSettings.shop_phone) || (branchData && branchData.phone) || shopSettings.shop_phone || '';
-        const finalShopAddress = (branchSettings && branchSettings.shop_address) || (branchData && branchData.address) || shopSettings.shop_address || '';
-        const finalShopLogo = (branchSettings && branchSettings.shop_logo) || (branchData && branchData.logo) || shopSettings.shop_logo || '';
-        const currency = (branchSettings && branchSettings.currency) || shopSettings.currency || 'ج.م';
-        const whatsappNumber = (branchSettings && branchSettings.whatsapp_number) || shopSettings.whatsapp_number || '';
+        // ✅ استخدام إعدادات الفرع الثاني إذا كانت العملية مرتبطة به، وإلا استخدام إعدادات الفرع الأول
+        let finalShopName, finalShopPhone, finalShopAddress, finalShopLogo, currency, whatsappNumber;
+        
+        if (isSecondBranch) {
+            // ✅ استخدام إعدادات الفرع الثاني (المفاتيح التي تنتهي بـ _2)
+            finalShopName = (branchData && branchData.name) || shopSettings.shop_name_2 || shopSettings.shop_name || 'محل صيانة الهواتف';
+            finalShopPhone = shopSettings.shop_phone_2 || shopSettings.shop_phone || '';
+            finalShopAddress = shopSettings.shop_address_2 || shopSettings.shop_address || '';
+            finalShopLogo = shopSettings.shop_logo || '';
+            currency = shopSettings.currency_2 || shopSettings.currency || 'ج.م';
+            whatsappNumber = shopSettings.whatsapp_number_2 || shopSettings.whatsapp_number || '';
+            console.log('✅ استخدام إعدادات الفرع الثاني:', { finalShopName, finalShopPhone, finalShopAddress, currency, whatsappNumber });
+        } else {
+            // ✅ استخدام إعدادات الفرع الأول (المفاتيح العادية)
+            finalShopName = (branchData && branchData.name) || shopSettings.shop_name || 'محل صيانة الهواتف';
+            finalShopPhone = shopSettings.shop_phone || '';
+            finalShopAddress = shopSettings.shop_address || '';
+            finalShopLogo = shopSettings.shop_logo || '';
+            currency = shopSettings.currency || 'ج.م';
+            whatsappNumber = shopSettings.whatsapp_number || '';
+            console.log('✅ استخدام إعدادات الفرع الأول:', { finalShopName, finalShopPhone, finalShopAddress, currency, whatsappNumber });
+        }
         
         // ✅ إنشاء رابط التتبع
         const repairNumber = repair.repair_number || repair.id;

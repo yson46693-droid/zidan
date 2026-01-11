@@ -69,12 +69,8 @@ if ($method === 'POST') {
     $userRole = $session['role'] ?? 'employee';
     $userBranchId = $session['branch_id'] ?? null;
     $isOwner = ($userRole === 'admin');
-    $isManager = ($userRole === 'manager');
     
-    // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم إضافة إيداعات
-    if (!$isOwner && !$isManager) {
-        response(false, 'ليس لديك صلاحية لإضافة إيداع', null, 403);
-    }
+    // ✅ السماح لجميع المستخدمين بإضافة إيداعات
     
     $requestedBranchId = $data['branch_id'] ?? null;
     $amount = floatval($data['amount'] ?? 0);

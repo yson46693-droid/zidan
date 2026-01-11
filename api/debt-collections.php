@@ -61,12 +61,8 @@ if ($method === 'POST') {
     $userRole = $session['role'] ?? 'employee';
     $userId = $session['user_id'] ?? null;
     $isOwner = ($userRole === 'admin' || $userRole === 'owner');
-    $isManager = ($userRole === 'manager');
     
-    // التحقق من الصلاحيات - فقط المدير والمالك يمكنهم تسجيل تحصيلات الدين
-    if (!$isOwner && !$isManager) {
-        response(false, 'ليس لديك صلاحية لتسجيل تحصيلات الدين', null, 403);
-    }
+    // ✅ السماح لجميع المستخدمين بتسجيل تحصيلات الدين
     
     // التحقق من وجود user_id
     if (!$userId) {

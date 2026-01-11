@@ -34,8 +34,29 @@ function loadExpensesSection() {
     const currentUser = getCurrentUser();
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
     const isManager = currentUser && (currentUser.role === 'manager');
-    const showAdvancedFeatures = isOwner || isManager;
-    // إظهار المستحقات للمالك والمدير (لإدارة رواتب الموظفين في خزنة الفرع)
+    const isEmployee = currentUser && (currentUser.role === 'employee');
+    
+    // ✅ التحقق من أن الموظف مرتبط بالفرع الثاني
+    let branchCode = currentUser?.branch_code || localStorage.getItem('branch_code') || '';
+    if (!branchCode && currentUser?.branch_id) {
+        try {
+            const branchesCache = localStorage.getItem('branches_cache');
+            if (branchesCache) {
+                const branches = JSON.parse(branchesCache);
+                const branch = branches.find(b => b.id === currentUser.branch_id);
+                if (branch && branch.code) {
+                    branchCode = branch.code;
+                }
+            }
+        } catch (e) {
+            // تجاهل الأخطاء
+        }
+    }
+    const isSecondBranchEmployee = isEmployee && String(branchCode).trim() === 'BITASH';
+    
+    // ✅ السماح لجميع المستخدمين باستخدام وظائف خزنة الفرع
+    const showAdvancedFeatures = true; // السماح لجميع المستخدمين
+    // إظهار المستحقات للمالك والمدير فقط (الموظف لا يمكنه رؤية المستحقات)
     const showSalariesSection = isOwner || isManager;
     
     // جميع المستخدمين يستخدمون الصفحة الجديدة (لرؤية سجل المعاملات)
@@ -1976,12 +1997,28 @@ function displaySalaries(salaries) {
                 // تنظيف ID من الأحرف الخاصة للاستخدام في HTML
                 const safeId = userId.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 
+                // ✅ التحقق من صلاحيات المالك لإظهار زر تعديل الراتب
+                const currentUser = getCurrentUser();
+                const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
+                
+                // ✅ زر تعديل الراتب (للمالك فقط)
+                const editSalaryButton = isOwner ? `
+                    <button onclick="showEditSalaryModal('${safeId}', '${escapeHtml(salary.name || '')}', ${salaryAmount})" class="btn btn-sm btn-icon" title="تعديل الراتب" style="color: var(--primary-color); margin-right: 5px;">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                ` : '';
+                
                 tr.innerHTML = `
                     <td>
                         <div><strong>${escapeHtml(salary.name || '')}</strong></div>
                         <div style="font-size: 0.85em; color: var(--text-light);">${escapeHtml(salary.username || '')}</div>
                     </td>
-                    <td><strong style="color: var(--primary-color);">${formatCurrency(salaryAmount)}</strong></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <strong style="color: var(--primary-color);">${formatCurrency(salaryAmount)}</strong>
+                            ${editSalaryButton}
+                        </div>
+                    </td>
                     <td><strong style="color: var(--danger-color);">${formatCurrency(totalWithdrawals)}</strong></td>
                     <td><strong style="color: var(--warning-color);">${formatCurrency(totalDeductions)}</strong></td>
                     <td><strong style="color: var(--success-color);">${formatCurrency(netSalary)}</strong></td>
@@ -3831,6 +3868,14 @@ function switchTreasuryBranch() {
 // تحميل بيانات الخزنة
 async function loadTreasuryData(branchId, skipTransactions = false) {
     try {
+        const currentUser = getCurrentUser();
+        const isEmployee = currentUser && currentUser.role === 'employee';
+        
+        // ✅ للموظف من الفرع الثاني: استخدام branch_id الخاص به إذا لم يكن branchId محدداً
+        if (isEmployee && !branchId && currentUser.branch_id) {
+            branchId = currentUser.branch_id;
+        }
+        
         if (!branchId) return;
         
         // تعيين الفرع الحالي

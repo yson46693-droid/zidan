@@ -68,6 +68,43 @@ function updateTelegramConfig($data) {
         $updateFields[] = "updated_at = NOW()";
         $query = "UPDATE telegram_backup_config SET " . implode(', ', $updateFields) . " LIMIT 1";
         dbExecute($query, $updateParams);
+        
+        // ✅ مزامنة إعدادات Telegram مع ملف JSON (للتوافق مع backup_db.php)
+        try {
+            $telegramConfigFile = __DIR__ . '/../data/telegram-backup-config.json';
+            $telegramDir = dirname($telegramConfigFile);
+            
+            // ✅ إنشاء مجلد data إذا لم يكن موجوداً
+            if (!is_dir($telegramDir)) {
+                @mkdir($telegramDir, 0755, true);
+            }
+            
+            // ✅ قراءة الإعدادات المحدثة من قاعدة البيانات
+            $updatedConfig = dbSelectOne("SELECT bot_token, chat_id FROM telegram_backup_config LIMIT 1");
+            if ($updatedConfig) {
+                // ✅ حفظ bot_token و chat_id فقط في ملف JSON (للتوافق مع backup_db.php)
+                $jsonConfig = [
+                    'bot_token' => $updatedConfig['bot_token'] ?? '',
+                    'chat_id' => $updatedConfig['chat_id'] ?? ''
+                ];
+                
+                // ✅ كتابة الإعدادات في ملف JSON
+                $result = @file_put_contents(
+                    $telegramConfigFile,
+                    json_encode($jsonConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+                    LOCK_EX
+                );
+                
+                if ($result !== false) {
+                    error_log('✅ [TELEGRAM_BACKUP] تم مزامنة إعدادات Telegram مع ملف JSON بنجاح');
+                } else {
+                    error_log('⚠️ [TELEGRAM_BACKUP] فشل مزامنة إعدادات Telegram مع ملف JSON');
+                }
+            }
+        } catch (Exception $e) {
+            error_log('⚠️ [TELEGRAM_BACKUP] خطأ في مزامنة إعدادات Telegram مع ملف JSON: ' . $e->getMessage());
+            // لا نرمي exception - المزامنة اختيارية
+        }
     }
 }
 

@@ -3269,8 +3269,9 @@ async function loadInventorySection() {
         console.error('خطأ في التحقق من فرع البيطاش:', error);
     }
     
-    // إخفاء الزر للفنيين وأي حساب مرتبط بفرع البيطاش
+    // إخفاء زر الإضافة وزر "جرد القسم" للفنيين وأي حساب مرتبط بفرع البيطاش
     const addButtonStyle = (isTechnician || isBaytashUser) ? 'display: none;' : '';
+    const printButtonStyle = isBaytashUser ? 'display: none;' : '';
     
     section.innerHTML = `
         <!-- تبويبات الأقسام -->
@@ -3287,7 +3288,7 @@ async function loadInventorySection() {
                 <i class="bi bi-phone"></i>
                 <span>الهواتف</span>
             </div>
-            <button onclick="printInventoryReport()" class="btn btn-secondary inventory-tab-button" title="طباعة جرد القسم">
+            <button id="printInventoryReportBtn" onclick="printInventoryReport()" class="btn btn-secondary inventory-tab-button" style="${printButtonStyle}" title="طباعة جرد القسم">
                 <i class="bi bi-printer"></i> جرد القسم
             </button>
             <button onclick="showAddInventoryModal()" class="btn btn-primary inventory-tab-button" data-permission="manager" style="${addButtonStyle}" title="إضافة عنصر جديد">

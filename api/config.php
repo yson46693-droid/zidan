@@ -101,27 +101,13 @@ class CookieSessionHandler implements SessionHandlerInterface {
     
     #[\ReturnTypeWillChange]
     public function write($session_id, $session_data): bool {
-        // ✅ تسجيل تفصيلي لحفظ الجلسة
-        error_log("CookieSessionHandler - write() called for session_id: " . $session_id);
-        error_log("CookieSessionHandler - session_data length: " . strlen($session_data));
-        error_log("CookieSessionHandler - session_data preview (first 200 chars): " . substr($session_data, 0, 200));
-        
-        // ✅ التحقق من وجود بيانات المستخدم في session_data
-        if (strpos($session_data, 'user_id') !== false) {
-            error_log("CookieSessionHandler - ✅ User data found in session_data");
-        } else {
-            error_log("CookieSessionHandler - ⚠️ WARNING: User data NOT found in session_data!");
-        }
-        
         // ✅ CRITICAL: التحقق من أن headers لم يتم إرسالها بعد
         if (headers_sent($file, $line)) {
             // إذا تم إرسال headers بالفعل، لا يمكن إرسال cookies
             // هذا يحدث عادة عند استدعاء session_write_close() بعد response()
-            error_log("CookieSessionHandler - ❌ ERROR: Headers already sent at $file:$line - Cannot save session to cookies!");
+            // وهذا أمر طبيعي ولا يعتبر خطأ - نعود بصمت
             return true; // نعيد true لتجنب خطأ
         }
-        
-        error_log("CookieSessionHandler - Headers not sent, proceeding to save session to cookies...");
         
         $isSecure = false;
         if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
@@ -175,7 +161,7 @@ class CookieSessionHandler implements SessionHandlerInterface {
         } else {
             $samesite = $isSecure ? 'None' : 'Lax';
             if (PHP_VERSION_ID >= 70300) {
-                $cookieSet = @setcookie($this->cookieName, $encoded, [
+                @setcookie($this->cookieName, $encoded, [
                     'expires' => time() + $this->lifetime,
                     'path' => '/',
                     'domain' => '',
@@ -183,14 +169,11 @@ class CookieSessionHandler implements SessionHandlerInterface {
                     'httponly' => true,
                     'samesite' => $samesite
                 ]);
-                error_log("CookieSessionHandler - setcookie() result: " . ($cookieSet ? 'SUCCESS' : 'FAILED'));
             } else {
-                $cookieSet = @setcookie($this->cookieName, $encoded, time() + $this->lifetime, '/', '', $isSecure, true);
-                error_log("CookieSessionHandler - setcookie() result: " . ($cookieSet ? 'SUCCESS' : 'FAILED'));
+                @setcookie($this->cookieName, $encoded, time() + $this->lifetime, '/', '', $isSecure, true);
             }
         }
         
-        error_log("CookieSessionHandler - write() completed successfully for session_id: " . $session_id);
         return true;
     }
     
