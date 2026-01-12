@@ -3982,3 +3982,32 @@
 [13-Jan-2026 00:10:50 Africa/Cairo] 🔍 [expenses.php GET] userRole: employee, userBranchId: branch_694e1f2e9401b1.86979510
 [13-Jan-2026 00:10:50 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
 [13-Jan-2026 00:10:50 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.74 ساعة
+[13-Jan-2026 00:11:23 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.74 ساعة
+[13-Jan-2026 00:12:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.72 ساعة
+[13-Jan-2026 00:12:53 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.71 ساعة
+[13-Jan-2026 00:13:38 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.7 ساعة
+[13-Jan-2026 00:14:23 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.69 ساعة
+[13-Jan-2026 00:15:08 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.67 ساعة
+[13-Jan-2026 00:16:45 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.65 ساعة
+[13-Jan-2026 00:21:39 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.56 ساعة
+[13-Jan-2026 00:21:39 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","ip_address":"::1","last_regeneration":1768254927,"csrf_token":"d1fddf93127f6215b905b789ec8f015fc67fd95a44887353d1f08e7faad931b2","api_tokens":[{"token":"MTc2ODI1NDkyN3xhYzU0ZGVhZDc4ZDcxZmQ4ZDgyMDhhOWE2ZDkyNzE2MHxmZWU4Zjg5NWIwMTkyNjgxNjgzZjBiYzEzMTkxNTkwZHwyYWU3ZmJkNTZlNzg4Y2U0YWM3MzlkN2M5YmMwYjhhMDMwNzQ3ZWFhYmVhMThhYjJmYmZjZTA4MmI4ZGJhMGZm","timestamp":1768254927,"used":false}]}
+[13-Jan-2026 00:21:39 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
+[13-Jan-2026 00:21:39 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.56 ساعة
+[13-Jan-2026 00:21:39 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.56 ساعة
+[13-Jan-2026 00:21:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.56 ساعة
+[13-Jan-2026 00:21:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.56 ساعة
+[13-Jan-2026 00:21:40 Africa/Cairo] ✅ تم جلب 2 فرع من قاعدة البيانات
+[13-Jan-2026 00:21:40 Africa/Cairo]   - فرع 1: الهانوفيل (ID: branch_694e1f2e92b0c2.18292723)
+[13-Jan-2026 00:21:40 Africa/Cairo]   - فرع 2: البيطاش (ID: branch_694e1f2e9401b1.86979510)
+[13-Jan-2026 00:21:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.56 ساعة
+[13-Jan-2026 00:21:40 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.56 ساعة
+[13-Jan-2026 00:21:40 Africa/Cairo] 🔍 [expenses.php GET] userRole: employee, userBranchId: branch_694e1f2e9401b1.86979510
+[13-Jan-2026 00:21:40 Africa/Cairo] ✅ [expenses.php GET] تم التحقق من الصلاحيات - المتابعة...
+[13-Jan-2026 00:22:45 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.55 ساعة
+[13-Jan-2026 00:25:33 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.5 ساعة
+[13-Jan-2026 00:25:33 Africa/Cairo] Auth API - Session data: {"db_setup_checked":true,"system_initialized":true,"user_id":"696227a37704c9.26838113","username":"03","name":"\u0645\u0648\u0638\u0641 \u0628\u064a\u0637\u0627\u0634","role":"employee","branch_id":"branch_694e1f2e9401b1.86979510","ip_address":"::1","last_regeneration":1768254927,"csrf_token":"d1fddf93127f6215b905b789ec8f015fc67fd95a44887353d1f08e7faad931b2","api_tokens":[{"token":"MTc2ODI1NDkyN3xhYzU0ZGVhZDc4ZDcxZmQ4ZDgyMDhhOWE2ZDkyNzE2MHxmZWU4Zjg5NWIwMTkyNjgxNjgzZjBiYzEzMTkxNTkwZHwyYWU3ZmJkNTZlNzg4Y2U0YWM3MzlkN2M5YmMwYjhhMDMwNzQ3ZWFhYmVhMThhYjJmYmZjZTA4MmI4ZGJhMGZm","timestamp":1768254927,"used":false}]}
+[13-Jan-2026 00:25:33 Africa/Cairo] Auth API - Returning user data: id=696227a37704c9.26838113, username=03, role=employee
+[13-Jan-2026 00:28:45 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.45 ساعة
+[13-Jan-2026 00:34:45 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.35 ساعة
+[13-Jan-2026 00:37:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.3 ساعة
+[13-Jan-2026 00:37:30 Africa/Cairo] ℹ️ لم يمر 24 ساعة بعد آخر نسخة احتياطية - متبقي: 23.3 ساعة
