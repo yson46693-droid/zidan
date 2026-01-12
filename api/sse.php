@@ -16,24 +16,24 @@ header('Cache-Control: no-cache');
 header('Connection: keep-alive');
 header('X-Accel-Buffering: no'); // تعطيل buffering في Nginx
 
-// إعدادات HTTP Headers
+// ✅ SECURITY: إعدادات HTTP Headers - قائمة Origins مسموحة فقط (مطابقة دقيقة)
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowedOrigins = [
-    'https://alaa-zidan.free.nf',
-    'http://alaa-zidan.free.nf',
-    'https://www.alaa-zidan.free.nf',
-    'http://www.alaa-zidan.free.nf'
+    'https://www.alaazidan.store',
+    'http://localhost',
+    'https://localhost',
+    'http://127.0.0.1',
+    'https://127.0.0.1',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500'
 ];
 
-if (!empty($requestOrigin)) {
-    foreach ($allowedOrigins as $allowedOrigin) {
-        if (strpos($requestOrigin, $allowedOrigin) !== false || $requestOrigin === $allowedOrigin) {
-            header('Access-Control-Allow-Origin: ' . $requestOrigin);
-            header('Access-Control-Allow-Credentials: true');
-            break;
-        }
-    }
+// ✅ SECURITY: التحقق من أن الأصل مسموح به - مطابقة دقيقة فقط (لا strpos)
+if (!empty($requestOrigin) && in_array($requestOrigin, $allowedOrigins, true)) {
+    header('Access-Control-Allow-Origin: ' . $requestOrigin);
+    header('Access-Control-Allow-Credentials: true');
 }
+// ✅ SECURITY: إذا لم يكن الـ origin مسموحاً، لا نرسل CORS headers
 
 try {
     $session = checkAuth();

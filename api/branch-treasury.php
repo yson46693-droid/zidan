@@ -398,10 +398,24 @@ if ($method === 'GET') {
                 $totalRefundAmount = 0;
             }
             
-            // إجمالي الإيرادات الفعلية = المدفوع مقدماً + المتبقي - مبالغ الاسترجاع
-            $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount - $totalRefundAmount;
+            // 4. جلب تكلفة الكشف للعمليات الملغاة (إيرادات)
+            $inspectionCostQuery = "SELECT SUM(tt.amount) as total FROM treasury_transactions tt
+                                   INNER JOIN repairs r ON tt.reference_id = r.id
+                                   WHERE tt.branch_id = ? 
+                                   AND tt.transaction_type = 'repair_profit'
+                                   AND tt.reference_type = 'repair'
+                                   AND tt.description LIKE '%تكلفة الكشف - عملية صيانة ملغية%'
+                                   AND DATE(tt.created_at) BETWEEN ? AND ?";
+            $inspectionCostResult = dbSelectOne($inspectionCostQuery, [$branchId, $startDate, $endDate]);
+            $totalInspectionCost = floatval($inspectionCostResult['total'] ?? 0);
+            if ($totalInspectionCost === null) {
+                $totalInspectionCost = 0;
+            }
             
-            error_log("✅ [Branch Treasury] الفرع الأول - الإيرادات الفعلية: المدفوع مقدماً: {$totalPaidAmount} ج.م، المتبقي: {$totalRemainingAmount} ج.م، الاسترجاع: {$totalRefundAmount} ج.م، الإجمالي: {$totalRepairRevenue} ج.م");
+            // إجمالي الإيرادات الفعلية = المدفوع مقدماً + المتبقي + تكلفة الكشف للعمليات الملغاة - مبالغ الاسترجاع
+            $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount + $totalInspectionCost - $totalRefundAmount;
+            
+            error_log("✅ [Branch Treasury] الفرع الأول - الإيرادات الفعلية: المدفوع مقدماً: {$totalPaidAmount} ج.م، المتبقي: {$totalRemainingAmount} ج.م، تكلفة الكشف: {$totalInspectionCost} ج.م، الاسترجاع: {$totalRefundAmount} ج.م، الإجمالي: {$totalRepairRevenue} ج.م");
         }
     } else {
         // ✅ الفرع الثاني: إيرادات عمليات الصيانة تُحسب من treasury_transactions
@@ -455,10 +469,24 @@ if ($method === 'GET') {
                 $totalRefundAmount = 0;
             }
             
-            // إجمالي الإيرادات الفعلية = المدفوع مقدماً + المتبقي (لكن فقط من retail) - مبالغ الاسترجاع
-            $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount - $totalRefundAmount;
+            // 4. جلب تكلفة الكشف للعمليات الملغاة (إيرادات)
+            $inspectionCostQuery = "SELECT SUM(tt.amount) as total FROM treasury_transactions tt
+                                   INNER JOIN repairs r ON tt.reference_id = r.id
+                                   WHERE tt.branch_id = ? 
+                                   AND tt.transaction_type = 'deposit'
+                                   AND tt.reference_type = 'repair'
+                                   AND tt.description LIKE '%تكلفة الكشف - عملية صيانة ملغية%'
+                                   AND DATE(tt.created_at) BETWEEN ? AND ?";
+            $inspectionCostResult = dbSelectOne($inspectionCostQuery, [$branchId, $startDate, $endDate]);
+            $totalInspectionCost = floatval($inspectionCostResult['total'] ?? 0);
+            if ($totalInspectionCost === null) {
+                $totalInspectionCost = 0;
+            }
             
-            error_log("✅ [Branch Treasury] الفرع الثاني - الإيرادات الفعلية: المدفوع مقدماً: {$totalPaidAmount} ج.م، المتبقي: {$totalRemainingAmount} ج.م، الاسترجاع: {$totalRefundAmount} ج.م، الإجمالي: {$totalRepairRevenue} ج.م");
+            // إجمالي الإيرادات الفعلية = المدفوع مقدماً + المتبقي (لكن فقط من retail) + تكلفة الكشف للعمليات الملغاة - مبالغ الاسترجاع
+            $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount + $totalInspectionCost - $totalRefundAmount;
+            
+            error_log("✅ [Branch Treasury] الفرع الثاني - الإيرادات الفعلية: المدفوع مقدماً: {$totalPaidAmount} ج.م، المتبقي: {$totalRemainingAmount} ج.م، تكلفة الكشف: {$totalInspectionCost} ج.م، الاسترجاع: {$totalRefundAmount} ج.م، الإجمالي: {$totalRepairRevenue} ج.م");
         }
     }
     

@@ -19,244 +19,9 @@
 
 ## 🚨 الثغرات الأمنية المكتشفة
 
-### 1. ⚠️ كشف بيانات قاعدة البيانات (خطورة: عالية جداً)
 
-**الموقع:** `api/database.php` السطور 8-14
 
-**المشكلة:**
-```php
-define('DB_PORT', '3306');
-define('DB_NAME', '1');
-define('DB_PASS', '');
-define('DB_CHARSET', 'utf8mb4');
-define('DB_HOST', '127.0.0.1');
-define('DB_USER', 'root');
-```
 
-**الخطورة:**
-- بيانات الاتصال بقاعدة البيانات مكشوفة في الكود المصدري
-- يمكن لأي شخص يصل للكود الوصول الكامل لقاعدة البيانات
-- إذا تم رفع الكود على Git، ستكون البيانات مكشوفة للجميع
-
-**الحل المطلوب:**
-- نقل بيانات الاتصال إلى ملف منفصل `.db_config.php` خارج `api/`
-- إضافة الملف إلى `.gitignore`
-- استخدام متغيرات البيئة إذا أمكن
-
----
-
-### 2. ⚠️ عدم وجود حماية CSRF (خطورة: عالية)
-
-**الموقع:** جميع ملفات API
-
-**المشكلة:**
-- لا توجد حماية من هجمات Cross-Site Request Forgery
-- جميع الطلبات الحساسة (POST, PUT, DELETE) معرضة للهجمات
-
-**الخطورة:**
-- يمكن تنفيذ عمليات غير مرغوبة باسم المستخدم المسجل
-- يمكن حذف أو تعديل البيانات بدون علم المستخدم
-- يمكن سرقة الجلسات
-
-**الحل المطلوب:**
-- إضافة CSRF Token في جميع الطلبات الحساسة
-- التحقق من Token في كل طلب
-- إضافة Token تلقائياً في JavaScript
-
----
-
-### 3. ⚠️ CORS مفتوح بالكامل (خطورة: متوسطة-عالية)
-
-**الموقع:** `api/config.php` السطور 48-94 و `api/auth.php` السطور 28-40
-
-**المشكلة:**
-```php
-if (!empty($requestOrigin)) {
-    header('Access-Control-Allow-Origin: ' . $requestOrigin);
-    header('Access-Control-Allow-Credentials: true');
-} else {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Credentials: false');
-}
-```
-
-**الخطورة:**
-- السماح بأي origin يسمح لهجمات من مواقع خارجية
-- يمكن لأي موقع إرسال طلبات إلى API
-- خطر سرقة البيانات والجلسات
-
-**الحل المطلوب:**
-- قائمة بيضاء محددة بالأصول المسموحة
-- التحقق من Origin قبل السماح بالطلب
-- رفض الطلبات من مصادر غير معروفة
-
----
-
-### 4. ⚠️ كلمات مرور افتراضية ضعيفة (خطورة: عالية جداً)
-
-**الموقع:** `api/config.php` السطور 437 و 451
-
-**المشكلة:**
-```php
-$password = password_hash('admin123', PASSWORD_DEFAULT);
-$password1 = password_hash('1', PASSWORD_DEFAULT);
-```
-
-**الخطورة:**
-- كلمات مرور ضعيفة ومعروفة
-- يمكن لأي شخص معرفة كلمة المرور الافتراضية
-- خطر الوصول غير المصرح به للنظام
-
-**الحل المطلوب:**
-- توليد كلمات مرور عشوائية قوية عند التهيئة
-- حفظها في ملف آمن خارج الكود
-- إجبار تغييرها عند أول تسجيل دخول
-
----
-
-### 5. ⚠️ رفع الملفات غير آمن (خطورة: عالية)
-
-**الموقع:** `api/images.php` السطور 97-121
-
-**المشكلة:**
-```php
-function saveImage($imageData, $repairId) {
-    $imageData = preg_replace('/^data:image\/[^;]+;base64,/', '', $imageData);
-    $imageData = base64_decode($imageData);
-    
-    if ($imageData === false) {
-        throw new Exception('بيانات الصورة غير صحيحة');
-    }
-    
-    $filename = 'repair_' . $repairId . '.jpg';
-    $filepath = IMAGES_DIR . $filename;
-    
-    $result = file_put_contents($filepath, $imageData);
-    // ...
-}
-```
-
-**المشاكل المكتشفة:**
-- ❌ لا يوجد تحقق من نوع الملف (MIME type)
-- ❌ لا يوجد حد أقصى لحجم الملف
-- ❌ لا يوجد حماية من Path Traversal
-- ❌ لا يوجد تحقق من محتوى الملف (قد يحتوي على كود خبيث)
-
-**الخطورة:**
-- يمكن رفع ملفات خبيثة (PHP Shells, Malware)
-- يمكن استغلال الخادم عن طريق الملفات المرفوعة
-- خطر حذف أو تعديل الملفات الحساسة
-
-**الحل المطلوب:**
-- استخدام `getimagesize()` للتحقق من نوع الملف
-- تحديد حد أقصى للحجم (5MB)
-- تنظيف اسم الملف من الأحرف الخطرة
-- التحقق من محتوى الملف بعد الحفظ
-
----
-
-### 6. ⚠️ عدم وجود Rate Limiting (خطورة: متوسطة-عالية)
-
-**الموقع:** `api/auth.php`
-
-**المشكلة:**
-- لا يوجد حد لعدد محاولات تسجيل الدخول
-- لا يوجد حماية من الهجمات المتكررة
-
-**الخطورة:**
-- هجمات Brute Force على كلمات المرور
-- يمكن تجربة آلاف كلمات المرور في وقت قصير
-- خطر الوصول غير المصرح به
-
-**الحل المطلوب:**
-- إضافة Rate Limiting (5 محاولات كل 5 دقائق)
-- حظر مؤقت بعد تجاوز الحد
-- تسجيل محاولات الفشل
-
----
-
-### 7. ⚠️ إعدادات الجلسة غير آمنة (خطورة: متوسطة)
-
-**الموقع:** `api/config.php` السطور 173-203
-
-**المشكلة:**
-```php
-session_set_cookie_params([
-    'lifetime' => $cookieParams['lifetime'] ?: 86400, // 24 ساعة
-    'path' => '/',
-    'domain' => '', // فارغ للسماح بأي domain
-    'secure' => $isSecure,
-    'httponly' => true,
-    'samesite' => $isSecure ? 'None' : 'Lax'
-]);
-```
-
-**المشاكل المكتشفة:**
-- ❌ لا يوجد إعادة توليد لمعرف الجلسة (Session Regeneration)
-- ❌ لا يوجد تحقق من IP Address
-- ❌ عمر الجلسة طويل جداً (24 ساعة)
-
-**الخطورة:**
-- سرقة الجلسات (Session Hijacking)
-- Session Fixation Attacks
-- خطر الوصول غير المصرح به
-
-**الحل المطلوب:**
-- إعادة توليد معرف الجلسة كل 5 دقائق
-- تقليل عمر الجلسة إلى ساعة واحدة
-- إضافة تحقق من IP (اختياري)
-
----
-
-### 8. ⚠️ تسريب معلومات في رسائل الخطأ (خطورة: متوسطة)
-
-**الموقع:** `api/config.php` السطور 125-136 و `api/auth.php` السطور 54-75
-
-**المشكلة:**
-```php
-set_exception_handler(function($exception) {
-    error_log("Uncaught Exception: " . $exception->getMessage() . " in " . $exception->getFile() . " on line " . $exception->getLine());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'خطأ في الخادم: ' . $exception->getMessage(),
-        'error' => $exception->getMessage(),
-        'file' => $exception->getFile(),
-        'line' => $exception->getLine()
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-});
-```
-
-**الخطورة:**
-- عرض مسارات الملفات وأرقام الأسطر يعطي معلومات قيمة للمهاجمين
-- يمكن معرفة بنية المشروع
-- تسريب معلومات عن النظام
-
-**الحل المطلوب:**
-- إخفاء تفاصيل الخطأ في وضع الإنتاج
-- تسجيل التفاصيل في السجلات فقط
-- إرجاع رسائل خطأ عامة للمستخدم
-
----
-
-### 9. ⚠️ ثغرات XSS في JavaScript (خطورة: عالية)
-
-**الموقع:** جميع ملفات JavaScript
-
-**المشكلة:**
-- استخدام `innerHTML` في **406 موضع** بدون تنظيف
-- البيانات من المستخدم تُعرض مباشرة بدون تنظيف
-
-**الخطورة:**
-- حقن سكريبتات خبيثة (XSS Attacks)
-- سرقة الجلسات والكوكيز
-- تعديل محتوى الصفحة
-
-**الحل المطلوب:**
-- استخدام `textContent` بدلاً من `innerHTML` عند الإمكان
-- تنظيف البيانات قبل استخدام `innerHTML`
-- استخدام مكتبة مثل DOMPurify
 
 ---
 
@@ -334,27 +99,6 @@ if ($serverKey !== $expectedKey) {
 
 ---
 
-### 13. ⚠️ عدم وجود حماية من SQL Injection في بعض الأماكن (خطورة: عالية)
-
-**الموقع:** `api/database.php` السطر 305
-
-**المشكلة:**
-```php
-$result = $conn->query("SHOW TABLES LIKE '$tableName'");
-return $result && $result->num_rows > 0;
-```
-
-**الخطورة:**
-- استخدام متغير مباشر في الاستعلام
-- خطر حقن SQL
-- يمكن تنفيذ استعلامات خبيثة
-
-**الحل المطلوب:**
-- استخدام Prepared Statements في جميع الاستعلامات
-- تنظيف اسم الجدول قبل الاستخدام
-- التحقق من صحة اسم الجدول
-
----
 
 ### 14. ⚠️ عدم وجود حماية للملفات الحساسة (خطورة: متوسطة)
 
@@ -396,359 +140,10 @@ return $result && $result->num_rows > 0;
 
 ---
 
-## ✅ الحلول والتعديلات المطلوبة
-
-### 🔧 التعديل 1: حماية بيانات قاعدة البيانات
-
-**الملف:** `api/database.php`
-
-**قبل التعديل:**
-```php
-define('DB_HOST', '127.0.0.1');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', '1');
-```
-
-**بعد التعديل:**
-```php
-<?php
-/**
- * ملف إعدادات قاعدة البيانات MySQL
- * قم بتعديل هذه الإعدادات حسب بيئة الاستضافة الخاصة بك
- */
-
-// قراءة الإعدادات من ملف منفصل (أكثر أماناً)
-$dbConfigFile = __DIR__ . '/../.db_config.php';
-
-if (file_exists($dbConfigFile)) {
-    require_once $dbConfigFile;
-} else {
-    // قيم افتراضية (يجب تغييرها فوراً)
-    define('DB_HOST', '127.0.0.1');
-    define('DB_USER', 'root');
-    define('DB_PASS', ''); // ⚠️ يجب تغييرها فوراً
-    define('DB_NAME', '1');
-    define('DB_PORT', '3306');
-    define('DB_CHARSET', 'utf8mb4');
-}
-```
-
-**إنشاء ملف:** `.db_config.php` في المجلد الرئيسي (خارج `api/`)
-```php
-<?php
-// ملف إعدادات قاعدة البيانات - لا ترفعه على Git
-define('DB_HOST', '127.0.0.1');
-define('DB_USER', 'root');
-define('DB_PASS', 'YOUR_SECURE_PASSWORD'); // ⚠️ غيّر هذه القيمة
-define('DB_NAME', '1');
-define('DB_PORT', '3306');
-define('DB_CHARSET', 'utf8mb4');
-```
-
-**إضافة إلى `.gitignore`:**
-```
-.db_config.php
-.env.local
-.encryption_key
-.default_password
-```
+---
 
 ---
 
-### 🔧 التعديل 2: إضافة حماية CSRF
-
-**الملف:** `api/config.php`
-
-**إضافة بعد السطر 203 (بعد `session_start()`):**
-```php
-// ========== حماية CSRF ==========
-/**
- * إنشاء CSRF Token
- * @return string
- */
-function generateCSRFToken() {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-    if (!isset($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['csrf_token'];
-}
-
-/**
- * التحقق من CSRF Token
- * @param string $token
- * @return bool
- */
-function verifyCSRFToken($token) {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-    if (!isset($_SESSION['csrf_token']) || empty($token)) {
-        return false;
-    }
-    return hash_equals($_SESSION['csrf_token'], $token);
-}
-
-/**
- * التحقق من CSRF في الطلبات الحساسة
- */
-function checkCSRF() {
-    $method = getRequestMethod();
-    
-    // التحقق فقط في الطلبات التي تغير البيانات
-    if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'])) {
-        $data = getRequestData();
-        $token = $data['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        
-        // استثناء طلبات تسجيل الدخول من CSRF (لأنها لا تحتاج جلسة)
-        $isLoginRequest = (basename($_SERVER['PHP_SELF']) === 'auth.php' && 
-                           isset($data['username']) && isset($data['password']));
-        
-        // استثناء طلبات OPTIONS (preflight)
-        $isOptionsRequest = ($method === 'OPTIONS');
-        
-        if (!$isLoginRequest && !$isOptionsRequest && !verifyCSRFToken($token)) {
-            response(false, 'رمز CSRF غير صحيح أو منتهي الصلاحية. يرجى تحديث الصفحة والمحاولة مرة أخرى', null, 403);
-        }
-    }
-}
-
-// استدعاء التحقق من CSRF تلقائياً
-checkCSRF();
-// ========== نهاية حماية CSRF ==========
-```
-
-**تعديل JavaScript:** `js/api.js`
-```javascript
-// في دالة request - إضافة CSRF Token للطلبات الحساسة
-async request(endpoint, method = 'GET', data = null, requestOptions = {}) {
-    // ... الكود الموجود ...
-    
-    // إضافة CSRF Token للطلبات الحساسة
-    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(actualMethod)) {
-        // الحصول على CSRF Token من الجلسة
-        const csrfToken = sessionStorage.getItem('csrf_token') || '';
-        if (csrfToken) {
-            if (!data) data = {};
-            data.csrf_token = csrfToken;
-        }
-    }
-    
-    // ... باقي الكود
-}
-```
-
----
-
-### 🔧 التعديل 3: تحسين إعدادات CORS
-
-**الملف:** `api/config.php`
-
-**استبدال السطور 48-94:**
-```php
-// تحسين CORS للاستضافات المجانية
-$allowedOrigins = [
-    'https://zidan.egsystem.top',
-    'http://zidan.egsystem.top',
-    'https://www.zidan.egsystem.top',
-    'http://www.zidan.egsystem.top',
-    'https://egsystem.top',
-    'http://egsystem.top',
-    'http://localhost:5500',
-    'http://127.0.0.1:5500'
-];
-
-$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$origin = '*';
-
-// التحقق من أن الأصل مسموح به
-if (!empty($requestOrigin)) {
-    foreach ($allowedOrigins as $allowedOrigin) {
-        if ($requestOrigin === $allowedOrigin || 
-            strpos($requestOrigin, $allowedOrigin) !== false) {
-            $origin = $requestOrigin;
-            break;
-        }
-    }
-}
-
-if ($origin !== '*') {
-    header('Access-Control-Allow-Origin: ' . $origin);
-    header('Access-Control-Allow-Credentials: true');
-} else {
-    // في وضع التطوير فقط
-    $currentHost = $_SERVER['HTTP_HOST'] ?? '';
-    if (!empty($currentHost)) {
-        $isHttps = (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) ||
-                   (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ||
-                   (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
-        $protocol = $isHttps ? 'https' : 'http';
-        $currentOrigin = $protocol . '://' . $currentHost;
-        header('Access-Control-Allow-Origin: ' . $currentOrigin);
-        header('Access-Control-Allow-Credentials: true');
-    } else {
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Credentials: false');
-    }
-}
-
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override, X-CSRF-Token');
-header('Access-Control-Max-Age: 3600');
-```
-
----
-
-### 🔧 التعديل 4: تحسين أمان رفع الملفات
-
-**الملف:** `api/images.php`
-
-**استبدال دالة `saveImage` بالكامل:**
-```php
-/**
- * حفظ الصورة كملف JPG
- * @param string $imageData - بيانات الصورة كـ Base64
- * @param string $repairId - رقم العملية
- * @return string|false - مسار الصورة المحفوظة أو false في حالة الفشل
- */
-function saveImage($imageData, $repairId) {
-    // تنظيف بيانات Base64
-    $imageData = preg_replace('/^data:image\/[^;]+;base64,/', '', $imageData);
-    $decoded = base64_decode($imageData, true);
-    
-    if ($decoded === false) {
-        throw new Exception('بيانات الصورة غير صحيحة');
-    }
-    
-    // التحقق من الحجم (أقصى 5MB)
-    $maxSize = 5 * 1024 * 1024; // 5MB
-    if (strlen($decoded) > $maxSize) {
-        throw new Exception('حجم الصورة كبير جداً (الحد الأقصى 5MB)');
-    }
-    
-    // التحقق من نوع الملف باستخدام getimagesize
-    $imageInfo = @getimagesizefromstring($decoded);
-    if ($imageInfo === false) {
-        throw new Exception('الملف ليس صورة صالحة');
-    }
-    
-    // السماح فقط بأنواع محددة
-    $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF];
-    if (!in_array($imageInfo[2], $allowedTypes)) {
-        throw new Exception('نوع الصورة غير مدعوم. يسمح فقط بـ JPG, PNG, GIF');
-    }
-    
-    // التحقق من الأبعاد (منع صور ضخمة)
-    $maxWidth = 4000;
-    $maxHeight = 4000;
-    if ($imageInfo[0] > $maxWidth || $imageInfo[1] > $maxHeight) {
-        throw new Exception("أبعاد الصورة كبيرة جداً (الحد الأقصى: {$maxWidth}x{$maxHeight})");
-    }
-    
-    // تنظيف اسم الملف (منع Path Traversal)
-    $repairId = preg_replace('/[^a-zA-Z0-9_-]/', '', $repairId);
-    if (empty($repairId)) {
-        throw new Exception('رقم العملية غير صحيح');
-    }
-    
-    $filename = 'repair_' . $repairId . '.jpg';
-    $filepath = IMAGES_DIR . $filename;
-    
-    // التأكد من أن المسار داخل مجلد الصور (حماية إضافية)
-    $realImagesDir = realpath(IMAGES_DIR);
-    $realFilePath = realpath(dirname($filepath));
-    if ($realFilePath !== $realImagesDir) {
-        throw new Exception('مسار الملف غير آمن');
-    }
-    
-    // حفظ الصورة
-    $result = file_put_contents($filepath, $decoded);
-    
-    if ($result === false) {
-        throw new Exception('فشل في كتابة الملف');
-    }
-    
-    // التحقق مرة أخرى من أن الملف صورة صالحة (بعد الحفظ)
-    $finalCheck = @getimagesize($filepath);
-    if ($finalCheck === false) {
-        @unlink($filepath);
-        throw new Exception('فشل التحقق من صحة الصورة بعد الحفظ');
-    }
-    
-    // التحقق من أن الملف ليس PHP (حماية إضافية)
-    $fileContent = file_get_contents($filepath, false, null, 0, 100);
-    if (stripos($fileContent, '<?php') !== false || 
-        stripos($fileContent, '<?=') !== false ||
-        stripos($fileContent, '<script') !== false) {
-        @unlink($filepath);
-        throw new Exception('الملف يحتوي على كود خبيث');
-    }
-    
-    // ضغط الصورة وتحسين الجودة
-    optimizeImage($filepath);
-    
-    return $filepath;
-}
-```
-
----
-
-### 🔧 التعديل 5: إضافة Rate Limiting
-
-**الملف:** `api/config.php`
-
-**إضافة دالة Rate Limiting بعد السطر 411:**
-```php
-/**
- * Rate Limiting - منع الهجمات المتكررة
- * @param string $action نوع العملية (login, register, etc.)
- * @param int $maxAttempts الحد الأقصى للمحاولات
- * @param int $timeWindow نافذة الوقت بالثواني
- * @return bool
- */
-function checkRateLimit($action, $maxAttempts = 5, $timeWindow = 300) {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-    
-    $key = 'rate_limit_' . $action;
-    $now = time();
-    
-    if (!isset($_SESSION[$key])) {
-        $_SESSION[$key] = [
-            'count' => 0,
-            'reset' => $now + $timeWindow,
-            'first_attempt' => $now
-        ];
-    }
-    
-    // إعادة تعيين إذا انتهت الفترة
-    if ($now > $_SESSION[$key]['reset']) {
-        $_SESSION[$key] = [
-            'count' => 0,
-            'reset' => $now + $timeWindow,
-            'first_attempt' => $now
-        ];
-    }
-    
-    // زيادة العداد
-    $_SESSION[$key]['count']++;
-    
-    if ($_SESSION[$key]['count'] > $maxAttempts) {
-        $remaining = $_SESSION[$key]['reset'] - $now;
-        $minutes = ceil($remaining / 60);
-        response(false, "تم تجاوز الحد المسموح من المحاولات ({$maxAttempts} محاولات كل " . ($timeWindow/60) . " دقيقة). يرجى المحاولة بعد {$minutes} دقيقة", [
-            'retry_after' => $remaining,
-            'max_attempts' => $maxAttempts
-        ], 429);
-    }
-    
-    return true;
-}
-```
 
 **تطبيق Rate Limiting في `api/auth.php`:**
 ```php

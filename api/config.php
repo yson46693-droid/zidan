@@ -224,8 +224,9 @@ if (session_status() === PHP_SESSION_NONE) {
         $isSecure = true;
     }
     
+    
     session_set_cookie_params([
-        'lifetime' => 86400,
+        'lifetime' => 86400, // 24 ساعة
         'path' => '/',
         'domain' => '',
         'secure' => $isSecure,
@@ -251,72 +252,45 @@ function sendCORSHeaders() {
         return; // Headers تم إرسالها بالفعل
     }
     
-    // إعدادات HTTP Headers
+    // ✅ SECURITY: إعدادات HTTP Headers - قائمة Origins مسموحة فقط (مطابقة دقيقة)
     // السماح بالأصل المحدد في الطلب (للسماح بملفات تعريف الارتباط)
     $allowedOrigins = [
-        'https://www.egsystem.top',
-        'http://www.egsystem.top',
-        'https://egsystem.top',
-        'http://egsystem.top',
-        'https://zidan.egsystem.top',
-        'http://zidan.egsystem.top',
-        'https://www.zidan.egsystem.top',
-        'http://www.zidan.egsystem.top',
+        'https://www.alaazidan.store',
+        'https://test.alaazidan.store',
+        'https://alaazidan.store',
         'http://localhost',
         'https://localhost',
         'http://127.0.0.1',
         'https://127.0.0.1',
         'http://localhost:5500',
-        'http://127.0.0.1:5500'
+        'https://localhost:5500',
+        'http://127.0.0.1:5500',
+        'https://127.0.0.1:5500',
+        'http://localhost:8000',
+        'https://localhost:8000',
+        'http://127.0.0.1:8000',
+        'https://127.0.0.1:8000'
     ];
     
     $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    $origin = '*';
+    $origin = null;
     
-    // إذا كان الطلب من أصل مسموح، استخدمه مع credentials
+    // ✅ SECURITY: التحقق من أن الأصل مسموح به - مطابقة دقيقة فقط (لا strpos)
     if (!empty($requestOrigin)) {
-        // التحقق من أن الأصل مسموح به (بما في ذلك الدومينات الفرعية)
-        foreach ($allowedOrigins as $allowedOrigin) {
-            // مطابقة دقيقة أو دومين فرعي
-            if ($requestOrigin === $allowedOrigin || 
-                strpos($requestOrigin, $allowedOrigin) !== false ||
-                // دعم الدومينات الفرعية: zidan.egsystem.top يطابق egsystem.top
-                (strpos($allowedOrigin, 'egsystem.top') !== false && strpos($requestOrigin, 'egsystem.top') !== false)) {
-                $origin = $requestOrigin;
-                break;
-            }
+        // ✅ SECURITY: استخدام in_array للمطابقة الدقيقة فقط
+        if (in_array($requestOrigin, $allowedOrigins, true)) {
+            $origin = $requestOrigin;
         }
     }
     
-    if ($origin !== '*') {
+    // ✅ SECURITY: إرسال CORS headers فقط إذا كان الـ origin مسموحاً به
+    // لا نرسل CORS headers لأي origin غير مسموح - هذا يمنع CSRF attacks
+    if ($origin !== null) {
         header('Access-Control-Allow-Origin: ' . $origin);
         header('Access-Control-Allow-Credentials: true');
-    } else {
-        // إذا لم يكن في القائمة، السماح به في وضع التطوير
-        // أو يمكنك إضافة origin الحالي تلقائياً
-        $currentHost = $_SERVER['HTTP_HOST'] ?? '';
-        if (!empty($currentHost)) {
-            // ✅ تحسين اكتشاف HTTPS - متسق مع auth.php
-            $isHttps = false;
-            if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) {
-                $isHttps = true;
-            } elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
-                $isHttps = true;
-            } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-                $isHttps = true;
-            } elseif (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') {
-                $isHttps = true;
-            }
-            
-            $protocol = $isHttps ? 'https' : 'http';
-            $currentOrigin = $protocol . '://' . $currentHost;
-            header('Access-Control-Allow-Origin: ' . $currentOrigin);
-            header('Access-Control-Allow-Credentials: true');
-        } else {
-            header('Access-Control-Allow-Origin: *');
-            header('Access-Control-Allow-Credentials: false');
-        }
     }
+    // ✅ SECURITY: إذا لم يكن الـ origin مسموحاً، لا نرسل CORS headers
+    // المتصفح سيرفض الطلب تلقائياً - هذا أكثر أماناً من السماح بـ *
     
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-HTTP-Method-Override');
@@ -348,10 +322,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// معالجة أخطاء PHP - تفعيل وضع التطوير
-error_reporting(E_ALL);
-ini_set('display_errors', 1); // إخفاء الأخطاء من الشاشة (سنعرضها في JSON)
-ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
 // معالج الأخطاء المخصص
@@ -584,14 +554,56 @@ function getRequestData() {
     return [];
 }
 
-// التحقق من الجلسة
+// ✅ SECURITY: التحقق من الجلسة مع Session Regeneration والتحقق من IP
 function checkAuth() {
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
+    
     if (!isset($_SESSION['user_id'])) {
         response(false, 'غير مصرح، يرجى تسجيل الدخول', null, 401);
     }
+    
+    // ✅ SECURITY: التحقق من IP Address (حماية من Session Hijacking)
+    $currentIP = $_SERVER['REMOTE_ADDR'] ?? '';
+    $sessionIP = $_SESSION['ip_address'] ?? '';
+    
+    // السماح بالتنوع في IP إذا كان المستخدم خلف proxy/CDN
+    // ولكن نحذر إذا تغير IP بشكل كبير
+    if (!empty($sessionIP) && !empty($currentIP)) {
+        // السماح بنفس IP أو IP في نفس الشبكة الفرعية (آخر 3 octets)
+        $sessionIPParts = explode('.', $sessionIP);
+        $currentIPParts = explode('.', $currentIP);
+        
+        // إذا كان IP مختلف تماماً، طلب تسجيل الدخول مرة أخرى
+        if (count($sessionIPParts) === 4 && count($currentIPParts) === 4) {
+            // مقارنة أول 3 octets (السماح بتغير آخر octet)
+            $sessionNetwork = $sessionIPParts[0] . '.' . $sessionIPParts[1] . '.' . $sessionIPParts[2];
+            $currentNetwork = $currentIPParts[0] . '.' . $currentIPParts[1] . '.' . $currentIPParts[2];
+            
+            if ($sessionNetwork !== $currentNetwork && $sessionIP !== $currentIP) {
+                // IP مختلف بشكل كبير - تسجيل الخطأ ولكن السماح مؤقتاً
+                error_log("⚠️ SECURITY WARNING: IP Address changed for user {$_SESSION['user_id']}: $sessionIP -> $currentIP");
+                // ملاحظة: في بيئة الإنتاج، قد نرغب في إجبار تسجيل الدخول مرة أخرى
+            }
+        }
+    } else {
+        // حفظ IP الحالي في الجلسة
+        $_SESSION['ip_address'] = $currentIP;
+    }
+    
+    // ✅ SECURITY: Session Regeneration - إعادة توليد معرف الجلسة كل 720 دقيقة (12 ساعة)
+    $regenerationInterval = 720 * 60; // 720 دقيقة بالثواني
+    $lastRegeneration = $_SESSION['last_regeneration'] ?? 0;
+    $currentTime = time();
+    
+    if ($currentTime - $lastRegeneration > $regenerationInterval) {
+        // إعادة توليد معرف الجلسة
+        session_regenerate_id(true); // true = حذف الجلسة القديمة
+        $_SESSION['last_regeneration'] = $currentTime;
+        error_log("✅ Session regenerated for user {$_SESSION['user_id']}");
+    }
+    
     return $_SESSION;
 }
 

@@ -139,7 +139,14 @@ if ($method === 'POST') {
                 $refundAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'withdrawal' AND tt.reference_type = 'repair' AND tt.description LIKE '%استرجاع مبلغ مدفوع مقدماً%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
                 $totalRefundAmount = floatval($refundAmountResult['total'] ?? 0);
                 
-                $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount - $totalRefundAmount;
+                // جلب تكلفة الكشف للعمليات الملغاة (إيرادات)
+                $inspectionCostResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'repair_profit' AND tt.reference_type = 'repair' AND tt.description LIKE '%تكلفة الكشف - عملية صيانة ملغية%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalInspectionCost = floatval($inspectionCostResult['total'] ?? 0);
+                if ($totalInspectionCost === null) {
+                    $totalInspectionCost = 0;
+                }
+                
+                $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount + $totalInspectionCost - $totalRefundAmount;
             }
         } else {
             if (dbTableExists('treasury_transactions')) {
@@ -152,7 +159,14 @@ if ($method === 'POST') {
                 $refundAmountResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'withdrawal' AND tt.reference_type = 'repair' AND tt.description LIKE '%استرجاع مبلغ مدفوع مقدماً%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
                 $totalRefundAmount = floatval($refundAmountResult['total'] ?? 0);
                 
-                $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount - $totalRefundAmount;
+                // جلب تكلفة الكشف للعمليات الملغاة (إيرادات)
+                $inspectionCostResult = dbSelectOne("SELECT SUM(tt.amount) as total FROM treasury_transactions tt INNER JOIN repairs r ON tt.reference_id = r.id WHERE tt.branch_id = ? AND tt.transaction_type = 'deposit' AND tt.reference_type = 'repair' AND tt.description LIKE '%تكلفة الكشف - عملية صيانة ملغية%' AND DATE(tt.created_at) BETWEEN ? AND ?", [$branchId, $startDate, $endDate]);
+                $totalInspectionCost = floatval($inspectionCostResult['total'] ?? 0);
+                if ($totalInspectionCost === null) {
+                    $totalInspectionCost = 0;
+                }
+                
+                $totalRepairRevenue = $totalPaidAmount + $totalRemainingAmount + $totalInspectionCost - $totalRefundAmount;
             }
         }
         

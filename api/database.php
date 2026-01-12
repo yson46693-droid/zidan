@@ -239,9 +239,6 @@ function dbExecute($query, $params = []) {
         
         // ✅ تسجيل للتشخيص (فقط للاستعلامات المهمة)
         if (strpos($query, 'UPDATE accessories') !== false && strpos($query, 'type') !== false) {
-            error_log("🔍 dbExecute - query: " . substr($query, 0, 200));
-            error_log("🔍 dbExecute - types: $types");
-            error_log("🔍 dbExecute - values: " . json_encode($values, JSON_UNESCAPED_UNICODE));
         }
         
         // ✅ إصلاح: استخدام طريقة موثوقة لربط المعاملات
@@ -260,20 +257,14 @@ function dbExecute($query, $params = []) {
         
         // ✅ تسجيل للتشخيص
         if (strpos($query, 'UPDATE accessories') !== false && strpos($query, 'type') !== false) {
-            error_log("🔍 dbExecute - bind_param result: " . ($bindResult ? 'true' : 'false'));
             if (!$bindResult) {
-                error_log("❌ dbExecute - bind_param error: " . $stmt->error);
             } else {
-                // التحقق من القيم بعد الربط
-                error_log("🔍 dbExecute - values after bind (checking type index): " . 
-                    (isset($values[1]) ? "'" . $values[1] . "'" : 'NOT SET'));
             }
         }
     }
     
     if (!$stmt->execute()) {
         $lastDbError = $stmt->error;
-        error_log('خطأ في تنفيذ الاستعلام: ' . $stmt->error . ' | الاستعلام: ' . substr($query, 0, 200));
         $stmt->close();
         return false;
     }
@@ -283,7 +274,6 @@ function dbExecute($query, $params = []) {
     
     // ✅ تسجيل للتشخيص (فقط للاستعلامات المهمة)
     if (strpos($query, 'UPDATE accessories') !== false && strpos($query, 'type') !== false) {
-        error_log("🔍 dbExecute - execute successful, affected_rows: $affectedRows");
     }
     
     $stmt->close();
@@ -364,7 +354,6 @@ function dbTableExists($tableName) {
     try {
         $dbResult = $conn->query("SELECT DATABASE()");
         if (!$dbResult) {
-            error_log('خطأ في جلب اسم قاعدة البيانات: ' . $conn->error);
             return false;
         }
         $dbRow = $dbResult->fetch_row();
@@ -377,13 +366,11 @@ function dbTableExists($tableName) {
         
         $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?");
         if (!$stmt) {
-            error_log('خطأ في إعداد استعلام dbTableExists: ' . $conn->error);
             return false;
         }
         
         $stmt->bind_param("ss", $dbName, $tableName);
         if (!$stmt->execute()) {
-            error_log('خطأ في تنفيذ استعلام dbTableExists: ' . $stmt->error);
             $stmt->close();
             return false;
         }
@@ -395,10 +382,8 @@ function dbTableExists($tableName) {
         
         return $exists;
     } catch (Exception $e) {
-        error_log('خطأ في dbTableExists: ' . $e->getMessage());
         return false;
     } catch (Error $e) {
-        error_log('خطأ قاتل في dbTableExists: ' . $e->getMessage());
         return false;
     }
 }
@@ -416,7 +401,6 @@ function createDatabaseIfNotExists() {
         $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, null, DB_PORT);
         
         if ($conn->connect_error) {
-            error_log('خطأ في الاتصال: ' . $conn->connect_error);
             return false;
         }
         
@@ -435,15 +419,12 @@ function createDatabaseIfNotExists() {
             $conn->close();
             return true;
         } else {
-            error_log('خطأ في إنشاء قاعدة البيانات: ' . $conn->error);
             $conn->close();
             return false;
         }
     } catch (Exception $e) {
-        error_log('خطأ في إنشاء قاعدة البيانات: ' . $e->getMessage());
         return false;
     } catch (Error $e) {
-        error_log('خطأ قاتل في إنشاء قاعدة البيانات: ' . $e->getMessage());
         return false;
     }
 }

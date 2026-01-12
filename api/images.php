@@ -117,29 +117,74 @@ if ($method === 'GET') {
 }
 
 /**
- * حفظ الصورة كملف JPG
+ * ✅ SECURITY: حفظ الصورة كملف JPG مع التحقق من الأمان
  * @param string $imageData - بيانات الصورة كـ Base64
  * @param string $repairId - رقم العملية
  * @return string|false - مسار الصورة المحفوظة أو false في حالة الفشل
  */
 function saveImage($imageData, $repairId) {
-    // تنظيف بيانات Base64
+    // ✅ SECURITY: تنظيف معرف العملية من الأحرف الخطرة
+    $repairId = preg_replace('/[^a-zA-Z0-9_-]/', '', $repairId);
+    if (empty($repairId)) {
+        throw new Exception('رقم العملية غير صالح');
+    }
+    
+    // ✅ SECURITY: تنظيف بيانات Base64
     $imageData = preg_replace('/^data:image\/[^;]+;base64,/', '', $imageData);
-    $imageData = base64_decode($imageData);
+    $imageData = base64_decode($imageData, true); // strict mode
     
     if ($imageData === false) {
         throw new Exception('بيانات الصورة غير صحيحة');
     }
     
-    // إنشاء اسم الملف بناءً على رقم العملية
+    // ✅ SECURITY: التحقق من حجم الملف (حد أقصى 5MB)
+    $maxFileSize = 5 * 1024 * 1024; // 5MB
+    $fileSize = strlen($imageData);
+    if ($fileSize > $maxFileSize) {
+        throw new Exception('حجم الصورة كبير جداً (الحد الأقصى 5MB)');
+    }
+    
+    // ✅ SECURITY: التحقق من نوع الملف باستخدام getimagesize()
+    $imageInfo = @getimagesizefromstring($imageData);
+    if ($imageInfo === false) {
+        throw new Exception('الملف المرفوع ليس صورة صحيحة');
+    }
+    
+    // ✅ SECURITY: السماح فقط بصور JPG, PNG, GIF
+    $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF];
+    if (!in_array($imageInfo[2], $allowedTypes, true)) {
+        throw new Exception('نوع الصورة غير مدعوم (JPG, PNG, GIF فقط)');
+    }
+    
+    // ✅ SECURITY: إنشاء اسم الملف آمن (تنظيف من الأحرف الخطرة)
     $filename = 'repair_' . $repairId . '.jpg';
+    // ✅ SECURITY: منع Path Traversal
+    $filename = basename($filename);
+    if (strpos($filename, '..') !== false || strpos($filename, '/') !== false || strpos($filename, '\\') !== false) {
+        throw new Exception('اسم الملف غير صالح');
+    }
+    
     $filepath = IMAGES_DIR . $filename;
+    
+    // ✅ SECURITY: التأكد من أن المسار داخل المجلد المحدد
+    $realImagesDir = realpath(IMAGES_DIR);
+    $realFilePath = realpath(dirname($filepath));
+    if ($realFilePath !== $realImagesDir) {
+        throw new Exception('مسار الملف غير صالح');
+    }
     
     // حفظ الصورة
     $result = file_put_contents($filepath, $imageData);
     
     if ($result === false) {
         throw new Exception('فشل في كتابة الملف');
+    }
+    
+    // ✅ SECURITY: التحقق من محتوى الملف بعد الحفظ
+    $savedImageInfo = @getimagesizefromstring(file_get_contents($filepath));
+    if ($savedImageInfo === false) {
+        @unlink($filepath); // حذف الملف الخبيث
+        throw new Exception('الملف المحفوظ ليس صورة صحيحة');
     }
     
     // ضغط الصورة وتحسين الجودة

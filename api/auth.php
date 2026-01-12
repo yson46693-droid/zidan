@@ -6,10 +6,6 @@ while (ob_get_level() > 0) {
 @ob_end_flush();
 @ob_end_clean();
 
-// ✅ CRITICAL: بدء معالجة الأخطاء قبل أي شيء
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
 
 // ✅ CRITICAL: معالجة الأخطاء القاتلة
 register_shutdown_function(function() {
@@ -24,7 +20,7 @@ register_shutdown_function(function() {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode([
             'success' => false,
-            'message' => 'خطأ قاتل في PHP: ' . $error['message'],
+            'message' => 'خطأ  في PHP: ' . $error['message'],
             'error' => $error['message'],
             'file' => $error['file'],
             'line' => $error['line'],
@@ -80,7 +76,7 @@ try {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
         'success' => false,
-        'message' => 'خطأ قاتل في تحميل ملف الإعدادات: ' . $e->getMessage(),
+        'message' => 'خطأ  في تحميل ملف الإعدادات: ' . $e->getMessage(),
         'error' => $e->getMessage(),
         'file' => $e->getFile(),
         'line' => $e->getLine(),
@@ -114,6 +110,69 @@ if (!function_exists('dbSelectOne')) {
 }
 
 $method = getRequestMethod();
+
+/**
+ * ✅ SECURITY: Rate Limiting - التحقق من عدد محاولات تسجيل الدخول
+ * @param string $identifier - المعرف (IP Address أو Username)
+ * @param int $maxAttempts - الحد الأقصى للمحاولات (افتراضي: 5)
+ * @param int $timeWindow - نافذة الوقت بالثواني (افتراضي: 300 = 5 دقائق)
+ * @return array - ['allowed' => bool, 'remaining' => int, 'reset_time' => int]
+ */
+function checkRateLimit($identifier, $maxAttempts = 5, $timeWindow = 300) {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    $key = 'login_attempts_' . md5($identifier);
+    $currentTime = time();
+    
+    // الحصول على محاولات الدخول السابقة
+    $attempts = $_SESSION[$key] ?? ['count' => 0, 'first_attempt' => $currentTime, 'last_attempt' => 0];
+    
+    // إعادة تعيين العداد إذا انتهت نافذة الوقت
+    if ($currentTime - $attempts['first_attempt'] > $timeWindow) {
+        $attempts = ['count' => 0, 'first_attempt' => $currentTime, 'last_attempt' => $currentTime];
+    }
+    
+    // التحقق من عدد المحاولات
+    if ($attempts['count'] >= $maxAttempts) {
+        $resetTime = $attempts['first_attempt'] + $timeWindow;
+        $remainingTime = max(0, $resetTime - $currentTime);
+        
+        return [
+            'allowed' => false,
+            'remaining' => 0,
+            'reset_time' => $resetTime,
+            'remaining_time' => $remainingTime
+        ];
+    }
+    
+    // زيادة عدد المحاولات
+    $attempts['count']++;
+    $attempts['last_attempt'] = $currentTime;
+    $_SESSION[$key] = $attempts;
+    
+    $remaining = max(0, $maxAttempts - $attempts['count']);
+    
+    return [
+        'allowed' => true,
+        'remaining' => $remaining,
+        'reset_time' => $attempts['first_attempt'] + $timeWindow
+    ];
+}
+
+/**
+ * ✅ SECURITY: إعادة تعيين Rate Limiting بعد تسجيل الدخول الناجح
+ * @param string $identifier - المعرف (IP Address أو Username)
+ */
+function resetRateLimit($identifier) {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    $key = 'login_attempts_' . md5($identifier);
+    unset($_SESSION[$key]);
+}
 
 // تسجيل الدخول
 if ($method === 'POST') {
@@ -174,6 +233,21 @@ if ($method === 'POST') {
         response(false, 'اسم المستخدم وكلمة المرور مطلوبة', null, 400);
     }
     
+    // ✅ SECURITY: Rate Limiting - التحقق من عدد محاولات تسجيل الدخول
+    $clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $rateLimitIdentifier = $clientIP . '_' . strtolower($username); // استخدام IP + Username
+    $rateLimit = checkRateLimit($rateLimitIdentifier, 5, 300); // 5 محاولات كل 5 دقائق
+    
+    if (!$rateLimit['allowed']) {
+        $remainingMinutes = ceil($rateLimit['remaining_time'] / 60);
+        error_log("❌ Rate Limit: تم تجاوز عدد محاولات تسجيل الدخول - IP: $clientIP, Username: $username");
+        response(false, "تم تجاوز عدد محاولات تسجيل الدخول. يرجى المحاولة مرة أخرى بعد $remainingMinutes دقيقة", [
+            'rate_limit' => true,
+            'remaining_time' => $rateLimit['remaining_time'],
+            'reset_time' => $rateLimit['reset_time']
+        ], 429); // 429 Too Many Requests
+    }
+    
     // التحقق من الاتصال بقاعدة البيانات
     try {
         $conn = getDBConnection();
@@ -212,9 +286,15 @@ if ($method === 'POST') {
             error_log("نتيجة التحقق من كلمة المرور: " . ($passwordMatch ? "صحيحة" : "غير صحيحة"));
             
             if ($passwordMatch) {
+                // ✅ SECURITY: إعادة تعيين Rate Limiting بعد تسجيل الدخول الناجح
+                resetRateLimit($rateLimitIdentifier);
+                
                 if (session_status() === PHP_SESSION_NONE) {
                     session_start();
                 }
+                
+                // ✅ SECURITY: إعادة توليد معرف الجلسة بعد تسجيل الدخول الناجح (حماية من Session Fixation)
+                session_regenerate_id(true); // true = حذف الجلسة القديمة
                 
                 // حفظ بيانات الجلسة
                 $_SESSION['user_id'] = $user['id'];
@@ -222,6 +302,10 @@ if ($method === 'POST') {
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
+                
+                // ✅ SECURITY: حفظ IP Address للتحقق لاحقاً
+                $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
+                $_SESSION['last_regeneration'] = time(); // ✅ SECURITY: حفظ وقت آخر إعادة توليد
                 
                 error_log("✅ تم تسجيل الدخول بنجاح للمستخدم: " . $username . " - branch_id: " . ($user['branch_id'] ?? 'null'));
                 
@@ -263,12 +347,12 @@ if ($method === 'POST') {
             'trace' => explode("\n", $e->getTraceAsString())
         ], 500);
     } catch (Error $e) {
-        $errorMsg = "خطأ قاتل في قاعدة البيانات: " . $e->getMessage();
+        $errorMsg = "خطأ  في قاعدة البيانات: " . $e->getMessage();
         error_log($errorMsg);
         error_log("Stack trace: " . $e->getTraceAsString());
         
         // ✅ إرجاع معلومات أكثر تفصيلاً للتصحيح
-        response(false, 'خطأ قاتل في قاعدة البيانات: ' . $e->getMessage(), [
+        response(false, 'خطأ  في قاعدة البيانات: ' . $e->getMessage(), [
             'error_type' => 'Fatal Error',
             'file' => $e->getFile(),
             'line' => $e->getLine(),
@@ -292,23 +376,15 @@ if ($method === 'POST') {
 
 // التحقق من الجلسة
 if ($method === 'GET') {
-    // ✅ تسجيلات مفصلة لحالة الجلسة عند التحقق
-    error_log("Auth API - checkAuth called");
-    error_log("Auth API - Session status before start: " . session_status());
-    error_log("Auth API - Cookies received: " . json_encode($_COOKIE));
     
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
-        error_log("Auth API - Session started. Session ID: " . session_id());
     } else {
-        error_log("Auth API - Session already active. Session ID: " . session_id());
     }
     
-    error_log("Auth API - Session status after start: " . session_status());
     error_log("Auth API - Session data: " . json_encode($_SESSION));
     
     if (isset($_SESSION['user_id'])) {
-        error_log("Auth API - User ID found in session: " . $_SESSION['user_id']);
         
         // جلب اسم الفرع ورمز الفرع إذا كان branch_id موجوداً
         $branchName = null;

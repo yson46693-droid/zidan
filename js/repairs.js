@@ -3443,16 +3443,77 @@ async function saveRepair(event) {
             showMessage(result.message || 'تم تعديل العملية بنجاح');
             closeRepairModal();
             
-            // ✅ مسح cache لضمان الحصول على أحدث البيانات
+            // ✅ تحديث allRepairs محلياً فوراً لعرض التغييرات بشكل لحظي
+            const repairIndex = allRepairs.findIndex(r => String(r.id) === String(repairId));
+            if (repairIndex !== -1) {
+                // تحديث العملية في allRepairs بالبيانات الجديدة
+                const updatedRepair = { ...allRepairs[repairIndex] };
+                
+                // تحديث جميع الحقول المرسلة
+                if (repairData.status !== undefined) {
+                    updatedRepair.status = repairData.status;
+                    console.log('✅ [Repairs] تحديث الحالة محلياً:', repairData.status);
+                }
+                if (repairData.customer_price !== undefined) {
+                    updatedRepair.customer_price = repairData.customer_price;
+                }
+                if (repairData.repair_cost !== undefined) {
+                    updatedRepair.repair_cost = repairData.repair_cost;
+                }
+                if (repairData.paid_amount !== undefined) {
+                    updatedRepair.paid_amount = repairData.paid_amount;
+                }
+                if (repairData.remaining_amount !== undefined) {
+                    updatedRepair.remaining_amount = repairData.remaining_amount;
+                }
+                if (repairData.delivery_date !== undefined) {
+                    updatedRepair.delivery_date = repairData.delivery_date;
+                }
+                if (repairData.created_by !== undefined) {
+                    updatedRepair.created_by = repairData.created_by;
+                }
+                if (repairData.serial_number !== undefined) {
+                    updatedRepair.serial_number = repairData.serial_number;
+                }
+                if (repairData.inspection_report !== undefined) {
+                    updatedRepair.inspection_report = repairData.inspection_report;
+                }
+                if (repairData.inspection_cost !== undefined) {
+                    updatedRepair.inspection_cost = repairData.inspection_cost;
+                }
+                if (repairData.parts_store !== undefined) {
+                    updatedRepair.parts_store = repairData.parts_store;
+                }
+                if (repairData.spare_parts_invoices !== undefined) {
+                    updatedRepair.spare_parts_invoices = repairData.spare_parts_invoices;
+                }
+                
+                // استبدال العملية المحدثة في المصفوفة
+                allRepairs[repairIndex] = updatedRepair;
+                console.log('✅ [Repairs] تم تحديث العملية في allRepairs، الحالة الجديدة:', updatedRepair.status);
+                
+                // ✅ تحديث الجدول فوراً لعرض التغييرات
+                filterRepairs();
+                console.log('✅ [Repairs] تم استدعاء filterRepairs() لتحديث الجدول');
+            } else {
+                console.warn('⚠️ [Repairs] لم يتم العثور على العملية في allRepairs، سيتم إعادة تحميل البيانات');
+                // إذا لم يتم العثور على العملية، إعادة تحميل البيانات
+                isLoadingRepairs = false;
+                lastRepairsLoadTime = 0;
+                loadRepairs(true).catch(error => {
+                    console.error('⚠️ خطأ في إعادة تحميل البيانات:', error);
+                });
+            }
+            
+            // ✅ مسح cache لضمان الحصول على أحدث البيانات عند التحديث القادم
             if (typeof API_CACHE !== 'undefined' && API_CACHE.clear) {
                 API_CACHE.clear();
                 console.log('✅ [Repairs] تم مسح cache بعد التعديل');
             }
             
-            // ✅ إجبار إعادة التحميل
+            // ✅ إعادة تعيين flags للتحميل للسماح بإعادة التحميل عند الحاجة
             isLoadingRepairs = false;
             lastRepairsLoadTime = 0;
-            await loadRepairs(true);
             
             // ✅ إذا كانت العملية ملغاة وتم إدخال inspection_cost، سيتم إخفاء زر التعديل تلقائياً
             // لأن canEdit سيتحقق من وجود inspection_cost في loadRepairs

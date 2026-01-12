@@ -988,8 +988,8 @@ if ($method === 'PUT') {
         
         // إزالة الحقول التقنية من الحقول المطلوبة للتحقق
         $requestedFields = array_filter($requestedFields, function($field) {
-            // إزالة 'id' و '_method' من الحقول المطلوبة للتحقق
-            return $field !== 'id' && $field !== '_method';
+            // إزالة الحقول التقنية: 'id', '_method', 'csrf_token', 'api_token'
+            return $field !== 'id' && $field !== '_method' && $field !== 'csrf_token' && $field !== 'api_token';
         });
         
         // إعادة فهرسة المصفوفة بعد التصفية
