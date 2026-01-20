@@ -6153,7 +6153,7 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         ctx.strokeRect(2 * scale, 2 * scale, scaledWidth - 4 * scale, scaledHeight - 4 * scale);
         
         // رسم QR Code على اليسار - حجم أصغر ليتناسب مع الملصق
-        const qrSize = 150 * scale; // تقليل حجم QR Code قليلاً لإتاحة مساحة أكبر للنص
+        const qrSize = 130 * scale; // تقليل حجم QR Code قليلاً لإتاحة مساحة أكبر للنص
         const qrX = 8 * scale; // تقليل المسافة من الحافة
         const qrY = 6 * scale; // تقليل المسافة من الأعلى
         const qrEndX = qrX + qrSize; // نهاية QR Code

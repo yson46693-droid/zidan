@@ -319,6 +319,112 @@ function shouldRunBackup($force = false) {
     return $shouldRun;
 }
 
+/* ============== CLEANUP OLD BACKUPS ================= */
+/**
+ * ✅ حذف النسخ الاحتياطية القديمة (أكثر من 5 أيام)
+ * @param string $backupDir مسار مجلد النسخ الاحتياطية
+ * @param int $days عدد الأيام (افتراضي: 5 أيام)
+ * @return array إحصائيات الحذف ['deleted' => عدد الملفات المحذوفة, 'failed' => عدد الملفات الفاشلة]
+ */
+function cleanupOldBackups($backupDir, $days = 5) {
+    $deletedCount = 0;
+    $failedCount = 0;
+    $deletedFiles = [];
+    $failedFiles = [];
+    
+    // ✅ التحقق من أن المجلد موجود
+    if (!is_dir($backupDir)) {
+        error_log('⚠️ [BACKUP_DB] مجلد النسخ الاحتياطية غير موجود للتنظيف: ' . $backupDir);
+        return ['deleted' => 0, 'failed' => 0];
+    }
+    
+    // ✅ حساب الوقت الفاصل (5 أيام = 432000 ثانية)
+    $maxAge = $days * 24 * 60 * 60; // 5 أيام بالثواني
+    $currentTime = time();
+    
+    error_log("🗑️ [BACKUP_DB] بدء تنظيف النسخ الاحتياطية القديمة (أكثر من {$days} أيام)...");
+    
+    try {
+        // ✅ قراءة محتويات المجلد
+        $files = @scandir($backupDir);
+        if ($files === false) {
+            error_log('❌ [BACKUP_DB] فشل قراءة محتويات مجلد النسخ الاحتياطية: ' . $backupDir);
+            return ['deleted' => 0, 'failed' => 0];
+        }
+        
+        // ✅ تصفية الملفات (تجاهل . و .. والمجلدات الفرعية)
+        $backupFiles = array_filter($files, function($file) use ($backupDir) {
+            $fullPath = $backupDir . DIRECTORY_SEPARATOR . $file;
+            return $file !== '.' && $file !== '..' && is_file($fullPath);
+        });
+        
+        if (empty($backupFiles)) {
+            error_log('ℹ️ [BACKUP_DB] لا توجد ملفات نسخ احتياطية للتحقق منها');
+            return ['deleted' => 0, 'failed' => 0];
+        }
+        
+        // ✅ فحص كل ملف وحذفه إذا كان قديماً
+        foreach ($backupFiles as $file) {
+            $filePath = $backupDir . DIRECTORY_SEPARATOR . $file;
+            
+            // ✅ الحصول على وقت تعديل الملف
+            $fileModifiedTime = @filemtime($filePath);
+            
+            if ($fileModifiedTime === false) {
+                error_log("⚠️ [BACKUP_DB] فشل قراءة وقت تعديل الملف: {$file}");
+                $failedCount++;
+                $failedFiles[] = $file;
+                continue;
+            }
+            
+            // ✅ حساب العمر بالثواني
+            $fileAge = $currentTime - $fileModifiedTime;
+            
+            // ✅ إذا كان الملف أقدم من 5 أيام، احذفه
+            if ($fileAge > $maxAge) {
+                $fileAgeDays = round($fileAge / (24 * 60 * 60), 2);
+                $fileDate = date('Y-m-d H:i:s', $fileModifiedTime);
+                
+                // ✅ محاولة حذف الملف
+                if (@unlink($filePath)) {
+                    $deletedCount++;
+                    $deletedFiles[] = $file;
+                    error_log("✅ [BACKUP_DB] تم حذف نسخة احتياطية قديمة: {$file} (عمرها: {$fileAgeDays} يوم - تاريخ: {$fileDate})");
+                } else {
+                    $failedCount++;
+                    $failedFiles[] = $file;
+                    error_log("❌ [BACKUP_DB] فشل حذف نسخة احتياطية قديمة: {$file} (عمرها: {$fileAgeDays} يوم)");
+                }
+            }
+        }
+        
+        // ✅ تسجيل ملخص النتائج
+        if ($deletedCount > 0) {
+            error_log("✅ [BACKUP_DB] تم حذف {$deletedCount} ملف نسخة احتياطية قديمة");
+            if (!empty($deletedFiles)) {
+                error_log("📋 [BACKUP_DB] الملفات المحذوفة: " . implode(', ', $deletedFiles));
+            }
+        } else {
+            error_log("ℹ️ [BACKUP_DB] لا توجد نسخ احتياطية قديمة للحذف (جميع الملفات أحدث من {$days} أيام)");
+        }
+        
+        if ($failedCount > 0) {
+            error_log("⚠️ [BACKUP_DB] فشل حذف {$failedCount} ملف نسخة احتياطية");
+            if (!empty($failedFiles)) {
+                error_log("📋 [BACKUP_DB] الملفات الفاشلة: " . implode(', ', $failedFiles));
+            }
+        }
+        
+    } catch (Exception $e) {
+        error_log('❌ [BACKUP_DB] خطأ في تنظيف النسخ الاحتياطية القديمة: ' . $e->getMessage());
+        error_log('❌ [BACKUP_DB] Stack trace: ' . $e->getTraceAsString());
+    } catch (Error $e) {
+        error_log('❌ [BACKUP_DB] خطأ قاتل في تنظيف النسخ الاحتياطية القديمة: ' . $e->getMessage());
+    }
+    
+    return ['deleted' => $deletedCount, 'failed' => $failedCount];
+}
+
 /* ============== MAIN BACKUP ================= */
 function performBackup($force = false) {
     global $host, $user, $password, $database;
@@ -443,6 +549,9 @@ function performBackup($force = false) {
     }
     
     error_log('✅ [BACKUP_DB] مسار النسخ الاحتياطية صحيح: ' . $backupStore);
+
+    // ✅ تنظيف النسخ الاحتياطية القديمة (أكثر من 5 أيام) قبل إنشاء النسخة الجديدة
+    cleanupOldBackups($backupStore, 5);
 
     // ✅ التحقق من إعدادات قاعدة البيانات
     if (empty($host) || empty($user) || empty($database)) {

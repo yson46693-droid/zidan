@@ -1,19 +1,32 @@
-# ✅ السماح بالوصول لملفات ZIP و JSON
-<FilesMatch "\.(zip|json|txt)$">
+# ✅ منع الوصول المباشر لجميع الملفات في مجلد backups
+# النسخ الاحتياطية يجب الوصول إليها فقط من خلال API مع المصادقة (admin)
+<FilesMatch ".*">
     <IfModule mod_authz_core.c>
-        Require all granted
+        Require all denied
     </IfModule>
     <IfModule !mod_authz_core.c>
-        Order Allow,Deny
-        Allow from all
+        Order Deny,Allow
+        Deny from all
     </IfModule>
 </FilesMatch>
 
 # منع عرض محتويات المجلد
 Options -Indexes
 
+# منع إدراج الملفات في المجلد الرئيسي
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Deny,Allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
 # إضافة headers للأمان
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options nosniff
     Header always set X-Frame-Options SAMEORIGIN
+    Header always set X-Robots-Tag "noindex, nofollow"
 </IfModule>
