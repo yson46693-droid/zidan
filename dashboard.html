@@ -1169,15 +1169,32 @@
             console.log('🔍 Dashboard - authChecked:', authChecked);
             console.log('🔍 Dashboard - cachedUser:', cachedUser);
             
-            // 🔧 الحل 5: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
+            // 🔧 الحل 5: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage - زيادة الفترة إلى 30 ثانية
             const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-            const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 15000;
+            const isRecentLogin = justLoggedInTime && (Date.now() - parseInt(justLoggedInTime)) < 30000; // زيادة من 15 إلى 30 ثانية
             
             console.log('🔍 Dashboard - justLoggedInTime:', justLoggedInTime);
             console.log('🔍 Dashboard - isRecentLogin:', isRecentLogin);
             
             if (isRecentLogin) {
                 console.log('⏳ تسجيل دخول حديث في dashboard - استخدام البيانات المحفوظة أولاً...');
+                
+                // ✅ محاولة استخدام بيانات المستخدم من sessionStorage أولاً
+                const sessionUser = sessionStorage.getItem('currentUser');
+                if (sessionUser) {
+                    try {
+                        const userData = JSON.parse(sessionUser);
+                        console.log('✅ استخدام بيانات المستخدم من sessionStorage:', userData);
+                        cachedUser = userData;
+                        authCheckInProgress = false;
+                        authChecked = true;
+                        // تحديث localStorage أيضاً
+                        localStorage.setItem('currentUser', sessionUser);
+                        return userData;
+                    } catch (e) {
+                        console.warn('⚠️ فشل تحليل بيانات المستخدم من sessionStorage:', e);
+                    }
+                }
                 // محاولة استخدام البيانات المحفوظة أولاً
                 try {
                     const savedUser = localStorage.getItem('currentUser');
@@ -1229,13 +1246,29 @@
                     console.log('❌ Dashboard - No user returned from checkLogin');
                     cachedUser = null;
                     
-                    // 🔧 الحل 6: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage
+                    // 🔧 الحل 6: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage - زيادة الفترة إلى 30 ثانية
                     const justLoggedInTimeCheck = sessionStorage.getItem('just_logged_in_time');
                     if (justLoggedInTimeCheck) {
                         const timeSinceLogin = Date.now() - parseInt(justLoggedInTimeCheck);
-                        // إذا كان تسجيل الدخول حديث (أقل من 15 ثانية)، لا نستدعي showLoginRequiredMessage
-                        if (timeSinceLogin < 15000) {
-                            console.log('⏸️ تسجيل دخول حديث - تم إلغاء showLoginRequiredMessage لمنع loop');
+                        // إذا كان تسجيل الدخول حديث (أقل من 30 ثانية)، لا نستدعي showLoginRequiredMessage
+                        if (timeSinceLogin < 30000) {
+                            console.log('⏳ تسجيل دخول حديث - تم إلغاء showLoginRequiredMessage لمنع loop (مر', Math.round(timeSinceLogin / 1000), 'ثانية)');
+                            
+                            // ✅ محاولة استخدام بيانات المستخدم من sessionStorage
+                            const sessionUser = sessionStorage.getItem('currentUser');
+                            if (sessionUser) {
+                                try {
+                                    const userData = JSON.parse(sessionUser);
+                                    console.log('✅ استخدام بيانات المستخدم من sessionStorage عند الفشل:', userData);
+                                    cachedUser = userData;
+                                    // تحديث localStorage أيضاً
+                                    localStorage.setItem('currentUser', sessionUser);
+                                    return userData;
+                                } catch (e) {
+                                    console.warn('⚠️ فشل تحليل بيانات المستخدم من sessionStorage:', e);
+                                }
+                            }
+                            
                             // إعادة المحاولة بعد ثانية إضافية
                             await new Promise(resolve => setTimeout(resolve, 2000));
                             const retryUser = await checkLogin();
@@ -1262,12 +1295,30 @@
                 cachedUser = null;
                 console.error('خطأ في التحقق من تسجيل الدخول:', error);
                 
-                // 🔧 الحل 7: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage في catch
+                // 🔧 الحل 7: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage في catch - زيادة الفترة إلى 30 ثانية
                 const justLoggedInTimeError = sessionStorage.getItem('just_logged_in_time');
                 if (justLoggedInTimeError) {
                     const timeSinceLogin = Date.now() - parseInt(justLoggedInTimeError);
-                    if (timeSinceLogin < 15000) {
-                        console.log('⏸️ تسجيل دخول حديث في catch - تم إلغاء showLoginRequiredMessage');
+                    if (timeSinceLogin < 30000) {
+                        console.log('⏳ تسجيل دخول حديث في catch - تم إلغاء showLoginRequiredMessage (مر', Math.round(timeSinceLogin / 1000), 'ثانية)');
+                        
+                        // ✅ محاولة استخدام بيانات المستخدم من sessionStorage
+                        const sessionUser = sessionStorage.getItem('currentUser');
+                        if (sessionUser) {
+                            try {
+                                const userData = JSON.parse(sessionUser);
+                                console.log('✅ استخدام بيانات المستخدم من sessionStorage في catch:', userData);
+                                cachedUser = userData;
+                                authCheckInProgress = false;
+                                authChecked = true;
+                                // تحديث localStorage أيضاً
+                                localStorage.setItem('currentUser', sessionUser);
+                                return userData;
+                            } catch (e) {
+                                console.warn('⚠️ فشل تحليل بيانات المستخدم من sessionStorage في catch:', e);
+                            }
+                        }
+                        
                         return null;
                     }
                 }
@@ -1562,14 +1613,11 @@
                 if (isAdmin) {
                     hasPermission = true;
                 }
-                // المدير في الفرع الأول
-                else if (isManager && (!branchCode || branchCode === 'HANOVIL')) {
+                // جميع المديرين مسموح لهم
+                else if (isManager) {
                     hasPermission = true;
                 }
-                // جميع الموظفين مسموح لهم
-                else if (isEmployee) {
-                    hasPermission = true;
-                }
+  
                 
                 if (!hasPermission) {
                     console.warn('🚫 محاولة الوصول إلى قسم استرجاع المنتجات بدون صلاحية');

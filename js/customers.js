@@ -4638,7 +4638,8 @@ async function printRepairReceiptFromCustomerPage(repairId) {
         
         // ✅ إنشاء رابط التتبع
         const repairNumber = repair.repair_number || repair.id;
-        const trackingLink = `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/repair-tracking.html?number=${encodeURIComponent(repairNumber)}`;
+        // ✅ استخدام repair_number بدلاً من number لتوافق مع QR Code
+        const trackingLink = `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/repair-tracking.html?repair_number=${encodeURIComponent(repairNumber)}`;
         
         // ✅ إنشاء QR Code للرابط (fallback بسيط)
         const generateQRCodeFallback = (data, size = 200) => {

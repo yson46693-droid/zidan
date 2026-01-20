@@ -12,20 +12,37 @@ const AUTH_CACHE_DURATION = 30000; // 30 ثانية للتخزين المؤقت 
 async function checkLogin() {
     const now = Date.now();
     
-    // ✅ تحسين: بعد تسجيل الدخول مباشرة (أقل من 5 ثوان)، استخدم البيانات المحفوظة بدون استدعاء الخادم
+    // ✅ تحسين: بعد تسجيل الدخول مباشرة (أقل من 30 ثانية)، استخدم البيانات المحفوظة بدون استدعاء الخادم
     const justLoggedInTime = sessionStorage.getItem('just_logged_in_time');
-    const isRecentLogin = justLoggedInTime && (now - parseInt(justLoggedInTime)) < 5000; // 5 ثوان فقط لتسجيل الدخول الفوري
+    const isRecentLogin = justLoggedInTime && (now - parseInt(justLoggedInTime)) < 30000; // زيادة إلى 30 ثانية
     
     if (isRecentLogin) {
         try {
+            // ✅ محاولة استخدام بيانات من sessionStorage أولاً (أحدث)
+            const sessionUser = sessionStorage.getItem('currentUser');
+            if (sessionUser) {
+                try {
+                    const user = JSON.parse(sessionUser);
+                    // تحديث cache
+                    cachedAuthResult = user;
+                    cacheTime = now;
+                    // تحديث localStorage أيضاً للتأكد
+                    localStorage.setItem('currentUser', sessionUser);
+                    console.log('✅ استخدام بيانات المستخدم من sessionStorage في checkLogin');
+                    return user;
+                } catch (e) {
+                    console.warn('⚠️ خطأ في قراءة البيانات من sessionStorage:', e);
+                }
+            }
+            
+            // ✅ إذا لم تكن موجودة في sessionStorage، استخدم localStorage
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 const user = JSON.parse(savedUser);
                 // تحديث cache
                 cachedAuthResult = user;
                 cacheTime = now;
-                // مسح العلامة بعد الاستخدام الناجح
-                sessionStorage.removeItem('just_logged_in_time');
+                console.log('✅ استخدام بيانات المستخدم من localStorage في checkLogin');
                 return user;
             }
         } catch (e) {
@@ -368,8 +385,13 @@ async function login(username, password, rememberMe = false) {
             // ملاحظة: إذا لم يتم تفعيل "تذكرني"، فلا حاجة لمسح rememberedUsername
             // لأن localStorage.clear() قد قام بذلك بالفعل
             
-            // 🔧 الحل 2: إضافة علامة تسجيل دخول حديث مع timestamp
-            sessionStorage.setItem('just_logged_in_time', Date.now().toString());
+            // 🔧 الحل 2: إضافة علامة تسجيل دخول حديث مع timestamp - زيادة الفترة إلى 30 ثانية
+            const loginTime = Date.now();
+            sessionStorage.setItem('just_logged_in_time', loginTime.toString());
+            console.log('✅ تم تعيين just_logged_in_time:', loginTime);
+            
+            // ✅ حفظ بيانات المستخدم في sessionStorage أيضاً للتأكد من توفرها فوراً
+            sessionStorage.setItem('currentUser', JSON.stringify(result.data));
             
             // إعادة تهيئة نظام المزامنة
             if (typeof syncManager !== 'undefined') {
@@ -377,6 +399,9 @@ async function login(username, password, rememberMe = false) {
                 // إعادة إنشاء instance جديد
                 window.syncManager = new SyncManager();
             }
+            
+            // ✅ الانتظار قليلاً قبل التوجيه لضمان حفظ جميع البيانات
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             // ✅ تحديد الصفحة المستهدفة للتوجيه
             // التحقق من وجود معامل redirect في URL
@@ -401,6 +426,9 @@ async function login(username, password, rememberMe = false) {
             
             console.log('✅ تسجيل الدخول ناجح - التوجيه إلى', redirectUrl);
             console.log('🔄 بدء عملية التوجيه...');
+            console.log('🔍 localStorage currentUser قبل التوجيه:', localStorage.getItem('currentUser'));
+            console.log('🔍 sessionStorage currentUser قبل التوجيه:', sessionStorage.getItem('currentUser'));
+            console.log('🔍 sessionStorage just_logged_in_time قبل التوجيه:', sessionStorage.getItem('just_logged_in_time'));
             
             // ✅ وضع علامة للصفحة المستهدفة لاستدعاء ensureCSSAndIconsLoaded
             sessionStorage.setItem('after_login_fix_css', 'true');

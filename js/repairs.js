@@ -5208,9 +5208,9 @@ async function printRepairReceipt(id) {
             console.log('✅ استخدام إعدادات الفرع الأول:', { finalShopName, finalShopPhone, finalShopAddress, currency, whatsappNumber });
         }
         
-        // ✅ إنشاء رابط التتبع
+        // ✅ إنشاء رابط التتبع - استخدام repair_number بدلاً من number
         const repairNumber = repair.repair_number || repair.id;
-        const trackingLink = `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/repair-tracking.html?number=${encodeURIComponent(repairNumber)}`;
+        const trackingLink = `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/repair-tracking.html?repair_number=${encodeURIComponent(repairNumber)}`;
         
         // ✅ إنشاء QR Code
         const generateQRCodeFallback = (data, size = 200) => {
@@ -7058,27 +7058,49 @@ async function openBarcodeScanner() {
 // ✅ دالة لاستخراج رقم العملية من رابط التتبع
 function extractRepairNumberFromTrackingLink(url) {
     try {
-        // محاولة تحليل الرابط
-        const urlObj = new URL(url);
-        const repairNumber = urlObj.searchParams.get('repair_number');
-        if (repairNumber) {
-            return decodeURIComponent(repairNumber);
+        // ✅ تنظيف النص المقروء - إزالة أي مسافات أو أحرف غير مرئية
+        const cleanedUrl = url.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+        
+        // ✅ محاولة تحليل الرابط
+        try {
+            const urlObj = new URL(cleanedUrl);
+            // ✅ محاولة جلب repair_number أولاً (المعامل الصحيح)
+            let repairNumber = urlObj.searchParams.get('repair_number');
+            if (repairNumber) {
+                return decodeURIComponent(repairNumber);
+            }
+            
+            // ✅ محاولة جلب number (للدعم مع الروابط القديمة)
+            repairNumber = urlObj.searchParams.get('number');
+            if (repairNumber) {
+                return decodeURIComponent(repairNumber);
+            }
+        } catch (urlError) {
+            // إذا فشل تحليل URL (مثلاً إذا كان النص ليس رابط صحيح)، ننتقل للبحث في النص
+            console.log('⚠️ فشل تحليل URL، البحث في النص:', urlError);
         }
         
-        // إذا لم يكن هناك repair_number في URL، حاول البحث عنه في النص
-        const match = url.match(/repair_number=([^&]+)/);
+        // ✅ البحث عن repair_number في النص (لحالة الروابط غير الصحيحة أو النص الخام)
+        let match = cleanedUrl.match(/repair_number=([^&?]+)/i);
+        if (match && match[1]) {
+            return decodeURIComponent(match[1]);
+        }
+        
+        // ✅ البحث عن number في النص (للدعم مع الروابط القديمة)
+        match = cleanedUrl.match(/[?&]number=([^&?]+)/i);
+        if (match && match[1]) {
+            return decodeURIComponent(match[1]);
+        }
+        
+        // ✅ محاولة أخيرة: البحث عن أي رقم في رابط repair-tracking.html
+        match = cleanedUrl.match(/repair-tracking\.html[?&](?:repair_number|number)=([^&?]+)/i);
         if (match && match[1]) {
             return decodeURIComponent(match[1]);
         }
         
         return null;
     } catch (error) {
-        console.error('خطأ في استخراج رقم العملية من الرابط:', error);
-        // إذا فشل التحليل، حاول البحث عن repair_number في النص
-        const match = url.match(/repair_number=([^&?]+)/);
-        if (match && match[1]) {
-            return decodeURIComponent(match[1]);
-        }
+        console.error('❌ خطأ في استخراج رقم العملية من الرابط:', error, 'النص:', url);
         return null;
     }
 }

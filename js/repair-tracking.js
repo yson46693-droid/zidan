@@ -1493,17 +1493,23 @@ function showErrorAndRedirect(message, redirectUrl = 'https://www.facebook.com/s
     
     // ✅ الآن يمكن تنفيذ الكود الرئيسي
     try {
-        // ✅ التحقق من وجود باراميتر repair_number في URL (إلزامي)
+        // ✅ التحقق من وجود باراميتر repair_number أو number في URL (إلزامي) - دعم كلا المعاملين
         const urlParams = new URLSearchParams(window.location.search);
-        const repairNumber = urlParams.get('repair_number');
+        let repairNumber = urlParams.get('repair_number') || urlParams.get('number'); // ✅ دعم كلا المعاملين
         const status = urlParams.get('status');
+        
+        // ✅ تنظيف رقم الصيانة إذا كان موجوداً
+        if (repairNumber) {
+            repairNumber = repairNumber.trim();
+        }
         
         // ✅ التحقق من وجود بيانات في localStorage
         const savedData = localStorage.getItem('repairTrackingData');
         
-        // ✅ منع الوصول بدون باراميتر repair_number
+        // ✅ منع الوصول بدون باراميتر repair_number أو number
         if (!repairNumber && !savedData) {
-            console.warn('⚠️ محاولة وصول غير مصرح بها - لا يوجد repair_number في URL');
+            console.warn('⚠️ محاولة وصول غير مصرح بها - لا يوجد repair_number أو number في URL');
+            console.warn('⚠️ URL الحالي:', window.location.href);
             if (loadingOverlay) loadingOverlay.style.display = 'none';
             showErrorAndRedirect('الوصول غير مسموح', 'https://www.facebook.com/share/1D594zC9zC/?mibextid=wwXIfr', 'يجب الوصول إلى هذه الصفحة من خلال رابط صحيح يحتوي على رقم الصيانة.');
             return; // إيقاف تنفيذ باقي الكود

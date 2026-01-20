@@ -25,16 +25,11 @@ function checkProductReturnsPermission() {
         return true;
     }
     
-    // المدير في الفرع الأول
-    if ($userRole === 'manager' && !$userBranchId) {
+    // جميع المديرين مسموح لهم
+    if ($userRole === 'manager') {
         return true;
     }
-    
-    // جميع الموظفين مسموح لهم
-    if ($userRole === 'employee') {
-        return true;
-    }
-    
+ 
     return false;
 }
 
