@@ -5372,7 +5372,7 @@ async function printRepairReceipt(id) {
                 .invoice-shop-info {
                     color: #666;
                     line-height: 1.8;
-                    font-size: 1.05em;
+                    font-size: 1.25em;
                     display: flex;
                     flex-direction: column;
                     gap: 8px;
@@ -5389,7 +5389,7 @@ async function printRepairReceipt(id) {
                 .invoice-details {
                     display: flex;
                     flex-direction: column;
-                    gap: 12px;
+                    gap: 8px;
                     margin-bottom: 20px;
                     padding: 20px;
                     background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
@@ -5423,7 +5423,7 @@ async function printRepairReceipt(id) {
                 .invoice-extra-info {
                     display: flex;
                     flex-direction: column;
-                    gap: 12px;
+                    gap: 8px;
                     margin-bottom: 20px;
                     padding: 20px;
                     background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
@@ -5503,25 +5503,23 @@ async function printRepairReceipt(id) {
                     text-align: center;
                     margin: 15px 0;
                     padding: 15px;
-                    background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%);
+                    background: white;
+                    border: 2px solid #000;
                     border-radius: 8px;
-                    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
                     page-break-inside: avoid;
                 }
                 
                 .invoice-delivery-date > div:first-child {
-                    color: var(--white, #ffffff);
+                    color: #000;
                     font-size: 0.95em;
                     font-weight: 600;
                     margin-bottom: 8px;
-                    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
                 }
                 
                 .invoice-delivery-date > div:last-child {
-                    color: var(--white, #ffffff);
+                    color: #000;
                     font-size: 1.3em;
                     font-weight: 700;
-                    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
                 }
                 
                 .invoice-summary hr {
@@ -5737,16 +5735,16 @@ async function printRepairReceipt(id) {
                     }
                     
                     .invoice-shop-info {
-                        font-size: 0.75em !important;
+                        font-size: 0.9em !important;
                     }
                     
                     .invoice-shop-info div {
-                        font-size: 0.75em !important;
+                        font-size: 0.9em !important;
                     }
                     
                     .invoice-details {
                         padding: 8px !important;
-                        margin-bottom: 8px !important;
+                        margin-bottom: 5px !important;
                         font-size: 0.85em !important;
                         page-break-inside: avoid !important;
                         box-shadow: none !important;
@@ -5756,7 +5754,7 @@ async function printRepairReceipt(id) {
                     
                     .invoice-details-row {
                         grid-template-columns: 1fr 1fr !important;
-                        gap: 5px !important;
+                        gap: 3px !important;
                     }
                     
                     .invoice-details-row > div {
@@ -5766,7 +5764,7 @@ async function printRepairReceipt(id) {
                     
                     .invoice-extra-info {
                         padding: 8px !important;
-                        margin-bottom: 8px !important;
+                        margin-bottom: 5px !important;
                         font-size: 0.85em !important;
                         page-break-inside: avoid !important;
                         box-shadow: none !important;
@@ -5776,7 +5774,7 @@ async function printRepairReceipt(id) {
                     
                     .invoice-extra-info-row {
                         grid-template-columns: 1fr 1fr !important;
-                        gap: 5px !important;
+                        gap: 3px !important;
                     }
                     
                     .invoice-extra-info-row > div {
@@ -5791,24 +5789,22 @@ async function printRepairReceipt(id) {
                     
                     .invoice-delivery-date {
                         margin: 15px 0 !important;
-                        padding: 15px !important;
-                        background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%) !important;
+                        padding: 10px !important;
+                        background: white !important;
+                        border: 2px solid #000 !important;
                         border-radius: 8px !important;
-                        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3) !important;
+                        box-shadow: none !important;
                         page-break-inside: avoid !important;
                     }
                     
-                    .invoice-delivery-date {
-                        padding: 10px !important;
-                        margin: 10px 0 !important;
-                    }
-                    
                     .invoice-delivery-date > div:first-child {
+                        color: #000 !important;
                         font-size: 0.75em !important;
                         margin-bottom: 5px !important;
                     }
                     
                     .invoice-delivery-date > div:last-child {
+                        color: #000 !important;
                         font-size: 0.95em !important;
                     }
                     
@@ -5863,26 +5859,27 @@ async function printRepairReceipt(id) {
                     .invoice-terms {
                         margin: 10px 0 !important;
                         padding: 10px !important;
-                        font-size: 0.7em !important;
+                        font-size: 0.85em !important;
                         page-break-inside: avoid !important;
                         background: #fff9e6 !important;
                         border: 1px solid #FFA500 !important;
                     }
                     
                     .invoice-terms h4 {
-                        font-size: 0.8em !important;
+                        font-size: 1em !important;
                         margin-bottom: 6px !important;
                     }
                     
                     .invoice-terms ul {
                         padding-right: 20px !important;
                         line-height: 1.5 !important;
-                        font-size: 0.7em !important;
+                        font-size: 0.9em !important;
                     }
                     
                     .invoice-terms li {
-                        font-size: 0.7em !important;
+                        font-size: 0.9em !important;
                         margin-bottom: 4px !important;
+                        font-weight: 600 !important;
                     }
                     
                     .invoice-footer {
@@ -5966,11 +5963,11 @@ async function printRepairReceipt(id) {
                 
                 ${repair.delivery_date ? `
                 <!-- Delivery Date Section -->
-                <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: linear-gradient(135deg, var(--primary-color, #2196F3) 0%, var(--secondary-color, #64B5F6) 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);">
-                    <div style="color: var(--white, #ffffff); font-size: 0.95em; font-weight: 600; margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: white; border: 2px solid #000; border-radius: 8px;">
+                    <div style="color: #000; font-size: 0.95em; font-weight: 600; margin-bottom: 8px;">
                         <i class="bi bi-calendar-check-fill" style="margin-left: 6px;"></i> موعد الاستلام المتوقع
                     </div>
-                    <div style="color: var(--white, #ffffff); font-size: 1.3em; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">
+                    <div style="color: #000; font-size: 1.3em; font-weight: 700;">
                         ${formatDateFunc(repair.delivery_date)}
                     </div>
                 </div>
@@ -6018,15 +6015,15 @@ async function printRepairReceipt(id) {
                 
                 <!-- Terms & Conditions -->
                 <div class="invoice-terms" style="margin-top: 30px; padding: 20px; background: #fff9e6; border: 2px solid var(--warning-color, #FFA500); border-radius: 8px;">
-                    <h4 style="color: var(--warning-color, #FFA500); margin-bottom: 15px; font-size: 1.1em; font-weight: 700; text-align: center;">
+                    <h4 style="color: var(--warning-color, #FFA500); margin-bottom: 15px; font-size: 1.3em; font-weight: 700; text-align: center;">
                         <i class="bi bi-exclamation-triangle-fill" style="margin-left: 8px;"></i> شروط وأحكام مهمة
                     </h4>
-                    <ul style="margin: 0; padding-right: 25px; color: var(--text-dark, #333); line-height: 2; font-size: 0.95em;">
-                        <li>المحل غير مسئول عن الجهاز بعد مرور شهر من تاريخ الاستلام</li>
-                        <li>ضمان البورد ٧ أيام فقط في حالة التغيير</li>
-                        <li>في حال الالغاء او عدم اتمام عملية الصيانه بناءا علي طلبكم بعد الفحص يتم دفع رسوم الفحص التي يحددها فني المسؤوليين في المكان</li>
-                        <li>المحل غير مسؤول عن اي عطل يظهر في الجهاز بعد عملية الصيانه غير العطل المتفق عليه</li>
-                        <li>في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
+                    <ul style="margin: 0; padding-right: 25px; color: var(--text-dark, #333); line-height: 2; font-size: 1.1em;">
+                        <li style="font-weight: 600;">المحل غير مسئول عن الجهاز بعد مرور شهر من تاريخ الاستلام</li>
+                        <li style="font-weight: 600;">ضمان البورد ٧ أيام فقط في حالة التغيير</li>
+                        <li style="font-weight: 600;">في حال الالغاء او عدم اتمام عملية الصيانه بناءا علي طلبكم بعد الفحص يتم دفع رسوم الفحص التي يحددها فني المسؤوليين في المكان</li>
+                        <li style="font-weight: 600;">المحل غير مسؤول عن اي عطل يظهر في الجهاز بعد عملية الصيانه غير العطل المتفق عليه</li>
+                        <li style="font-weight: 600;">في حال ظهرت اعطال غير المتفق عليها يقوم المسؤوليين بالتواصل معكم لنوافيكم بمستجدات مبلغ الفاتوره للحصول علي موافقتكم قبل اكمال الصيانه</li>
                     </ul>
             </div>
                 
@@ -6156,9 +6153,9 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         ctx.strokeRect(2 * scale, 2 * scale, scaledWidth - 4 * scale, scaledHeight - 4 * scale);
         
         // رسم QR Code على اليسار - حجم أصغر ليتناسب مع الملصق
-        const qrSize = 110 * scale; // تقليل حجم QR Code قليلاً لإتاحة مساحة أكبر للنص
-        const qrX = 10 * scale; // تقليل المسافة من الحافة
-        const qrY = 8 * scale; // تقليل المسافة من الأعلى
+        const qrSize = 150 * scale; // تقليل حجم QR Code قليلاً لإتاحة مساحة أكبر للنص
+        const qrX = 8 * scale; // تقليل المسافة من الحافة
+        const qrY = 6 * scale; // تقليل المسافة من الأعلى
         const qrEndX = qrX + qrSize; // نهاية QR Code
         
         // تحميل صورة QR Code مع معالجة أخطاء محسّنة
@@ -6184,7 +6181,7 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
                 console.error('فشل تحميل صورة QR Code:', error);
                 // إذا كان URL خارجي وفشل التحميل، نرسم رسالة بديلة
                 ctx.fillStyle = '#ff0000';
-                ctx.font = `bold ${16 * scale}px "Cairo", Arial, sans-serif`;
+                ctx.font = `bold ${18 * scale}px "Cairo", Arial, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.fillText('فشل تحميل QR Code', qrX + qrSize / 2, qrY + qrSize / 2);
                 reject(error);
@@ -6201,15 +6198,15 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         
         // رسم البيانات على اليمين - بعد QR Code بمسافة كافية
         // النص العربي يبدأ من اليمين (RTL)
-        const marginFromQR = 12 * scale; // المسافة بين QR Code والنص
-        const marginRight = 10 * scale; // المسافة من الحافة اليمنى
-        const marginTop = 8 * scale; // المسافة من الأعلى
+        const marginFromQR = 10 * scale; // المسافة بين QR Code والنص
+        const marginRight = 8 * scale; // المسافة من الحافة اليمنى
+        const marginTop = 6 * scale; // المسافة من الأعلى
         const marginBottom = 3 * scale; // المسافة من الأسفل
         const textStartX = scaledWidth - marginRight; // نقطة بداية النص من اليمين
         const dataY = marginTop; // بداية من الأعلى
-        const lineHeight = 20 * scale; // ارتفاع السطر الأساسي
-        const sectionSpacing = 8 * scale; // مسافة بين الأقسام
-        const lineSpacing = 4 * scale; // مسافة بين الأسطر داخل القسم الواحد
+        const lineHeight = 26 * scale; // ارتفاع السطر الأساسي (زيادة من 20 إلى 26)
+        const sectionSpacing = 10 * scale; // مسافة بين الأقسام (زيادة من 8 إلى 10)
+        const lineSpacing = 6 * scale; // مسافة بين الأسطر داخل القسم الواحد (زيادة من 4 إلى 6)
         let currentY = dataY;
         
         ctx.fillStyle = '#000000';
@@ -6220,27 +6217,27 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         const fontFamily = '"Cairo", "Tajawal", Arial, "Segoe UI", sans-serif';
         
         // ========== القسم الأول: عنوان الملصق ==========
-        ctx.font = `bold ${18 * scale}px ${fontFamily}`;
+        ctx.font = `bold ${22 * scale}px ${fontFamily}`; // زيادة من 18 إلى 22
         ctx.fillText('ملصق الجهاز', textStartX, currentY);
         currentY += lineHeight + sectionSpacing;
         
         // ========== القسم الثاني: رقم العملية ==========
-        ctx.font = `bold ${16 * scale}px ${fontFamily}`;
+        ctx.font = `bold ${20 * scale}px ${fontFamily}`; // زيادة من 16 إلى 20
         ctx.fillText(`رقم: ${repair.repair_number}`, textStartX, currentY);
         currentY += lineHeight + sectionSpacing;
         
         // ========== القسم الثالث: بيانات العميل ==========
-        ctx.font = `${15 * scale}px ${fontFamily}`;
+        ctx.font = `${18 * scale}px ${fontFamily}`; // زيادة من 15 إلى 18
         const customerName = repair.customer_name || 'غير محدد';
-        if (customerName.length > 15) {
-            ctx.fillText(`العميل: ${customerName.substring(0, 15)}...`, textStartX, currentY);
+        if (customerName.length > 12) {
+            ctx.fillText(`العميل: ${customerName.substring(0, 12)}...`, textStartX, currentY);
         } else {
             ctx.fillText(`العميل: ${customerName}`, textStartX, currentY);
         }
         currentY += lineHeight + lineSpacing;
         
         if (repair.customer_phone) {
-            ctx.font = `${15 * scale}px ${fontFamily}`;
+            ctx.font = `${18 * scale}px ${fontFamily}`; // زيادة من 15 إلى 18
             ctx.fillText(`الهاتف: ${repair.customer_phone}`, textStartX, currentY);
             currentY += lineHeight + sectionSpacing;
         } else {
@@ -6250,25 +6247,25 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         // ========== القسم الرابع: بيانات الجهاز ==========
         const deviceText = `${repair.device_type || ''} ${repair.device_model || ''}`.trim();
         if (deviceText) {
-            ctx.font = `${15 * scale}px ${fontFamily}`;
-            const deviceDisplay = deviceText.length > 18 ? deviceText.substring(0, 18) + '...' : deviceText;
+            ctx.font = `${18 * scale}px ${fontFamily}`; // زيادة من 15 إلى 18
+            const deviceDisplay = deviceText.length > 15 ? deviceText.substring(0, 15) + '...' : deviceText;
             ctx.fillText(`الجهاز: ${deviceDisplay}`, textStartX, currentY);
             currentY += lineHeight + sectionSpacing;
         }
         
         // ========== القسم الخامس: المشكلة ==========
-        ctx.font = `bold ${14 * scale}px ${fontFamily}`;
+        ctx.font = `bold ${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
         ctx.fillText('المشكلة:', textStartX, currentY);
         currentY += lineHeight + lineSpacing;
         
-        ctx.font = `${14 * scale}px ${fontFamily}`;
+        ctx.font = `${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
         const problemText = repair.problem || 'غير محدد';
         // حساب العرض المتاح للنص: من بداية النص (textStartX) إلى نهاية QR Code + margin
         const maxTextWidth = textStartX - (qrEndX + marginFromQR); // العرض المتاح للنص
         const words = problemText.split(' ');
         let line = '';
         let linesCount = 0;
-        const maxLines = 3; // حد أقصى 3 أسطر للمشكلة
+        const maxLines = 2; // تقليل من 3 إلى 2 أسطر للمشكلة لتجنب التداخل
         for (let word of words) {
             if (linesCount >= maxLines) break;
             const testLine = line + word + ' ';
@@ -6293,19 +6290,19 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         const remainingHeight = scaledHeight - currentY - marginBottom;
         if (remainingHeight >= lineHeight * 1.5) {
             if (repair.delivery_date) {
-                ctx.font = `bold ${14 * scale}px ${fontFamily}`;
+                ctx.font = `bold ${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
                 ctx.fillText('التسليم:', textStartX, currentY);
                 currentY += lineHeight + lineSpacing;
                 
-                ctx.font = `${14 * scale}px ${fontFamily}`;
+                ctx.font = `${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
                 const deliveryDate = new Date(repair.delivery_date).toLocaleDateString('ar-EG');
                 ctx.fillText(deliveryDate, textStartX, currentY);
             } else {
-                ctx.font = `bold ${14 * scale}px ${fontFamily}`;
+                ctx.font = `bold ${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
                 ctx.fillText('التسليم:', textStartX, currentY);
                 currentY += lineHeight + lineSpacing;
                 
-                ctx.font = `${14 * scale}px ${fontFamily}`;
+                ctx.font = `${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
                 ctx.fillText('غير محدد', textStartX, currentY);
             }
         }

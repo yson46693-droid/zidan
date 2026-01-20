@@ -2289,8 +2289,8 @@ async function showInvoice(saleData) {
                         <th>#</th>
                         <th>المنتج</th>
                         <th>الكمية</th>
-                        <th>سعر الوحدة</th>
-                        <th>الإجمالي</th>
+                        <th>السعر</th>
+                        <th>إجمالي</th>
                     </tr>
                 </thead>
                 <tbody>

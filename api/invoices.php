@@ -696,7 +696,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             background: #f5f5f5;
             font-weight: 600;
             color: var(--text-dark);
-            font-size: 0.9em;
+            font-size: 0.8em;
             border-bottom: 2px solid #ddd;
             white-space: nowrap;
             word-wrap: normal;
@@ -962,7 +962,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 overflow-wrap: break-word !important;
             }
             .invoice-items-table th {
-                font-size: 0.9em !important;
+                font-size: 0.8em !important;
                 font-weight: 600 !important;
             }
             /* تحديد عرض الأعمدة بدقة لـ 80mm */
@@ -1117,7 +1117,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                     <th>الصنف</th>
                     <th>ك</th>
                     <th>السعر </th>
-                    <th>الإجمالي</th>
+                    <th>اجمالي</th>
                 </tr>
             </thead>
             <tbody>
@@ -1129,7 +1129,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         <div class="invoice-summary">
             <div class="summary-row">
                 <span>المجموع الفرعي:</span>
-                <span>' . number_format($totalAmount, 2) . ' ' . $currency . '</span>
+                <span>' . number_format($totalAmount, 2) . '</span>
             </div>';
     
     // إضافة المدفوع فقط في حالة الدفع الجزئي
@@ -1137,7 +1137,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         $html .= '
             <div class="summary-row">
                 <span>المدفوع:</span>
-                <span>' . number_format($paidAmount, 2) . ' ' . $currency . '</span>
+                <span>' . number_format($paidAmount, 2) . '</span>
             </div>';
     }
     
@@ -1145,7 +1145,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         $html .= '
             <div class="summary-row">
                 <span>الخصم:</span>
-                <span>- ' . number_format($discount, 2) . ' ' . $currency . '</span>
+                <span>- ' . number_format($discount, 2) . '</span>
             </div>';
     }
     
@@ -1153,7 +1153,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             <hr>
             <div class="summary-row total">
                 <span>الإجمالي:</span>
-                <span>' . number_format($finalAmount, 2) . ' ' . $currency . '</span>
+                <span>' . number_format($finalAmount, 2) . '</span>
             </div>';
     
     // إضافة المتبقي فقط في حالة وجود دين
@@ -1161,7 +1161,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         $html .= '
             <div class="summary-row">
                 <span>المتبقي:</span>
-                <span>' . number_format($remainingAmount, 2) . ' ' . $currency . '</span>
+                <span>' . number_format($remainingAmount, 2) . '</span>
             </div>';
     }
     
