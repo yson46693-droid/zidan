@@ -53,17 +53,39 @@ function loadEnv($filePath) {
     return $env;
 }
 
-// ✅ قراءة بيانات .env من المجلد الرئيسي
-$envPath = __DIR__ . '/../.env';
-$env = loadEnv($envPath);
+// ✅ قراءة بيانات .env
+// ندعم مكانين شائعين:
+// 1) داخل api/ (مذكور في TODO_IMPROVEMENTS.md)
+// 2) في جذر المشروع (بجانب index.html)
+$env = [];
+$envPaths = [
+    __DIR__ . '/.env',
+    __DIR__ . '/../.env',
+];
+foreach ($envPaths as $path) {
+    $loaded = loadEnv($path);
+    if (!empty($loaded)) {
+        $env = $loaded;
+        break;
+    }
+}
+
+// ✅ دعم متغيرات البيئة (تتغلب على .env لو موجودة)
+// مفيد للاستضافات التي تمنع ملفات .env أو تستخدم لوحة تحكم لإضافة ENV vars
+function envOr($key, $fallback = null) {
+    $v = getenv($key);
+    if ($v === false || $v === null || $v === '') return $fallback;
+    return $v;
+}
 
 // ✅ إعدادات قاعدة البيانات - قراءة من .env أو استخدام القيم الافتراضية
-define('DB_HOST', $env['DB_HOST'] ?? 'localhost');
-define('DB_PORT', $env['DB_PORT'] ?? '3306');
-define('DB_NAME', $env['DB_NAME'] ?? '1');
-define('DB_USER', $env['DB_USER'] ?? 'root');
-define('DB_PASS', $env['DB_PASS'] ?? '');
-define('DB_CHARSET', $env['DB_CHARSET'] ?? 'utf8mb4');
+define('DB_HOST', envOr('DB_HOST', $env['DB_HOST'] ?? 'localhost'));
+define('DB_PORT', envOr('DB_PORT', $env['DB_PORT'] ?? '3306'));
+// ملاحظة: DB_NAME الافتراضي "1" كان يسبب فشل اتصال صامت في أغلب البيئات
+define('DB_NAME', envOr('DB_NAME', $env['DB_NAME'] ?? ''));
+define('DB_USER', envOr('DB_USER', $env['DB_USER'] ?? 'root'));
+define('DB_PASS', envOr('DB_PASS', $env['DB_PASS'] ?? ''));
+define('DB_CHARSET', envOr('DB_CHARSET', $env['DB_CHARSET'] ?? 'utf8mb4'));
 
 // متغير عام لتخزين آخر خطأ في قاعدة البيانات
 $lastDbError = null;
@@ -77,11 +99,18 @@ function getDBConnection() {
     
     if ($connection === null) {
         try {
+            // ✅ تحقق سريع من الإعدادات لتشخيص أوضح
+            if (trim((string)DB_NAME) === '') {
+                error_log('❌ إعدادات قاعدة البيانات غير مكتملة: DB_NAME فارغ. يرجى ضبط .env (في api/.env أو ../.env) أو Environment Variables.');
+                return null;
+            }
+
             // إعدادات timeout قبل الاتصال (10 ثواني)
             ini_set('default_socket_timeout', 10);
             
             // استخدام DB_PORT في الاتصال
-            $connection = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
+            $port = is_numeric(DB_PORT) ? (int)DB_PORT : 3306;
+            $connection = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, $port);
             
             // التحقق من نجاح الاتصال
             if (!$connection || $connection->connect_error) {
