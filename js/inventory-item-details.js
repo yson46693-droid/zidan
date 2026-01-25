@@ -26,7 +26,7 @@ async function showInventoryItemDetails(itemType, itemId) {
                                 <div class="preview-item">
                                     <div class="preview-item-icon"><i class="bi ${type ? type.icon : 'bi-circle'}"></i></div>
                                     <div class="preview-item-name">${type ? type.name : (itemDetail.item_type || 'غير محدد')}</div>
-                                    <div class="preview-item-quantity">الكمية: ${itemDetail.quantity || 1}</div>
+                                    <div class="preview-item-quantity">الكمية: ${itemDetail.quantity ?? 0}</div>
                                     ${sellingPrice > 0 ? `<div class="preview-item-price" style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">السعر: ${formatPrice}</div>` : ''}
                                     ${itemDetail.custom_value ? `<div class="preview-item-custom" style="margin-top: 5px; font-size: 0.85em; color: var(--text-light);">${itemDetail.custom_value}</div>` : ''}
                                 </div>

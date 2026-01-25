@@ -646,7 +646,7 @@ function loadSparePartItems(items) {
                     `).join('')}
                     ${isOther && !type ? `<option value="other" selected>${item.item_type || 'أخرى'}</option>` : ''}
                 </select>
-                <input type="number" class="spare-part-item-quantity" value="${item.quantity || 1}" min="1" placeholder="الكمية">
+                <input type="number" class="spare-part-item-quantity" value="${item.quantity ?? 0}" min="0" placeholder="الكمية">
                 ${canSeePurchasePrice ? `<input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}" placeholder="سعر التكلفة">` : ''}
                 <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}" placeholder="سعر البيع">
                 <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'}; grid-column: 1 / -1;">
@@ -719,7 +719,7 @@ function previewSparePart(id) {
                         <div class="preview-item">
                             <div class="preview-item-icon"><i class="bi ${type ? type.icon : 'bi-circle'}"></i></div>
                             <div class="preview-item-name">${type ? type.name : item.item_type}</div>
-                            <div class="preview-item-quantity">الكمية: ${item.quantity || 1}</div>
+                            <div class="preview-item-quantity">الكمية: ${item.quantity ?? 0}</div>
                             ${item.price && item.price > 0 ? `<div class="preview-item-price" style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">السعر: ${formatCurrency(item.price)}</div>` : ''}
                             ${item.custom_value ? `<div class="preview-item-custom">${item.custom_value}</div>` : ''}
                         </div>
@@ -735,7 +735,7 @@ function previewSparePart(id) {
                         const itemName = type ? type.name : (item.item_type || 'غير محدد');
                         return `
                             <div style="padding: 10px; margin-bottom: 10px; background: var(--light-bg); border-radius: 6px;">
-                                <div style="font-weight: bold; margin-bottom: 5px;">${itemName} (الكمية: ${item.quantity || 1})</div>
+                                <div style="font-weight: bold; margin-bottom: 5px;">${itemName} (الكمية: ${item.quantity ?? 0})</div>
                                 <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
                                     ${isOwner ? `<span>سعر التكلفة: <strong>${formatCurrency(item.purchase_price || 0)}</strong></span>` : ''}
                                     <span>سعر البيع: <strong style="color: var(--primary-color);">${formatCurrency(item.selling_price || item.price || 0)}</strong></span>
@@ -2144,7 +2144,8 @@ async function saveSparePart(event) {
     
     document.querySelectorAll('.spare-part-item-row').forEach(row => {
         let itemType = row.querySelector('.spare-part-item-type').value;
-        const quantity = parseInt(row.querySelector('.spare-part-item-quantity').value) || 1;
+        const quantityInput = row.querySelector('.spare-part-item-quantity').value;
+        const quantity = quantityInput === '' ? 1 : (parseInt(quantityInput) ?? 0);
         
         // قراءة سعر التكلفة فقط إذا كان المستخدم لديه صلاحية رؤيته
         const purchasePriceInput = row.querySelector('.spare-part-item-purchase-price');
