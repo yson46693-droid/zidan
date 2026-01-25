@@ -1854,16 +1854,20 @@ async function processPayment() {
                         console.log('✅ [POS] إرسال السيريال مع بيانات البيع:', {
                             item_name: item.name,
                             serial_number: item.serial_number,
-                            spare_part_item_id: item.spare_part_item_id
+                            spare_part_item_id: item.spare_part_item_id,
+                            full_saleItem: saleItem
                         });
                     } else {
                         console.warn('⚠️ [POS] لا يوجد سيريال في عنصر السلة:', {
                             item_name: item.name,
                             item_type: item.type,
-                            spare_part_item_id: item.spare_part_item_id
+                            spare_part_item_id: item.spare_part_item_id,
+                            full_item: item
                         });
                     }
                 }
+                
+                return saleItem;
                 
                 // إرسال phone_data إذا كان المنتج من نوع phone وكان موجوداً
                 if (item.type === 'phone' && item.phone_data) {
@@ -1888,7 +1892,14 @@ async function processPayment() {
         console.log('Cart items with spare_part_item_id:', cart.map(item => ({
             name: item.name,
             type: item.type,
-            spare_part_item_id: item.spare_part_item_id
+            spare_part_item_id: item.spare_part_item_id,
+            serial_number: item.serial_number || 'غير موجود'
+        })));
+        console.log('Sale items with serial_number:', saleData.items.map(item => ({
+            item_name: item.item_name,
+            item_type: item.item_type,
+            serial_number: item.serial_number || 'غير موجود',
+            spare_part_item_id: item.spare_part_item_id || 'غير موجود'
         })));
         
         const response = await API.request('sales.php', 'POST', saleData);
