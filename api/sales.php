@@ -734,6 +734,13 @@ if ($method === 'POST') {
                     // قراءة السيريال إذا كان موجوداً
                     $serialNumber = trim($item['serial_number'] ?? '');
                     
+                    // تسجيل للتشخيص
+                    if ($serialNumber) {
+                        error_log('🔍 [Sales] قراءة السيريال من البيانات: ' . $serialNumber . ' للقطعة: ' . ($item['item_name'] ?? 'غير محدد'));
+                    } else {
+                        error_log('⚠️ [Sales] لا يوجد سيريال في البيانات للقطعة: ' . ($item['item_name'] ?? 'غير محدد'));
+                    }
+                    
                     // جلب بيانات spare_part_item (item_type و quantity)
                     if ($sparePartItemId) {
                         $sparePartItemData = dbSelectOne(
@@ -771,6 +778,11 @@ if ($method === 'POST') {
             // التحقق من وجود عمود serial_number
             $hasSerialNumber = dbColumnExists('sale_items', 'serial_number');
             
+            // تسجيل للتشخيص
+            if ($itemType === 'spare_part' && $serialNumber) {
+                error_log('🔍 [Sales] حفظ السيريال: ' . $serialNumber . ' - hasSerialNumber: ' . ($hasSerialNumber ? 'نعم' : 'لا') . ' - للقطعة: ' . $itemName);
+            }
+            
             if ($hasNotesColumn && $notesData) {
                 // إضافة عنصر البيع مع بيانات إضافية في حقل notes
                 if ($hasSerialNumber && $serialNumber) {
@@ -779,6 +791,11 @@ if ($method === 'POST') {
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
                         [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData, $serialNumber]
                     );
+                    if ($itemResult) {
+                        error_log('✅ [Sales] تم حفظ السيريال بنجاح في قاعدة البيانات: ' . $serialNumber);
+                    } else {
+                        error_log('❌ [Sales] فشل حفظ السيريال في قاعدة البيانات');
+                    }
                 } else {
                     $itemResult = dbExecute(
                         "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, created_at) 
@@ -794,6 +811,11 @@ if ($method === 'POST') {
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
                         [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $serialNumber]
                     );
+                    if ($itemResult) {
+                        error_log('✅ [Sales] تم حفظ السيريال بنجاح في قاعدة البيانات (بدون notes): ' . $serialNumber);
+                    } else {
+                        error_log('❌ [Sales] فشل حفظ السيريال في قاعدة البيانات (بدون notes)');
+                    }
                 } else {
                     $itemResult = dbExecute(
                         "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, created_at) 

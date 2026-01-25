@@ -1812,6 +1812,17 @@ async function processPayment() {
                     // إرسال السيريال إذا كان موجوداً (لقطع الغيار من نوع "بوردة")
                     if (item.serial_number) {
                         saleItem.serial_number = item.serial_number;
+                        console.log('✅ [POS] إرسال السيريال مع بيانات البيع:', {
+                            item_name: item.name,
+                            serial_number: item.serial_number,
+                            spare_part_item_id: item.spare_part_item_id
+                        });
+                    } else {
+                        console.warn('⚠️ [POS] لا يوجد سيريال في عنصر السلة:', {
+                            item_name: item.name,
+                            item_type: item.type,
+                            spare_part_item_id: item.spare_part_item_id
+                        });
                     }
                 }
                 
@@ -2324,9 +2335,20 @@ async function showInvoice(saleData) {
                             const totalPrice = parseFloat(item.total_price || 0);
                             const serialNumber = item.serial_number || '';
                             
+                            // تسجيل للتشخيص
+                            if ((item.item_type === 'spare_part' || item.type === 'spare_part') && !serialNumber) {
+                                console.warn('⚠️ [Invoice] قطعة غيار بدون سيريال:', {
+                                    item_name: itemName,
+                                    item_type: item.item_type || item.type,
+                                    has_serial: !!item.serial_number,
+                                    full_item: item
+                                });
+                            }
+                            
                             // إضافة السيريال إلى اسم المنتج إذا كان موجوداً
                             if (serialNumber) {
                                 itemName += ` <span style="color: #666; font-size: 0.9em;">(SN: ${serialNumber})</span>`;
+                                console.log('✅ [Invoice] عرض السيريال في الفاتورة:', serialNumber);
                             }
                             
                             if (!item.item_name && !item.name) {

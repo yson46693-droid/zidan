@@ -316,7 +316,30 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             $quantity = intval($item['quantity'] ?? 0);
             $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 0);
             $totalPrice = number_format(floatval($item['total_price'] ?? 0), 0);
-            $serialNumber = htmlspecialchars($item['serial_number'] ?? '');
+            
+            // قراءة السيريال - التحقق من وجوده في البيانات
+            $serialNumber = '';
+            if (isset($item['serial_number']) && !empty($item['serial_number'])) {
+                $serialNumber = htmlspecialchars(trim($item['serial_number']));
+            }
+            
+            // تسجيل للتشخيص (فقط لقطع الغيار من نوع "بوردة")
+            if (($item['item_type'] ?? '') === 'spare_part') {
+                $notesData = null;
+                if (!empty($item['notes'])) {
+                    $notesData = json_decode($item['notes'], true);
+                }
+                $itemTypeFromNotes = $notesData['item_type'] ?? '';
+                if ($itemTypeFromNotes === 'motherboard') {
+                    error_log('🔍 [Invoice] قطعة غيار من نوع بوردة - serial_number: ' . ($serialNumber ?: 'غير موجود'));
+                    error_log('🔍 [Invoice] بيانات العنصر: ' . json_encode([
+                        'item_name' => $itemName,
+                        'item_type' => $item['item_type'] ?? '',
+                        'serial_number' => $serialNumber,
+                        'has_serial_in_db' => isset($item['serial_number'])
+                    ], JSON_UNESCAPED_UNICODE));
+                }
+            }
             
             // إضافة السيريال إلى اسم المنتج إذا كان موجوداً
             if ($serialNumber) {
