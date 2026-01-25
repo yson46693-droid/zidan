@@ -733,26 +733,33 @@
         });
     </script>
     
-    <!-- حماية الصفحة - فحص تسجيل الدخول فوراً -->
+    <!-- حماية الصفحة - فحص تسجيل الدخول بعد تحميل الملفات -->
     <script>
+        // الانتظار حتى يتم تحميل جميع الملفات قبل فحص المصادقة
         (async function protectPage() {
             try {
                 // الانتظار حتى يتم تحميل API و auth
-                // زيادة وقت الانتظار لأن الملفات محملة بـ defer
+                // زيادة وقت الانتظار لضمان تحميل الملفات
                 let retries = 0;
-                const maxRetries = 50; // زيادة عدد المحاولات إلى 50 (5 ثوان)
+                const maxRetries = 100; // زيادة عدد المحاولات إلى 100 (10 ثوان)
                 
                 while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     retries++;
+                    if (retries % 10 === 0) {
+                        console.log(`⏳ انتظار تحميل ملفات المصادقة... (${retries}/${maxRetries})`);
+                    }
                 }
                 
                 if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
                     console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
                     console.error('API:', typeof API, 'checkLogin:', typeof checkLogin);
+                    console.error('المحاولات:', retries);
                     window.location.href = 'index.html';
                     return;
                 }
+                
+                console.log('✅ تم تحميل ملفات المصادقة بنجاح');
                 
                 // فحص تسجيل الدخول
                 const user = await checkLogin();
