@@ -769,6 +769,17 @@ function openSparePartItemsModal(product) {
         const itemPrice = parseFloat(item.selling_price || item.price || 0);
         const serialNumber = item.serial_number || '';
         
+        // تسجيل للتشخيص لقطع الغيار من نوع "بوردة"
+        if (item.item_type === 'motherboard') {
+            console.log('🔍 [POS] قطعة غيار من نوع بوردة:', {
+                item_id: item.id,
+                item_type: item.item_type,
+                serial_number: serialNumber,
+                has_serial: !!serialNumber,
+                full_item: item
+            });
+        }
+        
         return `
             <div class="spare-part-item-option" data-item-id="${item.id}" data-item-type="${item.item_type}" data-item-price="${itemPrice}" data-item-quantity="${itemQuantity}" data-serial-number="${serialNumber}">
                 <div class="spare-part-item-info">
@@ -899,6 +910,15 @@ function addSparePartItemToCart(index) {
     const quantityInput = document.getElementById(`sparePartItemQty_${index}`);
     const quantity = parseInt(quantityInput.value) || 1;
     
+    // تسجيل للتشخيص
+    console.log('🔍 [POS] بيانات القطعة:', {
+        itemId,
+        itemType,
+        serialNumber,
+        hasSerialNumber: !!serialNumber,
+        serialNumberLength: serialNumber.length
+    });
+    
     // التحقق من وجود itemId (مطلوب)
     if (!itemId || itemId.trim() === '') {
         console.error('itemId is missing or empty', { itemOption, index });
@@ -996,6 +1016,23 @@ function addSparePartItemToCart(index) {
     // إضافة السيريال إذا كان موجوداً (لقطع الغيار من نوع "بوردة")
     if (serialNumber && itemType === 'motherboard') {
         cartItem.serial_number = serialNumber;
+        console.log('✅ [POS] تم إضافة السيريال إلى cartItem:', {
+            serial_number: serialNumber,
+            itemType: itemType,
+            itemName: itemName
+        });
+    } else if (serialNumber && itemType !== 'motherboard') {
+        console.warn('⚠️ [POS] السيريال موجود لكن النوع ليس motherboard:', {
+            serial_number: serialNumber,
+            itemType: itemType,
+            itemName: itemName
+        });
+    } else if (!serialNumber && itemType === 'motherboard') {
+        console.warn('⚠️ [POS] النوع هو motherboard لكن لا يوجد سيريال:', {
+            itemType: itemType,
+            itemName: itemName,
+            itemOption: itemOption
+        });
     }
     
     // التحقق النهائي من وجود spare_part_item_id
@@ -1010,7 +1047,9 @@ function addSparePartItemToCart(index) {
         itemType: itemType,
         itemId: itemId,
         quantity: quantity,
-        spare_part_item_id: cartItem.spare_part_item_id
+        spare_part_item_id: cartItem.spare_part_item_id,
+        serial_number: cartItem.serial_number || 'غير موجود',
+        hasSerialNumber: !!cartItem.serial_number
     });
     
     cart.push(cartItem);
