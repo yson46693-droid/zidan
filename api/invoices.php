@@ -299,6 +299,20 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 if (!empty($saleItems) && is_array($saleItems) && count($saleItems) > 0) {
                     $items = $saleItems;
                     error_log('✅ [Invoice] تم جلب ' . count($items) . ' عنصر من قاعدة البيانات');
+                    
+                    // تسجيل للتشخيص لقطع الغيار
+                    foreach ($items as $item) {
+                        if (($item['item_type'] ?? '') === 'spare_part') {
+                            error_log('🔍 [Invoice] قراءة قطعة غيار من DB: ' . json_encode([
+                                'item_id' => $item['id'] ?? '',
+                                'item_name' => $item['item_name'] ?? '',
+                                'has_serial_number' => isset($item['serial_number']),
+                                'serial_number' => $item['serial_number'] ?? 'NULL',
+                                'serial_number_not_empty' => !empty($item['serial_number'] ?? ''),
+                                'all_keys' => array_keys($item)
+                            ], JSON_UNESCAPED_UNICODE));
+                        }
+                    }
                 }
             } catch (Exception $e) {
                 error_log('❌ [Invoice] خطأ في جلب items من قاعدة البيانات: ' . $e->getMessage());

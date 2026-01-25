@@ -316,6 +316,17 @@ if ($method === 'GET') {
         // معالجة عناصر البيع وإضافة بيانات الهاتف إذا كانت موجودة
         $processedItems = [];
         foreach ($items as $item) {
+            // تسجيل للتشخيص لقطع الغيار
+            if ($item['item_type'] === 'spare_part') {
+                error_log('🔍 [Sales GET] قراءة قطعة غيار من DB: ' . json_encode([
+                    'item_id' => $item['id'] ?? '',
+                    'item_name' => $item['item_name'] ?? '',
+                    'has_serial_number' => isset($item['serial_number']),
+                    'serial_number' => $item['serial_number'] ?? 'NULL',
+                    'all_keys' => array_keys($item)
+                ], JSON_UNESCAPED_UNICODE));
+            }
+            
             // إذا كان العنصر هاتف وله بيانات في notes (JSON)
             if ($item['item_type'] === 'phone' && !empty($item['notes'])) {
                 $notesData = json_decode($item['notes'], true);
@@ -734,12 +745,17 @@ if ($method === 'POST') {
                     // قراءة السيريال إذا كان موجوداً
                     $serialNumber = trim($item['serial_number'] ?? '');
                     
-                    // تسجيل للتشخيص
-                    if ($serialNumber) {
-                        error_log('🔍 [Sales] قراءة السيريال من البيانات: ' . $serialNumber . ' للقطعة: ' . ($item['item_name'] ?? 'غير محدد'));
-                    } else {
-                        error_log('⚠️ [Sales] لا يوجد سيريال في البيانات للقطعة: ' . ($item['item_name'] ?? 'غير محدد'));
-                    }
+                    // تسجيل للتشخيص - تفصيلي
+                    error_log('🔍 [Sales] قراءة بيانات القطعة: ' . json_encode([
+                        'item_name' => $item['item_name'] ?? 'غير محدد',
+                        'item_type' => $itemType,
+                        'spare_part_item_id' => $sparePartItemId,
+                        'serial_number_raw' => $item['serial_number'] ?? 'NULL',
+                        'serial_number_trimmed' => $serialNumber,
+                        'has_serial_number' => isset($item['serial_number']),
+                        'serial_number_not_empty' => !empty($serialNumber),
+                        'all_item_keys' => array_keys($item)
+                    ], JSON_UNESCAPED_UNICODE));
                     
                     // جلب بيانات spare_part_item (item_type و quantity)
                     if ($sparePartItemId) {
@@ -778,14 +794,23 @@ if ($method === 'POST') {
             // التحقق من وجود عمود serial_number
             $hasSerialNumber = dbColumnExists('sale_items', 'serial_number');
             
-            // تسجيل للتشخيص
-            if ($itemType === 'spare_part' && $serialNumber) {
-                error_log('🔍 [Sales] حفظ السيريال: ' . $serialNumber . ' - hasSerialNumber: ' . ($hasSerialNumber ? 'نعم' : 'لا') . ' - للقطعة: ' . $itemName);
+            // تسجيل للتشخيص - تفصيلي
+            if ($itemType === 'spare_part') {
+                error_log('🔍 [Sales] تحضير حفظ القطعة: ' . json_encode([
+                    'item_name' => $itemName,
+                    'item_type' => $itemType,
+                    'serial_number' => $serialNumber,
+                    'has_serial_number' => !empty($serialNumber),
+                    'hasSerialNumber_column' => $hasSerialNumber,
+                    'hasNotesColumn' => $hasNotesColumn,
+                    'has_notesData' => !empty($notesData)
+                ], JSON_UNESCAPED_UNICODE));
             }
             
             if ($hasNotesColumn && $notesData) {
                 // إضافة عنصر البيع مع بيانات إضافية في حقل notes
                 if ($hasSerialNumber && $serialNumber) {
+                    error_log('✅ [Sales] محاولة حفظ السيريال مع notes: ' . $serialNumber);
                     $itemResult = dbExecute(
                         "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, serial_number, created_at) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
@@ -793,10 +818,17 @@ if ($method === 'POST') {
                     );
                     if ($itemResult) {
                         error_log('✅ [Sales] تم حفظ السيريال بنجاح في قاعدة البيانات: ' . $serialNumber);
+                        // التحقق من الحفظ
+                        $savedItem = dbSelectOne("SELECT serial_number FROM sale_items WHERE id = ?", [$itemId]);
+                        if ($savedItem) {
+                            error_log('✅ [Sales] التحقق من الحفظ - serial_number في DB: ' . ($savedItem['serial_number'] ?? 'NULL'));
+                        }
                     } else {
-                        error_log('❌ [Sales] فشل حفظ السيريال في قاعدة البيانات');
+                        global $lastDbError;
+                        error_log('❌ [Sales] فشل حفظ السيريال في قاعدة البيانات. الخطأ: ' . ($lastDbError ?? 'غير معروف'));
                     }
                 } else {
+                    error_log('⚠️ [Sales] لا يتم حفظ السيريال - hasSerialNumber: ' . ($hasSerialNumber ? 'نعم' : 'لا') . ' - serialNumber: ' . ($serialNumber ?: 'فارغ'));
                     $itemResult = dbExecute(
                         "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, created_at) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
@@ -806,6 +838,7 @@ if ($method === 'POST') {
             } else {
                 // إضافة عنصر البيع بدون notes
                 if ($hasSerialNumber && $serialNumber) {
+                    error_log('✅ [Sales] محاولة حفظ السيريال بدون notes: ' . $serialNumber);
                     $itemResult = dbExecute(
                         "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, serial_number, created_at) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
@@ -813,10 +846,17 @@ if ($method === 'POST') {
                     );
                     if ($itemResult) {
                         error_log('✅ [Sales] تم حفظ السيريال بنجاح في قاعدة البيانات (بدون notes): ' . $serialNumber);
+                        // التحقق من الحفظ
+                        $savedItem = dbSelectOne("SELECT serial_number FROM sale_items WHERE id = ?", [$itemId]);
+                        if ($savedItem) {
+                            error_log('✅ [Sales] التحقق من الحفظ - serial_number في DB: ' . ($savedItem['serial_number'] ?? 'NULL'));
+                        }
                     } else {
-                        error_log('❌ [Sales] فشل حفظ السيريال في قاعدة البيانات (بدون notes)');
+                        global $lastDbError;
+                        error_log('❌ [Sales] فشل حفظ السيريال في قاعدة البيانات (بدون notes). الخطأ: ' . ($lastDbError ?? 'غير معروف'));
                     }
                 } else {
+                    error_log('⚠️ [Sales] لا يتم حفظ السيريال (بدون notes) - hasSerialNumber: ' . ($hasSerialNumber ? 'نعم' : 'لا') . ' - serialNumber: ' . ($serialNumber ?: 'فارغ'));
                     $itemResult = dbExecute(
                         "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, created_at) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
