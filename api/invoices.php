@@ -322,7 +322,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     
     // ✅ التحقق مرة أخرى بعد محاولة الجلب
     if (empty($items) || !is_array($items) || count($items) === 0) {
-        $itemsHtml = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #f44336;">⚠️ لا توجد منتجات في الفاتورة</td></tr>';
+        $itemsHtml = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #f44336;">⚠️ لا توجد منتجات في الفاتورة</td></tr>';
         error_log('❌ [Invoice] لا توجد عناصر للعرض بعد محاولة الجلب!');
     } else {
         foreach ($items as $index => $item) {
