@@ -355,12 +355,24 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 }
             }
             
-            // إضافة السيريال إلى اسم المنتج إذا كان موجوداً
+            // عرض السيريال في سطر منفصل إذا كان موجوداً
             if ($serialNumber) {
-                $itemName .= ' <span style="color: #666; font-size: 0.9em;">(SN: ' . $serialNumber . ')</span>';
-            }
-            
-            $itemsHtml .= '
+                $itemsHtml .= '
+                            <tr>
+                                <td>' . ($index + 1) . '</td>
+                                <td>' . $itemName . '</td>
+                                <td>' . $quantity . '</td>
+                                <td>' . $unitPrice . '</td>
+                                <td>' . $totalPrice . '</td>
+                            </tr>
+                            <tr style="background-color: #f9f9f9;">
+                                <td></td>
+                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.9em;">
+                                    <strong>السيريال:</strong> ' . $serialNumber . '
+                                </td>
+                            </tr>';
+            } else {
+                $itemsHtml .= '
                             <tr>
                                 <td>' . ($index + 1) . '</td>
                                 <td>' . $itemName . '</td>
@@ -368,6 +380,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                                 <td>' . $unitPrice . '</td>
                                 <td>' . $totalPrice . '</td>
                             </tr>';
+            }
         }
     }
     

@@ -2395,17 +2395,30 @@ async function showInvoice(saleData) {
                                 });
                             }
                             
-                            // إضافة السيريال إلى اسم المنتج إذا كان موجوداً
-                            if (serialNumber) {
-                                itemName += ` <span style="color: #666; font-size: 0.9em;">(SN: ${serialNumber})</span>`;
-                                console.log('✅ [Invoice] عرض السيريال في الفاتورة:', serialNumber);
-                            }
-                            
                             if (!item.item_name && !item.name) {
                                 console.warn('⚠️ [Invoice] اسم المنتج غير موجود في العنصر:', item);
                             }
                             
-                            return `
+                            // عرض السيريال في سطر منفصل إذا كان موجوداً
+                            if (serialNumber) {
+                                console.log('✅ [Invoice] عرض السيريال في الفاتورة:', serialNumber);
+                                return `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${itemName}</td>
+                                <td>${quantity}</td>
+                                <td>${formatPrice(unitPrice)} ${currency}</td>
+                                <td>${formatPrice(totalPrice)} ${currency}</td>
+                            </tr>
+                            <tr style="background-color: #f9f9f9;">
+                                <td></td>
+                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.9em;">
+                                    <strong>السيريال:</strong> ${serialNumber}
+                                </td>
+                            </tr>
+                        `;
+                            } else {
+                                return `
                             <tr>
                                 <td>${index + 1}</td>
                                 <td>${itemName}</td>
@@ -2414,6 +2427,7 @@ async function showInvoice(saleData) {
                                 <td>${formatPrice(totalPrice)} ${currency}</td>
                             </tr>
                         `;
+                            }
                         }).join('');
                     })()}
                 </tbody>
