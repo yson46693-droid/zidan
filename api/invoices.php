@@ -1177,6 +1177,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 ' . $itemsHtml . '
             </tbody>
         </table>
+    
         
         <!-- Summary -->
         <div class="invoice-summary">
