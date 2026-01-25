@@ -725,7 +725,7 @@ if ($method === 'POST') {
             $sparePartItemId = null;
             $sparePartItemType = null;
             $sparePartItemData = null; // لحفظ البيانات للاستخدام لاحقاً
-            $serialNumber = null; // لحفظ السيريال لقطع الغيار من نوع "بوردة"
+            $serialNumber = ''; // لحفظ السيريال لقطع الغيار من نوع "بوردة"
             if ($itemType === 'spare_part') {
                 $sparePartItemIdRaw = $item['spare_part_item_id'] ?? null;
                 if (isset($sparePartItemIdRaw) && $sparePartItemIdRaw !== null && $sparePartItemIdRaw !== '') {
@@ -768,31 +768,39 @@ if ($method === 'POST') {
                 }
             }
             
+            // التحقق من وجود عمود serial_number
+            $hasSerialNumber = dbColumnExists('sale_items', 'serial_number');
+            
             if ($hasNotesColumn && $notesData) {
                 // إضافة عنصر البيع مع بيانات إضافية في حقل notes
-                $itemResult = dbExecute(
-                    // التحقق من وجود عمود serial_number
-                    $hasSerialNumber = dbColumnExists('sale_items', 'serial_number');
-                    if ($hasSerialNumber && $serialNumber) {
-                        dbExecute(
-                            "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, serial_number, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
-                            [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData, $serialNumber]
-                        );
-                    } else {
-                        dbExecute(
-                            "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
-                            [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData]
-                        );
-                    }
+                if ($hasSerialNumber && $serialNumber) {
+                    $itemResult = dbExecute(
+                        "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, serial_number, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                        [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData, $serialNumber]
+                    );
+                } else {
+                    $itemResult = dbExecute(
+                        "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                        [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData]
+                    );
+                }
             } else {
                 // إضافة عنصر البيع بدون notes
-                $itemResult = dbExecute(
-                    "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, created_at) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
-                    [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice]
-                );
+                if ($hasSerialNumber && $serialNumber) {
+                    $itemResult = dbExecute(
+                        "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, serial_number, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                        [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $serialNumber]
+                    );
+                } else {
+                    $itemResult = dbExecute(
+                        "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                        [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice]
+                    );
+                }
             }
             
             if ($itemResult === false) {
