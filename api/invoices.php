@@ -359,7 +359,6 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             if ($serialNumber) {
                 $itemsHtml .= '
                             <tr>
-                                <td>' . ($index + 1) . '</td>
                                 <td>' . $itemName . '</td>
                                 <td>' . $quantity . '</td>
                                 <td>' . $unitPrice . '</td>
@@ -374,7 +373,6 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             } else {
                 $itemsHtml .= '
                             <tr>
-                                <td>' . ($index + 1) . '</td>
                                 <td>' . $itemName . '</td>
                                 <td>' . $quantity . '</td>
                                 <td>' . $unitPrice . '</td>
@@ -1166,10 +1164,9 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         ' . $phoneDataSection . '
         
         <!-- Items Table -->
-        <table class="invoice-items-table">
+        <table class="invoice-items-table" style="font-size: 0.60em;">
             <thead>
                 <tr>
-                    <th>#</th>
                     <th>الصنف</th>
                     <th>ك</th>
                     <th>السعر </th>
