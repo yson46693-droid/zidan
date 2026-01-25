@@ -151,12 +151,12 @@ async function showInventoryItemDetails(itemType, itemId) {
         
         document.body.appendChild(detailsModal);
         
-        // إغلاق modal عند النقر خارجها
-        detailsModal.addEventListener('click', (e) => {
-            if (e.target === detailsModal) {
-                closeInventoryItemDetailsModal();
-            }
-        });
+        // إغلاق modal عند النقر خارجها - معطل حسب الطلب
+        // detailsModal.addEventListener('click', (e) => {
+        //     if (e.target === detailsModal) {
+        //         closeInventoryItemDetailsModal();
+        //     }
+        // });
         
     } catch (error) {
         console.error('خطأ في عرض تفاصيل المنتج:', error);

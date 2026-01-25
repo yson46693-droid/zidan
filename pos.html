@@ -485,10 +485,11 @@
     </script>
     <!-- تحميل ملف الإصدارات أولاً -->
     <script src="js/version.js"></script>
-    <script src="js/api.js" defer></script>
-    <script src="js/utils.js" defer></script>
-    <script src="js/auth.js" defer></script>
-    <script src="js/permissions.js" defer></script>
+    <!-- تحميل ملفات المصادقة أولاً بدون defer لضمان تحميلها قبل protectPage -->
+    <script src="js/api.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/permissions.js"></script>
     <script src="js/indexeddb-cache.js" defer></script>
     <script src="js/barcode.js" defer></script>
     <script src="js/pos.js" defer></script>
@@ -737,14 +738,18 @@
         (async function protectPage() {
             try {
                 // الانتظار حتى يتم تحميل API و auth
+                // زيادة وقت الانتظار لأن الملفات محملة بـ defer
                 let retries = 0;
-                while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < 20) {
+                const maxRetries = 50; // زيادة عدد المحاولات إلى 50 (5 ثوان)
+                
+                while ((typeof API === 'undefined' || typeof checkLogin !== 'function') && retries < maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     retries++;
                 }
                 
                 if (typeof API === 'undefined' || typeof checkLogin !== 'function') {
                     console.error('❌ فشل تحميل ملفات المصادقة - إعادة التوجيه...');
+                    console.error('API:', typeof API, 'checkLogin:', typeof checkLogin);
                     window.location.href = 'index.html';
                     return;
                 }

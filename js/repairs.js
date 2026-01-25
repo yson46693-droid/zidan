@@ -2523,11 +2523,12 @@ function showRepairDetails(repairId) {
         document.body.appendChild(detailsModal);
         
         // إغلاق modal عند النقر خارجها
-        detailsModal.addEventListener('click', (e) => {
-            if (e.target === detailsModal) {
-                closeRepairDetailsModal();
-            }
-        });
+        // تعطيل إغلاق المودال عند النقر خارجها - معطل حسب الطلب
+        // detailsModal.addEventListener('click', (e) => {
+        //     if (e.target === detailsModal) {
+        //         closeRepairDetailsModal();
+        //     }
+        // });
         
     } catch (error) {
         console.error('خطأ في عرض تفاصيل العملية:', error);
@@ -2597,11 +2598,12 @@ async function showRepairImage(repairId) {
         document.body.appendChild(imageModal);
         
         // إغلاق modal عند النقر خارجها
-        imageModal.addEventListener('click', (e) => {
-            if (e.target === imageModal) {
-                closeRepairImageModal();
-            }
-        });
+        // تعطيل إغلاق المودال عند النقر خارجها - معطل حسب الطلب
+        // imageModal.addEventListener('click', (e) => {
+        //     if (e.target === imageModal) {
+        //         closeRepairImageModal();
+        //     }
+        // });
         
     } catch (error) {
         console.error('خطأ في عرض صورة الجهاز:', error);
@@ -4285,12 +4287,12 @@ function showRepairRatingModal(customerId, repairId, repairNumber) {
         
         document.body.appendChild(modal);
         
-        // إغلاق عند الضغط خارج الـ modal
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
+        // إغلاق عند الضغط خارج الـ modal - معطل حسب الطلب
+        // modal.addEventListener('click', function(e) {
+        //     if (e.target === modal) {
+        //         modal.remove();
+        //     }
+        // });
     } catch (error) {
         console.error('خطأ في عرض نافذة التقييم:', error);
     }
@@ -6501,11 +6503,12 @@ function showQRCodeModal(qrCodeImage, labelImage, repair) {
     document.body.appendChild(qrCodeModal);
     
     // إضافة تأثير click خارج النموذج للإغلاق
-    qrCodeModal.addEventListener('click', (e) => {
-        if (e.target === qrCodeModal) {
-            closeQRCodeModal();
-        }
-    });
+    // تعطيل إغلاق المودال عند النقر خارجها - معطل حسب الطلب
+    // qrCodeModal.addEventListener('click', (e) => {
+    //     if (e.target === qrCodeModal) {
+    //         closeQRCodeModal();
+    //     }
+    // });
 }
 
 // ✅ دالة لإغلاق QR Code Modal

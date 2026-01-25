@@ -4435,9 +4435,10 @@ function showPrintLabelOptions() {
         };
         
         modal.querySelector('.btn-close').onclick = closeModal;
-        modal.onclick = (e) => {
-            if (e.target === modal) closeModal();
-        };
+        // تعطيل إغلاق المودال عند النقر خارجها - معطل حسب الطلب
+        // modal.onclick = (e) => {
+        //     if (e.target === modal) closeModal();
+        // };
         
         // معالجة الاختيارات
         modal.querySelector('#full-label-btn').onclick = () => {

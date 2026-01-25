@@ -3058,7 +3058,7 @@ function showDeleteConfirmationModal(message) {
         modal.id = 'deleteConfirmationModal';
         
         modal.innerHTML = `
-            <div class="modal-overlay" onclick="closeDeleteConfirmationModal(null)"></div>
+            <div class="modal-overlay"></div>
             <div class="modal-content delete-confirmation-modal" style="max-width: 520px; animation: slideDown 0.3s ease-out;">
                 <div class="delete-modal-header">
                     <div class="delete-icon-wrapper">

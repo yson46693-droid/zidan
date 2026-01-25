@@ -106,12 +106,12 @@ async function openSparePartRequestModal(partId, partName) {
         
         document.body.appendChild(modal);
         
-        // إغلاق عند النقر خارج الـ modal
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeSparePartRequestModal();
-            }
-        });
+        // إغلاق عند النقر خارج الـ modal - معطل حسب الطلب
+        // modal.addEventListener('click', (e) => {
+        //     if (e.target === modal) {
+        //         closeSparePartRequestModal();
+        //     }
+        // });
         
         // تحديث العدد الإجمالي
         updateSparePartRequestTotal();

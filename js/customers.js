@@ -1871,12 +1871,12 @@ async function viewCustomerProfile(customerId) {
         modal.appendChild(fragment);
         document.body.appendChild(modal);
         
-        // إغلاق عند الضغط خارج الـ modal
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
+        // إغلاق عند الضغط خارج الـ modal - معطل حسب الطلب
+        // modal.addEventListener('click', function(e) {
+        //     if (e.target === modal) {
+        //         modal.remove();
+        //     }
+        // });
         
         // Error handling: إزالة event listener عند إغلاق الـ modal
         const closeButtons = modal.querySelectorAll('.btn-close, [onclick*="remove"]');
@@ -2529,12 +2529,12 @@ function showInvoiceModal(saleData) {
         
         document.body.appendChild(modal);
         
-        // إغلاق عند الضغط خارج الـ modal
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
+        // إغلاق عند الضغط خارج الـ modal - معطل حسب الطلب
+        // modal.addEventListener('click', function(e) {
+        //     if (e.target === modal) {
+        //         modal.remove();
+        //     }
+        // });
     }
 }
 
@@ -2831,12 +2831,12 @@ function showPrintAccountStatementModal(customerId, customerName) {
         }
     }, 100);
     
-    // إغلاق عند الضغط خارج الـ modal
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
+    // إغلاق عند الضغط خارج الـ modal - معطل حسب الطلب
+    // modal.addEventListener('click', function(e) {
+    //     if (e.target === modal) {
+    //         modal.remove();
+    //     }
+    // });
 }
 
 // التحقق من صحة التواريخ في نموذج كشف الحساب
@@ -3461,7 +3461,7 @@ function showEditRatingModal(customerId, currentRating) {
     modal.setAttribute('data-customer-id', String(customerId));
     
     modal.innerHTML = `
-        <div class="modal-overlay" onclick="this.closest('.modal').remove()"></div>
+        <div class="modal-overlay"></div>
         <div class="modal-content rating-edit-modal" style="max-width: 520px; animation: slideDown 0.3s ease-out;">
             <div class="rating-modal-header">
                 <div class="rating-icon-wrapper">
@@ -3522,12 +3522,12 @@ function showEditRatingModal(customerId, currentRating) {
     
     document.body.appendChild(modal);
     
-    // إغلاق عند الضغط خارج الـ modal
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
+    // إغلاق عند الضغط خارج الـ modal - معطل حسب الطلب
+    // modal.addEventListener('click', function(e) {
+    //     if (e.target === modal) {
+    //         modal.remove();
+    //     }
+    // });
 }
 
 // دالة لعرض modal تحصيل الدين
@@ -3619,12 +3619,12 @@ function showCollectDebtModal(customerId, totalDebts) {
         }
     }, 100);
     
-    // إغلاق عند الضغط خارج الـ modal
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
+    // إغلاق عند الضغط خارج الـ modal - معطل حسب الطلب
+    // modal.addEventListener('click', function(e) {
+    //     if (e.target === modal) {
+    //         modal.remove();
+    //     }
+    // });
 }
 
 // دالة للتحقق من صحة المبلغ
@@ -5611,14 +5611,14 @@ function showPhoneActionModal(phoneNumber) {
             modal.classList.add('show');
         });
         
-        // إضافة event listener لإغلاق الـ modal عند النقر خارجها
-        const closeOnOutsideClick = function(e) {
-            if (e.target === modal) {
-                closePhoneActionModal();
-                modal.removeEventListener('click', closeOnOutsideClick);
-            }
-        };
-        modal.addEventListener('click', closeOnOutsideClick);
+        // إضافة event listener لإغلاق الـ modal عند النقر خارجها - معطل حسب الطلب
+        // const closeOnOutsideClick = function(e) {
+        //     if (e.target === modal) {
+        //         closePhoneActionModal();
+        //         modal.removeEventListener('click', closeOnOutsideClick);
+        //     }
+        // };
+        // modal.addEventListener('click', closeOnOutsideClick);
         
         // إضافة event listener لإغلاق الـ modal عند الضغط على ESC
         const closeOnEscape = function(e) {

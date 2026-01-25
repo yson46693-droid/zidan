@@ -5833,16 +5833,16 @@
             }
         }
         
-        // ✅ إضافة event listener لإغلاق modal عند النقر خارج المحتوى
-        document.addEventListener('click', function(e) {
-            const modal = document.getElementById('technicianRatingsModal');
-            if (modal && modal.style.display === 'flex') {
-                const modalContent = modal.querySelector('.modal-content');
-                if (modalContent && !modalContent.contains(e.target) && e.target === modal) {
-                    closeTechnicianRatingsModal();
-                }
-            }
-        });
+        // ✅ إضافة event listener لإغلاق modal عند النقر خارج المحتوى - معطل حسب الطلب
+        // document.addEventListener('click', function(e) {
+        //     const modal = document.getElementById('technicianRatingsModal');
+        //     if (modal && modal.style.display === 'flex') {
+        //         const modalContent = modal.querySelector('.modal-content');
+        //         if (modalContent && !modalContent.contains(e.target) && e.target === modal) {
+        //             closeTechnicianRatingsModal();
+        //         }
+        //     }
+        // });
         
         // ✅ إضافة event listener لإغلاق modal عند الضغط على ESC
         document.addEventListener('keydown', function(e) {
@@ -6086,11 +6086,12 @@
         document.addEventListener('DOMContentLoaded', function() {
             const versionModal = document.getElementById('versionModal');
             if (versionModal) {
-                versionModal.addEventListener('click', function(e) {
-                    if (e.target === versionModal) {
-                        closeVersionModal();
-                    }
-                });
+                // تعطيل إغلاق المودال عند النقر خارجها - معطل حسب الطلب
+                // versionModal.addEventListener('click', function(e) {
+                //     if (e.target === versionModal) {
+                //         closeVersionModal();
+                //     }
+                // });
             }
             
             // إغلاق modal عند الضغط على Escape

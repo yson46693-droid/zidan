@@ -406,16 +406,17 @@ function exportToJSON(data, filename) {
     URL.revokeObjectURL(url);
 }
 
-// إغلاق النافذة المنبثقة عند النقر خارجها
+// إغلاق النافذة المنبثقة عند النقر خارجها - معطل حسب الطلب
 function setupModalCloseOnClickOutside() {
-    document.addEventListener('click', function(event) {
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-    });
+    // تم تعطيل إغلاق المودالات عند النقر خارجها
+    // document.addEventListener('click', function(event) {
+    //     const modals = document.querySelectorAll('.modal');
+    //     modals.forEach(modal => {
+    //         if (event.target === modal) {
+    //             modal.style.display = 'none';
+    //         }
+    //     });
+    // });
 }
 
 // استيراد من JSON
@@ -723,17 +724,17 @@ function showInputPrompt(message, defaultValue = '', inputType = 'text') {
                 }
             };
             
-            // إغلاق عند النقر خارج الـ modal
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    modal.remove();
-                    if (window.inputPromptResolve) {
-                        window.inputPromptResolve(null);
-                        delete window.inputPromptResolve;
-                        delete window.handleInputPromptSubmit;
-                    }
-                }
-            });
+            // إغلاق عند النقر خارج الـ modal - معطل حسب الطلب
+            // modal.addEventListener('click', function(e) {
+            //     if (e.target === modal) {
+            //         modal.remove();
+            //         if (window.inputPromptResolve) {
+            //             window.inputPromptResolve(null);
+            //             delete window.inputPromptResolve;
+            //             delete window.handleInputPromptSubmit;
+            //         }
+            //     }
+            // });
             
             // إرسال عند الضغط على Enter
             const input = document.getElementById('inputPromptInput');

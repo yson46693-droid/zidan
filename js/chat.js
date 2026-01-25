@@ -3278,7 +3278,7 @@ function showDeleteMessagesModal() {
         modal.id = 'deleteMessagesModal';
         modal.className = 'delete-messages-modal';
         modal.innerHTML = `
-            <div class="modal-overlay" onclick="closeDeleteMessagesModal()"></div>
+            <div class="modal-overlay"></div>
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>حذف الرسائل</h3>

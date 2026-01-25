@@ -484,22 +484,22 @@ function setupEventListeners() {
         discountInput.addEventListener('input', updateCartSummary);
     }
     
-    // Close modals on outside click
-    if (paymentModal) {
-        paymentModal.addEventListener('click', function(e) {
-            if (e.target === paymentModal) {
-                closePaymentModalFunc();
-            }
-        });
-    }
+    // Close modals on outside click - معطل حسب الطلب
+    // if (paymentModal) {
+    //     paymentModal.addEventListener('click', function(e) {
+    //         if (e.target === paymentModal) {
+    //             closePaymentModalFunc();
+    //         }
+    //     });
+    // }
     
-    if (invoiceModal) {
-        invoiceModal.addEventListener('click', function(e) {
-            if (e.target === invoiceModal) {
-                closeInvoiceModalFunc();
-            }
-        });
-    }
+    // if (invoiceModal) {
+    //     invoiceModal.addEventListener('click', function(e) {
+    //         if (e.target === invoiceModal) {
+    //             closeInvoiceModalFunc();
+    //         }
+    //     });
+    // }
 }
 
 // Filter Products
@@ -819,12 +819,12 @@ function createSparePartItemsModal() {
     `;
     document.body.appendChild(modal);
     
-    // إغلاق عند الضغط خارج النموذج
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            closeSparePartItemsModal();
-        }
-    });
+    // إغلاق عند الضغط خارج النموذج - معطل حسب الطلب
+    // modal.addEventListener('click', function(e) {
+    //     if (e.target === modal) {
+    //         closeSparePartItemsModal();
+    //     }
+    // });
 }
 
 // Close Spare Part Items Modal
@@ -2831,12 +2831,12 @@ function showRatingModal(customerId, saleId) {
     
     document.body.appendChild(modal);
     
-    // إغلاق عند الضغط خارج الـ modal
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
+    // إغلاق عند الضغط خارج الـ modal - معطل حسب الطلب
+    // modal.addEventListener('click', function(e) {
+    //     if (e.target === modal) {
+    //         modal.remove();
+    //     }
+    // });
 }
 
 // تحديد نجمة التقييم في POS

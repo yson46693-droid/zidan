@@ -1132,12 +1132,12 @@ function showInvoiceDetailsModal() {
     
     document.body.appendChild(modal);
     
-    // Close on backdrop click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeInvoiceDetailsModal();
-        }
-    });
+    // Close on backdrop click - معطل حسب الطلب
+    // modal.addEventListener('click', (e) => {
+    //     if (e.target === modal) {
+    //         closeInvoiceDetailsModal();
+    //     }
+    // });
     
     // Close on Escape key
     const handleEscape = (e) => {
@@ -2002,13 +2002,13 @@ async function openQRCodeScanner() {
             });
         }
         
-        // Close on backdrop click (optional - can be enabled if needed)
-        scannerModal.addEventListener('click', (e) => {
-            if (e.target === scannerModal) {
-                // Uncomment to enable close on backdrop click
-                // closeQRCodeScannerForReturns();
-            }
-        });
+        // Close on backdrop click (optional - can be enabled if needed) - معطل حسب الطلب
+        // scannerModal.addEventListener('click', (e) => {
+        //     if (e.target === scannerModal) {
+        //         // Uncomment to enable close on backdrop click
+        //         // closeQRCodeScannerForReturns();
+        //     }
+        // });
         
         initializeQRCodeScannerForReturns();
     }, 300);
