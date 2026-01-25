@@ -767,11 +767,12 @@ function openSparePartItemsModal(product) {
         const itemTypeName = sparePartTypes[item.item_type] || item.item_type || 'غير محدد';
         const itemQuantity = parseInt(item.quantity) || 0;
         const itemPrice = parseFloat(item.selling_price || item.price || 0);
+        const serialNumber = item.serial_number || '';
         
         return `
-            <div class="spare-part-item-option" data-item-id="${item.id}" data-item-type="${item.item_type}" data-item-price="${itemPrice}" data-item-quantity="${itemQuantity}">
+            <div class="spare-part-item-option" data-item-id="${item.id}" data-item-type="${item.item_type}" data-item-price="${itemPrice}" data-item-quantity="${itemQuantity}" data-serial-number="${serialNumber}">
                 <div class="spare-part-item-info">
-                    <div class="spare-part-item-name">${itemTypeName}</div>
+                    <div class="spare-part-item-name">${itemTypeName}${serialNumber ? ` <span style="color: #666; font-size: 0.9em;">(SN: ${serialNumber})</span>` : ''}</div>
                     <div class="spare-part-item-details">
                         <span class="spare-part-item-price"><strong>${formatPrice(itemPrice)} ج.م</strong></span>
                         <span class="spare-part-item-stock">المتاح: ${itemQuantity}</span>
@@ -894,6 +895,7 @@ function addSparePartItemToCart(index) {
     const itemType = itemOption.dataset.itemType;
     const itemPrice = parseFloat(itemOption.dataset.itemPrice || 0);
     const maxQuantity = parseInt(itemOption.dataset.itemQuantity || 0);
+    const serialNumber = itemOption.dataset.serialNumber || '';
     const quantityInput = document.getElementById(`sparePartItemQty_${index}`);
     const quantity = parseInt(quantityInput.value) || 1;
     
@@ -990,6 +992,11 @@ function addSparePartItemToCart(index) {
         spare_part_item_id: itemId, // ID القطعة الفرعية (مطلوب)
         spare_part_item_type: itemType
     };
+    
+    // إضافة السيريال إذا كان موجوداً (لقطع الغيار من نوع "بوردة")
+    if (serialNumber && itemType === 'motherboard') {
+        cartItem.serial_number = serialNumber;
+    }
     
     // التحقق النهائي من وجود spare_part_item_id
     if (!cartItem.spare_part_item_id) {
@@ -1802,6 +1809,10 @@ async function processPayment() {
                 // إرسال spare_part_item_id فقط إذا كان المنتج من نوع spare_part وكان موجوداً
                 if (item.type === 'spare_part' && item.spare_part_item_id) {
                     saleItem.spare_part_item_id = item.spare_part_item_id;
+                    // إرسال السيريال إذا كان موجوداً (لقطع الغيار من نوع "بوردة")
+                    if (item.serial_number) {
+                        saleItem.serial_number = item.serial_number;
+                    }
                 }
                 
                 // إرسال phone_data إذا كان المنتج من نوع phone وكان موجوداً
@@ -2307,10 +2318,16 @@ async function showInvoice(saleData) {
                         
                         return items.map((item, index) => {
                             // التأكد من وجود اسم المنتج مع معالجة الأخطاء
-                            const itemName = item.item_name || item.name || 'غير محدد';
+                            let itemName = item.item_name || item.name || 'غير محدد';
                             const quantity = item.quantity || 0;
                             const unitPrice = parseFloat(item.unit_price || 0);
                             const totalPrice = parseFloat(item.total_price || 0);
+                            const serialNumber = item.serial_number || '';
+                            
+                            // إضافة السيريال إلى اسم المنتج إذا كان موجوداً
+                            if (serialNumber) {
+                                itemName += ` <span style="color: #666; font-size: 0.9em;">(SN: ${serialNumber})</span>`;
+                            }
                             
                             if (!item.item_name && !item.name) {
                                 console.warn('⚠️ [Invoice] اسم المنتج غير موجود في العنصر:', item);

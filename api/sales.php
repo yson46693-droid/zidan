@@ -263,6 +263,17 @@ if (!dbTableExists('sales') || !dbTableExists('sale_items')) {
                 } catch (Exception $e) {
                     error_log('خطأ في إضافة عمود notes: ' . $e->getMessage());
                 }
+                
+                // Migration: إضافة عمود serial_number إذا لم يكن موجوداً (لحفظ السيريال لقطع الغيار من نوع "بوردة")
+                try {
+                    $checkSerialColumn = $conn->query("SHOW COLUMNS FROM `sale_items` LIKE 'serial_number'");
+                    if ($checkSerialColumn->num_rows === 0) {
+                        $conn->query("ALTER TABLE `sale_items` ADD COLUMN `serial_number` VARCHAR(255) DEFAULT NULL AFTER `notes`");
+                        error_log('تم إضافة عمود serial_number إلى جدول sale_items بنجاح');
+                    }
+                } catch (Exception $e) {
+                    error_log('خطأ في إضافة عمود serial_number: ' . $e->getMessage());
+                }
             }
             
             $conn->query("SET FOREIGN_KEY_CHECKS = 1");
@@ -714,10 +725,14 @@ if ($method === 'POST') {
             $sparePartItemId = null;
             $sparePartItemType = null;
             $sparePartItemData = null; // لحفظ البيانات للاستخدام لاحقاً
+            $serialNumber = null; // لحفظ السيريال لقطع الغيار من نوع "بوردة"
             if ($itemType === 'spare_part') {
                 $sparePartItemIdRaw = $item['spare_part_item_id'] ?? null;
                 if (isset($sparePartItemIdRaw) && $sparePartItemIdRaw !== null && $sparePartItemIdRaw !== '') {
                     $sparePartItemId = trim(strval($sparePartItemIdRaw));
+                    
+                    // قراءة السيريال إذا كان موجوداً
+                    $serialNumber = trim($item['serial_number'] ?? '');
                     
                     // جلب بيانات spare_part_item (item_type و quantity)
                     if ($sparePartItemId) {
@@ -756,10 +771,21 @@ if ($method === 'POST') {
             if ($hasNotesColumn && $notesData) {
                 // إضافة عنصر البيع مع بيانات إضافية في حقل notes
                 $itemResult = dbExecute(
-                    "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, created_at) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
-                    [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData]
-                );
+                    // التحقق من وجود عمود serial_number
+                    $hasSerialNumber = dbColumnExists('sale_items', 'serial_number');
+                    if ($hasSerialNumber && $serialNumber) {
+                        dbExecute(
+                            "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, serial_number, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                            [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData, $serialNumber]
+                        );
+                    } else {
+                        dbExecute(
+                            "INSERT INTO sale_items (id, sale_id, item_type, item_id, item_name, quantity, unit_price, total_price, notes, created_at) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                            [$itemId, $saleId, $itemType, $originalItemId, $itemName, $quantity, $unitPrice, $totalPrice, $notesData]
+                        );
+                    }
             } else {
                 // إضافة عنصر البيع بدون notes
                 $itemResult = dbExecute(

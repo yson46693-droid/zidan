@@ -140,28 +140,53 @@ if ($method === 'GET') {
             $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
             $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
             $hasPrice = dbColumnExists('spare_part_items', 'price');
+            $hasSerialNumber = dbColumnExists('spare_part_items', 'serial_number');
             
             if ($hasPurchasePrice && $hasSellingPrice) {
                 // الجدول يحتوي على purchase_price و selling_price
-                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
-                    COALESCE(purchase_price, 0) as purchase_price, 
-                    COALESCE(selling_price, 0) as selling_price, 
-                    notes, custom_value, created_at, updated_at 
-                    FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                if ($hasSerialNumber) {
+                    $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                        COALESCE(purchase_price, 0) as purchase_price, 
+                        COALESCE(selling_price, 0) as selling_price, 
+                        notes, custom_value, serial_number, created_at, updated_at 
+                        FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                } else {
+                    $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                        COALESCE(purchase_price, 0) as purchase_price, 
+                        COALESCE(selling_price, 0) as selling_price, 
+                        notes, custom_value, created_at, updated_at 
+                        FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                }
             } elseif ($hasPrice) {
                 // الجدول يحتوي على price فقط
-                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
-                    COALESCE(price, 0) as purchase_price, 
-                    COALESCE(price, 0) as selling_price, 
-                    notes, custom_value, created_at, updated_at 
-                    FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                if ($hasSerialNumber) {
+                    $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                        COALESCE(price, 0) as purchase_price, 
+                        COALESCE(price, 0) as selling_price, 
+                        notes, custom_value, serial_number, created_at, updated_at 
+                        FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                } else {
+                    $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                        COALESCE(price, 0) as purchase_price, 
+                        COALESCE(price, 0) as selling_price, 
+                        notes, custom_value, created_at, updated_at 
+                        FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                }
             } else {
                 // لا توجد أعمدة أسعار
-                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
-                    0 as purchase_price, 
-                    0 as selling_price, 
-                    notes, custom_value, created_at, updated_at 
-                    FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                if ($hasSerialNumber) {
+                    $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                        0 as purchase_price, 
+                        0 as selling_price, 
+                        notes, custom_value, serial_number, created_at, updated_at 
+                        FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                } else {
+                    $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                        0 as purchase_price, 
+                        0 as selling_price, 
+                        notes, custom_value, created_at, updated_at 
+                        FROM spare_part_items WHERE spare_part_id = ?", [$part['id']]);
+                }
             }
             
             $part['items'] = $items ? $items : [];
@@ -297,56 +322,115 @@ if ($method === 'POST') {
                 $sellingPrice = floatval($item['selling_price'] ?? $item['price'] ?? 0);
                 $notes = trim($item['notes'] ?? '');
                 $customValue = trim($item['custom_value'] ?? '');
+                $serialNumber = trim($item['serial_number'] ?? '');
                 
                 if (!empty($itemType)) {
                     // التحقق من وجود الأعمدة في الجدول
                     $hasPrice = dbColumnExists('spare_part_items', 'price');
                     $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
                     $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
+                    $hasSerialNumber = dbColumnExists('spare_part_items', 'serial_number');
+                    
+                    // إضافة عمود serial_number إذا لم يكن موجوداً
+                    if (!$hasSerialNumber) {
+                        $conn = getDBConnection();
+                        if ($conn) {
+                            $conn->query("ALTER TABLE `spare_part_items` ADD COLUMN `serial_number` VARCHAR(255) DEFAULT NULL AFTER `custom_value`");
+                            $hasSerialNumber = true;
+                        }
+                    }
                     
                     // بناء الاستعلام بناءً على الأعمدة الموجودة
                     if ($hasPurchasePrice && $hasSellingPrice) {
                         // استخدام purchase_price و selling_price فقط (الأفضل)
-                        $insertResult = dbExecute(
-                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                             ON DUPLICATE KEY UPDATE 
-                             item_type = VALUES(item_type),
-                             quantity = VALUES(quantity),
-                             purchase_price = VALUES(purchase_price),
-                             selling_price = VALUES(selling_price),
-                             notes = VALUES(notes),
-                             custom_value = VALUES(custom_value),
-                             updated_at = NOW()",
-                            [$itemId, $partId, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue]
-                        );
+                        if ($hasSerialNumber) {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, serial_number, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 purchase_price = VALUES(purchase_price),
+                                 selling_price = VALUES(selling_price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 serial_number = VALUES(serial_number),
+                                 updated_at = NOW()",
+                                [$itemId, $partId, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue, $serialNumber]
+                            );
+                        } else {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 purchase_price = VALUES(purchase_price),
+                                 selling_price = VALUES(selling_price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $partId, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue]
+                            );
+                        }
                     } elseif ($hasPrice) {
                         // استخدام price فقط (للتوافق مع الإصدارات القديمة)
-                        $insertResult = dbExecute(
-                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                             ON DUPLICATE KEY UPDATE 
-                             item_type = VALUES(item_type),
-                             quantity = VALUES(quantity),
-                             price = VALUES(price),
-                             notes = VALUES(notes),
-                             custom_value = VALUES(custom_value),
-                             updated_at = NOW()",
-                            [$itemId, $partId, $itemType, $quantity, $sellingPrice, $notes, $customValue]
-                        );
+                        if ($hasSerialNumber) {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, serial_number, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 price = VALUES(price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 serial_number = VALUES(serial_number),
+                                 updated_at = NOW()",
+                                [$itemId, $partId, $itemType, $quantity, $sellingPrice, $notes, $customValue, $serialNumber]
+                            );
+                        } else {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 price = VALUES(price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $partId, $itemType, $quantity, $sellingPrice, $notes, $customValue]
+                            );
+                        }
                     } else {
                         // لا توجد أعمدة سعر - إدراج بدون أسعار
-                        $insertResult = dbExecute(
-                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, NOW())
-                             ON DUPLICATE KEY UPDATE 
-                             item_type = VALUES(item_type),
-                             quantity = VALUES(quantity),
-                             notes = VALUES(notes),
-                             custom_value = VALUES(custom_value),
-                             updated_at = NOW()",
-                            [$itemId, $partId, $itemType, $quantity, $notes, $customValue]
-                        );
+                        if ($hasSerialNumber) {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, serial_number, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 serial_number = VALUES(serial_number),
+                                 updated_at = NOW()",
+                                [$itemId, $partId, $itemType, $quantity, $notes, $customValue, $serialNumber]
+                            );
+                        } else {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $partId, $itemType, $quantity, $notes, $customValue]
+                            );
+                        }
                     }
                     
                     if ($insertResult === false) {
@@ -364,28 +448,53 @@ if ($method === 'POST') {
         $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
         $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
         $hasPrice = dbColumnExists('spare_part_items', 'price');
+        $hasSerialNumber = dbColumnExists('spare_part_items', 'serial_number');
         
         if ($hasPurchasePrice && $hasSellingPrice) {
             // الجدول يحتوي على purchase_price و selling_price
-            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
-                COALESCE(purchase_price, 0) as purchase_price, 
-                COALESCE(selling_price, 0) as selling_price, 
-                notes, custom_value, created_at, updated_at 
-                FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            if ($hasSerialNumber) {
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    COALESCE(purchase_price, 0) as purchase_price, 
+                    COALESCE(selling_price, 0) as selling_price, 
+                    notes, custom_value, serial_number, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            } else {
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    COALESCE(purchase_price, 0) as purchase_price, 
+                    COALESCE(selling_price, 0) as selling_price, 
+                    notes, custom_value, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            }
         } elseif ($hasPrice) {
             // الجدول يحتوي على price فقط
-            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
-                COALESCE(price, 0) as purchase_price, 
-                COALESCE(price, 0) as selling_price, 
-                notes, custom_value, created_at, updated_at 
-                FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            if ($hasSerialNumber) {
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    COALESCE(price, 0) as purchase_price, 
+                    COALESCE(price, 0) as selling_price, 
+                    notes, custom_value, serial_number, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            } else {
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    COALESCE(price, 0) as purchase_price, 
+                    COALESCE(price, 0) as selling_price, 
+                    notes, custom_value, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            }
         } else {
             // لا توجد أعمدة أسعار
-            $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
-                0 as purchase_price, 
-                0 as selling_price, 
-                notes, custom_value, created_at, updated_at 
-                FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            if ($hasSerialNumber) {
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    0 as purchase_price, 
+                    0 as selling_price, 
+                    notes, custom_value, serial_number, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            } else {
+                $items = dbSelect("SELECT id, spare_part_id, item_type, quantity, 
+                    0 as purchase_price, 
+                    0 as selling_price, 
+                    notes, custom_value, created_at, updated_at 
+                    FROM spare_part_items WHERE spare_part_id = ?", [$partId]);
+            }
         }
         
         $newPart['items'] = $items ? $items : [];
@@ -734,56 +843,115 @@ if ($method === 'PUT') {
                 $sellingPrice = floatval($item['selling_price'] ?? $item['price'] ?? 0);
                 $notes = trim($item['notes'] ?? '');
                 $customValue = trim($item['custom_value'] ?? '');
+                $serialNumber = trim($item['serial_number'] ?? '');
                 
                 if (!empty($itemType)) {
                     // التحقق من وجود الأعمدة في الجدول
                     $hasPrice = dbColumnExists('spare_part_items', 'price');
                     $hasPurchasePrice = dbColumnExists('spare_part_items', 'purchase_price');
                     $hasSellingPrice = dbColumnExists('spare_part_items', 'selling_price');
+                    $hasSerialNumber = dbColumnExists('spare_part_items', 'serial_number');
+                    
+                    // إضافة عمود serial_number إذا لم يكن موجوداً
+                    if (!$hasSerialNumber) {
+                        $conn = getDBConnection();
+                        if ($conn) {
+                            $conn->query("ALTER TABLE `spare_part_items` ADD COLUMN `serial_number` VARCHAR(255) DEFAULT NULL AFTER `custom_value`");
+                            $hasSerialNumber = true;
+                        }
+                    }
                     
                     // بناء الاستعلام بناءً على الأعمدة الموجودة
                     if ($hasPurchasePrice && $hasSellingPrice) {
                         // استخدام purchase_price و selling_price فقط (الأفضل)
-                        $insertResult = dbExecute(
-                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                             ON DUPLICATE KEY UPDATE 
-                             item_type = VALUES(item_type),
-                             quantity = VALUES(quantity),
-                             purchase_price = VALUES(purchase_price),
-                             selling_price = VALUES(selling_price),
-                             notes = VALUES(notes),
-                             custom_value = VALUES(custom_value),
-                             updated_at = NOW()",
-                            [$itemId, $id, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue]
-                        );
+                        if ($hasSerialNumber) {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, serial_number, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 purchase_price = VALUES(purchase_price),
+                                 selling_price = VALUES(selling_price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 serial_number = VALUES(serial_number),
+                                 updated_at = NOW()",
+                                [$itemId, $id, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue, $serialNumber]
+                            );
+                        } else {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, purchase_price, selling_price, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 purchase_price = VALUES(purchase_price),
+                                 selling_price = VALUES(selling_price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $id, $itemType, $quantity, $purchasePrice, $sellingPrice, $notes, $customValue]
+                            );
+                        }
                     } elseif ($hasPrice) {
                         // استخدام price فقط (للتوافق مع الإصدارات القديمة)
-                        $insertResult = dbExecute(
-                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                             ON DUPLICATE KEY UPDATE 
-                             item_type = VALUES(item_type),
-                             quantity = VALUES(quantity),
-                             price = VALUES(price),
-                             notes = VALUES(notes),
-                             custom_value = VALUES(custom_value),
-                             updated_at = NOW()",
-                            [$itemId, $id, $itemType, $quantity, $sellingPrice, $notes, $customValue]
-                        );
+                        if ($hasSerialNumber) {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, serial_number, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 price = VALUES(price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 serial_number = VALUES(serial_number),
+                                 updated_at = NOW()",
+                                [$itemId, $id, $itemType, $quantity, $sellingPrice, $notes, $customValue, $serialNumber]
+                            );
+                        } else {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, price, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 price = VALUES(price),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $id, $itemType, $quantity, $sellingPrice, $notes, $customValue]
+                            );
+                        }
                     } else {
                         // لا توجد أعمدة سعر - إدراج بدون أسعار
-                        $insertResult = dbExecute(
-                            "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
-                             VALUES (?, ?, ?, ?, ?, ?, NOW())
-                             ON DUPLICATE KEY UPDATE 
-                             item_type = VALUES(item_type),
-                             quantity = VALUES(quantity),
-                             notes = VALUES(notes),
-                             custom_value = VALUES(custom_value),
-                             updated_at = NOW()",
-                            [$itemId, $id, $itemType, $quantity, $notes, $customValue]
-                        );
+                        if ($hasSerialNumber) {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, serial_number, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 serial_number = VALUES(serial_number),
+                                 updated_at = NOW()",
+                                [$itemId, $id, $itemType, $quantity, $notes, $customValue, $serialNumber]
+                            );
+                        } else {
+                            $insertResult = dbExecute(
+                                "INSERT INTO spare_part_items (id, spare_part_id, item_type, quantity, notes, custom_value, created_at) 
+                                 VALUES (?, ?, ?, ?, ?, ?, NOW())
+                                 ON DUPLICATE KEY UPDATE 
+                                 item_type = VALUES(item_type),
+                                 quantity = VALUES(quantity),
+                                 notes = VALUES(notes),
+                                 custom_value = VALUES(custom_value),
+                                 updated_at = NOW()",
+                                [$itemId, $id, $itemType, $quantity, $notes, $customValue]
+                            );
+                        }
                     }
                     
                     if ($insertResult === false) {

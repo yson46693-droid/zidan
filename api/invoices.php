@@ -316,6 +316,12 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             $quantity = intval($item['quantity'] ?? 0);
             $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 0);
             $totalPrice = number_format(floatval($item['total_price'] ?? 0), 0);
+            $serialNumber = htmlspecialchars($item['serial_number'] ?? '');
+            
+            // إضافة السيريال إلى اسم المنتج إذا كان موجوداً
+            if ($serialNumber) {
+                $itemName .= ' <span style="color: #666; font-size: 0.9em;">(SN: ' . $serialNumber . ')</span>';
+            }
             
             $itemsHtml .= '
                             <tr>

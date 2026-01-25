@@ -541,6 +541,34 @@ async function showAddSparePartModal() {
     document.getElementById('sparePartItems').innerHTML = '';
     document.getElementById('sparePartBrandCustom').style.display = 'none';
     document.getElementById('sparePartModal').style.display = 'flex';
+    
+    // إضافة event listener لتحديث placeholder حقل السيريال عند تغيير الموديل
+    const modelInput = document.getElementById('sparePartModel');
+    if (modelInput) {
+        // إزالة event listener القديم إن وجد
+        const newModelInput = modelInput.cloneNode(true);
+        modelInput.parentNode.replaceChild(newModelInput, modelInput);
+        
+        // إضافة event listener جديد
+        newModelInput.addEventListener('input', function() {
+            updateSerialPlaceholders(this.value);
+        });
+    }
+}
+
+// دالة لتحديث placeholder حقول السيريال عند تغيير الموديل
+function updateSerialPlaceholders(modelValue) {
+    document.querySelectorAll('.spare-part-item-serial').forEach(serialInput => {
+        if (serialInput.style.display !== 'none') {
+            if (modelValue) {
+                serialInput.placeholder = `السيريال (الموديل: ${modelValue})`;
+                serialInput.setAttribute('data-model', modelValue);
+            } else {
+                serialInput.placeholder = 'السيريال (مرتبط بالموديل)';
+                serialInput.removeAttribute('data-model');
+            }
+        }
+    });
 }
 
 async function editSparePart(id) {
@@ -606,6 +634,9 @@ function loadSparePartItems(items) {
         const type = sparePartTypes.find(t => t.id === item.item_type);
         const showCustom = type && type.isCustom || item.item_type === 'other';
         const isOther = item.item_type === 'other' || !type;
+        const isMotherboard = item.item_type === 'motherboard';
+        const modelInput = document.getElementById('sparePartModel');
+        const modelValue = modelInput ? modelInput.value : '';
         
         return `
             <div class="spare-part-item-row" data-item-id="${item.id || ''}" style="display: grid; grid-template-columns: ${gridColumns}; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;">
@@ -619,6 +650,7 @@ function loadSparePartItems(items) {
                 ${canSeePurchasePrice ? `<input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}" placeholder="سعر التكلفة">` : ''}
                 <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}" placeholder="سعر البيع">
                 <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'}; grid-column: 1 / -1;">
+                <input type="text" class="spare-part-item-serial" value="${item.serial_number || ''}" placeholder="${isMotherboard && modelValue ? `السيريال (الموديل: ${modelValue})` : 'السيريال (مرتبط بالموديل)'}" style="display: ${isMotherboard ? 'block' : 'none'}; grid-column: 1 / -1; margin-top: 8px;" ${isMotherboard ? `data-model="${modelValue}"` : ''}>
                 <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
             </div>
         `;
@@ -1742,7 +1774,7 @@ function createInventoryModals() {
                         </div>
                         <div class="form-group">
                             <label for="sparePartModel">الموديل *</label>
-                            <input type="text" id="sparePartModel" required>
+                            <input type="text" id="sparePartModel" required oninput="updateSerialPlaceholders(this.value)">
                         </div>
                     </div>
                     
@@ -2019,6 +2051,7 @@ function addSparePartItem() {
         ${canSeePurchasePrice ? `<input type="number" class="spare-part-item-purchase-price" step="0.01" min="0" value="0" placeholder="سعر التكلفة">` : ''}
         <input type="number" class="spare-part-item-selling-price" step="0.01" min="0" value="0" placeholder="سعر البيع">
         <input type="text" class="spare-part-item-custom" style="display: none; grid-column: 1 / -1;" placeholder="أدخل النوع يدوياً">
+        <input type="text" class="spare-part-item-serial" style="display: none; grid-column: 1 / -1; margin-top: 8px;" placeholder="السيريال (مرتبط بالموديل)">
         <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
     `;
     itemRow.style.cssText = `display: grid; grid-template-columns: ${gridColumns}; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;`;
@@ -2028,6 +2061,7 @@ function addSparePartItem() {
 function handleSparePartItemTypeChange(select) {
     const row = select.closest('.spare-part-item-row');
     const customInput = row.querySelector('.spare-part-item-custom');
+    const serialInput = row.querySelector('.spare-part-item-serial');
     const type = sparePartTypes.find(t => t.id === select.value);
     
     // إذا كان النوع "أخرى" أو يحتوي على "other" أو "custom"
@@ -2039,6 +2073,31 @@ function handleSparePartItemTypeChange(select) {
     } else {
         customInput.style.display = 'none';
         customInput.required = false;
+    }
+    
+    // إذا كان النوع "بوردة" (motherboard)، إظهار حقل السيريال وربطه بالموديل
+    if (select.value === 'motherboard') {
+        serialInput.style.display = 'block';
+        serialInput.style.gridColumn = '1 / -1';
+        serialInput.style.marginTop = '8px';
+        // الحصول على الموديل من النموذج وربطه بالسيريال
+        const modelInput = document.getElementById('sparePartModel');
+        if (modelInput && modelInput.value) {
+            serialInput.placeholder = `السيريال (الموديل: ${modelInput.value})`;
+            serialInput.setAttribute('data-model', modelInput.value);
+        } else {
+            serialInput.placeholder = 'السيريال (مرتبط بالموديل)';
+        }
+        // إضافة event listener للموديل إذا لم يكن موجوداً
+        if (modelInput && !modelInput.hasAttribute('data-serial-listener')) {
+            modelInput.setAttribute('data-serial-listener', 'true');
+            modelInput.addEventListener('input', function() {
+                updateSerialPlaceholders(this.value);
+            });
+        }
+    } else {
+        serialInput.style.display = 'none';
+        serialInput.required = false;
     }
 }
 
@@ -2097,6 +2156,12 @@ async function saveSparePart(event) {
         const customInput = row.querySelector('.spare-part-item-custom');
         const customValue = customInput && customInput.style.display !== 'none' ? customInput.value.trim() : '';
         
+        // قراءة السيريال إذا كان النوع "بوردة"
+        const serialInput = row.querySelector('.spare-part-item-serial');
+        const serialNumber = (itemType === 'motherboard' && serialInput && serialInput.style.display !== 'none') 
+            ? serialInput.value.trim() 
+            : '';
+        
         // إذا كان النوع "أخرى" واستخدم المستخدم حقل الإدخال، استخدم القيمة المدخلة كنوع
         if (itemType === 'other' && customValue) {
             itemType = customValue; // استخدام القيمة المدخلة كنوع
@@ -2110,6 +2175,11 @@ async function saveSparePart(event) {
                 selling_price: sellingPrice,
                 custom_value: customValue
             };
+            
+            // إضافة السيريال إذا كان موجوداً
+            if (serialNumber) {
+                itemData.serial_number = serialNumber;
+            }
             
             // الحفاظ على id إذا كان موجوداً (وليس id مؤقت)
             const itemId = row.dataset.itemId;
