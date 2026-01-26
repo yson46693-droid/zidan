@@ -5430,27 +5430,27 @@ async function printRepairReceipt(id) {
                 }
                 
                 .invoice-summary {
-                    margin-top: 25px;
-                    padding: 25px;
+                    margin-top: 15px;
+                    padding: 12px 15px;
                     background: #f8f9fa;
-                    border-radius: 12px;
+                    border-radius: 10px;
                 }
                 
                 .invoice-summary .summary-row {
                     display: flex;
                     justify-content: space-between;
-                    margin-bottom: 15px;
-                    font-size: 1.1em;
-                    padding: 10px 0;
+                    margin-bottom: 8px;
+                    font-size: 0.95em;
+                    padding: 5px 0;
                 }
                 
                 .invoice-summary .summary-row.total {
-                    font-size: 1.9em;
-                    font-weight: 800;
+                    font-size: 1.2em;
+                    font-weight: 700;
                     color: #2196F3;
-                    padding: 20px 0;
-                    border-top: 3px solid #2196F3;
-                    margin-top: 20px;
+                    padding: 10px 0;
+                    border-top: 2px solid #2196F3;
+                    margin-top: 10px;
                 }
                 
                 @media (max-width: 768px) {
@@ -5467,8 +5467,8 @@ async function printRepairReceipt(id) {
                 
                 .invoice-delivery-date {
                     text-align: center;
-                    margin: 15px 0;
-                    padding: 15px;
+                    margin: 8px 0;
+                    padding: 10px;
                     background: white;
                     border: 2px solid #000;
                     border-radius: 8px;
@@ -5477,19 +5477,19 @@ async function printRepairReceipt(id) {
                 
                 .invoice-delivery-date > div:first-child {
                     color: #000;
-                    font-size: 0.95em;
+                    font-size: 0.85em;
                     font-weight: 600;
-                    margin-bottom: 8px;
+                    margin-bottom: 5px;
                 }
                 
                 .invoice-delivery-date > div:last-child {
                     color: #000;
-                    font-size: 1.3em;
+                    font-size: 1.05em;
                     font-weight: 700;
                 }
                 
                 .invoice-summary hr {
-                    margin: 18px 0;
+                    margin: 10px 0;
                     border: none;
                     border-top: 2px solid #e0e0e0;
                 }
@@ -5728,30 +5728,30 @@ async function printRepairReceipt(id) {
                     }
                     
                     .invoice-delivery-date {
-                        margin: 15px 0 !important;
-                        padding: 10px !important;
+                        margin: 6px 0 !important;
+                        padding: 6px 8px !important;
                         background: white !important;
-                        border: 2px solid #000 !important;
-                        border-radius: 8px !important;
+                        border: 1px solid #000 !important;
+                        border-radius: 6px !important;
                         box-shadow: none !important;
                         page-break-inside: avoid !important;
                     }
                     
                     .invoice-delivery-date > div:first-child {
                         color: #000 !important;
-                        font-size: 0.75em !important;
-                        margin-bottom: 5px !important;
+                        font-size: 0.7em !important;
+                        margin-bottom: 3px !important;
                     }
                     
                     .invoice-delivery-date > div:last-child {
                         color: #000 !important;
-                        font-size: 0.95em !important;
+                        font-size: 0.85em !important;
                     }
                     
                     .invoice-summary {
-                        padding: 8px !important;
-                        margin: 8px 0 !important;
-                        font-size: 0.85em !important;
+                        padding: 6px 8px !important;
+                        margin: 6px 0 !important;
+                        font-size: 0.8em !important;
                         page-break-inside: avoid !important;
                         page-break-before: avoid !important;
                         box-shadow: none !important;
@@ -5760,13 +5760,14 @@ async function printRepairReceipt(id) {
                     }
                     
                     .invoice-summary .summary-row {
-                        font-size: 0.9em !important;
-                        margin-bottom: 5px !important;
+                        font-size: 0.85em !important;
+                        margin-bottom: 3px !important;
+                        padding: 3px 0 !important;
                     }
                     
                     .invoice-summary .summary-row.total {
-                        font-size: 1.1em !important;
-                        padding: 8px 0 !important;
+                        font-size: 1em !important;
+                        padding: 5px 0 !important;
                     }
                     
                     .invoice-qrcode {
@@ -5902,11 +5903,11 @@ async function printRepairReceipt(id) {
                 
                 ${repair.delivery_date ? `
                 <!-- Delivery Date Section -->
-                <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: white; border: 2px solid #000; border-radius: 8px;">
-                    <div style="color: #000; font-size: 0.95em; font-weight: 600; margin-bottom: 8px;">
+                <div class="invoice-delivery-date" style="text-align: center; margin: 8px 0; padding: 10px; background: white; border: 2px solid #000; border-radius: 8px;">
+                    <div style="color: #000; font-size: 0.85em; font-weight: 600; margin-bottom: 5px;">
                         <i class="bi bi-calendar-check-fill" style="margin-left: 6px;"></i> موعد الاستلام المتوقع
                     </div>
-                    <div style="color: #000; font-size: 1.3em; font-weight: 700;">
+                    <div style="color: #000; font-size: 1.05em; font-weight: 700;">
                         ${formatDateFunc(repair.delivery_date)}
                     </div>
                 </div>
