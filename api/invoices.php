@@ -1156,7 +1156,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         ' . $phoneDataSection . '
         
         <!-- Items Table -->
-        <table class="invoice-items-table" style="font-size: 0.4em !important;">
+        <table class="invoice-items-table" style="font-size: 0.8em !important;">
             <thead>
                 <tr>
                     <th>الصنف</th>
