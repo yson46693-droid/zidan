@@ -359,23 +359,23 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             if ($serialNumber) {
                 $itemsHtml .= '
                             <tr>
-                                <td style="font-size: 0.4em;">' . $itemName . '</td>
-                                <td style="font-size: 0.4em;">' . $quantity . '</td>
-                                <td style="font-size: 0.4em;">' . $unitPrice . '</td>
-                                <td style="font-size: 0.4em;">' . $totalPrice . '</td>
+                                <td style="font-size: 0.4em !important;">' . $itemName . '</td>
+                                <td style="font-size: 0.4em !important;">' . $quantity . '</td>
+                                <td style="font-size: 0.4em !important;">' . $unitPrice . '</td>
+                                <td style="font-size: 0.4em !important;">' . $totalPrice . '</td>
                             </tr>
                             <tr style="background-color: #f9f9f9;">
-                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.1em;">
+                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.1em !important;">
                                     <strong>السيريال:</strong> ' . $serialNumber . '
                                 </td>
                             </tr>';
             } else {
                 $itemsHtml .= '
                             <tr>
-                                <td style="font-size: 0.4em;">' . $itemName . '</td>
-                                <td style="font-size: 0.4em;">' . $quantity . '</td>
-                                <td style="font-size: 0.4em;">' . $unitPrice . '</td>
-                                <td style="font-size: 0.4em;">' . $totalPrice . '</td>
+                                <td style="font-size: 0.4em !important;">' . $itemName . '</td>
+                                <td style="font-size: 0.4em !important;">' . $quantity . '</td>
+                                <td style="font-size: 0.4em !important;">' . $unitPrice . '</td>
+                                <td style="font-size: 0.4em !important;">' . $totalPrice . '</td>
                             </tr>';
             }
         }
@@ -999,13 +999,13 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-items-table th,
             .invoice-items-table td {
                 padding: 6px 3px !important;
-                font-size: 1.1em !important;
+                font-size: 0.4em !important;
                 box-sizing: border-box !important;
-                word-wrap: normal !important;
-                overflow-wrap: normal !important;
-                word-break: keep-all !important;
-                white-space: nowrap !important;
-                line-height: 1.4 !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                word-break: break-word !important;
+                white-space: normal !important;
+                line-height: 1.2 !important;
                 vertical-align: middle !important;
             }
             .invoice-items-table th:nth-child(2),
@@ -1015,43 +1015,36 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 overflow-wrap: break-word !important;
             }
             .invoice-items-table th {
-                font-size: 0.8em !important;
+                font-size: 0.4em !important;
                 font-weight: 600 !important;
             }
-            /* تحديد عرض الأعمدة بدقة لـ 80mm */
+            /* تحديد عرض الأعمدة بدقة لـ 80mm - 4 أعمدة فقط */
             .invoice-items-table th:nth-child(1),
             .invoice-items-table td:nth-child(1) {
-                width: 8% !important;
+                width: 40% !important;
                 min-width: 0 !important;
-                max-width: 8% !important;
-                text-align: center !important;
+                max-width: 40% !important;
+                text-align: right !important;
             }
             .invoice-items-table th:nth-child(2),
             .invoice-items-table td:nth-child(2) {
-                width: 32% !important;
+                width: 15% !important;
                 min-width: 0 !important;
-                max-width: 32% !important;
-                text-align: right !important;
+                max-width: 15% !important;
+                text-align: center !important;
             }
             .invoice-items-table th:nth-child(3),
             .invoice-items-table td:nth-child(3) {
-                width: 12% !important;
+                width: 22.5% !important;
                 min-width: 0 !important;
-                max-width: 12% !important;
-                text-align: center !important;
+                max-width: 22.5% !important;
+                text-align: right !important;
             }
             .invoice-items-table th:nth-child(4),
             .invoice-items-table td:nth-child(4) {
-                width: 24% !important;
+                width: 22.5% !important;
                 min-width: 0 !important;
-                max-width: 24% !important;
-                text-align: right !important;
-            }
-            .invoice-items-table th:nth-child(5),
-            .invoice-items-table td:nth-child(5) {
-                width: 24% !important;
-                min-width: 0 !important;
-                max-width: 24% !important;
+                max-width: 22.5% !important;
                 text-align: right !important;
             }
             .invoice-items-table thead {
@@ -1163,7 +1156,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         ' . $phoneDataSection . '
         
         <!-- Items Table -->
-        <table class="invoice-items-table" style="font-size: 0.4em;">
+        <table class="invoice-items-table" style="font-size: 0.4em !important;">
             <thead>
                 <tr>
                     <th>الصنف</th>
