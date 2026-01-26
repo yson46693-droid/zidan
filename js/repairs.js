@@ -5392,24 +5392,41 @@ async function printRepairReceipt(id) {
                     font-weight: 500;
                 }
                 
-                /* تفاصيل الفاتورة + device info: اتنين في كل سطر، بدون ألوان أو تصميمات */
+                /* تفاصيل الفاتورة + device info: نفس تصميم وحجم خطوط invoices.php، اتنين في كل سطر */
                 .invoice-details,
                 .invoice-extra-info {
                     display: flex;
                     flex-direction: column;
                     gap: 8px;
                     margin-bottom: 15px;
-                    padding: 12px 0;
+                    padding: 12px 15px;
+                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+                    border-radius: 8px;
+                    border: 1px solid #e0e0e0;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
                 }
                 .invoice-details-row,
                 .invoice-extra-info-row {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 0 15px;
+                    gap: 8px 15px;
                 }
                 .invoice-details-row > div,
                 .invoice-extra-info-row > div {
-                    font-size: 1em;
+                    color: var(--text-dark);
+                    font-size: 0.95em;
+                    padding: 4px 0;
+                    line-height: 1.5;
+                    font-weight: 500;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                }
+                .invoice-details-row > div strong,
+                .invoice-extra-info-row > div strong {
+                    color: var(--primary-color);
+                    font-weight: 600;
+                    min-width: fit-content;
                 }
                 
                 .invoice-summary {
@@ -5439,12 +5456,12 @@ async function printRepairReceipt(id) {
                 @media (max-width: 768px) {
                     .invoice-details,
                     .invoice-extra-info {
-                        padding: 12px 0 !important;
+                        padding: 12px 15px !important;
                         gap: 8px !important;
                     }
                     .invoice-details-row,
                     .invoice-extra-info-row {
-                        gap: 0 15px !important;
+                        gap: 8px 15px !important;
                     }
                 }
                 
@@ -5691,20 +5708,23 @@ async function printRepairReceipt(id) {
                     
                     .invoice-details,
                     .invoice-extra-info {
-                        padding: 6px 0 !important;
+                        padding: 6px 8px !important;
                         margin-bottom: 6px !important;
-                        gap: 4px !important;
+                        gap: 4px 8px !important;
+                        font-size: 0.75em !important;
                         page-break-inside: avoid !important;
                         display: flex !important;
                         flex-direction: column !important;
                     }
                     .invoice-details-row,
                     .invoice-extra-info-row {
-                        gap: 0 8px !important;
+                        gap: 4px 8px !important;
                     }
                     .invoice-details-row > div,
                     .invoice-extra-info-row > div {
-                        font-size: 0.85em !important;
+                        padding: 2px 0 !important;
+                        font-size: 0.75em !important;
+                        line-height: 1.3 !important;
                     }
                     
                     .invoice-delivery-date {
