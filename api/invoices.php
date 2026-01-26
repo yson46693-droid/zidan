@@ -365,7 +365,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                                 <td style="font-size: 0.8em !important;">' . $totalPrice . '</td>
                             </tr>
                             <tr style="background-color: #f9f9f9;">
-                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.1em !important;">
+                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.7em !important;">
                                     <strong>السيريال:</strong> ' . $serialNumber . '
                                 </td>
                             </tr>';
@@ -1156,7 +1156,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         ' . $phoneDataSection . '
         
         <!-- Items Table -->
-        <table class="invoice-items-table" style="font-size: 0.8em !important;">
+        <table class="invoice-items-table" style="font-size: 0.7em !important;">
             <thead>
                 <tr>
                     <th>الصنف</th>
