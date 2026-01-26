@@ -1077,12 +1077,13 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 padding: 1px 0 !important;
                 line-height: 1.2 !important;
                 display: flex !important;
-                justify-content: space-between !important;
+                justify-content: flex-start !important;
                 align-items: center !important;
                 max-width: 100% !important;
                 box-sizing: border-box !important;
                 word-wrap: break-word !important;
                 overflow-wrap: break-word !important;
+                gap: 4px !important;
             }
             .invoice-summary .summary-row span {
                 word-wrap: break-word !important;
@@ -1093,13 +1094,15 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-summary .summary-row span:first-child {
                 flex-shrink: 0 !important;
                 min-width: 0 !important;
-                padding-right: 4px !important;
+                padding-right: 2px !important;
+                margin-right: 0 !important;
             }
             .invoice-summary .summary-row span:last-child {
                 flex-shrink: 1 !important;
                 text-align: left !important;
                 word-break: break-all !important;
                 font-size: 0.9em !important;
+                margin-left: 2px !important;
             }
             .invoice-summary .summary-row.total {
                 font-size: 0.7em !important;
