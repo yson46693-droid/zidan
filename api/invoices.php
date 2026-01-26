@@ -931,6 +931,14 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 max-width: 100% !important;
                 box-sizing: border-box !important;
             }
+            .invoice-wrapper .invoice-summary,
+            .invoice-wrapper .invoice-summary * {
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+            }
             
             .invoice-wrapper > * {
                 page-break-inside: avoid !important;
@@ -1054,29 +1062,60 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 page-break-inside: avoid !important;
             }
             .invoice-summary {
-                padding: 6px 8px !important;
-                margin: 6px 0 !important;
-                font-size: 0.75em !important;
+                padding: 4px 2px !important;
+                margin: 4px 0 !important;
+                font-size: 0.6em !important;
                 page-break-inside: avoid !important;
                 page-break-before: avoid !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
             }
             .invoice-summary .summary-row {
-                font-size: 0.75em !important;
-                margin-bottom: 3px !important;
-                padding: 2px 0 !important;
-                line-height: 1.3 !important;
+                font-size: 0.6em !important;
+                margin-bottom: 2px !important;
+                padding: 1px 0 !important;
+                line-height: 1.2 !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+            }
+            .invoice-summary .summary-row span {
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                max-width: 50% !important;
+                box-sizing: border-box !important;
+            }
+            .invoice-summary .summary-row span:first-child {
+                flex-shrink: 0 !important;
+                min-width: 0 !important;
+                padding-right: 4px !important;
+            }
+            .invoice-summary .summary-row span:last-child {
+                flex-shrink: 1 !important;
+                text-align: left !important;
+                word-break: break-all !important;
+                font-size: 0.9em !important;
             }
             .invoice-summary .summary-row.total {
+                font-size: 0.7em !important;
+                padding: 3px 2px !important;
+                margin-top: 3px !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                padding-left: 2px !important;
+                padding-right: 2px !important;
+            }
+            .invoice-summary .summary-row.total span:last-child {
                 font-size: 0.95em !important;
-                padding: 6px 0 !important;
-                margin-top: 6px !important;
-                margin-left: -6px !important;
-                margin-right: -6px !important;
-                padding-left: 6px !important;
-                padding-right: 6px !important;
             }
             .invoice-summary hr {
-                margin: 6px 0 !important;
+                margin: 3px 0 !important;
+                padding: 0 !important;
             }
             .invoice-qrcode {
                 margin: 8px 0 !important;
@@ -1175,7 +1214,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         <div class="invoice-summary">
             <div class="summary-row">
                 <span>المجموع الفرعي:</span>
-                <span>' . number_format($totalAmount, 2) . '</span>
+                <span style="word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-all !important; max-width: 50% !important; box-sizing: border-box !important;">' . number_format($totalAmount, 2) . '</span>
             </div>';
     
     // إضافة المدفوع فقط في حالة الدفع الجزئي
@@ -1183,7 +1222,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         $html .= '
             <div class="summary-row">
                 <span>المدفوع:</span>
-                <span>' . number_format($paidAmount, 2) . '</span>
+                <span style="word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-all !important; max-width: 50% !important; box-sizing: border-box !important;">' . number_format($paidAmount, 2) . '</span>
             </div>';
     }
     
@@ -1191,7 +1230,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         $html .= '
             <div class="summary-row">
                 <span>الخصم:</span>
-                <span>- ' . number_format($discount, 2) . '</span>
+                <span style="word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-all !important; max-width: 50% !important; box-sizing: border-box !important;">- ' . number_format($discount, 2) . '</span>
             </div>';
     }
     
@@ -1199,7 +1238,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             <hr>
             <div class="summary-row total">
                 <span>الإجمالي:</span>
-                <span>' . number_format($finalAmount, 2) . '</span>
+                <span style="word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-all !important; max-width: 50% !important; box-sizing: border-box !important;">' . number_format($finalAmount, 2) . '</span>
             </div>';
     
     // إضافة المتبقي فقط في حالة وجود دين
@@ -1207,7 +1246,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         $html .= '
             <div class="summary-row">
                 <span>المتبقي:</span>
-                <span>' . number_format($remainingAmount, 2) . '</span>
+                <span style="word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-all !important; max-width: 50% !important; box-sizing: border-box !important;">' . number_format($remainingAmount, 2) . '</span>
             </div>';
     }
     
