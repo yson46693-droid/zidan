@@ -359,10 +359,10 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             if ($serialNumber) {
                 $itemsHtml .= '
                             <tr>
-                                <td style="font-size: 0.4em !important;">' . $itemName . '</td>
-                                <td style="font-size: 0.4em !important;">' . $quantity . '</td>
-                                <td style="font-size: 0.4em !important;">' . $unitPrice . '</td>
-                                <td style="font-size: 0.4em !important;">' . $totalPrice . '</td>
+                                <td style="font-size: 0.8em !important;">' . $itemName . '</td>
+                                <td style="font-size: 0.8em !important;">' . $quantity . '</td>
+                                <td style="font-size: 0.8em !important;">' . $unitPrice . '</td>
+                                <td style="font-size: 0.8em !important;">' . $totalPrice . '</td>
                             </tr>
                             <tr style="background-color: #f9f9f9;">
                                 <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.1em !important;">
@@ -1015,8 +1015,8 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 overflow-wrap: break-word !important;
             }
             .invoice-items-table th {
-                font-size: 0.6em !important;
-                font-weight: 600 !important;
+                font-size: 0.8em !important;
+                font-weight: 800 !important;
             }
             /* تحديد عرض الأعمدة بدقة لـ 80mm - 4 أعمدة فقط */
             .invoice-items-table th:nth-child(1),
