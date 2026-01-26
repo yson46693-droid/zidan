@@ -5388,72 +5388,33 @@ async function printRepairReceipt(id) {
                     gap: 8px;
                 }
                 
-                .invoice-details {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                    margin-bottom: 20px;
-                    padding: 20px;
-                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-                    border-radius: 12px;
-                    border: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-                }
-                
-                .invoice-details-row {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 15px;
-                }
-                
-                .invoice-details-row > div {
-                    color: #333;
-                    font-size: 1.05em;
-                    padding: 12px 15px;
-                    background: var(--white, #ffffff);
-                    border-radius: 8px;
-                    border-right: 3px solid var(--primary-color, #2196F3);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-                }
-                
-                .invoice-details-row strong {
-                    color: var(--primary-color, #2196F3);
-                    font-weight: 600;
-                    margin-left: 8px;
-                }
-                
+                /* مطابق لـ api/invoices.php - تفاصيل الفاتورة */
+                .invoice-details,
                 .invoice-extra-info {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                    margin-bottom: 20px;
-                    padding: 20px;
-                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-                    border-radius: 12px;
-                    border: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-                }
-                
-                .invoice-extra-info-row {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 15px;
-                }
-                
-                .invoice-extra-info-row > div {
-                    color: #333;
-                    font-size: 1.05em;
+                    gap: 8px 15px;
+                    margin-bottom: 15px;
                     padding: 12px 15px;
-                    background: var(--white, #ffffff);
+                    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
                     border-radius: 8px;
-                    border-right: 3px solid var(--primary-color, #2196F3);
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+                    border: 1px solid #e0e0e0;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
                 }
-                
-                .invoice-extra-info-row strong {
+                .invoice-detail-item {
+                    color: var(--text-dark, #333);
+                    font-size: 0.95em;
+                    padding: 4px 0;
+                    line-height: 1.5;
+                    font-weight: 500;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                }
+                .invoice-detail-item strong {
                     color: var(--primary-color, #2196F3);
                     font-weight: 600;
-                    margin-left: 8px;
+                    min-width: fit-content;
                 }
                 
                 .invoice-summary {
@@ -5480,24 +5441,12 @@ async function printRepairReceipt(id) {
                     margin-top: 20px;
                 }
                 
-                /* ✅ Responsive Design للجوال */
+                /* ✅ Responsive Design للجوال (مطابق invoices.php) */
                 @media (max-width: 768px) {
-                    .invoice-details-row {
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 8px !important;
-                    }
-                    
-                    .invoice-details {
-                        padding: 15px !important;
-                    }
-                    
+                    .invoice-details,
                     .invoice-extra-info {
-                        padding: 15px !important;
-                    }
-                    
-                    .invoice-extra-info-row {
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 8px !important;
+                        padding: 12px 15px !important;
+                        gap: 8px 15px !important;
                     }
                 }
                 
@@ -5685,15 +5634,8 @@ async function printRepairReceipt(id) {
                     .invoice-extra-info {
                         visibility: visible !important;
                         opacity: 1 !important;
-                        display: flex !important;
-                        flex-direction: column !important;
-                    }
-                    
-                    .invoice-extra-info-row {
-                        visibility: visible !important;
-                        opacity: 1 !important;
                         display: grid !important;
-                        grid-template-columns: repeat(2, 1fr) !important;
+                        grid-template-columns: 1fr 1fr !important;
                     }
                     
                     .invoice-wrapper * {
@@ -5744,49 +5686,22 @@ async function printRepairReceipt(id) {
                         font-size: 0.9em !important;
                     }
                     
-                    .invoice-details {
-                        padding: 8px !important;
-                        margin-bottom: 5px !important;
-                        font-size: 0.85em !important;
-                        page-break-inside: avoid !important;
-                        box-shadow: none !important;
-                        border: 1px solid #ddd !important;
-                        background: white !important;
-                    }
-                    
-                    .invoice-details-row {
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 3px !important;
-                    }
-                    
-                    .invoice-details-row > div {
-                        font-size: 0.8em !important;
-                        padding: 6px 8px !important;
-                    }
-                    
+                    /* مطابق api/invoices.php @media print */
+                    .invoice-details,
                     .invoice-extra-info {
-                        padding: 8px !important;
-                        margin-bottom: 5px !important;
-                        font-size: 0.85em !important;
+                        padding: 6px 8px !important;
+                        margin-bottom: 6px !important;
+                        gap: 4px 8px !important;
+                        font-size: 0.75em !important;
                         page-break-inside: avoid !important;
                         box-shadow: none !important;
                         border: 1px solid #ddd !important;
                         background: white !important;
                     }
-                    
-                    .invoice-extra-info-row {
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 3px !important;
-                    }
-                    
-                    .invoice-extra-info-row > div {
-                        font-size: 0.8em !important;
-                        padding: 6px 8px !important;
-                    }
-                    
-                    .invoice-extra-info > div:not(.invoice-extra-info-row) {
-                        font-size: 0.8em !important;
-                        padding: 6px 8px !important;
+                    .invoice-detail-item {
+                        padding: 2px 0 !important;
+                        font-size: 0.75em !important;
+                        line-height: 1.3 !important;
                     }
                     
                     .invoice-delivery-date {
@@ -5927,40 +5842,22 @@ async function printRepairReceipt(id) {
                     <h2 style="margin: 10px 0; color: var(--primary-color, #2196F3); font-size: 1.2em; font-weight: 700;">إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} جهاز</h2>
                 </div>
                 
-                <!-- Invoice Details -->
+                <!-- Invoice Details (مطابق لـ api/invoices.php) -->
                 <div class="invoice-details">
-                    <div class="invoice-details-row">
-                        <div><strong>العميل:</strong> ${repair.customer_name || '-'}</div>
-                        <div><strong>الهاتف:</strong> ${repair.customer_phone || '-'}</div>
+                    <div class="invoice-detail-item"><strong>العميل:</strong> ${repair.customer_name || '-'}</div>
+                    <div class="invoice-detail-item"><strong>الهاتف:</strong> ${repair.customer_phone || '-'}</div>
+                    <div class="invoice-detail-item"><strong>رقم العملية:</strong> ${repair.repair_number || '-'}</div>
+                    <div class="invoice-detail-item"><strong>التاريخ:</strong> ${formatDateFunc(repair.created_at)}</div>
                 </div>
-                    <div class="invoice-details-row">
-                        <div><strong>رقم العملية:</strong> ${repair.repair_number || '-'}</div>
-                        <div><strong>التاريخ:</strong> ${formatDateFunc(repair.created_at)}</div>
-                </div>
-                </div>
-                
-               
-                <!-- Device Info -->
-                <div class="invoice-extra-info">
-                    <div class="invoice-extra-info-row">
-                        <div><strong>نوع الجهاز:</strong> ${repair.device_type || '-'}</div>
-                        <div><strong>الموديل:</strong> ${repair.device_model || '-'}</div>
-                    </div>
-                    <div class="invoice-extra-info-row">
-                        <div><strong>الرقم التسلسلي:</strong> ${repair.serial_number || '-'}</div>
-                        <div><strong>المشكلة:</strong> ${repair.problem || '-'}</div>
-                    </div>
-                    ${repair.accessories ? `
-                    <div class="invoice-extra-info-row">
-                        <div><strong>الملحقات:</strong> ${repair.accessories}</div>
-                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
-                    </div>
-                    ` : `
-                    <div class="invoice-extra-info-row">
-                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
-                        <div></div>
-                    </div>
-                    `}
+
+                <!-- Device Info (نفس تصميم وحجم الخطوط) -->
+                <div class="invoice-details invoice-extra-info">
+                    <div class="invoice-detail-item"><strong>نوع الجهاز:</strong> ${repair.device_type || '-'}</div>
+                    <div class="invoice-detail-item"><strong>الموديل:</strong> ${repair.device_model || '-'}</div>
+                    <div class="invoice-detail-item"><strong>الرقم التسلسلي:</strong> ${repair.serial_number || '-'}</div>
+                    <div class="invoice-detail-item"><strong>المشكلة:</strong> ${repair.problem || '-'}</div>
+                    <div class="invoice-detail-item"><strong>الملحقات:</strong> ${repair.accessories || '-'}</div>
+                    <div class="invoice-detail-item"><strong>الفني المستلم:</strong> ${technicianName}</div>
                 </div>
                 
                 ${repair.delivery_date ? `
