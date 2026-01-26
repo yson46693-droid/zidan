@@ -999,7 +999,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-items-table th,
             .invoice-items-table td {
                 padding: 6px 3px !important;
-                font-size: 0.4em !important;
+                font-size: 0.8em !important;
                 box-sizing: border-box !important;
                 word-wrap: break-word !important;
                 overflow-wrap: break-word !important;
@@ -1015,7 +1015,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 overflow-wrap: break-word !important;
             }
             .invoice-items-table th {
-                font-size: 0.4em !important;
+                font-size: 0.6em !important;
                 font-weight: 600 !important;
             }
             /* تحديد عرض الأعمدة بدقة لـ 80mm - 4 أعمدة فقط */
