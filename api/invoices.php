@@ -1064,7 +1064,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-summary {
                 padding: 4px 2px !important;
                 margin: 4px 0 !important;
-                font-size: 0.6em !important;
+                font-size: 0.85em !important;
                 page-break-inside: avoid !important;
                 page-break-before: avoid !important;
                 max-width: 100% !important;
@@ -1072,7 +1072,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 overflow: hidden !important;
             }
             .invoice-summary .summary-row {
-                font-size: 0.6em !important;
+                font-size: 0.85em !important;
                 margin-bottom: 2px !important;
                 padding: 1px 0 !important;
                 line-height: 1.2 !important;
@@ -1101,11 +1101,11 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 flex-shrink: 1 !important;
                 text-align: left !important;
                 word-break: break-all !important;
-                font-size: 0.9em !important;
+                font-size: 1em !important;
                 margin-left: 2px !important;
             }
             .invoice-summary .summary-row.total {
-                font-size: 0.7em !important;
+                font-size: 1em !important;
                 padding: 3px 2px !important;
                 margin-top: 3px !important;
                 margin-left: 0 !important;
@@ -1114,7 +1114,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 padding-right: 2px !important;
             }
             .invoice-summary .summary-row.total span:last-child {
-                font-size: 0.95em !important;
+                font-size: 1.1em !important;
             }
             .invoice-summary hr {
                 margin: 3px 0 !important;
