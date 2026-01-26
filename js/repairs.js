@@ -5439,9 +5439,9 @@ async function printRepairReceipt(id) {
                 .invoice-summary .summary-row {
                     display: flex;
                     justify-content: space-between;
-                    margin-bottom: 15px;
+                    margin-bottom: 8px;
                     font-size: 1.1em;
-                    padding: 10px 0;
+                    padding: 5px 0;
                 }
                 
                 .invoice-summary .summary-row.total {
