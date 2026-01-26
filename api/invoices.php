@@ -359,24 +359,23 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             if ($serialNumber) {
                 $itemsHtml .= '
                             <tr>
-                                <td>' . $itemName . '</td>
-                                <td>' . $quantity . '</td>
-                                <td>' . $unitPrice . '</td>
-                                <td>' . $totalPrice . '</td>
+                                <td style="font-size: 0.4em;">' . $itemName . '</td>
+                                <td style="font-size: 0.4em;">' . $quantity . '</td>
+                                <td style="font-size: 0.4em;">' . $unitPrice . '</td>
+                                <td style="font-size: 0.4em;">' . $totalPrice . '</td>
                             </tr>
                             <tr style="background-color: #f9f9f9;">
-                                <td></td>
-                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.4em;">
+                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.1em;">
                                     <strong>السيريال:</strong> ' . $serialNumber . '
                                 </td>
                             </tr>';
             } else {
                 $itemsHtml .= '
                             <tr>
-                                <td>' . $itemName . '</td>
-                                <td>' . $quantity . '</td>
-                                <td>' . $unitPrice . '</td>
-                                <td>' . $totalPrice . '</td>
+                                <td style="font-size: 0.4em;">' . $itemName . '</td>
+                                <td style="font-size: 0.4em;">' . $quantity . '</td>
+                                <td style="font-size: 0.4em;">' . $unitPrice . '</td>
+                                <td style="font-size: 0.4em;">' . $totalPrice . '</td>
                             </tr>';
             }
         }
