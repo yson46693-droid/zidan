@@ -359,23 +359,23 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             if ($serialNumber) {
                 $itemsHtml .= '
                             <tr>
-                                <td style="font-size: 1.1em !important;">' . $itemName . '</td>
-                                <td style="font-size: 1.1em !important;">' . $quantity . '</td>
-                                <td style="font-size: 1.1em !important;">' . $unitPrice . '</td>
-                                <td style="font-size: 1.1em !important;">' . $totalPrice . '</td>
+                                <td style="font-size: 0.95em !important;">' . $itemName . '</td>
+                                <td style="font-size: 0.95em !important;">' . $quantity . '</td>
+                                <td style="font-size: 0.95em !important;">' . $unitPrice . '</td>
+                                <td style="font-size: 0.95em !important;">' . $totalPrice . '</td>
                             </tr>
                             <tr style="background-color: #f9f9f9;">
-                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 1em !important;">
+                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.9em !important;">
                                     <strong>السيريال:</strong> ' . $serialNumber . '
                                 </td>
                             </tr>';
             } else {
                 $itemsHtml .= '
                             <tr>
-                                <td style="font-size: 1.1em !important;">' . $itemName . '</td>
-                                <td style="font-size: 1.1em !important;">' . $quantity . '</td>
-                                <td style="font-size: 1.1em !important;">' . $unitPrice . '</td>
-                                <td style="font-size: 1.1em !important;">' . $totalPrice . '</td>
+                                <td style="font-size: 0.95em !important;">' . $itemName . '</td>
+                                <td style="font-size: 0.95em !important;">' . $quantity . '</td>
+                                <td style="font-size: 0.95em !important;">' . $unitPrice . '</td>
+                                <td style="font-size: 0.95em !important;">' . $totalPrice . '</td>
                             </tr>';
             }
         }
@@ -766,7 +766,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         }
         .invoice-items-table td {
             color: var(--text-dark);
-            font-size: 1.2em;
+            font-size: 1em;
             background: var(--white);
             font-weight: 500;
         }
@@ -996,7 +996,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-items-table {
                 width: 100% !important;
                 max-width: 100% !important;
-                font-size: 1.2em !important;
+                font-size: 1em !important;
                 page-break-inside: avoid !important;
                 display: table !important;
                 border-collapse: collapse !important;
@@ -1007,7 +1007,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             .invoice-items-table th,
             .invoice-items-table td {
                 padding: 6px 3px !important;
-                font-size: 1.1em !important;
+                font-size: 0.95em !important;
                 box-sizing: border-box !important;
                 word-wrap: break-word !important;
                 overflow-wrap: break-word !important;
@@ -1023,7 +1023,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 overflow-wrap: break-word !important;
             }
             .invoice-items-table th {
-                font-size: 1.1em !important;
+                font-size: 0.9em !important;
                 font-weight: 800 !important;
             }
             /* تحديد عرض الأعمدة بدقة لـ 80mm - 4 أعمدة فقط */
@@ -1198,7 +1198,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         ' . $phoneDataSection . '
         
         <!-- Items Table -->
-        <table class="invoice-items-table" style="font-size: 1em !important;">
+        <table class="invoice-items-table" style="font-size: 0.95em !important;">
             <thead>
                 <tr>
                     <th>صنف</th>
