@@ -749,7 +749,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             background: #f5f5f5;
             font-weight: 600;
             color: var(--text-dark);
-            font-size: 1.1em;
+            font-size: 0.9em;
             border-bottom: 2px solid #ddd;
             white-space: nowrap;
             word-wrap: normal;
@@ -766,7 +766,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         }
         .invoice-items-table td {
             color: var(--text-dark);
-            font-size: 1.3em;
+            font-size: 1.2em;
             background: var(--white);
             font-weight: 500;
         }
