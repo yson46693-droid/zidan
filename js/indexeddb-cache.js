@@ -349,3 +349,8 @@ class IndexedDBCache {
 
 // إنشاء instance عام
 const dbCache = new IndexedDBCache();
+
+// تصدير للاستخدام في ملفات أخرى
+if (typeof window !== 'undefined') {
+    window.dbCache = dbCache;
+}
