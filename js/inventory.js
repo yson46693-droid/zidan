@@ -86,25 +86,19 @@ function getAllAccessoryTypes() {
     return baseTypesWithoutOther;
 }
 
-// دالة للحصول على جميع أنواع قطع الغيار (الأساسية + المحفوظة + اليدوية من النموذج الحالي)
-function getAllSparePartTypes(formContainer) {
+// دالة للحصول على جميع أنواع قطع الغيار (الأساسية + اليدوية من النموذج الحالي فقط)
+function getAllSparePartTypes(formContainer, additionalTypes = []) {
     const otherType = sparePartTypes.find(t => t.id === 'other');
     const baseWithoutOther = sparePartTypes.filter(t => t.id !== 'other');
-    const customTypeCount = new Map(); // لحساب عدد مرات استخدام كل نوع مخصص
+    const customTypesSet = new Set(); // لحفظ الأنواع المخصصة اليدوية
 
-    // من قطع الغيار المحفوظة (allSpareParts)
-    if (allSpareParts && allSpareParts.length > 0) {
-        allSpareParts.forEach(part => {
-            (part.items || []).forEach(item => {
-                const t = (item.item_type || '').trim();
-                if (!t || t === 'other') return;
-                if (baseWithoutOther.some(b => b.id === t)) return;
-                
-                // حساب عدد مرات استخدام كل نوع
-                customTypeCount.set(t, (customTypeCount.get(t) || 0) + 1);
-            });
-        });
-    }
+    // إضافة الأنواع الإضافية الممررة (مثل أنواع القطع المحملة)
+    additionalTypes.forEach(type => {
+        const t = (type || '').trim();
+        if (t && t !== 'other' && !baseWithoutOther.some(b => b.id === t)) {
+            customTypesSet.add(t);
+        }
+    });
 
     // من صفوف النموذج الحالي (أخرى + إدخال يدوي)
     if (formContainer) {
@@ -117,26 +111,14 @@ function getAllSparePartTypes(formContainer) {
                 if (sel.value !== 'other') return;
                 if (customInp.style.display === 'none') return;
                 const v = (customInp.value || '').trim();
-                if (!v || baseWithoutOther.some(b => b.id === v)) return;
-                customTypeCount.set(v, (customTypeCount.get(v) || 0) + 1);
+                if (v && !baseWithoutOther.some(b => b.id === v)) {
+                    customTypesSet.add(v);
+                }
             });
         }
     }
 
-    // تصفية الأنواع المخصصة: استبعاد الوصفات المحددة
-    const filteredCustomTypes = [];
-    customTypeCount.forEach((count, typeName) => {
-        // استبعاد الأنواع التي تحتوي على "+" (مثل "بصمة اسود+ازرق")
-        if (typeName.includes('+')) return;
-        
-        // استبعاد الأنواع التي استخدمت مرة واحدة فقط (وصف محدد لقطعة معينة)
-        // والاحتفاظ فقط بالأنواع التي استخدمت مرتين أو أكثر (أنواع عامة قابلة لإعادة الاستخدام)
-        if (count >= 2) {
-            filteredCustomTypes.push(typeName);
-        }
-    });
-
-    const customList = filteredCustomTypes.map(id => ({ id, name: id, icon: 'bi-box-seam', isCustom: true }));
+    const customList = Array.from(customTypesSet).map(id => ({ id, name: id, icon: 'bi-box-seam', isCustom: true }));
     return [...baseWithoutOther, ...customList, ...(otherType ? [otherType] : [])];
 }
 
@@ -689,9 +671,16 @@ function loadSparePartItems(items) {
         ? '1.5fr 80px 100px 100px auto' 
         : '1.5fr 80px 100px auto';
     
-    const allTypes = getAllSparePartTypes(null);
+    // الحصول على الأنواع الأساسية فقط (لأن container لا يزال فارغاً)
+    const baseTypes = getAllSparePartTypes(null);
     
     container.innerHTML = items.map(item => {
+        // إنشاء قائمة منسدلة خاصة بهذه القطعة (تتضمن نوعها المخصص إن وُجد)
+        const itemType = (item.item_type || '').trim();
+        const itemTypeInBase = baseTypes.find(t => t.id === itemType);
+        const additionalTypes = itemType && itemType !== 'other' && !itemTypeInBase ? [itemType] : [];
+        const allTypes = getAllSparePartTypes(null, additionalTypes);
+        
         const type = allTypes.find(t => t.id === item.item_type);
         const showCustom = type && type.isCustom || item.item_type === 'other';
         const isOther = item.item_type === 'other' || !type;
@@ -738,6 +727,16 @@ function loadSparePartItems(items) {
             </div>
         `;
     }).join('');
+    
+    // إضافة معالج الإدخال للحقول اليدوية
+    container.querySelectorAll('.spare-part-item-custom').forEach(customInput => {
+        if (!customInput.hasAttribute('data-custom-listener')) {
+            customInput.setAttribute('data-custom-listener', 'true');
+            customInput.addEventListener('input', function() {
+                updateSparePartItemDropdowns();
+            });
+        }
+    });
 }
 
 async function deleteSparePart(id) {
@@ -2188,6 +2187,15 @@ function addSparePartItem() {
     `;
     itemRow.style.cssText = `display: grid; grid-template-columns: ${gridColumns}; gap: 8px; align-items: start; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;`;
     container.appendChild(itemRow);
+    
+    // إضافة معالج الإدخال للحقل اليدوي
+    const customInput = itemRow.querySelector('.spare-part-item-custom');
+    if (customInput && !customInput.hasAttribute('data-custom-listener')) {
+        customInput.setAttribute('data-custom-listener', 'true');
+        customInput.addEventListener('input', function() {
+            updateSparePartItemDropdowns();
+        });
+    }
 }
 
 function handleSparePartItemTypeChange(select) {
@@ -2205,6 +2213,13 @@ function handleSparePartItemTypeChange(select) {
             customInput.style.display = 'block';
             customInput.style.gridColumn = '1 / -2';
             customInput.required = true;
+            // إضافة معالج لتحديث القائمة المنسدلة عند إدخال نوع يدوي جديد
+            if (!customInput.hasAttribute('data-custom-listener')) {
+                customInput.setAttribute('data-custom-listener', 'true');
+                customInput.addEventListener('input', function() {
+                    updateSparePartItemDropdowns();
+                });
+            }
         }
         if (customLabel) {
             customLabel.style.display = 'block';
@@ -2261,8 +2276,44 @@ function handleSparePartItemTypeChange(select) {
     }
 }
 
+// دالة لتحديث جميع القوائم المنسدلة لقطع الغيار
+function updateSparePartItemDropdowns() {
+    const container = document.getElementById('sparePartItems');
+    if (!container) return;
+    
+    const allTypes = getAllSparePartTypes(container);
+    
+    container.querySelectorAll('.spare-part-item-type').forEach(select => {
+        const currentValue = select.value;
+        const row = select.closest('.spare-part-item-row');
+        const customInput = row ? row.querySelector('.spare-part-item-custom') : null;
+        const customValue = customInput && customInput.style.display !== 'none' ? customInput.value.trim() : '';
+        
+        // حفظ القيمة الحالية
+        const selectedOption = select.options[select.selectedIndex];
+        const selectedText = selectedOption ? selectedOption.text : '';
+        
+        // تحديث القائمة المنسدلة
+        select.innerHTML = allTypes.map(type => {
+            const isSelected = type.id === currentValue || (currentValue === 'other' && customValue && type.id === customValue);
+            return `<option value="${type.id}" ${isSelected ? 'selected' : ''}>${type.name}</option>`;
+        }).join('');
+        
+        // إذا كان النوع المحدد هو "أخرى" وكان هناك قيمة يدوية، إضافة خيار لها
+        if (currentValue === 'other' && customValue && !allTypes.find(t => t.id === customValue)) {
+            const option = document.createElement('option');
+            option.value = customValue;
+            option.textContent = customValue;
+            option.selected = true;
+            select.appendChild(option);
+        }
+    });
+}
+
 function removeSparePartItem(button) {
     button.closest('.spare-part-item-row').remove();
+    // تحديث القوائم المنسدلة بعد الحذف
+    updateSparePartItemDropdowns();
 }
 
 function closeSparePartModal() {
