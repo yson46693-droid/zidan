@@ -2341,6 +2341,32 @@ async function saveSparePart(event) {
         return;
     }
     
+    // التحقق من عدم وجود بطاقة بنفس الماركة والموديل (فقط عند الإضافة، وليس التعديل)
+    if (!id) {
+        // التأكد من تحميل قطع الغيار إذا لم تكن محملة
+        if (!allSpareParts || allSpareParts.length === 0) {
+            try {
+                await loadSpareParts();
+            } catch (error) {
+                console.warn('لم يتم تحميل قطع الغيار للتحقق من التكرار:', error);
+            }
+        }
+        
+        const normalizedBrand = brand.trim().toLowerCase();
+        const normalizedModel = model.trim().toLowerCase();
+        
+        const duplicate = allSpareParts.find(part => {
+            const partBrand = (part.brand || '').trim().toLowerCase();
+            const partModel = (part.model || '').trim().toLowerCase();
+            return partBrand === normalizedBrand && partModel === normalizedModel;
+        });
+        
+        if (duplicate) {
+            showMessage(`بطاقة قطع غيار بنفس الماركة (${brand}) والموديل (${model}) موجودة مسبقاً`, 'error');
+            return;
+        }
+    }
+    
     // إنشاء باركود تلقائياً إذا لم يكن موجوداً
     if (!barcode) {
         barcode = `${brand}-${model}-${Date.now()}`;
