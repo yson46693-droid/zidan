@@ -90,7 +90,7 @@ function getAllAccessoryTypes() {
 function getAllSparePartTypes(formContainer) {
     const otherType = sparePartTypes.find(t => t.id === 'other');
     const baseWithoutOther = sparePartTypes.filter(t => t.id !== 'other');
-    const customSet = new Set();
+    const customTypeCount = new Map(); // لحساب عدد مرات استخدام كل نوع مخصص
 
     // من قطع الغيار المحفوظة (allSpareParts)
     if (allSpareParts && allSpareParts.length > 0) {
@@ -99,7 +99,9 @@ function getAllSparePartTypes(formContainer) {
                 const t = (item.item_type || '').trim();
                 if (!t || t === 'other') return;
                 if (baseWithoutOther.some(b => b.id === t)) return;
-                customSet.add(t);
+                
+                // حساب عدد مرات استخدام كل نوع
+                customTypeCount.set(t, (customTypeCount.get(t) || 0) + 1);
             });
         });
     }
@@ -116,12 +118,25 @@ function getAllSparePartTypes(formContainer) {
                 if (customInp.style.display === 'none') return;
                 const v = (customInp.value || '').trim();
                 if (!v || baseWithoutOther.some(b => b.id === v)) return;
-                customSet.add(v);
+                customTypeCount.set(v, (customTypeCount.get(v) || 0) + 1);
             });
         }
     }
 
-    const customList = [...customSet].map(id => ({ id, name: id, icon: 'bi-box-seam', isCustom: true }));
+    // تصفية الأنواع المخصصة: استبعاد الوصفات المحددة
+    const filteredCustomTypes = [];
+    customTypeCount.forEach((count, typeName) => {
+        // استبعاد الأنواع التي تحتوي على "+" (مثل "بصمة اسود+ازرق")
+        if (typeName.includes('+')) return;
+        
+        // استبعاد الأنواع التي استخدمت مرة واحدة فقط (وصف محدد لقطعة معينة)
+        // والاحتفاظ فقط بالأنواع التي استخدمت مرتين أو أكثر (أنواع عامة قابلة لإعادة الاستخدام)
+        if (count >= 2) {
+            filteredCustomTypes.push(typeName);
+        }
+    });
+
+    const customList = filteredCustomTypes.map(id => ({ id, name: id, icon: 'bi-box-seam', isCustom: true }));
     return [...baseWithoutOther, ...customList, ...(otherType ? [otherType] : [])];
 }
 
