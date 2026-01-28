@@ -646,11 +646,30 @@ function loadSparePartItems(items) {
                     `).join('')}
                     ${isOther && !type ? `<option value="other" selected>${item.item_type || 'أخرى'}</option>` : ''}
                 </select>
-                <input type="number" class="spare-part-item-quantity" value="${item.quantity ?? 0}" min="0" placeholder="الكمية">
-                ${canSeePurchasePrice ? `<input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}" placeholder="سعر التكلفة">` : ''}
-                <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}" placeholder="سعر البيع">
-                <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'}; grid-column: 1 / -1;">
-                <input type="text" class="spare-part-item-serial" value="${item.serial_number || ''}" placeholder="${isMotherboard && modelValue ? `السيريال (الموديل: ${modelValue})` : 'السيريال (مرتبط بالموديل)'}" style="display: ${isMotherboard ? 'block' : 'none'}; grid-column: 1 / -1; margin-top: 8px;" ${isMotherboard ? `data-model="${modelValue}"` : ''}>
+                <div style="display: flex; flex-direction: column;">
+                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">الكمية</label>
+                    <input type="number" class="spare-part-item-quantity" value="${item.quantity ?? 0}" min="0">
+                </div>
+                ${canSeePurchasePrice ? `
+                <div style="display: flex; flex-direction: column;">
+                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">سعر التكلفة</label>
+                    <input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}">
+                </div>
+                ` : ''}
+                <div style="display: flex; flex-direction: column;">
+                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">سعر البيع</label>
+                    <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}">
+                </div>
+                <div style="display: ${showCustom ? 'flex' : 'none'}; flex-direction: column; grid-column: 1 / -1;">
+                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">النوع (يدوي)</label>
+                    <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}">
+                </div>
+                <div style="display: ${isMotherboard ? 'flex' : 'none'}; flex-direction: column; grid-column: 1 / -1; margin-top: 8px;">
+                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">
+                        ${isMotherboard && modelValue ? `السيريال (الموديل: ${modelValue})` : 'السيريال (مرتبط بالموديل)'}
+                    </label>
+                    <input type="text" class="spare-part-item-serial" value="${item.serial_number || ''}" ${isMotherboard ? `data-model="${modelValue}"` : ''}>
+                </div>
                 <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
             </div>
         `;
