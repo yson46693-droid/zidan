@@ -86,6 +86,45 @@ function getAllAccessoryTypes() {
     return baseTypesWithoutOther;
 }
 
+// دالة للحصول على جميع أنواع قطع الغيار (الأساسية + المحفوظة + اليدوية من النموذج الحالي)
+function getAllSparePartTypes(formContainer) {
+    const otherType = sparePartTypes.find(t => t.id === 'other');
+    const baseWithoutOther = sparePartTypes.filter(t => t.id !== 'other');
+    const customSet = new Set();
+
+    // من قطع الغيار المحفوظة (allSpareParts)
+    if (allSpareParts && allSpareParts.length > 0) {
+        allSpareParts.forEach(part => {
+            (part.items || []).forEach(item => {
+                const t = (item.item_type || '').trim();
+                if (!t || t === 'other') return;
+                if (baseWithoutOther.some(b => b.id === t)) return;
+                customSet.add(t);
+            });
+        });
+    }
+
+    // من صفوف النموذج الحالي (أخرى + إدخال يدوي)
+    if (formContainer) {
+        const container = typeof formContainer === 'string' ? document.getElementById(formContainer) : formContainer;
+        if (container) {
+            container.querySelectorAll('.spare-part-item-row').forEach(row => {
+                const sel = row.querySelector('.spare-part-item-type');
+                const customInp = row.querySelector('.spare-part-item-custom');
+                if (!sel || !customInp) return;
+                if (sel.value !== 'other') return;
+                if (customInp.style.display === 'none') return;
+                const v = (customInp.value || '').trim();
+                if (!v || baseWithoutOther.some(b => b.id === v)) return;
+                customSet.add(v);
+            });
+        }
+    }
+
+    const customList = [...customSet].map(id => ({ id, name: id, icon: 'bi-box-seam', isCustom: true }));
+    return [...baseWithoutOther, ...customList, ...(otherType ? [otherType] : [])];
+}
+
 // قائمة الماركات - يتم تحميلها من قاعدة البيانات
 let phoneBrands = [];
 
@@ -630,8 +669,10 @@ function loadSparePartItems(items) {
         ? '1.5fr 80px 100px 100px auto' 
         : '1.5fr 80px 100px auto';
     
+    const allTypes = getAllSparePartTypes(null);
+    
     container.innerHTML = items.map(item => {
-        const type = sparePartTypes.find(t => t.id === item.item_type);
+        const type = allTypes.find(t => t.id === item.item_type);
         const showCustom = type && type.isCustom || item.item_type === 'other';
         const isOther = item.item_type === 'other' || !type;
         const isMotherboard = item.item_type === 'motherboard';
@@ -641,35 +682,16 @@ function loadSparePartItems(items) {
         return `
             <div class="spare-part-item-row" data-item-id="${item.id || ''}" style="display: grid; grid-template-columns: ${gridColumns}; gap: 8px; align-items: center; margin-bottom: 10px; padding: 10px; background: var(--light-bg); border-radius: 6px;">
                 <select class="spare-part-item-type" onchange="handleSparePartItemTypeChange(this)">
-                    ${sparePartTypes.map(t => `
+                    ${allTypes.map(t => `
                         <option value="${t.id}" ${item.item_type === t.id ? 'selected' : ''}>${t.name}</option>
                     `).join('')}
                     ${isOther && !type ? `<option value="other" selected>${item.item_type || 'أخرى'}</option>` : ''}
                 </select>
-                <div style="display: flex; flex-direction: column;">
-                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">الكمية</label>
-                    <input type="number" class="spare-part-item-quantity" value="${item.quantity ?? 0}" min="0">
-                </div>
-                ${canSeePurchasePrice ? `
-                <div style="display: flex; flex-direction: column;">
-                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">سعر التكلفة</label>
-                    <input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}">
-                </div>
-                ` : ''}
-                <div style="display: flex; flex-direction: column;">
-                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">سعر البيع</label>
-                    <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}">
-                </div>
-                <div style="display: ${showCustom ? 'flex' : 'none'}; flex-direction: column; grid-column: 1 / -1;">
-                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">النوع (يدوي)</label>
-                    <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}">
-                </div>
-                <div style="display: ${isMotherboard ? 'flex' : 'none'}; flex-direction: column; grid-column: 1 / -1; margin-top: 8px;">
-                    <label style="margin-bottom: 3px; color: var(--text-dark); font-size: 13px;">
-                        ${isMotherboard && modelValue ? `السيريال (الموديل: ${modelValue})` : 'السيريال (مرتبط بالموديل)'}
-                    </label>
-                    <input type="text" class="spare-part-item-serial" value="${item.serial_number || ''}" ${isMotherboard ? `data-model="${modelValue}"` : ''}>
-                </div>
+                <input type="number" class="spare-part-item-quantity" value="${item.quantity ?? 0}" min="0" placeholder="الكمية">
+                ${canSeePurchasePrice ? `<input type="number" class="spare-part-item-purchase-price" step="1" min="0" value="${item.purchase_price}" placeholder="سعر التكلفة">` : ''}
+                <input type="number" class="spare-part-item-selling-price" step="1" min="0" value="${item.selling_price || item.price}" placeholder="سعر البيع">
+                <input type="text" class="spare-part-item-custom" value="${item.custom_value || (isOther ? item.item_type : '')}" placeholder="أدخل النوع يدوياً" style="display: ${showCustom ? 'block' : 'none'}; grid-column: 1 / -1;">
+                <input type="text" class="spare-part-item-serial" value="${item.serial_number || ''}" placeholder="${isMotherboard && modelValue ? `السيريال (الموديل: ${modelValue})` : 'السيريال (مرتبط بالموديل)'}" style="display: ${isMotherboard ? 'block' : 'none'}; grid-column: 1 / -1; margin-top: 8px;" ${isMotherboard ? `data-model="${modelValue}"` : ''}>
                 <button onclick="removeSparePartItem(this)" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
             </div>
         `;
@@ -1820,6 +1842,28 @@ function createInventoryModals() {
             </div>
         `;
         document.body.appendChild(sparePartModal);
+        sparePartModal.addEventListener('focusout', function onSparePartCustomBlur(e) {
+            if (!e.target.matches('.spare-part-item-custom')) return;
+            const row = e.target.closest('.spare-part-item-row');
+            if (!row) return;
+            const select = row.querySelector('.spare-part-item-type');
+            const customInp = e.target;
+            if (!select || select.value !== 'other') return;
+            const val = (customInp.value || '').trim();
+            if (!val) return;
+            const opts = [...select.options];
+            if (opts.some(o => o.value === val)) {
+                select.value = val;
+                return;
+            }
+            const otherOpt = opts.find(o => o.value === 'other');
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val;
+            if (otherOpt) select.insertBefore(opt, otherOpt);
+            else select.appendChild(opt);
+            select.value = val;
+        });
     }
     
     // نموذج الإكسسوارات
@@ -2046,8 +2090,10 @@ function createInventoryModals() {
 // دوال قطع الغيار
 function addSparePartItem() {
     const container = document.getElementById('sparePartItems');
+    if (!container) return;
     const itemId = 'item_' + Date.now();
-    
+    const allTypes = getAllSparePartTypes(container);
+
     // التحقق من صلاحيات المستخدم (فقط المالك والمدير يمكنهم رؤية سعر التكلفة)
     const user = getCurrentUser();
     const canSeePurchasePrice = user && (user.role === 'admin' || user.role === 'manager');
@@ -2062,7 +2108,7 @@ function addSparePartItem() {
     itemRow.dataset.itemId = itemId;
     itemRow.innerHTML = `
         <select class="spare-part-item-type" onchange="handleSparePartItemTypeChange(this)">
-            ${sparePartTypes.map(type => `
+            ${allTypes.map(type => `
                 <option value="${type.id}">${type.name}</option>
             `).join('')}
         </select>
@@ -2081,7 +2127,8 @@ function handleSparePartItemTypeChange(select) {
     const row = select.closest('.spare-part-item-row');
     const customInput = row.querySelector('.spare-part-item-custom');
     const serialInput = row.querySelector('.spare-part-item-serial');
-    const type = sparePartTypes.find(t => t.id === select.value);
+    const container = document.getElementById('sparePartItems');
+    const type = getAllSparePartTypes(container).find(t => t.id === select.value);
     
     // إذا كان النوع "أخرى" أو يحتوي على "other" أو "custom"
     if (select.value === 'other' || select.value.includes('other') || (type && type.isCustom)) {
