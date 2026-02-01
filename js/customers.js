@@ -5393,7 +5393,7 @@ async function printRepairReceiptFromCustomerPage(repairId) {
                     </div>
                     <div class="invoice-extra-info-row">
                         <div><strong>المشكلة:</strong> ${repair.problem || '-'}</div>
-                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
+                        <div></div>
                     </div>
                     ${repair.accessories ? `
                     <div class="invoice-extra-info-row">

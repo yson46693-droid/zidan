@@ -547,7 +547,7 @@
             </div>
             <div class="invoice-extra-info-row">
                 <div><strong>المشكلة:</strong> <span id="problem">-</span></div>
-                <div><strong>الفني المسؤول:</strong> <span id="technicianNameDisplay">-</span></div>
+                <div></div>
             </div>
             <div class="invoice-extra-info-row" id="accessoriesRow" style="display: none;">
                 <div><strong>الملحقات:</strong> <span id="accessories">-</span></div>
@@ -664,7 +664,6 @@
                 document.getElementById('deviceType').textContent = data.deviceType || '-';
                 document.getElementById('deviceModel').textContent = data.deviceModel || '-';
                 document.getElementById('problem').textContent = data.problem || '-';
-                document.getElementById('technicianNameDisplay').textContent = data.technicianName || '-';
                 
                 // Accessories
                 if (data.accessories && data.accessories.trim() !== '') {
