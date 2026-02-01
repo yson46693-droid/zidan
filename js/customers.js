@@ -5367,8 +5367,7 @@ async function printRepairReceiptFromCustomerPage(repairId) {
                 <div class="invoice-header">
                     <div class="invoice-shop-info">
                         ${finalShopAddress ? `<div><i class="bi bi-geo-alt-fill"></i> ${finalShopAddress}</div>` : ''}
-                        ${whatsappNumber ? `<div><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${whatsappNumber}</div>` : ''}
-                        ${finalShopPhone ? `<div><i class="bi bi-telephone-fill"></i> ${finalShopPhone}</div>` : ''}
+                        ${(whatsappNumber || finalShopPhone) ? `<div>${whatsappNumber ? `<i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ${whatsappNumber}` : ''}${whatsappNumber && finalShopPhone ? ' | ' : ''}${finalShopPhone ? `<i class="bi bi-telephone-fill"></i> ${finalShopPhone}` : ''}</div>` : ''}
                 </div>
                     <h2 style="margin: 10px 0; color: var(--primary-color, #2196F3); font-size: 1.2em; font-weight: 700;">إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} جهاز</h2>
                 </div>
@@ -5393,33 +5392,16 @@ async function printRepairReceiptFromCustomerPage(repairId) {
                         <div><strong>الموديل:</strong> ${repair.device_model || '-'}</div>
                     </div>
                     <div class="invoice-extra-info-row">
-                        <div><strong>الرقم التسلسلي:</strong> ${repair.serial_number || '-'}</div>
                         <div><strong>المشكلة:</strong> ${repair.problem || '-'}</div>
+                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
                     </div>
                     ${repair.accessories ? `
                     <div class="invoice-extra-info-row">
                         <div><strong>الملحقات:</strong> ${repair.accessories}</div>
-                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
-                    </div>
-                    ` : `
-                    <div class="invoice-extra-info-row">
-                        <div><strong>الفني المستلم:</strong> ${technicianName}</div>
                         <div></div>
                     </div>
-                    `}
+                    ` : ''}
                 </div>
-                
-                ${repair.delivery_date ? `
-                <!-- Delivery Date Section -->
-                <div class="invoice-delivery-date" style="text-align: center; margin: 15px 0; padding: 15px; background: white; border: 2px solid #000; border-radius: 8px;">
-                    <div style="color: #000; font-size: 0.95em; font-weight: 600; margin-bottom: 8px;">
-                        <i class="bi bi-calendar-check-fill" style="margin-left: 6px;"></i> موعد الاستلام المتوقع
-                    </div>
-                    <div style="color: #000; font-size: 1.3em; font-weight: 700;">
-                        ${formatDateFunc(repair.delivery_date)}
-                    </div>
-                </div>
-                ` : ''}
                 
                 <!-- Summary -->
                 <div class="invoice-summary">
@@ -5431,12 +5413,6 @@ async function printRepairReceiptFromCustomerPage(repairId) {
                     <div class="summary-row">
                         <span>المبلغ المدفوع:</span>
                         <span>${formatPrice(repair.paid_amount)} ${currency}</span>
-                    </div>
-                    ` : ''}
-                    ${(repair.remaining_amount && parseFloat(repair.remaining_amount) > 0) ? `
-                    <div class="summary-row">
-                        <span> المتبقي:</span>
-                        <span>${formatPrice(repair.remaining_amount)} ${currency}</span>
                     </div>
                     ` : ''}
                 </div>

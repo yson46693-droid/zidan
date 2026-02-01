@@ -520,11 +520,8 @@
                 <div id="shopAddressContainer" style="display: none;">
                     <i class="bi bi-geo-alt-fill"></i> <span id="shopAddress"></span>
                 </div>
-                <div id="whatsappContainer" style="display: none;">
-                    <i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: <span id="whatsappNumber"></span>
-                </div>
-                <div id="shopPhoneContainer" style="display: none;">
-                    <i class="bi bi-telephone-fill"></i> <span id="shopPhone"></span>
+                <div id="shopContactContainer" style="display: none;">
+                    <span id="shopContactLine"></span>
                 </div>
             </div>
             <h2>إيصال تسليم جهاز</h2>
@@ -549,15 +546,11 @@
                 <div><strong>الموديل:</strong> <span id="deviceModel">-</span></div>
             </div>
             <div class="invoice-extra-info-row">
-                <div><strong>الرقم التسلسلي:</strong> <span id="serialNumber">-</span></div>
                 <div><strong>المشكلة:</strong> <span id="problem">-</span></div>
+                <div><strong>الفني المسؤول:</strong> <span id="technicianNameDisplay">-</span></div>
             </div>
             <div class="invoice-extra-info-row" id="accessoriesRow" style="display: none;">
                 <div><strong>الملحقات:</strong> <span id="accessories">-</span></div>
-                <div><strong>الفني المسؤول:</strong> <span id="technicianName">-</span></div>
-            </div>
-            <div class="invoice-extra-info-row" id="technicianOnlyRow">
-                <div><strong>الفني المسؤول:</strong> <span id="technicianNameOnly">-</span></div>
                 <div></div>
             </div>
         </div>
@@ -571,10 +564,6 @@
             <div class="summary-row" id="paidRow" style="display: none;">
                 <span>المبلغ المدفوع:</span>
                 <span id="paidAmount">0.00 <span class="currency">ج.م</span></span>
-            </div>
-            <div class="summary-row" id="remainingRow" style="display: none;">
-                <span>المتبقي:</span>
-                <span id="remainingAmount">0.00 <span class="currency">ج.م</span></span>
             </div>
             <hr>
             <div class="summary-row total">
@@ -649,13 +638,14 @@
                         document.getElementById('shopAddress').textContent = data.shopInfo.address;
                         document.getElementById('shopAddressContainer').style.display = 'block';
                     }
-                    if (data.shopInfo.whatsapp) {
-                        document.getElementById('whatsappNumber').textContent = data.shopInfo.whatsapp;
-                        document.getElementById('whatsappContainer').style.display = 'block';
-                    }
-                    if (data.shopInfo.phone) {
-                        document.getElementById('shopPhone').textContent = data.shopInfo.phone;
-                        document.getElementById('shopPhoneContainer').style.display = 'block';
+                    const whatsapp = data.shopInfo.whatsapp || '';
+                    const phone = data.shopInfo.phone || '';
+                    if (whatsapp || phone) {
+                        const parts = [];
+                        if (whatsapp) parts.push('<i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب: ' + whatsapp);
+                        if (phone) parts.push('<i class="bi bi-telephone-fill"></i> ' + phone);
+                        document.getElementById('shopContactLine').innerHTML = parts.join(' | ');
+                        document.getElementById('shopContactContainer').style.display = 'block';
                     }
                     if (data.shopInfo.logo) {
                         const logoSection = document.getElementById('logoSection');
@@ -673,19 +663,15 @@
                 // Device Info
                 document.getElementById('deviceType').textContent = data.deviceType || '-';
                 document.getElementById('deviceModel').textContent = data.deviceModel || '-';
-                document.getElementById('serialNumber').textContent = data.serialNumber || '-';
                 document.getElementById('problem').textContent = data.problem || '-';
+                document.getElementById('technicianNameDisplay').textContent = data.technicianName || '-';
                 
-                // Accessories and Technician
+                // Accessories
                 if (data.accessories && data.accessories.trim() !== '') {
                     document.getElementById('accessories').textContent = data.accessories;
-                    document.getElementById('technicianName').textContent = data.technicianName || '-';
                     document.getElementById('accessoriesRow').style.display = 'grid';
-                    document.getElementById('technicianOnlyRow').style.display = 'none';
                 } else {
-                    document.getElementById('technicianNameOnly').textContent = data.technicianName || '-';
                     document.getElementById('accessoriesRow').style.display = 'none';
-                    document.getElementById('technicianOnlyRow').style.display = 'grid';
                 }
 
                 // Summary
@@ -702,14 +688,6 @@
                     document.getElementById('paidRow').style.display = 'flex';
                 } else {
                     document.getElementById('paidRow').style.display = 'none';
-                }
-
-                const remainingAmount = parseFloat(data.remainingAmount || data.remaining_amount || 0).toFixed(2);
-                if (remainingAmount > 0) {
-                    document.getElementById('remainingAmount').innerHTML = `${remainingAmount} <span class="currency">${currency}</span>`;
-                    document.getElementById('remainingRow').style.display = 'flex';
-                } else {
-                    document.getElementById('remainingRow').style.display = 'none';
                 }
 
                 const total = parseFloat(data.total || data.repairCost || data.customer_price || 0).toFixed(2);
