@@ -36,6 +36,13 @@ const sparePartTypes = [
     { id: 'speaker', name: 'علبة جرس', icon: 'bi-speaker' },
     { id: 'network_wire', name: 'واير شبكة', icon: 'bi-wifi' },
     { id: 'network_flex', name: 'فلاتة شبكة', icon: 'bi-signal' },
+    { id: 'hand_free', name: 'هاند فري', icon: 'bi-headphones' },
+    { id: 'auxiliary_cameras', name: 'كاميرات مساعده', icon: 'bi-camera' },
+    { id: 'baga', name: 'باغه', icon: 'bi-box' },
+    { id: 'camera_baga', name: 'باغة كاميرا', icon: 'bi-camera' },
+    { id: 'frame_camera_baga', name: 'فريم باغة كاميرا', icon: 'bi-camera' },
+    { id: 'vibration', name: 'فيبريشن', icon: 'bi-vibrate' },
+    { id: 'microphone', name: 'مايكروفون', icon: 'bi-mic' },
     { id: 'other', name: 'ملحقات أخرى', icon: 'bi-three-dots-vertical', isCustom: true }
 ];
 

@@ -760,6 +760,13 @@ function openSparePartItemsModal(product) {
         'speaker': 'علبة جرس',
         'network_wire': 'واير شبكة',
         'network_flex': 'فلاتة شبكة',
+        'hand_free': 'هاند فري',
+        'auxiliary_cameras': 'كاميرات مساعده',
+        'baga': 'باغه',
+        'camera_baga': 'باغة كاميرا',
+        'frame_camera_baga': 'فريم باغة كاميرا',
+        'vibration': 'فيبريشن',
+        'microphone': 'مايكروفون',
         'other': 'ملحقات أخرى'
     };
     
@@ -965,6 +972,13 @@ function addSparePartItemToCart(index) {
         'speaker': 'علبة جرس',
         'network_wire': 'واير شبكة',
         'network_flex': 'فلاتة شبكة',
+        'hand_free': 'هاند فري',
+        'auxiliary_cameras': 'كاميرات مساعده',
+        'baga': 'باغه',
+        'camera_baga': 'باغة كاميرا',
+        'frame_camera_baga': 'فريم باغة كاميرا',
+        'vibration': 'فيبريشن',
+        'microphone': 'مايكروفون',
         'other': 'ملحقات أخرى'
     };
     
