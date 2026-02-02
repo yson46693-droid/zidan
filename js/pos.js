@@ -767,6 +767,13 @@ function openSparePartItemsModal(product) {
         'frame_camera_baga': 'فريم باغة كاميرا',
         'vibration': 'فيبريشن',
         'microphone': 'مايكروفون',
+        'back_flex': 'فلاتة باك',
+        'sensor': 'سينسور',
+        'sim_tray': 'درج خط',
+        'home_flex': 'فلاتة هوم',
+        'home_button': 'زرار هوم',
+        'upper_shield': 'شيلد علوي',
+        'lower_shield': 'شيلد سفلي',
         'other': 'ملحقات أخرى'
     };
     
@@ -979,6 +986,13 @@ function addSparePartItemToCart(index) {
         'frame_camera_baga': 'فريم باغة كاميرا',
         'vibration': 'فيبريشن',
         'microphone': 'مايكروفون',
+        'back_flex': 'فلاتة باك',
+        'sensor': 'سينسور',
+        'sim_tray': 'درج خط',
+        'home_flex': 'فلاتة هوم',
+        'home_button': 'زرار هوم',
+        'upper_shield': 'شيلد علوي',
+        'lower_shield': 'شيلد سفلي',
         'other': 'ملحقات أخرى'
     };
     

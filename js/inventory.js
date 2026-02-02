@@ -43,6 +43,13 @@ const sparePartTypes = [
     { id: 'frame_camera_baga', name: 'فريم باغة كاميرا', icon: 'bi-camera' },
     { id: 'vibration', name: 'فيبريشن', icon: 'bi-vibrate' },
     { id: 'microphone', name: 'مايكروفون', icon: 'bi-mic' },
+    { id: 'back_flex', name: 'فلاتة باك', icon: 'bi-diagram-3' },
+    { id: 'sensor', name: 'سينسور', icon: 'bi-circle' },
+    { id: 'sim_tray', name: 'درج خط', icon: 'bi-box' },
+    { id: 'home_flex', name: 'فلاتة هوم', icon: 'bi-diagram-3' },
+    { id: 'home_button', name: 'زرار هوم', icon: 'bi-circle-fill' },
+    { id: 'upper_shield', name: 'شيلد علوي', icon: 'bi-shield' },
+    { id: 'lower_shield', name: 'شيلد سفلي', icon: 'bi-shield' },
     { id: 'other', name: 'ملحقات أخرى', icon: 'bi-three-dots-vertical', isCustom: true }
 ];
 
