@@ -50,6 +50,7 @@ const sparePartTypes = [
     { id: 'home_button', name: 'زرار هوم', icon: 'bi-circle-fill' },
     { id: 'upper_shield', name: 'شيلد علوي', icon: 'bi-shield' },
     { id: 'lower_shield', name: 'شيلد سفلي', icon: 'bi-shield' },
+    { id: 'fingerprint', name: 'بصمه', icon: 'bi-fingerprint' },
     { id: 'other', name: 'ملحقات أخرى', icon: 'bi-three-dots-vertical', isCustom: true }
 ];
 

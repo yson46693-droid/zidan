@@ -774,6 +774,7 @@ function openSparePartItemsModal(product) {
         'home_button': 'زرار هوم',
         'upper_shield': 'شيلد علوي',
         'lower_shield': 'شيلد سفلي',
+        'fingerprint': 'بصمه',
         'other': 'ملحقات أخرى'
     };
     
@@ -993,6 +994,7 @@ function addSparePartItemToCart(index) {
         'home_button': 'زرار هوم',
         'upper_shield': 'شيلد علوي',
         'lower_shield': 'شيلد سفلي',
+        'fingerprint': 'بصمه',
         'other': 'ملحقات أخرى'
     };
     
