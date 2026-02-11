@@ -544,11 +544,9 @@
                 <div><strong>نوع الجهاز:</strong> <span id="deviceType">-</span></div>
                 <div><strong>الموديل:</strong> <span id="deviceModel">-</span></div>
             </div>
-            <div class="invoice-extra-info-row invoice-extra-info-row-full">
+            <div class="invoice-extra-info-row">
                 <div><strong>المشكلة:</strong> <span id="problem">-</span></div>
-            </div>
-            <div class="invoice-extra-info-row invoice-extra-info-row-full" id="accessoriesRow" style="display: none;">
-                <div><strong>الملحقات:</strong> <span id="accessories">-</span></div>
+                <div id="accessoriesRow" style="display: none;"><strong>الملحقات:</strong> <span id="accessories">-</span></div>
             </div>
         </div>
 
@@ -573,7 +571,6 @@
                 <i class="bi bi-check-circle-fill"></i>
                 <p>تم التسليم بنجاح</p>
             </div>
-            <img id="qrcodeImage" src="" alt="QR Code رقم العملية" loading="lazy" decoding="async">
             <div class="invoice-qrcode-info">
         </div>
 
@@ -655,7 +652,7 @@
                 // Accessories
                 if (data.accessories && data.accessories.trim() !== '') {
                     document.getElementById('accessories').textContent = data.accessories;
-                    document.getElementById('accessoriesRow').style.display = 'grid';
+                    document.getElementById('accessoriesRow').style.display = 'block';
                 } else {
                     document.getElementById('accessoriesRow').style.display = 'none';
                 }
@@ -665,7 +662,7 @@
                 document.getElementById('currency').textContent = currency;
                 document.querySelectorAll('.currency').forEach(el => el.textContent = currency);
 
-                const repairCost = parseFloat(data.repairCost || data.customer_price || 0).toFixed(2);
+                const repairCost = parseFloat(data.repairCost ?? data.customer_price ?? data.cost ?? data.total ?? data.price ?? data.amount ?? 0).toFixed(2);
                 document.getElementById('repairCost').innerHTML = `${repairCost} <span id="currency">${currency}</span>`;
 
                 const paidAmount = parseFloat(data.paidAmount || data.paid_amount || 0).toFixed(2);
@@ -676,7 +673,7 @@
                     document.getElementById('paidRow').style.display = 'none';
                 }
 
-                const total = parseFloat(data.total || data.repairCost || data.customer_price || 0).toFixed(2);
+                const total = parseFloat(data.total ?? data.repairCost ?? data.customer_price ?? data.cost ?? data.price ?? data.amount ?? data.final_amount ?? 0).toFixed(2);
                 document.getElementById('total').innerHTML = `${total} <span class="currency">${currency}</span>`;
 
                 // Notes
