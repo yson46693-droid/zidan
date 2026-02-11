@@ -141,6 +141,10 @@
             gap: 15px;
         }
 
+        .invoice-extra-info-row-full {
+            grid-template-columns: 1fr;
+        }
+
         .invoice-extra-info-row>div {
             color: var(--text-dark, #333);
             font-size: 1.05em;
@@ -427,6 +431,10 @@
                 gap: 5px !important;
             }
 
+            .invoice-extra-info-row-full {
+                grid-template-columns: 1fr !important;
+            }
+
             .invoice-extra-info-row>div {
                 font-size: 0.8em !important;
                 padding: 6px 8px !important;
@@ -536,26 +544,17 @@
                 <div><strong>نوع الجهاز:</strong> <span id="deviceType">-</span></div>
                 <div><strong>الموديل:</strong> <span id="deviceModel">-</span></div>
             </div>
-            <div class="invoice-extra-info-row">
+            <div class="invoice-extra-info-row invoice-extra-info-row-full">
                 <div><strong>المشكلة:</strong> <span id="problem">-</span></div>
-                <div></div>
             </div>
-            <div class="invoice-extra-info-row" id="accessoriesRow" style="display: none;">
+            <div class="invoice-extra-info-row invoice-extra-info-row-full" id="accessoriesRow" style="display: none;">
                 <div><strong>الملحقات:</strong> <span id="accessories">-</span></div>
-                <div></div>
             </div>
         </div>
 
         <!-- Summary -->
         <div class="invoice-summary">
-            <div class="summary-row">
-                <span>تكلفة الصيانة:</span>
-                <span id="repairCost">0.00 <span id="currency">ج.م</span></span>
-            </div>
-            <div class="summary-row" id="paidRow" style="display: none;">
-                <span>المبلغ المدفوع:</span>
-                <span id="paidAmount">0.00 <span class="currency">ج.م</span></span>
-            </div>
+            
             <hr>
             <div class="summary-row total">
                 <span>الإجمالي:</span>
