@@ -555,7 +555,7 @@
             
             <hr>
             <div class="summary-row total">
-                <span id="total">0.00 <strong>الإجمالي:</strong>
+                <span id="total"><strong>الإجمالي:</strong> </span>
             </div>
         </div>
 
@@ -656,24 +656,33 @@
                     document.getElementById('accessoriesRow').style.display = 'none';
                 }
 
-                // Summary
+                // Summary - التحقق من وجود العناصر قبل التحديث لتفادي الأخطاء
                 const currency = data.currency || 'ج.م';
-                document.getElementById('currency').textContent = currency;
-                document.querySelectorAll('.currency').forEach(el => el.textContent = currency);
+                const currencyEl = document.getElementById('currency');
+                if (currencyEl) currencyEl.textContent = currency;
+                document.querySelectorAll('.currency').forEach(el => { el.textContent = currency; });
 
-                const repairCost = parseFloat(data.repairCost ?? data.customer_price ?? data.cost ?? data.total ?? data.price ?? data.amount ?? 0).toFixed(2);
-                document.getElementById('repairCost').innerHTML = `${repairCost} <span id="currency">${currency}</span>`;
+                const repairCostEl = document.getElementById('repairCost');
+                if (repairCostEl) {
+                    const repairCost = parseFloat(data.repairCost ?? data.customer_price ?? data.cost ?? data.total ?? data.price ?? data.amount ?? 0).toFixed(2);
+                    repairCostEl.innerHTML = `${repairCost} <span class="currency">${currency}</span>`;
+                }
 
-                const paidAmount = parseFloat(data.paidAmount || data.paid_amount || 0).toFixed(2);
-                if (paidAmount > 0) {
-                    document.getElementById('paidAmount').innerHTML = `${paidAmount} <span class="currency">${currency}</span>`;
-                    document.getElementById('paidRow').style.display = 'flex';
-                } else {
-                    document.getElementById('paidRow').style.display = 'none';
+                const paidAmountEl = document.getElementById('paidAmount');
+                const paidRowEl = document.getElementById('paidRow');
+                if (paidAmountEl && paidRowEl) {
+                    const paidAmount = parseFloat(data.paidAmount || data.paid_amount || 0).toFixed(2);
+                    if (parseFloat(paidAmount) > 0) {
+                        paidAmountEl.innerHTML = `${paidAmount} <span class="currency">${currency}</span>`;
+                        paidRowEl.style.display = 'flex';
+                    } else {
+                        paidRowEl.style.display = 'none';
+                    }
                 }
 
                 const total = parseFloat(data.total ?? data.repairCost ?? data.customer_price ?? data.cost ?? data.price ?? data.amount ?? data.final_amount ?? 0).toFixed(2);
-                document.getElementById('total').innerHTML = `${total} <span class="currency">${currency}</span>`;
+                const totalEl = document.getElementById('total');
+                if (totalEl) totalEl.innerHTML = `<strong>الإجمالي:</strong> ${total} <span class="currency">${currency}</span>`;
 
                 // Notes
                 if (data.notes && data.notes.trim() !== '') {
@@ -686,9 +695,13 @@
                 // QR Code - يحتوي على ID العملية
                 const repairId = data.repairId || data.id || data.repairNumber || '';
                 if (repairId) {
-                    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(repairId.toString())}`;
-                    document.getElementById('qrcodeImage').src = qrCodeUrl;
-                    document.getElementById('qrcodeRepairNumber').textContent = data.repairNumber || repairId;
+                    const qrImg = document.getElementById('qrcodeImage');
+                    const qrRepairNum = document.getElementById('qrcodeRepairNumber');
+                    if (qrImg || qrRepairNum) {
+                        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(repairId.toString())}`;
+                        if (qrImg) qrImg.src = qrCodeUrl;
+                        if (qrRepairNum) qrRepairNum.textContent = data.repairNumber || repairId;
+                    }
                 }
             } catch (error) {
                 console.error('خطأ في تحديث بيانات الفاتورة:', error);
