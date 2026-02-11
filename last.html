@@ -197,6 +197,10 @@
             margin-top: 20px;
         }
 
+        .invoice-summary .summary-row.total #total {
+            order: -1;
+        }
+
         .invoice-summary hr {
             margin: 18px 0;
             border: none;
@@ -235,10 +239,6 @@
             text-align: center;
             margin: 25px 0;
             padding: 20px;
-            background: linear-gradient(135deg, var(--light-bg, #f8f9fa) 0%, var(--white, #ffffff) 100%);
-            border-radius: 12px;
-            border: 2px solid var(--success-color, #4CAF50);
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);
         }
 
         .invoice-qrcode-content {
@@ -264,10 +264,6 @@
             height: 200px;
             margin: 0 auto;
             display: block;
-            border: 3px solid var(--success-color, #4CAF50);
-            border-radius: 12px;
-            padding: 10px;
-            background: var(--white, #ffffff);
         }
 
         .invoice-qrcode-info {
@@ -458,14 +454,12 @@
             .invoice-qrcode {
                 margin: 8px 0 !important;
                 padding: 15px !important;
-                border: 2px solid var(--success-color, #4CAF50) !important;
             }
 
             .invoice-qrcode img {
                 max-width: 40mm !important;
                 width: 40mm !important;
                 height: 40mm !important;
-                border: 2px solid var(--success-color, #4CAF50) !important;
             }
 
             .invoice-qrcode-info {
@@ -585,9 +579,6 @@
             </div>
             <img id="qrcodeImage" src="" alt="QR Code رقم العملية" loading="lazy" decoding="async">
             <div class="invoice-qrcode-info">
-                <p>رقم العملية: <strong id="qrcodeRepairNumber">-</strong></p>
-                <p>يمكنك مسح QR Code للحصول على رقم العملية</p>
-            </div>
         </div>
 
         <!-- Terms & Conditions -->
