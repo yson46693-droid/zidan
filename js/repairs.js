@@ -2701,7 +2701,8 @@ async function showAddRepairModal() {
             repairNumberInput.value = generateRandomRepairNumber();
         }
         
-        // قائمة نوع الجهاز ثابتة (لا جلب من API)
+        // التأكد من ظهور خيارات نوع الجهاز الثابتة (تفادي "جاري التحميل" أو "خطأ في التحميل" من كاش قديم)
+        ensureDeviceTypeOptions();
         
         // ✅ تم إزالة updateTechnicianName() - الفني يتم اختياره يدوياً فقط من النموذج
         
@@ -2738,7 +2739,8 @@ async function showAddRepairModal() {
             customerFieldsContainer.style.display = 'block';
         }
         
-        // ✅ إعادة إظهار حقول بيانات الجهاز
+        // ✅ إعادة إظهار حقول بيانات الجهاز والتأكد من خيارات نوع الجهاز الثابتة
+        ensureDeviceTypeOptions();
         const deviceTypeGroup = document.getElementById('deviceType')?.parentElement;
         if (deviceTypeGroup) {
             deviceTypeGroup.style.display = 'block';
@@ -2959,6 +2961,16 @@ async function showAddRepairModal() {
 
 function closeRepairModal() {
     document.getElementById('repairModal').style.display = 'none';
+}
+
+// استعادة خيارات نوع الجهاز الثابتة (من brsql) - لتفادي ظهور "جاري التحميل" أو "خطأ في التحميل" من كاش قديم
+function ensureDeviceTypeOptions() {
+    const sel = document.getElementById('deviceType');
+    if (!sel) return;
+    const firstOpt = sel.options[0]?.textContent || '';
+    if (firstOpt.includes('جاري التحميل') || firstOpt.includes('خطأ في التحميل') || firstOpt.includes('لا يمكن تحميل') || sel.options.length <= 1) {
+        sel.innerHTML = '<option value="">اختر الماركة</option><option value="Samsung">Samsung</option><option value="Apple">Apple</option><option value="Xiaomi">Xiaomi</option><option value="Oppo">Oppo</option><option value="vivo">vivo</option><option value="Huawei">Huawei</option><option value="Realme">Realme</option><option value="OnePlus">OnePlus</option><option value="Google">Google</option><option value="Motorola">Motorola</option><option value="Nokia">Nokia</option><option value="Tecno">Tecno</option><option value="Infinix">Infinix</option><option value="Lenovo">Lenovo</option><option value="Sony">Sony</option><option value="Asus">Asus</option><option value="ZTE">ZTE</option><option value="Meizu">Meizu</option><option value="HTC">HTC</option><option value="Microsoft">Microsoft</option><option value="Acer">Acer</option><option value="alcatel">alcatel</option><option value="Lava">Lava</option><option value="أخرى">أخرى</option>';
+    }
 }
 
 // معالجة تغيير نوع الجهاز
@@ -4444,7 +4456,8 @@ async function editRepair(id) {
     
     // ✅ للعمليات الملغاة: السماح بالتكرار لأي مستخدم (لا يوجد قيود)
 
-    // قائمة نوع الجهاز ثابتة (لا جلب من API)
+    // التأكد من خيارات نوع الجهاز الثابتة قبل تعبئة النموذج
+    ensureDeviceTypeOptions();
 
     document.getElementById('repairModalTitle').textContent = 'تعديل عملية الصيانة';
     document.getElementById('repairId').value = repair.id;
