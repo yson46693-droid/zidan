@@ -2938,49 +2938,43 @@ function closeRepairModal() {
     document.getElementById('repairModal').style.display = 'none';
 }
 
+// ماركات افتراضية عند فشل التحميل من الخادم (مثلاً 404 على Hostinger)
+const DEFAULT_DEVICE_BRANDS = ['سامسونج', 'آيفون', 'شاومي', 'هواوي', 'أوبو', 'انفينكس', 'نوكيا', 'سوني', 'آخر'];
+
 // تحميل الماركات من قاعدة البيانات
 async function loadDeviceBrands() {
-    try {
-        const deviceTypeSelect = document.getElementById('deviceType');
-        if (!deviceTypeSelect) return;
-        
-        // إظهار حالة التحميل
-        deviceTypeSelect.innerHTML = '<option value="">جاري التحميل...</option>';
-        
-        // استخدام API.request بدلاً من fetch المطلق ليعمل مع أي مسار (جذر أو مجلد فرعي) على Hostinger وغيره
-        const result = await API.request('repairs.php?action=brands', 'GET', null, { silent: true });
-        
-        if (!result || !result.success || !Array.isArray(result.data)) {
-            throw new Error(result?.message || 'بيانات غير صحيحة');
-        }
-        
-        const brands = result.data;
-        
-        // ملء القائمة المنسدلة
+    const deviceTypeSelect = document.getElementById('deviceType');
+    if (!deviceTypeSelect) return;
+
+    const fillBrandsList = (brands) => {
         deviceTypeSelect.innerHTML = '<option value="">اختر الماركة</option>';
-        
-        brands.forEach(brand => {
-            if (brand && brand.trim()) {
+        (brands || []).forEach(brand => {
+            if (brand && String(brand).trim()) {
                 const option = document.createElement('option');
                 option.value = brand;
                 option.textContent = brand;
                 deviceTypeSelect.appendChild(option);
             }
         });
-        
-        // إضافة خيار "أخرى" في النهاية
         const otherOption = document.createElement('option');
         otherOption.value = 'other';
         otherOption.textContent = 'أخرى';
         deviceTypeSelect.appendChild(otherOption);
-        
-    } catch (error) {
-        console.error('خطأ في تحميل الماركات:', error);
-        const deviceTypeSelect = document.getElementById('deviceType');
-        if (deviceTypeSelect) {
-            deviceTypeSelect.innerHTML = '<option value="">خطأ في التحميل</option>';
+    };
+
+    try {
+        deviceTypeSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+        const result = await API.request('repairs.php?action=brands', 'GET', null, { silent: true });
+
+        if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+            fillBrandsList(result.data);
+            return;
         }
-        showMessage('حدث خطأ أثناء تحميل الماركات', 'error');
+        throw new Error(result?.message || 'بيانات غير صحيحة');
+    } catch (error) {
+        console.warn('تحميل الماركات من الخادم فشل، استخدام القائمة الافتراضية:', error?.message || error);
+        fillBrandsList(DEFAULT_DEVICE_BRANDS);
+        showMessage('تم استخدام قائمة ماركات افتراضية. تحقق من رفع مجلد api/ على الاستضافة لإظهار الماركات من قاعدة البيانات.', 'warning');
     }
 }
 
