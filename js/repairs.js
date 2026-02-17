@@ -25,18 +25,6 @@ let isLoadingRepairs = false;
 let lastRepairsLoadTime = 0;
 const REPAIRS_MIN_LOAD_INTERVAL = 2000; // 2 ثانية كحد أدنى بين الطلبات
 
-// قائمة ماركات الأجهزة (نوع الجهاز) - ثابتة من brsql.sql (لا جلب من قاعدة البيانات)
-const DEVICE_TYPE_BRANDS_NAMES = ['Samsung', 'Apple', 'Xiaomi', 'Oppo', 'vivo', 'Huawei', 'Realme', 'OnePlus', 'Google', 'Motorola', 'Nokia', 'Tecno', 'Infinix', 'Lenovo', 'Sony', 'Asus', 'ZTE', 'Meizu', 'HTC', 'Microsoft', 'Acer', 'alcatel', 'Lava'];
-const deviceTypeBrands = (function() {
-    const list = DEVICE_TYPE_BRANDS_NAMES.map(name => ({
-        id: name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'unknown',
-        name: name,
-        nameLower: name.toLowerCase().trim()
-    }));
-    list.push({ id: 'other', name: 'أخرى', nameLower: 'other' });
-    return list;
-})();
-
 async function loadRepairsSection() {
     // تحميل حالة إذن الكاميرا
     cameraPermissionGranted = localStorage.getItem('cameraPermissionGranted') === 'true';
@@ -196,9 +184,30 @@ async function loadRepairsSection() {
                             <label for="deviceType">نوع الجهاز *</label>
                             <select id="deviceType" required onchange="handleDeviceTypeChange(this)">
                                 <option value="">اختر الماركة</option>
-                                ${deviceTypeBrands.map(brand => `
-                                    <option value="${brand.name}">${brand.name}</option>
-                                `).join('')}
+                                <option value="Samsung">Samsung</option>
+                                <option value="Apple">Apple</option>
+                                <option value="Xiaomi">Xiaomi</option>
+                                <option value="Oppo">Oppo</option>
+                                <option value="vivo">vivo</option>
+                                <option value="Huawei">Huawei</option>
+                                <option value="Realme">Realme</option>
+                                <option value="OnePlus">OnePlus</option>
+                                <option value="Google">Google</option>
+                                <option value="Motorola">Motorola</option>
+                                <option value="Nokia">Nokia</option>
+                                <option value="Tecno">Tecno</option>
+                                <option value="Infinix">Infinix</option>
+                                <option value="Lenovo">Lenovo</option>
+                                <option value="Sony">Sony</option>
+                                <option value="Asus">Asus</option>
+                                <option value="ZTE">ZTE</option>
+                                <option value="Meizu">Meizu</option>
+                                <option value="HTC">HTC</option>
+                                <option value="Microsoft">Microsoft</option>
+                                <option value="Acer">Acer</option>
+                                <option value="alcatel">alcatel</option>
+                                <option value="Lava">Lava</option>
+                                <option value="أخرى">أخرى</option>
                             </select>
                             <input type="text" id="deviceTypeCustom" style="display: none; margin-top: 10px;" placeholder="أدخل الماركة يدوياً">
                         </div>
@@ -2950,19 +2959,6 @@ async function showAddRepairModal() {
 
 function closeRepairModal() {
     document.getElementById('repairModal').style.display = 'none';
-}
-
-// دالة لتحديث واجهة نوع الجهاز (استعادة القيمة عند التعديل)
-function updateDeviceTypeUI() {
-    const deviceTypeSelect = document.getElementById('deviceType');
-    if (!deviceTypeSelect) return;
-
-    const currentValue = deviceTypeSelect.value;
-    deviceTypeSelect.innerHTML = '<option value="">اختر الماركة</option>' +
-        deviceTypeBrands.map(brand => `<option value="${brand.name}">${brand.name}</option>`).join('');
-    if (currentValue) {
-        deviceTypeSelect.value = currentValue;
-    }
 }
 
 // معالجة تغيير نوع الجهاز
