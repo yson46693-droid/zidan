@@ -2966,15 +2966,27 @@ async function loadDeviceBrands() {
         deviceTypeSelect.innerHTML = '<option value="">جاري التحميل...</option>';
         const result = await API.request('repairs.php?action=brands', 'GET', null, { silent: true });
 
-        if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
-            fillBrandsList(result.data);
+        // قبول الاستجابة الناجحة حتى لو القائمة فارغة (لا نرمي خطأ)
+        if (result && result.success && Array.isArray(result.data)) {
+            const brands = result.data.length > 0 ? result.data : DEFAULT_DEVICE_BRANDS;
+            fillBrandsList(brands);
+            if (result.data.length === 0) {
+                console.warn('لم تُرجع قاعدة البيانات ماركات، استخدام القائمة الافتراضية.');
+            }
             return;
         }
-        throw new Error(result?.message || 'بيانات غير صحيحة');
+        // عند فشل الطلب (شبكة أو خطأ خادم) نستخدم القائمة الافتراضية بدون رمي خطأ
+        console.warn('تحميل الماركات من الخادم فشل، استخدام القائمة الافتراضية:', result?.message || '');
+        fillBrandsList(DEFAULT_DEVICE_BRANDS);
+        if (typeof showMessage === 'function') {
+            showMessage('تم استخدام قائمة ماركات افتراضية. تحقق من رفع مجلد api/ على الاستضافة لإظهار الماركات من قاعدة البيانات.', 'warning');
+        }
     } catch (error) {
         console.warn('تحميل الماركات من الخادم فشل، استخدام القائمة الافتراضية:', error?.message || error);
         fillBrandsList(DEFAULT_DEVICE_BRANDS);
-        showMessage('تم استخدام قائمة ماركات افتراضية. تحقق من رفع مجلد api/ على الاستضافة لإظهار الماركات من قاعدة البيانات.', 'warning');
+        if (typeof showMessage === 'function') {
+            showMessage('تم استخدام قائمة ماركات افتراضية. تحقق من رفع مجلد api/ على الاستضافة لإظهار الماركات من قاعدة البيانات.', 'warning');
+        }
     }
 }
 

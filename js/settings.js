@@ -845,12 +845,12 @@ async function loadSettings(forceRefresh = false) {
             shop_name: '',
             shop_phone: '',
             shop_address: '',
-            currency: 'ريال',
+            currency: 'ج.م',
             whatsapp_number: '',
             shop_name_2: '',
             shop_phone_2: '',
             shop_address_2: '',
-            currency_2: 'ريال',
+            currency_2: 'ج.م',
             whatsapp_number_2: ''
         };
         
@@ -879,12 +879,12 @@ function displaySettings(settings) {
             shop_name: '',
             shop_phone: '',
             shop_address: '',
-            currency: 'ريال',
+            currency: 'ج.م',
             whatsapp_number: '',
             shop_name_2: '',
             shop_phone_2: '',
             shop_address_2: '',
-            currency_2: 'ريال',
+            currency_2: 'ج.م',
             whatsapp_number_2: ''
         };
     }
@@ -914,7 +914,7 @@ function displaySettings(settings) {
     if (shopName1) shopName1.value = settings.shop_name || settings.shop_name_1 || '';
     if (shopPhone1) shopPhone1.value = settings.shop_phone || settings.shop_phone_1 || '';
     if (shopAddress1) shopAddress1.value = settings.shop_address || settings.shop_address_1 || '';
-    if (currency1) currency1.value = settings.currency || settings.currency_1 || 'ريال';
+    if (currency1) currency1.value = settings.currency || settings.currency_1 || 'ج.م';
     if (whatsappNumber1) whatsappNumber1.value = settings.whatsapp_number || settings.whatsapp_number_1 || '';
     
     // الفرع الثاني
@@ -927,7 +927,7 @@ function displaySettings(settings) {
     if (shopName2) shopName2.value = settings.shop_name_2 || '';
     if (shopPhone2) shopPhone2.value = settings.shop_phone_2 || '';
     if (shopAddress2) shopAddress2.value = settings.shop_address_2 || '';
-    if (currency2) currency2.value = settings.currency_2 || 'ريال';
+    if (currency2) currency2.value = settings.currency_2 || 'ج.م';
     if (whatsappNumber2) whatsappNumber2.value = settings.whatsapp_number_2 || '';
     
     // إعدادات صفحة التحميل
@@ -981,7 +981,7 @@ async function saveShopSettings(event, branchNumber = 1) {
                 shop_name: document.getElementById('shopName1')?.value || '',
                 shop_phone: document.getElementById('shopPhone1')?.value || '',
                 shop_address: document.getElementById('shopAddress1')?.value || '',
-                currency: document.getElementById('currency1')?.value || 'ريال',
+                currency: document.getElementById('currency1')?.value || 'ج.م',
                 whatsapp_number: document.getElementById('whatsappNumber1')?.value || ''
             };
         } else if (branchNumber === 2) {

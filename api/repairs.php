@@ -15,70 +15,74 @@ function getFirstBranchId() {
     return $firstBranch ? $firstBranch['id'] : null;
 }
 
-// جلب الماركات من قاعدة البيانات
+// جلب الماركات من قاعدة البيانات (كل استعلام في try منفصل لتجنب فشل الكل عند غياب جدول)
 if ($method === 'GET' && isset($_GET['action']) && cleanInput($_GET['action']) === 'brands') {
     checkAuth();
     // ✅ الطلبات GET لا تحتاج إلى checkAPISecurity() (لا تحتاج إلى API Token)
     
+    $allBrands = [];
+    
+    // 1. جلب الماركات من جدول phones
     try {
-        $allBrands = [];
-        
-        // 1. جلب الماركات من جدول phones
         $phonesBrands = dbSelect("SELECT DISTINCT brand FROM phones WHERE brand IS NOT NULL AND brand != '' AND TRIM(brand) != ''", []);
         if (is_array($phonesBrands)) {
             foreach ($phonesBrands as $row) {
-                if (isset($row['brand']) && !empty(trim($row['brand']))) {
+                if (isset($row['brand']) && trim($row['brand']) !== '') {
                     $allBrands[] = trim($row['brand']);
                 }
             }
         }
-        
-        // 2. جلب الماركات من جدول spare_parts
+    } catch (Exception $e) {
+        error_log('جلب الماركات من phones: ' . $e->getMessage());
+    }
+    
+    // 2. جلب الماركات من جدول spare_parts
+    try {
         $sparePartsBrands = dbSelect("SELECT DISTINCT brand FROM spare_parts WHERE brand IS NOT NULL AND brand != '' AND TRIM(brand) != ''", []);
         if (is_array($sparePartsBrands)) {
             foreach ($sparePartsBrands as $row) {
-                if (isset($row['brand']) && !empty(trim($row['brand']))) {
+                if (isset($row['brand']) && trim($row['brand']) !== '') {
                     $allBrands[] = trim($row['brand']);
                 }
             }
         }
-        
-        // 3. جلب الماركات من جدول repairs (device_type) - قد تحتوي على ماركات غير موجودة في الجداول الأخرى
+    } catch (Exception $e) {
+        error_log('جلب الماركات من spare_parts: ' . $e->getMessage());
+    }
+    
+    // 3. جلب الماركات من جدول repairs (device_type)
+    try {
         $repairsBrands = dbSelect("SELECT DISTINCT device_type as brand FROM repairs WHERE device_type IS NOT NULL AND device_type != '' AND TRIM(device_type) != ''", []);
         if (is_array($repairsBrands)) {
             foreach ($repairsBrands as $row) {
-                if (isset($row['brand']) && !empty(trim($row['brand']))) {
+                if (isset($row['brand']) && trim($row['brand']) !== '') {
                     $allBrands[] = trim($row['brand']);
                 }
             }
         }
-        
-        // 4. جلب الماركات من جدول brsql (الجدول الرئيسي للماركات)
+    } catch (Exception $e) {
+        error_log('جلب الماركات من repairs: ' . $e->getMessage());
+    }
+    
+    // 4. جلب الماركات من جدول brsql (إن وُجد)
+    try {
         $brsqlBrands = dbSelect("SELECT DISTINCT name as brand FROM brsql WHERE name IS NOT NULL AND name != '' AND TRIM(name) != '' ORDER BY name ASC", []);
         if (is_array($brsqlBrands)) {
             foreach ($brsqlBrands as $row) {
-                if (isset($row['brand']) && !empty(trim($row['brand']))) {
+                if (isset($row['brand']) && trim($row['brand']) !== '') {
                     $allBrands[] = trim($row['brand']);
                 }
             }
-            error_log('تم جلب الماركات من جدول brsql: ' . count($brsqlBrands));
         }
-        
-        // إزالة التكرارات وترتيب الماركات
-        $uniqueBrands = array_values(array_unique($allBrands));
-        sort($uniqueBrands);
-        
-        // تسجيل عدد الماركات للتحقق
-        error_log('عدد الماركات المجلوبة من phones: ' . (is_array($phonesBrands) ? count($phonesBrands) : 0));
-        error_log('عدد الماركات المجلوبة من spare_parts: ' . (is_array($sparePartsBrands) ? count($sparePartsBrands) : 0));
-        error_log('عدد الماركات المجلوبة من repairs: ' . (is_array($repairsBrands) ? count($repairsBrands) : 0));
-        error_log('إجمالي الماركات الفريدة: ' . count($uniqueBrands));
-        
-        response(true, '', $uniqueBrands);
     } catch (Exception $e) {
-        error_log('خطأ في جلب الماركات: ' . $e->getMessage());
-        response(false, 'خطأ في جلب الماركات: ' . $e->getMessage(), null, 500);
+        error_log('جلب الماركات من brsql: ' . $e->getMessage());
     }
+    
+    // إزالة التكرارات وترتيب الماركات - دائماً نُرجع success مع مصفوفة (حتى لو فارغة)
+    $uniqueBrands = array_values(array_unique($allBrands));
+    sort($uniqueBrands);
+    
+    response(true, '', $uniqueBrands);
 }
 
 // الحصول على صيانات العميل - يجب أن يكون قبل الشرط العام GET
