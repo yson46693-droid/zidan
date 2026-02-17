@@ -4,7 +4,7 @@
 // رقم الإصدار - يجب تحديثه يدوياً عند إجراء تغييرات على Service Worker
 // Version number - must be updated manually when making changes to Service Worker
 // 🔧 الحل: استخدام رقم إصدار ثابت بدلاً من Date.now() لمنع reload loop
-const APP_VERSION = '2.0.2'; // رقم ثابت - تحديثه يدوياً عند الحاجة فقط
+const APP_VERSION = '2.0.3'; // رقم ثابت - تحديثه يدوياً عند الحاجة فقط (2.0.3: إصلاح basePath لـ sw.js.php)
 
 // اسم الـ cache - يجب أن يكون ثابت لنفس الإصدار
 // 🔧 الحل: استخدام رقم إصدار ثابت في اسم الـ cache أيضاً
@@ -19,38 +19,38 @@ if (typeof self !== 'undefined' && !self.caches) {
     console.warn('[SW] Cache API not supported, using fallback');
 }
 // ✅ تحديد المسار الأساسي بناءً على موقع Service Worker
+// يدعم كل من /sw.js و /sw.js.php (عند التحميل عبر PHP)
 const getBasePath = () => {
     try {
         // استخدام self.location لتحديد مسار Service Worker
-        const swPath = self.location.pathname; // مثال: /sw.js أو /z/sw.js
+        const swPath = self.location.pathname; // مثال: /sw.js أو /sw.js.php أو /zidan/sw.js.php
         console.log('[SW] Service Worker path:', swPath);
         
-        // ✅ الحل: إذا كان المسار يبدأ مباشرة بـ /sw.js، نستخدم الجذر
-        if (swPath === '/sw.js' || swPath.endsWith('/sw.js')) {
-            // استخراج المسار الأساسي (إزالة sw.js من النهاية)
+        // ✅ استخراج المسار الأساسي: دعم sw.js و sw.js.php
+        let basePath = '';
+        if (swPath.endsWith('/sw.js.php')) {
+            const swIndex = swPath.lastIndexOf('/sw.js.php');
+            basePath = swPath.substring(0, swIndex);
+        } else if (swPath === '/sw.js' || swPath.endsWith('/sw.js')) {
             const swIndex = swPath.lastIndexOf('/sw.js');
-            const basePath = swPath.substring(0, swIndex);
-            
-            // إذا كان basePath فارغاً أو '/'، نعيد '' (جذر)
-            if (!basePath || basePath === '/') {
-                console.log('[SW] Using root path');
-                return '';
-            }
-            
-            // ✅ التحقق من أن المسار صحيح (يجب أن يكون مثل /zidan15)
-            // إذا كان المسار يحتوي على .html، فهذا خطأ - نستخدم الجذر
-            if (basePath.includes('.html')) {
-                console.warn('[SW] Invalid base path detected (contains .html), using root instead:', basePath);
-                return '';
-            }
-            
-            console.log('[SW] Base path:', basePath);
-            return basePath.startsWith('/') ? basePath : '/' + basePath;
+            basePath = swPath.substring(0, swIndex);
         }
         
-        // ✅ إذا لم نجد sw.js في المسار، نستخدم الجذر
-        console.log('[SW] sw.js not found in expected format, using root');
-        return '';
+        // إذا كان basePath فارغاً أو '/'، نعيد '' (جذر)
+        if (!basePath || basePath === '/') {
+            console.log('[SW] Using root path');
+            return '';
+        }
+        
+        // ✅ التحقق من أن المسار صحيح (يجب أن يكون مثل /zidan15)
+        // إذا كان المسار يحتوي على .html، فهذا خطأ - نستخدم الجذر
+        if (basePath.includes('.html')) {
+            console.warn('[SW] Invalid base path detected (contains .html), using root instead:', basePath);
+            return '';
+        }
+        
+        console.log('[SW] Base path:', basePath);
+        return basePath.startsWith('/') ? basePath : '/' + basePath;
     } catch (e) {
         console.error('[SW] Error determining base path:', e);
         // ✅ في حالة الخطأ، نستخدم الجذر دائماً
