@@ -25,7 +25,7 @@ jobs:
           server: ftp.alaazidan.online
           username: u486977009.alaa
           password: A8r9yNP!#vz@E4V
-          server-dir: /public_html/
+          server-dir: /sys/
           protocol: ftp
           port: 21
           security: loose
