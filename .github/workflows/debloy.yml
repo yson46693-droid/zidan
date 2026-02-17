@@ -17,6 +17,8 @@ jobs:
           fetch-depth: 0
 
 
+      # مهم على Hostinger: server-dir يجب أن يساوي "Document root" للدومين من hPanel
+      # إذا كان الجذر هو مجلد فرعي (مثل public_html/alaazidan.online) فغيّر إلى: /public_html/alaazidan.online/
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:

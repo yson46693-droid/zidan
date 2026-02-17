@@ -2546,23 +2546,14 @@
                     try {
                         const appVersion = '2.0.1';
                         
-                        // ✅ تحديد المسار الأساسي - Service Worker دائماً في الجذر
+                        // ✅ تحديد المسار الأساسي من مجلد الصفحة الحالية (يعمل من الجذر أو مجلد فرعي على Hostinger)
                         const getBasePath = () => {
                             try {
-                                const pathname = window.location.pathname;
-                                // ✅ الحل: إذا كان المسار يحتوي على .html، نستخدم الجذر
-                                // لأن Service Worker دائماً في الجذر وليس في مجلد الصفحة
-                                if (pathname.includes('.html')) {
-                                    return ''; // استخدام الجذر
-                                }
-                                // فقط إذا كان المسار مثل /zidan15/ نستخدمه
-                                const match = pathname.match(/^\/([^\/]+)\//);
-                                if (match && match[1] && !match[1].includes('.')) {
-                                    return '/' + match[1];
-                                }
-                                return ''; // استخدام الجذر دائماً
+                                const pathname = window.location.pathname || '/';
+                                const dir = pathname.replace(/\/[^/]*$/, '');
+                                return dir || '';
                             } catch (e) {
-                                return ''; // في حالة الخطأ، نستخدم الجذر
+                                return '';
                             }
                         };
                         const basePath = getBasePath();
