@@ -21,7 +21,7 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ftp.alaazidan.online
-          username: alaa
+          username: u486977009.alaa
           password: A8r9yNP!#vz@E4V
           server-dir: /public_html/
           protocol: ftp
