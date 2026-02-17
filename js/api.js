@@ -1,5 +1,14 @@
-// إعدادات API
-const API_BASE_URL = 'api/';
+// إعدادات API - مسار ديناميكي يعمل من الجذر أو من مجلد فرعي (مثل Hostinger)
+function getApiBaseUrl() {
+    try {
+        const pathname = window.location.pathname || '/';
+        const dir = pathname.includes('/') ? pathname.substring(0, pathname.lastIndexOf('/') + 1) : '/';
+        return dir + 'api/';
+    } catch (e) {
+        return 'api/';
+    }
+}
+const API_BASE_URL = getApiBaseUrl();
 
 // نظام Caching للطلبات
 const API_CACHE = {
