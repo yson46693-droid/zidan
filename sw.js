@@ -714,7 +714,9 @@ self.addEventListener('push', event => {
     const title = data.title || data.username || 'إشعار جديد';
     const body = data.body || data.message || 'لديك إشعار جديد';
     const icon = data.icon || '/vertopal.com_photo_5922357566287580087_y.png';
-    const badge = '/ico/icon-72x72.png';
+    const badge = self.registration && self.registration.scope
+        ? new URL('ico/icon-72x72.png', self.registration.scope).href
+        : '/ico/icon-72x72.png';
     
     const options = {
         body: body,

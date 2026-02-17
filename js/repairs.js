@@ -2947,21 +2947,11 @@ async function loadDeviceBrands() {
         // إظهار حالة التحميل
         deviceTypeSelect.innerHTML = '<option value="">جاري التحميل...</option>';
         
-        const response = await fetch('/api/repairs.php?action=brands', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        // استخدام API.request بدلاً من fetch المطلق ليعمل مع أي مسار (جذر أو مجلد فرعي) على Hostinger وغيره
+        const result = await API.request('repairs.php?action=brands', 'GET', null, { silent: true });
         
-        if (!response.ok) {
-            throw new Error('فشل في جلب الماركات');
-        }
-        
-        const result = await response.json();
-        
-        if (!result.success || !Array.isArray(result.data)) {
-            throw new Error('بيانات غير صحيحة');
+        if (!result || !result.success || !Array.isArray(result.data)) {
+            throw new Error(result?.message || 'بيانات غير صحيحة');
         }
         
         const brands = result.data;

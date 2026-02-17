@@ -20,10 +20,10 @@ jobs:
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          server: 213.239.220.209
-          username: alaazidan
-          password: rhye@hr9dL9f!Q1P
-          server-dir: /httpdocs/
+          server: ftp.alaazidan.online
+          username: alaa
+          password: A8r9yNP!#vz@E4V
+          server-dir: /public_html/
           protocol: ftp
           port: 21
           security: loose
