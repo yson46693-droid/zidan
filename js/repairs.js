@@ -207,7 +207,7 @@ async function loadRepairsSection() {
                                 <option value="Acer">Acer</option>
                                 <option value="alcatel">alcatel</option>
                                 <option value="Lava">Lava</option>
-                                <option value="أخرى">أخرى</option>
+                                <option value="أخرى">other</option>
                             </select>
                             <input type="text" id="deviceTypeCustom" style="display: none; margin-top: 10px;" placeholder="أدخل الماركة يدوياً">
                         </div>
