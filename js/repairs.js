@@ -181,6 +181,34 @@ async function loadRepairsSection() {
                     <h4 style="margin: 20px 0 15px 0; color: var(--primary-color);">بيانات الجهاز</h4>
                     <div class="form-row">
                         <div class="form-group">
+                            <label for="devBrand">البراند*</label>
+                            <select id="devBrand" required onchange="handleDeviceTypeChange(this)">
+                                <option value="">اختر الماركة</option>
+                                <option value="Samsung">Samsung</option>
+                                <option value="Apple">Apple</option>
+                                <option value="Xiaomi">Xiaomi</option>
+                                <option value="Oppo">Oppo</option>
+                                <option value="vivo">vivo</option>
+                                <option value="Huawei">Huawei</option>
+                                <option value="Realme">Realme</option>
+                                <option value="OnePlus">OnePlus</option>
+                                <option value="Google">Google</option>
+                                <option value="Motorola">Motorola</option>
+                                <option value="Nokia">Nokia</option>
+                                <option value="Tecno">Tecno</option>
+                                <option value="Infinix">Infinix</option>
+                                <option value="Lenovo">Lenovo</option>
+                                <option value="Sony">Sony</option>
+                                <option value="Asus">Asus</option>
+                                <option value="ZTE">ZTE</option>
+                                <option value="Meizu">Meizu</option>
+                                <option value="HTC">HTC</option>
+                                <option value="Microsoft">Microsoft</option>
+                                <option value="Acer">Acer</option>
+                                <option value="alcatel">alcatel</option>
+                                <option value="Lava">Lava</option>
+                                <option value="أخرى">other</option>
+                            </select>
                             <label for="deviceType">نوع الجهاز *</label>
                             <select id="deviceType" required onchange="handleDeviceTypeChange(this)">
                                 <option value="">اختر الماركة</option>
