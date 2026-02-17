@@ -2,6 +2,8 @@
 require_once 'config.php';
 
 // دعم _method للاستضافات المجانية
+// دعم _method للاستضافات المجانية
+
 $data = getRequestData();
 $method = $data['_method'] ?? getRequestMethod();
 
