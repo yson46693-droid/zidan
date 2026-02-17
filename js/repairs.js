@@ -2682,8 +2682,13 @@ async function showAddRepairModal() {
             repairNumberInput.value = generateRandomRepairNumber();
         }
         
-        // تحميل الماركات
-        await loadDeviceBrands();
+        // تحميل الماركات (لا نمنع فتح النموذج عند فشل التحميل - نستخدم القائمة الافتراضية)
+        try {
+            await loadDeviceBrands();
+        } catch (e) {
+            console.warn('تحميل الماركات عند فتح النموذج فشل، استخدام القائمة الافتراضية:', e?.message || e);
+            setDeviceTypeBrandsFallback();
+        }
         
         // ✅ تم إزالة updateTechnicianName() - الفني يتم اختياره يدوياً فقط من النموذج
         
@@ -2957,13 +2962,24 @@ function toDeviceTypeBrandItem(name) {
     };
 }
 
+// تعبئة قائمة الماركات بالافتراضي (لا نرمي أي خطأ)
+function setDeviceTypeBrandsFallback() {
+    try {
+        deviceTypeBrands = DEFAULT_DEVICE_BRANDS.map(toDeviceTypeBrandItem).filter(Boolean);
+        deviceTypeBrands.push({ id: 'other', name: 'أخرى', nameLower: 'other' });
+        updateDeviceTypeUI();
+    } catch (e) {
+        console.warn('تحميل الماركات: تعبئة الاحتياطي فشل:', e);
+    }
+}
+
 // دالة لجلب ماركات الأجهزة من قاعدة البيانات (نفس أسلوب loadPhoneBrands في inventory)
+// لا ترمي أي خطأ أبداً - عند الفشل نستخدم القائمة الافتراضية
 async function loadDeviceBrands() {
     try {
         const result = await API.request('repairs.php?action=brands', 'GET', null, { silent: true });
 
         if (result && result.success && Array.isArray(result.data)) {
-            // الـ API يُرجع مصفوفة نصوص - تحويلها إلى كائنات مثل inventory
             deviceTypeBrands = (result.data.length > 0 ? result.data : DEFAULT_DEVICE_BRANDS)
                 .map(brand => typeof brand === 'string' ? brand : (brand?.name || brand))
                 .map(toDeviceTypeBrandItem)
@@ -2978,18 +2994,14 @@ async function loadDeviceBrands() {
             return;
         }
 
-        deviceTypeBrands = DEFAULT_DEVICE_BRANDS.map(toDeviceTypeBrandItem).filter(Boolean);
-        deviceTypeBrands.push({ id: 'other', name: 'أخرى', nameLower: 'other' });
-        updateDeviceTypeUI();
+        setDeviceTypeBrandsFallback();
         console.warn('فشل تحميل الماركات من الخادم، استخدام القائمة الافتراضية:', result?.message || '');
         if (typeof showMessage === 'function') {
             showMessage('تم استخدام قائمة ماركات افتراضية. تحقق من رفع مجلد api/ على الاستضافة لإظهار الماركات من قاعدة البيانات.', 'warning');
         }
     } catch (error) {
         console.warn('تحميل الماركات من الخادم فشل، استخدام القائمة الافتراضية:', error?.message || error);
-        deviceTypeBrands = DEFAULT_DEVICE_BRANDS.map(toDeviceTypeBrandItem).filter(Boolean);
-        deviceTypeBrands.push({ id: 'other', name: 'أخرى', nameLower: 'other' });
-        updateDeviceTypeUI();
+        setDeviceTypeBrandsFallback();
         if (typeof showMessage === 'function') {
             showMessage('تم استخدام قائمة ماركات افتراضية. تحقق من رفع مجلد api/ على الاستضافة لإظهار الماركات من قاعدة البيانات.', 'warning');
         }
@@ -4492,8 +4504,13 @@ async function editRepair(id) {
     
     // ✅ للعمليات الملغاة: السماح بالتكرار لأي مستخدم (لا يوجد قيود)
 
-    // تحميل الماركات أولاً
-    await loadDeviceBrands();
+    // تحميل الماركات أولاً (لا نمنع فتح النموذج عند فشل التحميل)
+    try {
+        await loadDeviceBrands();
+    } catch (e) {
+        console.warn('تحميل الماركات عند تعديل العملية فشل، استخدام القائمة الافتراضية:', e?.message || e);
+        setDeviceTypeBrandsFallback();
+    }
 
     document.getElementById('repairModalTitle').textContent = 'تعديل عملية الصيانة';
     document.getElementById('repairId').value = repair.id;
