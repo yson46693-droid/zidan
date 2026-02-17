@@ -209,6 +209,8 @@ async function loadRepairsSection() {
                                 <option value="Lava">Lava</option>
                                 <option value="أخرى">other</option>
                             </select>
+                        </div>
+                        <div class="form-group" id="deviceTypeGroup">
                             <label for="deviceType">نوع الجهاز *</label>
                             <select id="deviceType" required onchange="handleDeviceTypeChange(this)">
                                 <option value="">اختر الماركة</option>
