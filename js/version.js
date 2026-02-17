@@ -152,12 +152,28 @@ async function clearAllCache() {
     }
 }
 
+// مسار version.json - يعمل من الجذر أو من مجلد فرعي (مثل Hostinger)
+function getVersionJsonUrl() {
+    try {
+        let base = (typeof window !== 'undefined' && window.BASE_PATH) ? window.BASE_PATH : '';
+        if (!base && typeof window !== 'undefined' && window.location && window.location.pathname) {
+            const pathname = window.location.pathname || '/';
+            const dir = pathname.includes('/') ? pathname.substring(0, pathname.lastIndexOf('/') + 1) : '/';
+            base = (dir && dir !== '/') ? dir.replace(/\/$/, '') : '';
+        }
+        return (base ? base + '/' : '/') + 'version.json';
+    } catch (e) {
+        return '/version.json';
+    }
+}
+
 // قراءة الإصدار من ملف version.json (بدون cache لضمان دائماً أحدث إصدار)
 (async function() {
     try {
-        // ✅ جلب الإصدار مباشرة من version.json بدون أي cache
+        // ✅ جلب الإصدار مباشرة من version.json بدون أي cache (مسار ديناميكي للجذر أو مجلد فرعي)
         const cacheBuster = Date.now() + '&nocache=' + Math.random() + '&v=' + Date.now();
-        const response = await fetch('/version.json?' + cacheBuster, {
+        const versionUrl = getVersionJsonUrl();
+        const response = await fetch(versionUrl + '?' + cacheBuster, {
             cache: 'no-store', // منع المتصفح من استخدام cache
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
@@ -226,9 +242,10 @@ async function clearAllCache() {
                     return false;
                 }
                 
-                // ✅ جلب الإصدار مباشرة من version.json بدون أي cache
+                // ✅ جلب الإصدار مباشرة من version.json بدون أي cache (مسار ديناميكي)
                 const cacheBuster = Date.now() + '&nocache=' + Math.random() + '&v=' + Date.now();
-                const response = await fetch('/version.json?' + cacheBuster, {
+                const versionUrl = getVersionJsonUrl();
+                const response = await fetch(versionUrl + '?' + cacheBuster, {
                     cache: 'no-store', // منع المتصفح من استخدام cache
                     headers: {
                         'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',

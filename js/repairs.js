@@ -180,36 +180,6 @@ async function loadRepairsSection() {
 
                     <h4 style="margin: 20px 0 15px 0; color: var(--primary-color);">بيانات الجهاز</h4>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="devBrand">البراند*</label>
-                            <select id="devBrand" required onchange="handleDeviceTypeChange(this)">
-                                <option value="">اختر الماركة</option>
-                                <option value="Samsung">Samsung</option>
-                                <option value="Apple">Apple</option>
-                                <option value="Xiaomi">Xiaomi</option>
-                                <option value="Oppo">Oppo</option>
-                                <option value="vivo">vivo</option>
-                                <option value="Huawei">Huawei</option>
-                                <option value="Realme">Realme</option>
-                                <option value="OnePlus">OnePlus</option>
-                                <option value="Google">Google</option>
-                                <option value="Motorola">Motorola</option>
-                                <option value="Nokia">Nokia</option>
-                                <option value="Tecno">Tecno</option>
-                                <option value="Infinix">Infinix</option>
-                                <option value="Lenovo">Lenovo</option>
-                                <option value="Sony">Sony</option>
-                                <option value="Asus">Asus</option>
-                                <option value="ZTE">ZTE</option>
-                                <option value="Meizu">Meizu</option>
-                                <option value="HTC">HTC</option>
-                                <option value="Microsoft">Microsoft</option>
-                                <option value="Acer">Acer</option>
-                                <option value="alcatel">alcatel</option>
-                                <option value="Lava">Lava</option>
-                                <option value="أخرى">other</option>
-                            </select>
-                        </div>
                         <div class="form-group" id="deviceTypeGroup">
                             <label for="deviceType">نوع الجهاز *</label>
                             <select id="deviceType" required onchange="handleDeviceTypeChange(this)">
@@ -2734,6 +2704,13 @@ async function showAddRepairModal() {
         // التأكد من ظهور خيارات نوع الجهاز الثابتة (تفادي "جاري التحميل" أو "خطأ في التحميل" من كاش قديم)
         ensureDeviceTypeOptions();
         
+        // تحميل الماركات من API إن وُجدت (مع fallback آمن - لا يكسر النموذج عند 404)
+        try {
+            await loadDeviceBrands();
+        } catch (_) {
+            // تجاهل - القائمة الثابتة موجودة من ensureDeviceTypeOptions
+        }
+        
         // ✅ تم إزالة updateTechnicianName() - الفني يتم اختياره يدوياً فقط من النموذج
         
         // تحميل الفروع وملء القائمة (للمالك فقط)
@@ -2994,12 +2971,36 @@ function closeRepairModal() {
 }
 
 // استعادة خيارات نوع الجهاز الثابتة (من brsql) - لتفادي ظهور "جاري التحميل" أو "خطأ في التحميل" من كاش قديم
+const STATIC_BRAND_OPTIONS_HTML = '<option value="">اختر الماركة</option><option value="Samsung">Samsung</option><option value="Apple">Apple</option><option value="Xiaomi">Xiaomi</option><option value="Oppo">Oppo</option><option value="vivo">vivo</option><option value="Huawei">Huawei</option><option value="Realme">Realme</option><option value="OnePlus">OnePlus</option><option value="Google">Google</option><option value="Motorola">Motorola</option><option value="Nokia">Nokia</option><option value="Tecno">Tecno</option><option value="Infinix">Infinix</option><option value="Lenovo">Lenovo</option><option value="Sony">Sony</option><option value="Asus">Asus</option><option value="ZTE">ZTE</option><option value="Meizu">Meizu</option><option value="HTC">HTC</option><option value="Microsoft">Microsoft</option><option value="Acer">Acer</option><option value="alcatel">alcatel</option><option value="Lava">Lava</option><option value="أخرى">أخرى</option>';
+
 function ensureDeviceTypeOptions() {
     const sel = document.getElementById('deviceType');
     if (!sel) return;
     const firstOpt = sel.options[0]?.textContent || '';
     if (firstOpt.includes('جاري التحميل') || firstOpt.includes('خطأ في التحميل') || firstOpt.includes('لا يمكن تحميل') || sel.options.length <= 1) {
-        sel.innerHTML = '<option value="">اختر الماركة</option><option value="Samsung">Samsung</option><option value="Apple">Apple</option><option value="Xiaomi">Xiaomi</option><option value="Oppo">Oppo</option><option value="vivo">vivo</option><option value="Huawei">Huawei</option><option value="Realme">Realme</option><option value="OnePlus">OnePlus</option><option value="Google">Google</option><option value="Motorola">Motorola</option><option value="Nokia">Nokia</option><option value="Tecno">Tecno</option><option value="Infinix">Infinix</option><option value="Lenovo">Lenovo</option><option value="Sony">Sony</option><option value="Asus">Asus</option><option value="ZTE">ZTE</option><option value="Meizu">Meizu</option><option value="HTC">HTC</option><option value="Microsoft">Microsoft</option><option value="Acer">Acer</option><option value="alcatel">alcatel</option><option value="Lava">Lava</option><option value="أخرى">أخرى</option>';
+        sel.innerHTML = STATIC_BRAND_OPTIONS_HTML;
+    }
+}
+
+// تحميل الماركات من API (repairs.php?action=brands) مع fallback آمن - لا يرمي أبداً
+async function loadDeviceBrands() {
+    try {
+        if (typeof API === 'undefined' || !API.request) return;
+        const result = await API.request('repairs.php?action=brands', 'GET', null, { silent: true });
+        if (!result || !result.success || !Array.isArray(result.data)) return;
+        const brands = result.data.filter(b => b && String(b).trim()).map(b => String(b).trim());
+        const hasOther = brands.some(b => b === 'أخرى' || b.toLowerCase() === 'other');
+        const unique = [...new Set([...brands, ...(hasOther ? [] : ['أخرى'])])].sort((a, b) => (a === 'أخرى' ? 1 : (b === 'أخرى' ? -1 : a.localeCompare(b))));
+        const optionsHtml = '<option value="">اختر الماركة</option>' + unique.map(b => `<option value="${b}">${b}</option>`).join('');
+        const devBrand = document.getElementById('devBrand');
+        const deviceType = document.getElementById('deviceType');
+        if (devBrand) devBrand.innerHTML = optionsHtml;
+        if (deviceType) deviceType.innerHTML = optionsHtml;
+    } catch (e) {
+        // عدم رمي الخطأ - النموذج يعمل بالقائمة الثابتة من ensureDeviceTypeOptions
+        if (window.location && (window.location.hostname === 'localhost' || window.location.search.includes('debug=true'))) {
+            console.warn('[Repairs] تحميل الماركات من API غير متاح، استخدام القائمة الثابتة:', e && e.message);
+        }
     }
 }
 
@@ -4459,6 +4460,7 @@ window.openTrackingLink = openTrackingLink;
 window.sendTrackingLinkToWhatsApp = sendTrackingLinkToWhatsApp;
 window.openTrackingLinkForRepair = openTrackingLinkForRepair;
 window.showAddRepairModal = showAddRepairModal;
+window.loadDeviceBrands = loadDeviceBrands;
 window.switchRepairType = switchRepairType;
 window.showRepairRatingModal = showRepairRatingModal;
 window.selectRepairRatingStar = selectRepairRatingStar;
