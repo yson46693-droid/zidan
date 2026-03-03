@@ -5023,7 +5023,7 @@ async function printDeliveredRepairInvoice(repair) {
             const urlWithData = baseUrl + templateUrl + '?data=' + dataParam;
             
             console.log('📍 معلومات المسار:');
-            console.log('  - المسار الحالي:', currentPath);
+            console.log('  - المسار الحالي:', pathname);
             console.log('  - المسار النسبي للقالب:', templateUrl);
             console.log('  - URL الكامل:', urlWithData);
             
@@ -6637,7 +6637,7 @@ function printQRCode(qrCodeImage, repairNumber) {
         
     } catch (error) {
         console.error('خطأ في طباعة QR Code:', error);
-        showMessage('حدث خطأ أثناء الطباعة', 'error');
+        showMessage('حدث خطأ أثناء الطباعة: ' + (error && error.message ? error.message : 'خطأ غير معروف'), 'error');
     }
 }
 
@@ -6782,7 +6782,7 @@ function printLabel(labelImage, repairNumber) {
         
     } catch (error) {
         console.error('خطأ في طباعة الملصق:', error);
-        showMessage('حدث خطأ أثناء الطباعة', 'error');
+        showMessage('حدث خطأ أثناء الطباعة: ' + (error && error.message ? error.message : 'خطأ غير معروف'), 'error');
     }
 }
 
