@@ -5066,26 +5066,65 @@ async function printRepairReceiptFromCustomerPage(repairId) {
                         margin: 0;
                         size: 80mm auto;
                     }
-                    
+
                     * {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    
+
+                    /* إجبار النص على الأسود والكثافة لتفادي الطباعة الباهتة على بعض الاستضافات */
+                    body,
+                    .invoice-wrapper,
+                    .invoice-wrapper *,
+                    .invoice-shop-info,
+                    .invoice-shop-info div,
+                    .invoice-details-row > div,
+                    .invoice-extra-info-row > div,
+                    .invoice-details-row > div strong,
+                    .invoice-extra-info-row > div strong,
+                    .invoice-summary,
+                    .invoice-summary .summary-row,
+                    .invoice-terms,
+                    .invoice-terms h4,
+                    .invoice-terms ul,
+                    .invoice-terms li,
+                    .invoice-footer,
+                    .invoice-footer div,
+                    .invoice-header h2,
+                    .invoice-qrcode p {
+                        color: #000 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .invoice-wrapper,
+                    .invoice-shop-info,
+                    .invoice-details-row > div,
+                    .invoice-extra-info-row > div,
+                    .invoice-summary .summary-row,
+                    .invoice-terms li,
+                    .invoice-footer {
+                        font-weight: 600 !important;
+                    }
+                    .invoice-header h2,
+                    .invoice-summary .summary-row.total {
+                        font-weight: 700 !important;
+                        color: #000 !important;
+                    }
+
                     body {
                         background: white !important;
-                        color: black !important;
+                        color: #000 !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         width: 80mm !important;
                         visibility: visible !important;
                         opacity: 1 !important;
                     }
-                    
+
                     .no-print {
                         display: none !important;
                     }
-                    
+
                     .invoice-wrapper {
                         width: 80mm !important;
                         max-width: 80mm !important;

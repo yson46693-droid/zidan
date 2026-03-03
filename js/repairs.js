@@ -32,6 +32,15 @@ async function loadRepairsSection() {
     const section = document.getElementById('repairs-section');
     const currentUser = getCurrentUser();
     const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin');
+    // ✅ الفني: عرض القسم المطابق لتخصصه فقط (سوفت / هارد / فاست)
+    const isTechnician = currentUser && currentUser.role === 'technician';
+    const technicianSpecialization = (isTechnician && currentUser.specialization && ['soft', 'hard', 'fast'].includes(currentUser.specialization)) ? currentUser.specialization : null;
+    if (technicianSpecialization) {
+        currentRepairType = technicianSpecialization;
+    }
+    const hideSoftTab = technicianSpecialization && technicianSpecialization !== 'soft';
+    const hideHardTab = technicianSpecialization && technicianSpecialization !== 'hard';
+    const hideFastTab = technicianSpecialization && technicianSpecialization !== 'fast';
     
     section.innerHTML = `
         <div class="section-header">
@@ -63,13 +72,13 @@ async function loadRepairsSection() {
         </div>
 
         <div class="repair-type-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">
-            <button onclick="switchRepairType('soft')" id="tab-soft" class="repair-type-tab active" style="flex: 1; padding: 12px 20px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+            <button onclick="switchRepairType('soft')" id="tab-soft" class="repair-type-tab ${currentRepairType === 'soft' ? 'active' : ''}" style="flex: 1; padding: 12px 20px; background: ${currentRepairType === 'soft' ? 'var(--primary-color)' : 'var(--light-bg)'}; color: ${currentRepairType === 'soft' ? 'var(--white)' : 'var(--text-dark)'}; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;${hideSoftTab ? ' display: none !important;' : ''}">
                 <i class="bi bi-code-slash"></i> سوفت
             </button>
-            <button onclick="switchRepairType('hard')" id="tab-hard" class="repair-type-tab" style="flex: 1; padding: 12px 20px; background: var(--light-bg); color: var(--text-dark); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+            <button onclick="switchRepairType('hard')" id="tab-hard" class="repair-type-tab ${currentRepairType === 'hard' ? 'active' : ''}" style="flex: 1; padding: 12px 20px; background: ${currentRepairType === 'hard' ? 'var(--primary-color)' : 'var(--light-bg)'}; color: ${currentRepairType === 'hard' ? 'var(--white)' : 'var(--text-dark)'}; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;${hideHardTab ? ' display: none !important;' : ''}">
                 <i class="bi bi-cpu"></i> هارد
             </button>
-            <button onclick="switchRepairType('fast')" id="tab-fast" class="repair-type-tab" style="flex: 1; padding: 12px 20px; background: var(--light-bg); color: var(--text-dark); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+            <button onclick="switchRepairType('fast')" id="tab-fast" class="repair-type-tab ${currentRepairType === 'fast' ? 'active' : ''}" style="flex: 1; padding: 12px 20px; background: ${currentRepairType === 'fast' ? 'var(--primary-color)' : 'var(--light-bg)'}; color: ${currentRepairType === 'fast' ? 'var(--white)' : 'var(--text-dark)'}; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;${hideFastTab ? ' display: none !important;' : ''}">
                 <i class="bi bi-lightning-charge"></i> فاست
             </button>
         </div>
@@ -2768,6 +2777,17 @@ async function showAddRepairModal() {
         if (repairTypeGroup) {
             repairTypeGroup.style.display = 'block';
         }
+        // ✅ الفني: تثبيت نوع الصيانة على تخصصه ومنع تغييره
+        const repairTypeSelect = document.getElementById('repairType');
+        if (repairTypeSelect) {
+            const techSpec = (currentUser && currentUser.role === 'technician' && currentUser.specialization && ['soft', 'hard', 'fast'].includes(currentUser.specialization)) ? currentUser.specialization : null;
+            if (techSpec) {
+                repairTypeSelect.value = techSpec;
+                repairTypeSelect.disabled = true;
+            } else {
+                repairTypeSelect.disabled = false;
+            }
+        }
         
         // ✅ إعادة إظهار صورة الجهاز
         const imageUploadGroup = document.querySelector('.image-upload-container')?.parentElement;
@@ -4527,6 +4547,13 @@ async function editRepair(id) {
     document.getElementById('accessories').value = repair.accessories || '';
     document.getElementById('problem').value = repair.problem;
     document.getElementById('repairType').value = repair.repair_type || 'soft';
+    // ✅ الفني: منع تغيير نوع الصيانة في التعديل
+    const repairTypeSelectEdit = document.getElementById('repairType');
+    if (repairTypeSelectEdit) {
+        const currentUserEdit = getCurrentUser();
+        const isTechWithSpec = currentUserEdit && currentUserEdit.role === 'technician' && currentUserEdit.specialization && ['soft', 'hard', 'fast'].includes(currentUserEdit.specialization);
+        repairTypeSelectEdit.disabled = !!isTechWithSpec;
+    }
     document.getElementById('customerPrice').value = repair.customer_price || repair.cost || 0;
     document.getElementById('repairCost').value = repair.repair_cost || 0;
     
@@ -4643,7 +4670,13 @@ async function editRepair(id) {
     }
     const repairTypeGroup = document.getElementById('repairType')?.parentElement;
     if (repairTypeGroup) {
-        repairTypeGroup.style.display = 'none';
+        const currentUserEdit = getCurrentUser();
+        const isTechnicianEdit = currentUserEdit && currentUserEdit.role === 'technician';
+        if (isTechnicianEdit) {
+            repairTypeGroup.style.display = 'block';
+        } else {
+            repairTypeGroup.style.display = 'none';
+        }
     }
     
     // ✅ إخفاء صورة الجهاز
@@ -4980,27 +5013,10 @@ async function printDeliveredRepairInvoice(repair) {
         try {
             const dataParam = encodeURIComponent(JSON.stringify(invoiceData));
             
-            // ✅ بناء المسار الصحيح للقالب
-            let templateUrl = 'last.html';
-            const currentPath = window.location.pathname;
-            
-            // ✅ بناء المسار النسبي بناءً على موقع الملف الحالي
-            if (currentPath && currentPath !== '/') {
-                const pathParts = currentPath.split('/').filter(p => p && p !== 'index.html' && p !== 'dashboard.html');
-                if (pathParts.length > 0) {
-                    // إزالة اسم الملف الحالي
-                    pathParts.pop();
-                    if (pathParts.length > 0) {
-                        templateUrl = '/' + pathParts.join('/') + '/last.html';
-                    } else {
-                        templateUrl = '/last.html';
-                    }
-                } else {
-                    templateUrl = '/last.html';
-                }
-            } else {
-                templateUrl = '/last.html';
-            }
+            // ✅ بناء مسار last.html في نفس مجلد الصفحة الحالية (يتجنب 404 عند العمل من مجلد فرعي)
+            const pathname = window.location.pathname || '';
+            const directoryPath = pathname.replace(/\/[^/]*$/, '') || '';
+            const templateUrl = (directoryPath ? directoryPath + '/' : '/') + 'last.html';
             
             // ✅ بناء URL كامل
             const baseUrl = window.location.origin;
@@ -5603,9 +5619,48 @@ async function printRepairReceipt(id) {
                         print-color-adjust: exact !important;
                     }
                     
+                    /* ✅ إجبار النص على الأسود والكثافة لتفادي الطباعة الباهتة على بعض الاستضافات */
+                    body,
+                    .invoice-wrapper,
+                    .invoice-wrapper *,
+                    .invoice-shop-info,
+                    .invoice-shop-info div,
+                    .invoice-details-row > div,
+                    .invoice-extra-info-row > div,
+                    .invoice-details-row > div strong,
+                    .invoice-extra-info-row > div strong,
+                    .invoice-summary,
+                    .invoice-summary .summary-row,
+                    .invoice-terms,
+                    .invoice-terms h4,
+                    .invoice-terms ul,
+                    .invoice-terms li,
+                    .invoice-footer,
+                    .invoice-footer div,
+                    .invoice-header h2,
+                    .invoice-qrcode p {
+                        color: #000 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .invoice-wrapper,
+                    .invoice-shop-info,
+                    .invoice-details-row > div,
+                    .invoice-extra-info-row > div,
+                    .invoice-summary .summary-row,
+                    .invoice-terms li,
+                    .invoice-footer {
+                        font-weight: 600 !important;
+                    }
+                    .invoice-header h2,
+                    .invoice-summary .summary-row.total {
+                        font-weight: 700 !important;
+                        color: #000 !important;
+                    }
+                    
                     body {
                         background: white !important;
-                        color: black !important;
+                        color: #000 !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         width: 80mm !important;

@@ -8,6 +8,24 @@ $data = getRequestData();
 $method = $data['_method'] ?? getRequestMethod();
 
 /**
+ * جلب تخصص الفني من جدول users (للفنيين فقط)
+ * @return string|null 'soft'|'hard'|'fast' أو null
+ */
+function getTechnicianSpecialization($userId) {
+    if (empty($userId)) {
+        return null;
+    }
+    if (!dbColumnExists('users', 'specialization')) {
+        return null;
+    }
+    $user = dbSelectOne("SELECT specialization FROM users WHERE id = ?", [$userId]);
+    if (!$user || empty($user['specialization']) || !in_array($user['specialization'], ['soft', 'hard', 'fast'])) {
+        return null;
+    }
+    return $user['specialization'];
+}
+
+/**
  * جلب الفرع الأول حسب تاريخ الإنشاء
  */
 function getFirstBranchId() {
@@ -337,6 +355,19 @@ if ($method === 'GET') {
         }
     }
     
+    // ✅ الفني: عرض عمليات الصيانة الخاصة بتخصصه فقط (سوفت / هارد / فاست)
+    if (!$isPublicTracking && $userRole === 'technician') {
+        $userId = $session['user_id'] ?? null;
+        $techSpecialization = getTechnicianSpecialization($userId);
+        if ($techSpecialization) {
+            $query .= " AND r.repair_type = ?";
+            $params[] = $techSpecialization;
+        } else {
+            // الفني بدون تخصص معيّن: عدم عرض أي عمليات حتى يتم تعيين التخصص
+            $query .= " AND 1=0";
+        }
+    }
+    
     $query .= " ORDER BY r.created_at DESC";
     
     // ✅ إذا كان البحث بـ repair_number، استخدم dbSelectOne لإرجاع object واحد
@@ -444,6 +475,16 @@ if ($method === 'GET') {
             error_log("❌ Query: " . $query);
             error_log("❌ Params: " . json_encode($params));
             response(false, 'لم يتم العثور على عملية الصيانة', null, 404);
+        }
+        
+        // ✅ الفني: السماح بالوصول فقط للعمليات المطابقة لتخصصه
+        if ($userRole === 'technician') {
+            $userId = $session['user_id'] ?? null;
+            $techSpecialization = getTechnicianSpecialization($userId);
+            $repairType = isset($repair['repair_type']) && in_array($repair['repair_type'], ['soft', 'hard', 'fast']) ? $repair['repair_type'] : 'soft';
+            if (!$techSpecialization || $repairType !== $techSpecialization) {
+                response(false, 'لا يمكنك الوصول إلى هذه العملية', null, 403);
+            }
         }
         
         // إضافة cost للتوافق مع الكود القديم ومعالجة أرقام الفواتير
@@ -719,6 +760,14 @@ if ($method === 'POST') {
     $userBranchId = $session['branch_id'] ?? null;
     $userRole = $session['role'];
     
+    // ✅ الفني: يمكنه إضافة عمليات صيانة ضمن تخصصه فقط (سوفت / هارد / فاست)
+    if ($userRole === 'technician') {
+        $techSpecialization = getTechnicianSpecialization($session['user_id']);
+        if (!$techSpecialization || $repair_type !== $techSpecialization) {
+            response(false, 'لا يمكنك إضافة عملية صيانة خارج تخصصك', null, 403);
+        }
+    }
+    
     error_log("✅ [Repairs] POST - created_by من البيانات: " . ($data['created_by'] ?? 'null') . ", createdBy النهائي: $createdBy, user_id: " . $session['user_id']);
     
     // تحديد branch_id للعملية
@@ -980,10 +1029,25 @@ if ($method === 'PUT') {
         response(false, 'معرف العملية مطلوب', null, 400);
     }
     
-    // التحقق من وجود العملية
-    $repair = dbSelectOne("SELECT id, status, notes FROM repairs WHERE id = ?", [$id]);
+    // التحقق من وجود العملية (جلب repair_type للتحقق من تخصص الفني)
+    $repair = dbSelectOne("SELECT id, status, notes, repair_type FROM repairs WHERE id = ?", [$id]);
     if (!$repair) {
         response(false, 'عملية الصيانة غير موجودة', null, 404);
+    }
+    
+    // ✅ الفني: يمكنه تعديل عمليات الصيانة ضمن تخصصه فقط
+    $session = $_SESSION;
+    $userRole = $session['role'] ?? null;
+    if ($userRole === 'technician') {
+        $techSpecialization = getTechnicianSpecialization($session['user_id'] ?? null);
+        $repairType = isset($repair['repair_type']) && in_array($repair['repair_type'], ['soft', 'hard', 'fast']) ? $repair['repair_type'] : 'soft';
+        if (!$techSpecialization || $repairType !== $techSpecialization) {
+            response(false, 'لا يمكنك تعديل عملية صيانة خارج تخصصك', null, 403);
+        }
+        // منع الفني من تغيير نوع الصيانة
+        if (isset($data['repair_type']) && $data['repair_type'] !== $repairType) {
+            response(false, 'لا يمكنك تغيير نوع الصيانة', null, 403);
+        }
     }
     
     // ✅ السماح بتعديل inspection_cost فقط للعمليات الملغاة

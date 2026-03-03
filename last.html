@@ -375,9 +375,45 @@
                 print-color-adjust: exact !important;
             }
 
+            /* إجبار النص على الأسود والكثافة لتفادي الطباعة الباهتة على بعض الاستضافات */
+            body,
+            .invoice-wrapper,
+            .invoice-wrapper *,
+            .invoice-shop-info,
+            .invoice-shop-info div,
+            .invoice-details-row > div,
+            .invoice-extra-info-row > div,
+            .invoice-details-row strong,
+            .invoice-extra-info-row strong,
+            .invoice-summary,
+            .invoice-summary *,
+            .invoice-terms,
+            .invoice-terms h4,
+            .invoice-terms ul,
+            .invoice-terms li,
+            .invoice-footer,
+            .invoice-header h2 {
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .invoice-wrapper,
+            .invoice-shop-info,
+            .invoice-details-row > div,
+            .invoice-extra-info-row > div,
+            .invoice-terms li,
+            .invoice-summary .summary-row {
+                font-weight: 600 !important;
+            }
+            .invoice-header h2,
+            .invoice-summary .summary-row.total {
+                font-weight: 700 !important;
+                color: #000 !important;
+            }
+
             body {
                 background: white !important;
-                color: black !important;
+                color: #000 !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 width: 80mm !important;

@@ -902,12 +902,46 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
+            /* إجبار النص على الأسود والكثافة لتفادي الطباعة الباهتة على بعض الاستضافات */
+            body,
+            .invoice-wrapper,
+            .invoice-wrapper *,
+            .invoice-shop-info,
+            .invoice-details,
+            .invoice-details *,
+            .invoice-extra-info,
+            .invoice-extra-info *,
+            .invoice-summary,
+            .invoice-summary *,
+            .invoice-terms,
+            .invoice-terms *,
+            .invoice-footer,
+            .invoice-footer *,
+            .invoice-header,
+            .invoice-header * {
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .invoice-wrapper,
+            .invoice-shop-info,
+            .invoice-detail-item,
+            .invoice-phone-data,
+            .invoice-terms li,
+            .invoice-footer div {
+                font-weight: 600 !important;
+            }
+            .invoice-header h2,
+            .invoice-summary .summary-row.total {
+                font-weight: 700 !important;
+                color: #000 !important;
+            }
             body {
-                background: white;
-                color: black;
-                margin: 0;
-                padding: 0;
-                width: 80mm;
+                background: white !important;
+                color: #000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 80mm !important;
             }
             .invoice-wrapper {
                 width: 80mm !important;
