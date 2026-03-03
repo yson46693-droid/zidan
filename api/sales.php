@@ -1178,7 +1178,7 @@ if ($method === 'POST') {
                     // للعملاء العاديين: إضافة كامل المبلغ للخزنة
                     $amountToAdd = $finalAmount;
                     $transactionType = 'sales_revenue';
-                    $transactionDescription = "مبيعات - عميل محل ({$customerName}) - فاتورة رقم {$saleNumber}";
+                    $transactionDescription = "مبيعات - زبون ({$customerName}) - فاتورة رقم {$saleNumber}";
                 }
                 
                 if ($amountToAdd > 0) {

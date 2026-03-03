@@ -147,7 +147,7 @@ async function loadRepairsSection() {
                         <div class="form-group">
                             <label for="customerType">نوع العميل *</label>
                             <select id="customerType" required onchange="onCustomerTypeChange()">
-                                <option value="retail">عميل محل</option>
+                                <option value="retail">زبون</option>
                                 <option value="commercial">عميل تجاري</option>
                             </select>
                         </div>

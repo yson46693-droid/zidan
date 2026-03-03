@@ -77,7 +77,7 @@ async function loadCustomersSection() {
         <!-- Customer Type Tabs -->
         <div class="customer-type-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">
             <button onclick="switchCustomerType('retail')" id="tab-retail" class="customer-type-tab active" style="flex: 1; padding: 12px 20px; background: var(--primary-color); color: var(--white); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
-                <i class="bi bi-person"></i> عملاء المحل
+                <i class="bi bi-person"></i> زبائن
             </button>
             <button onclick="switchCustomerType('commercial')" id="tab-commercial" class="customer-type-tab" style="flex: 1; padding: 12px 20px; background: var(--light-bg); color: var(--text-dark); border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
                 <i class="bi bi-shop"></i> عملاء تجاري
@@ -119,7 +119,7 @@ async function loadCustomersSection() {
                     <div class="form-group">
                         <label>نوع العميل *</label>
                         <select id="custType" required onchange="toggleShopNameField()">
-                            <option value="retail">عميل محل</option>
+                            <option value="retail">زبون</option>
                             <option value="commercial">عميل تجاري</option>
                         </select>
                     </div>
@@ -1362,7 +1362,7 @@ async function viewCustomerProfile(customerId) {
                     </p>
                 ` : ''}
                 <p class="customer-type">
-                    ${customer.customer_type === 'commercial' ? '<i class="bi bi-briefcase"></i> عميل تجاري' : '<i class="bi bi-person"></i> عميل محل'}
+                    ${customer.customer_type === 'commercial' ? '<i class="bi bi-briefcase"></i> عميل تجاري' : '<i class="bi bi-person"></i> زبون'}
                 </p>
             </div>
         `;
@@ -3064,7 +3064,7 @@ function printAccountStatementWindow(customerId, customerName, customerType, cus
         const safeCustomerAddress = customerAddress ? escapeHtml(customerAddress) : '';
         const safeCustomerShopName = customerShopName ? escapeHtml(customerShopName) : '';
         
-        // تحديد إذا كان عميل محل (retail) - يجب إخفاء أعمدة المدفوع والمتبقي
+        // تحديد إذا كان زبون (retail) - يجب إخفاء أعمدة المدفوع والمتبقي
         const isRetailCustomer = customerType === 'retail';
         
         // حساب إجمالي المتبقي بعد التحصيلات (للعملاء التجاريين فقط)
