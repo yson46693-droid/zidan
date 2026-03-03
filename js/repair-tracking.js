@@ -2545,7 +2545,7 @@ async function showTechnicianRatingsModal(technicianId, technicianName) {
                     <div class="modal-header">
                         <h3 id="technicianRatingsModalTitle">
                             <i class="bi bi-star-fill"></i>
-                            تقييمات وآراء العملاء
+                            تقييمات وآراء الزبائن
                         </h3>
                         <button onclick="closeTechnicianRatingsModal()" class="btn-close" title="إغلاق">
                             <i class="bi bi-x-lg"></i>
@@ -2573,7 +2573,7 @@ async function showTechnicianRatingsModal(technicianId, technicianName) {
         
         if (!title || !body) return;
         
-        title.innerHTML = `<i class="bi bi-star-fill"></i> تقييمات وآراء العملاء - ${escapeHtml(technicianName)}`;
+        title.innerHTML = `<i class="bi bi-star-fill"></i> تقييمات وآراء الزبائن - ${escapeHtml(technicianName)}`;
         
         // إعادة تعيين pagination
         currentRatingsPage = 1;

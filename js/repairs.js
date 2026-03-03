@@ -5010,6 +5010,7 @@ async function printDeliveredRepairInvoice(repair) {
         console.log('بيانات الفاتورة المحضرة:', invoiceData);
         
         // ✅ فتح القالب في نافذة جديدة مع تمرير البيانات عبر URL
+        let urlWithData = '';
         try {
             const dataParam = encodeURIComponent(JSON.stringify(invoiceData));
             
@@ -5020,7 +5021,7 @@ async function printDeliveredRepairInvoice(repair) {
             
             // ✅ بناء URL كامل
             const baseUrl = window.location.origin;
-            const urlWithData = baseUrl + templateUrl + '?data=' + dataParam;
+            urlWithData = baseUrl + templateUrl + '?data=' + dataParam;
             
             console.log('📍 معلومات المسار:');
             console.log('  - المسار الحالي:', pathname);
@@ -5094,7 +5095,7 @@ async function printDeliveredRepairInvoice(repair) {
             console.error('تفاصيل الخطأ:', {
                 message: error.message,
                 stack: error.stack,
-                url: urlWithData
+                url: urlWithData || '(لم يتم بناء الرابط بعد)'
             });
             showMessage('حدث خطأ أثناء فتح الفاتورة: ' + (error.message || 'خطأ غير معروف'), 'error');
             throw error; // ✅ إعادة رمي الخطأ ليتم التقاطه في printRepairReceipt

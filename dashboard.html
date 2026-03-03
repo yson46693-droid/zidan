@@ -415,7 +415,7 @@
             </a>
             <a href="#customers" class="mobile-nav-item" onclick="showSection('customers')">
                 <i class="bi bi-people"></i>
-                <span>العملاء</span>
+                <span>الزبائن</span>
             </a>
             <a href="#inventory" class="mobile-nav-item" onclick="showSection('inventory')">
                 <i class="bi bi-box-seam"></i>
@@ -460,7 +460,7 @@
                 <i class="bi bi-tools"></i> عمليات الصيانة
             </a>
             <a href="#customers" class="nav-link" onclick="showSection('customers')">
-                <i class="bi bi-people"></i> العملاء
+                <i class="bi bi-people"></i> الزبائن
             </a>
             <a href="#inventory" class="nav-link" onclick="showSection('inventory')">
                 <i class="bi bi-box-seam"></i> المخزن
@@ -653,7 +653,7 @@
                 </div>
             </section>
 
-            <!-- العملاء -->
+            <!-- الزبائن -->
             <section id="customers-section" class="section"></section>
 
             <!-- المخزن -->
@@ -2216,7 +2216,7 @@
             const titles = {
                 'dashboard': 'لوحة التحكم',
                 'repairs': 'عمليات الصيانة',
-                'customers': 'العملاء',
+                'customers': 'الزبائن',
                 'inventory': 'المخزن',
                 'expenses': 'خزنة الفرع',
                 'reports': 'التقارير المالية',
@@ -2813,7 +2813,7 @@
             const titles = {
                 'dashboard': 'لوحة التحكم',
                 'repairs': 'عمليات الصيانة',
-                'customers': 'العملاء',
+                'customers': 'الزبائن',
                 'inventory': 'المخزن',
                 'expenses': 'خزنة الفرع',
                 'reports': 'التقارير المالية',
@@ -5601,13 +5601,13 @@
         </div>
     </div>
 
-    <!-- Modal تقييمات وآراء العملاء للفني -->
+    <!-- Modal تقييمات وآراء الزبائن للفني -->
     <div id="technicianRatingsModal" class="modal" style="display: none;" dir="rtl">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
                 <h3 id="technicianRatingsModalTitle">
                     <i class="bi bi-star-fill"></i>
-                    تقييمات وآراء العملاء
+                    تقييمات وآراء الزبائن
                 </h3>
                 <button onclick="closeTechnicianRatingsModal()" class="btn-close" title="إغلاق">
                     <i class="bi bi-x-lg"></i>
@@ -5629,7 +5629,7 @@
     </div>
 
     <script>
-        // عرض modal تقييمات وآراء العملاء للفني
+        // عرض modal تقييمات وآراء الزبائن للفني
         async function showTechnicianRatingsModal(technicianId, technicianName) {
             try {
                 // التحقق من المعاملات
@@ -5652,7 +5652,7 @@
                             <div class="modal-header">
                                 <h3 id="technicianRatingsModalTitle">
                                     <i class="bi bi-star-fill"></i>
-                                    تقييمات وآراء العملاء
+                                    تقييمات وآراء الزبائن
                                 </h3>
                                 <button onclick="closeTechnicianRatingsModal()" class="btn-close" title="إغلاق">
                                     <i class="bi bi-x-lg"></i>
@@ -5683,7 +5683,7 @@
                     return;
                 }
                 
-                title.innerHTML = `<i class="bi bi-star-fill"></i> تقييمات وآراء العملاء - ${escapeHtml(technicianName)}`;
+                title.innerHTML = `<i class="bi bi-star-fill"></i> تقييمات وآراء الزبائن - ${escapeHtml(technicianName)}`;
                 
                 // إظهار حالة التحميل
                 body.innerHTML = `
