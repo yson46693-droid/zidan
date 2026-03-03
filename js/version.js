@@ -193,9 +193,11 @@ function getVersionJsonUrl() {
                 console.log('🧹 [Version] بدء مسح جميع الكاش لضمان عدم عودة نسخة قديمة...');
                 
                 await clearAllCache();
-                // إعادة تحميل الصفحة لتحميل الملفات الجديدة (يمنع استمرار تشغيل كود قديم)
+                // إعادة تحميل مع تجاوز الكاش بالكامل (يمنع عودة نسخة قديمة من HTTP cache أو SW)
                 if (typeof window !== 'undefined' && window.location) {
-                    window.location.reload();
+                    const sep = window.location.pathname.includes('?') ? '&' : '?';
+                    const newUrl = window.location.pathname + (window.location.search || '') + sep + '_v=' + newVersion + '&_t=' + Date.now();
+                    window.location.replace(newUrl);
                     return;
                 }
             }
@@ -206,6 +208,20 @@ function getVersionJsonUrl() {
             } catch (e) {
                 console.warn('[Version] فشل حفظ النسخة في localStorage:', e);
             }
+            
+            // تنظيف شريط العنوان من معاملات التحديث (_v, _t) إن وُجدت
+            try {
+                if (typeof window !== 'undefined' && window.history && window.location.search) {
+                    const params = new URLSearchParams(window.location.search);
+                    if (params.has('_v') || params.has('_t')) {
+                        params.delete('_v');
+                        params.delete('_t');
+                        const cleanSearch = params.toString() ? '?' + params.toString() : '';
+                        const cleanUrl = window.location.pathname + cleanSearch + window.location.hash;
+                        window.history.replaceState(null, '', cleanUrl);
+                    }
+                }
+            } catch (e) {}
             
             APP_VERSION = newVersion + '.' + Date.now();
             LAST_UPDATE = data.last_updated;
@@ -270,9 +286,10 @@ function getVersionJsonUrl() {
                         console.log('🧹 [Update] بدء مسح جميع الكاش لضمان عدم عودة نسخة قديمة...');
                         
                         await clearAllCache();
-                        // إعادة تحميل الصفحة لتحميل الملفات الجديدة
+                        // إعادة تحميل مع تجاوز الكاش بالكامل
                         if (typeof window !== 'undefined' && window.location) {
-                            window.location.reload();
+                            const sep = window.location.pathname.includes('?') ? '&' : '?';
+                            window.location.replace(window.location.pathname + (window.location.search || '') + sep + '_v=' + newVersion + '&_t=' + Date.now());
                         }
                         return true;
                     }

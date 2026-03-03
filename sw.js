@@ -353,7 +353,6 @@ self.addEventListener('fetch', event => {
     
     // ✅ استثناء invoice-view.php من caching - يجب أن يكون دائماً fresh
     if (url.pathname.includes('invoice-view.php')) {
-        // جلب مباشر من الشبكة بدون cache
         event.respondWith(
             fetch(request, {
                 cache: 'no-store',
@@ -364,6 +363,24 @@ self.addEventListener('fetch', event => {
                 }
             }).catch(error => {
                 console.error('[SW] خطأ في جلب invoice-view.php:', error);
+                throw error;
+            })
+        );
+        return;
+    }
+    
+    // ✅ حرج: version.json لا يُخزّن أبداً في الكاش - دائماً من الشبكة (يمنع عودة نسخة قديمة)
+    if (url.pathname.endsWith('version.json') || url.pathname.includes('version.json')) {
+        event.respondWith(
+            fetch(request, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            }).catch(error => {
+                console.warn('[SW] تعذر جلب version.json:', error);
                 throw error;
             })
         );
