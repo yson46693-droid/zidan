@@ -258,9 +258,11 @@ if ($method === 'POST') {
         
         error_log("✅ تم الاتصال بقاعدة البيانات بنجاح");
         
-        // البحث عن المستخدم في قاعدة البيانات مع اسم الفرع ورمز الفرع
+        // البحث عن المستخدم في قاعدة البيانات مع اسم الفرع ورمز الفرع وتخصص الفني
+        $hasSpecialization = dbColumnExists('users', 'specialization');
+        $specField = $hasSpecialization ? ', u.specialization' : '';
         $user = dbSelectOne(
-            "SELECT u.id, u.username, u.password, u.name, u.role, u.branch_id, b.name as branch_name, b.code as branch_code 
+            "SELECT u.id, u.username, u.password, u.name, u.role, u.branch_id{$specField}, b.name as branch_name, b.code as branch_code 
              FROM users u 
              LEFT JOIN branches b ON u.branch_id = b.id 
              WHERE u.username = ?",
@@ -302,6 +304,9 @@ if ($method === 'POST') {
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['branch_id'] = $user['branch_id'] ?? null; // ✅ حفظ branch_id في الجلسة
+                if ($hasSpecialization && isset($user['specialization'])) {
+                    $_SESSION['specialization'] = $user['specialization'];
+                }
                 
                 // ✅ SECURITY: حفظ IP Address للتحقق لاحقاً
                 $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
@@ -325,6 +330,7 @@ if ($method === 'POST') {
                     'branch_id' => $user['branch_id'] ?? null,
                     'branch_name' => $user['branch_name'] ?? null,
                     'branch_code' => $user['branch_code'] ?? null,
+                    'specialization' => ($hasSpecialization && isset($user['specialization'])) ? $user['specialization'] : null,
                     'csrf_token' => $csrfToken,
                     'api_token' => $apiToken
                 ]);
@@ -407,6 +413,11 @@ if ($method === 'GET') {
         $csrfToken = generateCSRFToken();
         $apiToken = generateAPIRequestToken();
         
+        $specialization = null;
+        if (dbColumnExists('users', 'specialization')) {
+            $u = dbSelectOne("SELECT specialization FROM users WHERE id = ?", [$_SESSION['user_id']]);
+            $specialization = $u['specialization'] ?? null;
+        }
         response(true, 'الجلسة نشطة', [
             'id' => $_SESSION['user_id'],
             'username' => $_SESSION['username'] ?? '',
@@ -415,6 +426,7 @@ if ($method === 'GET') {
             'branch_id' => $_SESSION['branch_id'] ?? null,
             'branch_name' => $branchName,
             'branch_code' => $branchCode,
+            'specialization' => $specialization,
             'csrf_token' => $csrfToken,
             'api_token' => $apiToken
         ]);

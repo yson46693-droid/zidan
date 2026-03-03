@@ -146,9 +146,11 @@ try {
         error_log("WebAuthn Login API - verifyLogin returned: " . ($userId ? $userId : 'false'));
         
         if ($userId) {
-            // الحصول على بيانات المستخدم مع اسم الفرع
+            // الحصول على بيانات المستخدم مع اسم الفرع وتخصص الفني
+            $hasSpec = dbColumnExists('users', 'specialization');
+            $specField = $hasSpec ? ', u.specialization' : '';
             $user = dbSelectOne(
-                "SELECT u.id, u.username, u.name, u.role, u.branch_id, b.name as branch_name 
+                "SELECT u.id, u.username, u.name, u.role, u.branch_id{$specField}, b.name as branch_name 
                  FROM users u 
                  LEFT JOIN branches b ON u.branch_id = b.id 
                  WHERE u.id = ?",
@@ -167,6 +169,9 @@ try {
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['branch_id'] = $user['branch_id'] ?? null;
+                if ($hasSpec && isset($user['specialization'])) {
+                    $_SESSION['specialization'] = $user['specialization'];
+                }
                 
                 // حفظ الجلسة قبل إرسال headers
                 if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
@@ -186,7 +191,8 @@ try {
                     'name' => $user['name'],
                     'role' => $user['role'],
                     'branch_id' => $user['branch_id'] ?? null,
-                    'branch_name' => $user['branch_name'] ?? null
+                    'branch_name' => $user['branch_name'] ?? null,
+                    'specialization' => ($hasSpec && isset($user['specialization'])) ? $user['specialization'] : null
                 ]);
             } else {
                 if (!headers_sent()) {
