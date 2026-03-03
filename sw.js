@@ -1,17 +1,10 @@
 // Service Worker للعمل بدون إنترنت
 // دعم المتصفحات القديمة والحديثة
 
-// رقم الإصدار - يجب تحديثه يدوياً عند إجراء تغييرات على Service Worker
-// Version number - must be updated manually when making changes to Service Worker
-// 🔧 الحل: استخدام رقم إصدار ثابت بدلاً من Date.now() لمنع reload loop
-const APP_VERSION = '2.0.3'; // رقم ثابت - تحديثه يدوياً عند الحاجة فقط (2.0.3: إصلاح basePath لـ sw.js.php)
-
-// اسم الـ cache - يجب أن يكون ثابت لنفس الإصدار
-// 🔧 الحل: استخدام رقم إصدار ثابت في اسم الـ cache أيضاً
-const CACHE_NAME = 'mobile-repair-shop-v' + APP_VERSION;
-
-console.log('[Service Worker] Version:', APP_VERSION);
-console.log('[Service Worker] Cache Name:', CACHE_NAME);
+// رقم الإصدار الاحتياطي - يُستخدم فقط إذا فشل جلب version.json
+const APP_VERSION_FALLBACK = '2.0.3';
+// اسم الـ cache الحالي (يُحدد من version.json في install/activate)
+function getCacheName() { return self.__CACHE_NAME || ('mobile-repair-shop-v' + APP_VERSION_FALLBACK); }
 
 // Polyfill للمتصفحات القديمة
 if (typeof self !== 'undefined' && !self.caches) {
@@ -76,6 +69,24 @@ const buildPath = (path) => {
     const cleanPath = path.startsWith('/') ? path : '/' + path;
     return effectiveBasePath + cleanPath;
 };
+
+// دالة لجلب الإصدار الحالي من version.json (يمنع عودة كاش قديم بعد أي تحديث)
+async function getAppVersionFromNetwork() {
+    try {
+        const versionUrl = buildPath('/version.json') + '?t=' + Date.now() + '&v=' + Math.random();
+        const res = await fetch(versionUrl, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            return (data && data.version) ? String(data.version) : APP_VERSION_FALLBACK;
+        }
+    } catch (e) {
+        console.warn('[SW] تعذر جلب version.json:', e);
+    }
+    return APP_VERSION_FALLBACK;
+}
 
 // قائمة الملفات الأساسية - جميع ملفات JS و CSS الحرجة
 // ✅ تحسين: إضافة جميع ملفات JS و CSS الحرجة لتقليل عدد الطلبات
@@ -197,15 +208,21 @@ async function cacheFilesSafely(cache, files, isEssential = false) {
     return { succeeded, failed, results };
 }
 
-// التثبيت - حفظ الملفات في الـ cache
+// التثبيت - جلب الإصدار من version.json ثم حفظ الملفات في cache باسم الإصدار (يمنع عودة كاش قديم)
 self.addEventListener('install', event => {
     console.log('[Service Worker] Installing...');
     
-    const installPromise = caches.open(CACHE_NAME)
+    const installPromise = getAppVersionFromNetwork()
+        .then(version => {
+            const cacheName = 'mobile-repair-shop-v' + version;
+            self.__CACHE_NAME = cacheName;
+            console.log('[Service Worker] Version from version.json:', version, '| Cache:', cacheName);
+            return cacheName;
+        })
+        .then(cacheName => caches.open(cacheName))
         .then(async cache => {
             console.log('[Service Worker] Caching essential files...');
             
-            // إضافة الملفات الأساسية أولاً
             const essentialResult = await cacheFilesSafely(cache, essentialFiles, false);
             if (essentialResult.failed > 0) {
                 console.warn(`[Service Worker] ${essentialResult.failed} essential file(s) failed to cache`);
@@ -213,7 +230,6 @@ self.addEventListener('install', event => {
                 console.log('[Service Worker] All essential files cached successfully');
             }
             
-            // إضافة الملفات الاختيارية بشكل متوازي (لكن بدون انتظار - non-blocking)
             console.log('[Service Worker] Caching optional files in background...');
             cacheFilesSafely(cache, optionalFiles, false).then(() => {
                 console.log('[Service Worker] Optional files cached');
@@ -224,41 +240,39 @@ self.addEventListener('install', event => {
             console.log('[Service Worker] Installation complete');
         })
         .then(() => {
-            // تفعيل Service Worker فوراً
-            if (self.skipWaiting) {
-                return self.skipWaiting();
-            }
+            if (self.skipWaiting) return self.skipWaiting();
         })
         .catch(error => {
             console.error('[Service Worker] Installation error:', error);
-            // حتى لو فشل التثبيت، نكمل العملية
         });
     
     event.waitUntil(installPromise);
 });
 
-// التفعيل - تنظيف الـ cache القديم
+// التفعيل - جلب الإصدار الحالي وحذف أي كاش قديم (يمنع عودة نسخة قديمة بعد التحديث)
 self.addEventListener('activate', event => {
-    console.log('[Service Worker] Activating...', 'Cache:', CACHE_NAME);
-    
-    const activatePromise = caches.keys()
-        .then(cacheNames => {
-            console.log('[Service Worker] Found caches:', cacheNames);
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    // حذف جميع الـ caches القديمة التي لا تطابق الإصدار الحالي
-                    // 🔧 تحديث: حذف جميع caches التي تبدأ بـ mobile-repair-shop- إلا الحالي
-                    if (cacheName !== CACHE_NAME && cacheName.startsWith('mobile-repair-shop-')) {
-                        console.log('[Service Worker] Deleting old cache:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                    return Promise.resolve();
-                })
-            );
+    const activatePromise = getAppVersionFromNetwork()
+        .then(currentVersion => {
+            const currentCacheName = 'mobile-repair-shop-v' + currentVersion;
+            self.__CACHE_NAME = currentCacheName;
+            console.log('[Service Worker] Activating... Version:', currentVersion, '| Cache:', currentCacheName);
+            return currentCacheName;
         })
-        .then(() => {
-            // حذف جميع الأيقونات القديمة من cache الحالي لضمان الحصول على أحدث نسخة
-            return caches.open(CACHE_NAME).then(cache => {
+        .then(currentCacheName => caches.keys()
+            .then(cacheNames => {
+                console.log('[Service Worker] Found caches:', cacheNames);
+                return Promise.all(
+                    cacheNames.map(cacheName => {
+                        if (cacheName !== currentCacheName && cacheName.startsWith('mobile-repair-shop-')) {
+                            console.log('[Service Worker] Deleting old cache (نسخة قديمة):', cacheName);
+                            return caches.delete(cacheName);
+                        }
+                        return Promise.resolve();
+                    })
+                ).then(() => currentCacheName);
+            }))
+        .then(currentCacheName => {
+            return caches.open(currentCacheName).then(cache => {
                 return cache.keys().then(keys => {
                     const iconKeys = keys.filter(request => {
                         const url = request.url || '';
@@ -400,7 +414,7 @@ self.addEventListener('fetch', event => {
                             });
                             
                             // حفظ في cache بشكل آمن (في الخلفية)
-                            caches.open(CACHE_NAME).then(cache => {
+                            caches.open(getCacheName()).then(cache => {
                                 cache.put(request, cachedResponse).catch(err => {
                                     console.warn('[SW] فشل حفظ API response في cache:', request.url, err);
                                 });
@@ -501,7 +515,7 @@ self.addEventListener('fetch', event => {
                         // إذا كانت الاستجابة ناجحة، نحفظها في cache
                         if (response.ok && response.status === 200) {
                             const responseToCache = response.clone();
-                            caches.open(CACHE_NAME).then(cache => {
+                            caches.open(getCacheName()).then(cache => {
                                 cache.put(request, responseToCache).catch(err => {
                                     console.warn('[SW] فشل حفظ صورة في cache:', request.url, err);
                                 });
@@ -550,7 +564,7 @@ self.addEventListener('fetch', event => {
                     // إذا كانت الاستجابة ناجحة، نحفظها في cache للاستخدام offline
                     if (response.ok && response.status === 200) {
                         const responseToCache = response.clone();
-                        caches.open(CACHE_NAME).then(cache => {
+                        caches.open(getCacheName()).then(cache => {
                             cache.put(request, responseToCache).catch(err => {
                                 console.warn('[SW] فشل حفظ ملف في cache:', request.url, err);
                             });
@@ -613,7 +627,7 @@ self.addEventListener('fetch', event => {
                             const responseToCache = response.clone();
                             
                             // حفظ في cache بشكل آمن
-                            caches.open(CACHE_NAME).then(cache => {
+                            caches.open(getCacheName()).then(cache => {
                                 cache.put(request, responseToCache).catch(err => {
                                     console.warn('[SW] فشل حفظ في cache:', request.url, err);
                                 });
@@ -641,7 +655,7 @@ self.addEventListener('fetch', event => {
 
                         // حفظ في الـ cache للاستخدام لاحقاً
                         const responseToCache = response.clone();
-                        caches.open(CACHE_NAME).then(cache => {
+                        caches.open(getCacheName()).then(cache => {
                             // التحقق من أن الطلب قابل للتخزين
                             if (request.method === 'GET' && response.status === 200) {
                                 cache.put(request, responseToCache).catch(err => {

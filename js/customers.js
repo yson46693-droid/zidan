@@ -4512,21 +4512,37 @@ async function printRepairReceiptFromCustomerPage(repairId) {
             return;
         }
         
-        // جلب بيانات الصيانة من API
-        const response = await API.request(`repairs.php?id=${repairId}`, 'GET');
+        // ✅ استخدام بيانات الصيانة المحلية أولاً (من سجل صيانات العميل) لتجنب "لم يتم العثور على عملية الصيانة"
+        // لأن طلب API بـ id يطبق فلتر الفرع/التخصص وقد لا يعيد العملية إن كانت من فرع آخر
+        const idStr = String(repairId).trim();
+        const localRepairs = window._originalCustomerRepairs || window.currentCustomerRepairs || [];
+        let repair = localRepairs.find(r => r && (String(r.id) === idStr || String(r.repair_number) === idStr));
         
-        if (!response || !response.success || !response.data) {
-            const errorMsg = response?.message || 'فشل في جلب بيانات عملية الصيانة';
-            console.error('خطأ في جلب بيانات الصيانة:', errorMsg, response);
-            showMessage(errorMsg, 'error');
-            return;
+        if (!repair) {
+            // جلب بيانات الصيانة من API عند عدم توفرها محلياً
+            const response = await API.request(`repairs.php?id=${encodeURIComponent(repairId)}`, 'GET');
+            
+            if (!response || !response.success || !response.data) {
+                const errorMsg = response?.message || 'فشل في جلب بيانات عملية الصيانة';
+                console.error('خطأ في جلب بيانات الصيانة:', errorMsg, response);
+                showMessage(errorMsg, 'error');
+                return;
+            }
+            
+            repair = Array.isArray(response.data) ? response.data[0] : response.data;
         }
-        
-        const repair = Array.isArray(response.data) ? response.data[0] : response.data;
         
         if (!repair) {
             showMessage('عملية الصيانة غير موجودة', 'error');
             return;
+        }
+        
+        // ✅ توحيد الحقول عند استخدام بيانات محلية (action=customer يرجع created_by_name بدل technician_name)
+        if (!repair.technician_name && repair.created_by_name) {
+            repair = { ...repair, technician_name: repair.created_by_name };
+        }
+        if (repair.customer_price !== undefined && (repair.cost === undefined || repair.cost === null)) {
+            repair = { ...repair, cost: repair.customer_price };
         }
         
         // ✅ إذا كانت الحالة "تم التسليم"، استخدم القالب الجديد (last.html)

@@ -190,10 +190,14 @@ function getVersionJsonUrl() {
             // ✅ التحقق من تغيير النسخة
             if (storedVersion && storedVersion !== newVersion) {
                 console.log(`🔄 [Version] تم اكتشاف تغيير النسخة: ${storedVersion} → ${newVersion}`);
-                console.log('🧹 [Version] بدء مسح جميع الكاش بسبب تغيير النسخة...');
+                console.log('🧹 [Version] بدء مسح جميع الكاش لضمان عدم عودة نسخة قديمة...');
                 
-                // مسح جميع الكاش عند تغيير النسخة
                 await clearAllCache();
+                // إعادة تحميل الصفحة لتحميل الملفات الجديدة (يمنع استمرار تشغيل كود قديم)
+                if (typeof window !== 'undefined' && window.location) {
+                    window.location.reload();
+                    return;
+                }
             }
             
             // حفظ النسخة الحالية
@@ -263,27 +267,13 @@ function getVersionJsonUrl() {
                     // ✅ التحقق من تغيير النسخة
                     if (newVersion !== currentVersion || (storedVersion && storedVersion !== newVersion)) {
                         console.log(`🔄 [Update] تم اكتشاف تحديث جديد: ${currentVersion} → ${newVersion}`);
-                        console.log('🧹 [Update] بدء مسح جميع الكاش بسبب التحديث...');
+                        console.log('🧹 [Update] بدء مسح جميع الكاش لضمان عدم عودة نسخة قديمة...');
                         
-                        // مسح جميع الكاش عند اكتشاف تحديث جديد
                         await clearAllCache();
-                        
-                        // حفظ النسخة الجديدة
-                        try {
-                            localStorage.setItem('app_version_stored', newVersion);
-                        } catch (e) {
-                            console.warn('[Update] فشل حفظ النسخة في localStorage:', e);
+                        // إعادة تحميل الصفحة لتحميل الملفات الجديدة
+                        if (typeof window !== 'undefined' && window.location) {
+                            window.location.reload();
                         }
-                        
-                        // تحديث المتغيرات
-                        APP_VERSION = newVersion + '.' + Date.now();
-                        LAST_UPDATE = data.last_updated;
-                        if (typeof window !== 'undefined') {
-                            window.APP_VERSION = APP_VERSION;
-                            window.APP_LAST_UPDATE = LAST_UPDATE;
-                            window.APP_VERSION_CLEAN = newVersion;
-                        }
-                        
                         return true;
                     }
                 }
