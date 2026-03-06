@@ -2123,7 +2123,7 @@ function printInvoiceDirectly(saleData) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>فاتورة ${saleData.sale_number || saleData.id}</title>
-            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
+            <link rel="stylesheet" href="css/vendor/bootstrap-icons/bootstrap-icons.css">
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
                 
@@ -3112,7 +3112,7 @@ function printAccountStatementWindow(customerId, customerName, customerType, cus
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>كشف حساب - ${safeCustomerName}</title>
-            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
+            <link rel="stylesheet" href="css/vendor/bootstrap-icons/bootstrap-icons.css">
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
                 
@@ -4748,7 +4748,7 @@ async function printRepairReceiptFromCustomerPage(repairId) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} - ${repair.repair_number}</title>
-            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
+            <link rel="stylesheet" href="css/vendor/bootstrap-icons/bootstrap-icons.css">
             <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
             <style>
                 /* ✅ إضافة CSS Variables للطباعة */

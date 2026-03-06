@@ -774,7 +774,7 @@ function ensureCSSAndIconsLoaded() {
     try {
         const styleSheets = [
             { href: 'css/style.css', id: 'main-style' },
-            { href: '/css/vendor/bootstrap-icons/bootstrap-icons.css', id: 'bootstrap-icons' }
+            { href: 'css/vendor/bootstrap-icons/bootstrap-icons.css', id: 'bootstrap-icons' }
         ];
         
         let fixedCount = 0;
