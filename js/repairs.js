@@ -1915,8 +1915,8 @@ function displayRepairs(repairs) {
                     <div class="actions-dropdown-item" onclick="generateBarcodeLabel('${repair.id}'); closeActionsDropdown(event);">
                 <i class="bi bi-upc-scan"></i>
                         <div class="actions-dropdown-item-text">
-                            <span class="actions-dropdown-item-title">باركود وملصق</span>
-                            <span class="actions-dropdown-item-desc">إنشاء وطباعة باركود وملصق</span>
+                            <span class="actions-dropdown-item-title">ملصق</span>
+                            <span class="actions-dropdown-item-desc">إنشاء وطباعة ملصق</span>
                         </div>
                     </div>
                     <div class="actions-dropdown-item" onclick="openTrackingLinkForRepair('${repair.id}'); closeActionsDropdown(event);">
@@ -2037,8 +2037,8 @@ function displayRepairs(repairs) {
                         <div class="actions-dropdown-item" onclick="generateBarcodeLabel('${repair.id}'); closeActionsDropdown(event);">
                             <i class="bi bi-upc-scan"></i>
                             <div class="actions-dropdown-item-text">
-                                <span class="actions-dropdown-item-title">باركود وملصق</span>
-                                <span class="actions-dropdown-item-desc">إنشاء وطباعة باركود وملصق</span>
+                                <span class="actions-dropdown-item-title"> ملصق</span>
+                                <span class="actions-dropdown-item-desc">إنشاء وطباعة ملصق</span>
                             </div>
                         </div>
                         <div class="actions-dropdown-item" onclick="openTrackingLinkForRepair('${repair.id}'); closeActionsDropdown(event);">
@@ -6110,15 +6110,15 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         }
         
         const canvas = document.createElement('canvas');
-        // مقاسات 60x40mm (472x315 pixels عند 200 DPI)
-        const width = 472; // عرض 60mm
-        const height = 315; // ارتفاع 40mm
-        const scale = 2; // دقة مضاعفة للجودة العالية
+        // مقاسات 60x40mm - رسم بدقة عالية لطباعة أوضح (300 DPI ≈ 708x472)
+        const width = 472;
+        const height = 315;
+        const scale = 4; // دقة 4x لوضوح الخط عند الطباعة
         canvas.width = width * scale;
         canvas.height = height * scale;
         const ctx = canvas.getContext('2d');
         
-        // تحسين جودة الرسم
+        // وضوح النص: تعطيل التمهيد عند رسم النص (الخطوط أوضح)
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         
@@ -6180,47 +6180,47 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         
         // رسم البيانات على اليمين - بعد QR Code بمسافة كافية
         // النص العربي يبدأ من اليمين (RTL)
-        const marginFromQR = 10 * scale; // المسافة بين QR Code والنص
-        const marginRight = 8 * scale; // المسافة من الحافة اليمنى
-        const marginTop = 6 * scale; // المسافة من الأعلى
-        const marginBottom = 3 * scale; // المسافة من الأسفل
-        const textStartX = scaledWidth - marginRight; // نقطة بداية النص من اليمين
-        const dataY = marginTop; // بداية من الأعلى
-        const lineHeight = 26 * scale; // ارتفاع السطر الأساسي (زيادة من 20 إلى 26)
-        const sectionSpacing = 10 * scale; // مسافة بين الأقسام (زيادة من 8 إلى 10)
-        const lineSpacing = 6 * scale; // مسافة بين الأسطر داخل القسم الواحد (زيادة من 4 إلى 6)
+        const marginFromQR = 10 * scale;
+        const marginRight = 8 * scale;
+        const marginTop = 6 * scale;
+        const marginBottom = 3 * scale;
+        const textStartX = Math.round(scaledWidth - marginRight);
+        const dataY = Math.round(marginTop);
+        const lineHeight = 26 * scale;
+        const sectionSpacing = 10 * scale;
+        const lineSpacing = 6 * scale;
         let currentY = dataY;
         
         ctx.fillStyle = '#000000';
-        ctx.textAlign = 'right'; // النص العربي من اليمين
+        ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
         
-        // استخدام خط Cairo للوضوح
+        // خط واضح للطباعة - Arial يدعم العربية ويطبَع بوضوح على معظم الطابعات
         const fontFamily = '"Cairo", "Tajawal", Arial, "Segoe UI", sans-serif';
         
         // ========== القسم الأول: عنوان الملصق ==========
-        ctx.font = `bold ${22 * scale}px ${fontFamily}`; // زيادة من 18 إلى 22
-        ctx.fillText('ملصق الجهاز', textStartX, currentY);
+        ctx.font = `bold ${24 * scale}px ${fontFamily}`;
+        ctx.fillText('ملصق الجهاز', textStartX, Math.round(currentY));
         currentY += lineHeight + sectionSpacing;
         
         // ========== القسم الثاني: رقم العملية ==========
-        ctx.font = `bold ${20 * scale}px ${fontFamily}`; // زيادة من 16 إلى 20
-        ctx.fillText(`رقم: ${repair.repair_number}`, textStartX, currentY);
+        ctx.font = `bold ${22 * scale}px ${fontFamily}`;
+        ctx.fillText(`رقم: ${repair.repair_number}`, textStartX, Math.round(currentY));
         currentY += lineHeight + sectionSpacing;
         
         // ========== القسم الثالث: بيانات العميل ==========
-        ctx.font = `${18 * scale}px ${fontFamily}`; // زيادة من 15 إلى 18
+        ctx.font = `600 ${20 * scale}px ${fontFamily}`;
         const customerName = repair.customer_name || 'غير محدد';
         if (customerName.length > 12) {
-            ctx.fillText(`العميل: ${customerName.substring(0, 12)}...`, textStartX, currentY);
+            ctx.fillText(`العميل: ${customerName.substring(0, 12)}...`, textStartX, Math.round(currentY));
         } else {
-            ctx.fillText(`العميل: ${customerName}`, textStartX, currentY);
+            ctx.fillText(`العميل: ${customerName}`, textStartX, Math.round(currentY));
         }
         currentY += lineHeight + lineSpacing;
         
         if (repair.customer_phone) {
-            ctx.font = `${18 * scale}px ${fontFamily}`; // زيادة من 15 إلى 18
-            ctx.fillText(`الهاتف: ${repair.customer_phone}`, textStartX, currentY);
+            ctx.font = `${20 * scale}px ${fontFamily}`;
+            ctx.fillText(`الهاتف: ${repair.customer_phone}`, textStartX, Math.round(currentY));
             currentY += lineHeight + sectionSpacing;
         } else {
             currentY += sectionSpacing - lineSpacing;
@@ -6229,19 +6229,18 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
         // ========== القسم الرابع: بيانات الجهاز ==========
         const deviceText = `${repair.device_type || ''} ${repair.device_model || ''}`.trim();
         if (deviceText) {
-            ctx.font = `${18 * scale}px ${fontFamily}`; // زيادة من 15 إلى 18
+            ctx.font = `${20 * scale}px ${fontFamily}`;
             const deviceDisplay = deviceText.length > 15 ? deviceText.substring(0, 15) + '...' : deviceText;
-            ctx.fillText(`الجهاز: ${deviceDisplay}`, textStartX, currentY);
+            ctx.fillText(`الجهاز: ${deviceDisplay}`, textStartX, Math.round(currentY));
             currentY += lineHeight + sectionSpacing;
         }
         
         // ========== القسم الخامس: المشكلة ==========
-        ctx.font = `bold ${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
-        ctx.fillText('المشكلة:', textStartX, currentY);
+        ctx.font = `bold ${19 * scale}px ${fontFamily}`;
+        ctx.fillText('المشكلة:', textStartX, Math.round(currentY));
         currentY += lineHeight + lineSpacing;
         
-        ctx.font = `${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
-        const problemText = repair.problem || 'غير محدد';
+        ctx.font = `${19 * scale}px ${fontFamily}`;        const problemText = repair.problem || 'غير محدد';
         // حساب العرض المتاح للنص: من بداية النص (textStartX) إلى نهاية QR Code + margin
         const maxTextWidth = textStartX - (qrEndX + marginFromQR); // العرض المتاح للنص
         const words = problemText.split(' ');
@@ -6253,7 +6252,7 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
             const testLine = line + word + ' ';
             const metrics = ctx.measureText(testLine);
             if (metrics.width > maxTextWidth && line !== '') {
-                ctx.fillText(line.trim(), textStartX, currentY);
+                ctx.fillText(line.trim(), textStartX, Math.round(currentY));
                 currentY += lineHeight + lineSpacing;
                 line = word + ' ';
                 linesCount++;
@@ -6262,41 +6261,43 @@ async function generateQRCodeLabel(repair, qrCodeImage) {
             }
         }
         if (line && linesCount < maxLines) {
-            ctx.fillText(line.trim(), textStartX, currentY);
+            ctx.fillText(line.trim(), textStartX, Math.round(currentY));
             currentY += lineHeight;
         }
         currentY += sectionSpacing;
         
         // ========== القسم السادس: تاريخ التسليم ==========
-        // التحقق من أن هناك مساحة كافية قبل الرسم
         const remainingHeight = scaledHeight - currentY - marginBottom;
         if (remainingHeight >= lineHeight * 1.5) {
             if (repair.delivery_date) {
-                ctx.font = `bold ${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
-                ctx.fillText('التسليم:', textStartX, currentY);
+                ctx.font = `bold ${19 * scale}px ${fontFamily}`;
+                ctx.fillText('التسليم:', textStartX, Math.round(currentY));
                 currentY += lineHeight + lineSpacing;
                 
-                ctx.font = `${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
+                ctx.font = `${19 * scale}px ${fontFamily}`;
                 const deliveryDate = new Date(repair.delivery_date).toLocaleDateString('ar-EG');
-                ctx.fillText(deliveryDate, textStartX, currentY);
+                ctx.fillText(deliveryDate, textStartX, Math.round(currentY));
             } else {
-                ctx.font = `bold ${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
-                ctx.fillText('التسليم:', textStartX, currentY);
+                ctx.font = `bold ${19 * scale}px ${fontFamily}`;
+                ctx.fillText('التسليم:', textStartX, Math.round(currentY));
                 currentY += lineHeight + lineSpacing;
                 
-                ctx.font = `${17 * scale}px ${fontFamily}`; // زيادة من 14 إلى 17
-                ctx.fillText('غير محدد', textStartX, currentY);
+                ctx.font = `${19 * scale}px ${fontFamily}`;
+                ctx.fillText('غير محدد', textStartX, Math.round(currentY));
             }
         }
         
-        // تحويل إلى الحجم الأصلي مع الحفاظ على الجودة
+        // تصدير بدقة 2x (944x630) لطباعة أوضح - بدون تصغير يسبب ضبابية الخط
+        const outputScale = 2;
+        const outputWidth = width * outputScale;
+        const outputHeight = height * outputScale;
         const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = width;
-        finalCanvas.height = height;
+        finalCanvas.width = outputWidth;
+        finalCanvas.height = outputHeight;
         const finalCtx = finalCanvas.getContext('2d');
         finalCtx.imageSmoothingEnabled = true;
         finalCtx.imageSmoothingQuality = 'high';
-        finalCtx.drawImage(canvas, 0, 0, width, height);
+        finalCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight, 0, 0, outputWidth, outputHeight);
         
         return finalCanvas.toDataURL('image/png', 1.0);
         
@@ -6686,8 +6687,8 @@ function printLabel(labelImage, repairNumber) {
                         display: block;
                         border: 2px solid #ddd;
                         border-radius: 8px;
-                        width: 472px;
-                        height: 315px;
+                        width: 944px;
+                        height: 630px;
                     }
                     .no-print { 
                         text-align: center; 
@@ -6747,6 +6748,10 @@ function printLabel(labelImage, repairNumber) {
                             width: 100%;
                             height: 100%;
                             object-fit: contain;
+                            image-rendering: -webkit-optimize-contrast;
+                            image-rendering: crisp-edges;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
                         }
                 }
             </style>

@@ -17,43 +17,37 @@ class SmallLabelGenerator {
      * @returns {string} - صورة الملصق كـ Base64
      */
     generateLabel(repairData, width = 472, height = 315) {
-        // إنشاء canvas بدقة أعلى
+        // رسم بدقة 4x لوضوح الخط عند الطباعة
+        const scale = 4;
         this.canvas = document.createElement('canvas');
-        this.canvas.width = width * 2; // دقة مضاعفة
-        this.canvas.height = height * 2;
+        this.canvas.width = width * scale;
+        this.canvas.height = height * scale;
         this.ctx = this.canvas.getContext('2d');
         
-        // تحسين جودة الرسم
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
         
-        // قياس العناصر بناءً على الدقة المضاعفة
-        const scale = 2;
         const scaledWidth = width * scale;
         const scaledHeight = height * scale;
 
-        // تنظيف الخلفية
         this.ctx.fillStyle = '#ffffff';
         this.ctx.fillRect(0, 0, scaledWidth, scaledHeight);
 
-        // رسم الحدود المحسنة
         this.drawEnhancedBorder(scaledWidth, scaledHeight);
-
-        // رسم الباركود المحسن
         this.drawEnhancedBarcode(repairData.repair_number, scaledWidth, scale);
-
-        // رسم البيانات المحسنة
         this.drawEnhancedData(repairData, scaledWidth, scaledHeight, scale);
 
-        // تحويل إلى الحجم الأصلي مع الحفاظ على الجودة
+        // تصدير بدقة 2x (944x630) لطباعة أوضح
+        const outputScale = 2;
+        const outputWidth = width * outputScale;
+        const outputHeight = height * outputScale;
         const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = width;
-        finalCanvas.height = height;
+        finalCanvas.width = outputWidth;
+        finalCanvas.height = outputHeight;
         const finalCtx = finalCanvas.getContext('2d');
-        
         finalCtx.imageSmoothingEnabled = true;
         finalCtx.imageSmoothingQuality = 'high';
-        finalCtx.drawImage(this.canvas, 0, 0, width, height);
+        finalCtx.drawImage(this.canvas, 0, 0, scaledWidth, scaledHeight, 0, 0, outputWidth, outputHeight);
 
         return finalCanvas.toDataURL('image/png', 1.0);
     }
@@ -150,12 +144,12 @@ class SmallLabelGenerator {
         this.ctx.fillRect(margin, barcodeY, Math.round(barWidth * 1.5), barcodeHeight);
         this.ctx.fillRect(width - margin - Math.round(barWidth * 1.5), barcodeY, Math.round(barWidth * 1.5), barcodeHeight);
 
-        // إضافة النص أسفل الباركود مع تحسينات
+        // إضافة النص أسفل الباركود - إحداثيات صحيحة لوضوح الطباعة
         this.ctx.fillStyle = '#000000';
-        this.ctx.font = `bold ${12 * scale}px Arial`;
+        this.ctx.font = `bold ${14 * scale}px Arial`;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'top';
-        this.ctx.fillText(repairNumber, width / 2, barcodeY + barcodeHeight + (8 * scale));
+        this.ctx.fillText(repairNumber, width / 2, Math.round(barcodeY + barcodeHeight + (8 * scale)));
     }
 
     /**
@@ -214,59 +208,54 @@ class SmallLabelGenerator {
         const marginBottom = 10 * scale; // مسافة من الأسفل
         let currentY = startY;
 
-        // تنسيق النص المحسن
         this.ctx.fillStyle = '#000000';
         this.ctx.textAlign = 'right';
         this.ctx.textBaseline = 'top';
 
-        // عنوان الملصق مع تحسينات - خط أكبر
-        this.ctx.font = `bold ${14 * scale}px Arial`;
-        this.ctx.fillText('ملصق الصيانة', width - margin, currentY);
+        // خطوط أوضح للطباعة مع إحداثيات صحيحة
+        const textX = Math.round(width - margin);
+        this.ctx.font = `bold ${16 * scale}px Arial`;
+        this.ctx.fillText('ملصق الصيانة', textX, Math.round(currentY));
         currentY += lineHeight + (3 * scale);
 
-        // رقم العملية - خط أكبر
-        this.ctx.font = `bold ${13 * scale}px Arial`;
-        this.ctx.fillText(`رقم: ${repairData.repair_number}`, width - margin, currentY);
+        this.ctx.font = `bold ${15 * scale}px Arial`;
+        this.ctx.fillText(`رقم: ${repairData.repair_number}`, textX, Math.round(currentY));
         currentY += lineHeight + (3 * scale);
 
-        // بيانات العميل - خط أكبر
-        this.ctx.font = `${12 * scale}px Arial`;
+        this.ctx.font = `${14 * scale}px Arial`;
         const customerName = repairData.customer_name || 'غير محدد';
         if (customerName.length > 15) {
-            this.ctx.fillText(`العميل: ${customerName.substring(0, 15)}...`, width - margin, currentY);
+            this.ctx.fillText(`العميل: ${customerName.substring(0, 15)}...`, textX, Math.round(currentY));
         } else {
-            this.ctx.fillText(`العميل: ${customerName}`, width - margin, currentY);
+            this.ctx.fillText(`العميل: ${customerName}`, textX, Math.round(currentY));
         }
         currentY += lineHeight;
         
         if (repairData.customer_phone) {
-            this.ctx.fillText(`الهاتف: ${repairData.customer_phone}`, width - margin, currentY);
+            this.ctx.fillText(`الهاتف: ${repairData.customer_phone}`, textX, Math.round(currentY));
             currentY += lineHeight;
         }
 
-        // نوع الجهاز - مختصر - خط أكبر
         const deviceText = `${repairData.device_type || ''} ${repairData.device_model || ''}`.trim();
         if (deviceText) {
             const deviceDisplay = deviceText.length > 18 ? deviceText.substring(0, 18) + '...' : deviceText;
-            this.ctx.fillText(`الجهاز: ${deviceDisplay}`, width - margin, currentY);
+            this.ctx.fillText(`الجهاز: ${deviceDisplay}`, textX, Math.round(currentY));
             currentY += lineHeight + (3 * scale);
         }
 
-        // المشكلة مع تحسينات - خط أكبر
-        this.ctx.font = `bold ${11 * scale}px Arial`;
-        this.ctx.fillText('المشكلة:', width - margin, currentY);
+        this.ctx.font = `bold ${13 * scale}px Arial`;
+        this.ctx.fillText('المشكلة:', textX, Math.round(currentY));
         currentY += lineHeight;
         
-        this.ctx.font = `${11 * scale}px Arial`;
+        this.ctx.font = `${13 * scale}px Arial`;
         const maxTextWidth = width - (margin * 2);
-        const problemText = this.wrapTextEnhanced(repairData.problem || 'غير محدد', maxTextWidth, `${11 * scale}px Arial`);
+        const problemText = this.wrapTextEnhanced(repairData.problem || 'غير محدد', maxTextWidth, `${13 * scale}px Arial`);
         let linesCount = 0;
-        const maxLines = 3; // حد أقصى 3 أسطر
+        const maxLines = 3;
         problemText.forEach(line => {
             if (linesCount < maxLines) {
-                // ✅ التحقق من المساحة المتاحة قبل الرسم
-                if (currentY + lineHeight <= height * scale - marginBottom) {
-                    this.ctx.fillText(line, width - margin, currentY);
+                if (currentY + lineHeight <= height - marginBottom) {
+                    this.ctx.fillText(line, textX, Math.round(currentY));
                     currentY += lineHeight;
                     linesCount++;
                 }
@@ -275,18 +264,16 @@ class SmallLabelGenerator {
 
         currentY += (3 * scale);
 
-        // تاريخ التسليم - خط أكبر
-        // ✅ التحقق من المساحة المتاحة قبل الرسم
-        if (currentY + (lineHeight * 2) <= height * scale - marginBottom) {
-            this.ctx.font = `bold ${11 * scale}px Arial`;
-            this.ctx.fillText('التسليم:', width - margin, currentY);
+        if (currentY + (lineHeight * 2) <= height - marginBottom) {
+            this.ctx.font = `bold ${13 * scale}px Arial`;
+            this.ctx.fillText('التسليم:', textX, Math.round(currentY));
             currentY += lineHeight;
             
             const deliveryDate = repairData.delivery_date ? 
                 new Date(repairData.delivery_date).toLocaleDateString('ar-EG') : 
                 'لم يتم تحديده';
-            this.ctx.font = `${11 * scale}px Arial`;
-            this.ctx.fillText(deliveryDate, width - margin, currentY);
+            this.ctx.font = `${13 * scale}px Arial`;
+            this.ctx.fillText(deliveryDate, textX, Math.round(currentY));
         }
     }
 
