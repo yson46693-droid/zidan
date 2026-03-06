@@ -389,6 +389,28 @@ self.addEventListener('fetch', event => {
     
     // ✅ PERFORMANCE: معالجة طلبات API مع caching ذكي وتحسين
     if (url.pathname.includes('/api/') || url.pathname.endsWith('.php')) {
+        const isAuthSensitiveEndpoint = (
+            url.pathname.endsWith('/api/auth.php') ||
+            url.pathname.endsWith('/api/profile.php') ||
+            url.pathname.endsWith('/api/sse.php') ||
+            url.pathname.includes('/api/webauthn')
+        );
+
+        // ✅ CRITICAL: endpoints الحساسة للجلسة لا تُخزَّن أبداً (Network Only)
+        if (isAuthSensitiveEndpoint) {
+            event.respondWith(
+                fetch(request, {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                })
+            );
+            return;
+        }
+
         // ✅ PERFORMANCE: استراتيجية Cache First للطلبات GET لتقليل الطلبات المتكررة
         if (request.method === 'GET') {
             event.respondWith(

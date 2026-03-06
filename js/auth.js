@@ -7,6 +7,63 @@ let cachedAuthResult = null;
 let cacheTime = 0;
 const CHECK_LOGIN_COOLDOWN = 1000; // 1 ثانية بين الطلبات
 const AUTH_CACHE_DURATION = 30000; // 30 ثانية للتخزين المؤقت (محسّن لتقليل الطلبات)
+const AUTH_FAILURE_WINDOW_MS = 20000; // نافذة 20 ثانية لحساب الإخفاقات
+const MAX_CONSECUTIVE_AUTH_FAILURES = 3; // لا نُخرج المستخدم إلا بعد 3 إخفاقات متتالية
+let consecutiveAuthFailures = 0;
+let firstAuthFailureAt = 0;
+
+function resetAuthFailureState() {
+    consecutiveAuthFailures = 0;
+    firstAuthFailureAt = 0;
+}
+
+function registerAuthFailure() {
+    const now = Date.now();
+    if (!firstAuthFailureAt || (now - firstAuthFailureAt) > AUTH_FAILURE_WINDOW_MS) {
+        firstAuthFailureAt = now;
+        consecutiveAuthFailures = 1;
+    } else {
+        consecutiveAuthFailures += 1;
+    }
+    return consecutiveAuthFailures >= MAX_CONSECUTIVE_AUTH_FAILURES;
+}
+
+function getStoredUserSafe() {
+    try {
+        const sessionUser = sessionStorage.getItem('currentUser');
+        if (sessionUser) {
+            const parsedSessionUser = JSON.parse(sessionUser);
+            if (parsedSessionUser && parsedSessionUser.id) {
+                return parsedSessionUser;
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ خطأ في قراءة currentUser من sessionStorage:', e);
+    }
+
+    try {
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+            const parsedLocalUser = JSON.parse(savedUser);
+            if (parsedLocalUser && parsedLocalUser.id) {
+                return parsedLocalUser;
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ خطأ في قراءة currentUser من localStorage:', e);
+    }
+
+    return null;
+}
+
+function clearAuthStorage() {
+    // إزالة مفاتيح المصادقة فقط بدون مسح كل cache التطبيق
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('branch_code');
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('just_logged_in_time');
+    sessionStorage.removeItem('after_login_fix_css');
+}
 
 // التحقق من تسجيل الدخول
 async function checkLogin() {
@@ -93,6 +150,20 @@ async function checkLogin() {
         
         if (!result || !result.success) {
             console.log('❌ checkLogin - checkAuth failed:', result);
+            const isUnauthorized = !!(result && result.status === 401);
+            const isSoftFailure = !!(result && (result.networkError || result.offline || result.status === 408));
+            const shouldForceLogout = isUnauthorized ? registerAuthFailure() : false;
+
+            // أي فشل مؤقت لا يجب أن يؤدي لخروج فوري من النظام
+            if (isSoftFailure || (isUnauthorized && !shouldForceLogout)) {
+                const storedUser = getStoredUserSafe();
+                if (storedUser) {
+                    console.warn('⚠️ checkLogin - استخدام بيانات محفوظة بسبب فشل مؤقت في التحقق');
+                    cachedAuthResult = storedUser;
+                    return storedUser;
+                }
+            }
+
             // التحقق من خطأ الشبكة - في حالة خطأ الشبكة، نحاول استخدام البيانات المحفوظة
             if (result && result.networkError) {
                 console.warn('⚠️ خطأ في الشبكة - محاولة استخدام البيانات المحفوظة');
@@ -147,14 +218,12 @@ async function checkLogin() {
                 return null;
             }
             
-            // مسح جميع البيانات المحلية (فقط إذا لم يكن تسجيل دخول حديث)
-            localStorage.clear();
-            // لا نمسح sessionStorage بالكامل - نحتفظ بعلامة just_logged_in_time إذا كانت موجودة
-            const keepJustLoggedIn = sessionStorage.getItem('just_logged_in_time');
-            sessionStorage.clear();
-            if (keepJustLoggedIn) {
-                sessionStorage.setItem('just_logged_in_time', keepJustLoggedIn);
+            // لا نسجل خروج المستخدم إلا إذا فشل التحقق بـ 401 بشكل متكرر
+            if (!isUnauthorized || !shouldForceLogout) {
+                return null;
             }
+
+            clearAuthStorage();
             
             // إذا لم يكن مسجل الدخول، التوجيه لصفحة تسجيل الدخول (فقط إذا لم نكن في صفحة تسجيل الدخول)
             if (!isIndexPage) {
@@ -168,6 +237,7 @@ async function checkLogin() {
         // حفظ بيانات المستخدم
         const user = result.data;
         if (user) {
+            resetAuthFailureState();
             // ✅ التحقق من role وبيانات المستخدم
             let errorReason = null;
             
@@ -192,9 +262,8 @@ async function checkLogin() {
                 console.error('❌ فشل في تحديد دور الحساب وبياناته:', errorReason);
                 console.error('❌ بيانات المستخدم المستلمة:', user);
                 
-                // مسح البيانات المحلية
-                localStorage.clear();
-                sessionStorage.clear();
+                // مسح بيانات المصادقة فقط
+                clearAuthStorage();
                 cachedAuthResult = null;
                 cacheTime = 0;
                 
@@ -227,6 +296,12 @@ async function checkLogin() {
         return user;
     } catch (error) {
         console.error('خطأ في checkLogin:', error);
+        const storedUser = getStoredUserSafe();
+        if (storedUser) {
+            console.warn('⚠️ checkLogin - خطأ مؤقت، استخدام بيانات المستخدم المحفوظة');
+            cachedAuthResult = storedUser;
+            return storedUser;
+        }
         
         // في حالة خطأ، محاولة استخدام البيانات المحفوظة (مع التحقق من صحتها)
         try {
@@ -239,7 +314,7 @@ async function checkLogin() {
                 
                 if (!user.role || user.role === '') {
                     errorReason = 'فشل في تحديد دور المستخدم المحفوظ: role فارغ';
-                } else if (!['admin', 'manager', 'employee'].includes(user.role)) {
+                } else if (!['admin', 'manager', 'employee', 'technician'].includes(user.role)) {
                     errorReason = 'دور المستخدم المحفوظ غير صحيح: ' + user.role;
                 } else if (!user.id || !user.username || !user.name) {
                     errorReason = 'بيانات المستخدم المحفوظة غير مكتملة';
@@ -248,7 +323,7 @@ async function checkLogin() {
                 // إذا كانت البيانات المحفوظة غير صحيحة، مسحها
                 if (errorReason !== null) {
                     console.error('❌ ' + errorReason, user);
-                    localStorage.removeItem('currentUser');
+                    clearAuthStorage();
                     cachedAuthResult = null;
                     cacheTime = 0;
                     return null;
@@ -324,8 +399,7 @@ async function login(username, password, rememberMe = false) {
                 } catch (logoutError) {
                     console.error('❌ خطأ في تسجيل الخروج:', logoutError);
                     // مسح البيانات المحلية حتى لو فشل logout
-                    localStorage.clear();
-                    sessionStorage.clear();
+                    clearAuthStorage();
                 }
                 
                 return {
@@ -344,9 +418,11 @@ async function login(username, password, rememberMe = false) {
             
             isRedirectingAfterLogin = true;
             
-            // مسح البيانات القديمة أولاً
-            localStorage.clear();
-            sessionStorage.clear();
+            // مسح بيانات المصادقة القديمة فقط
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('branch_code');
+            sessionStorage.removeItem('currentUser');
+            sessionStorage.removeItem('after_login_fix_css');
             
             // ✅ حفظ branch_code بشكل منفصل إذا كان موجوداً
             if (userData.branch_code) {
@@ -372,7 +448,7 @@ async function login(username, password, rememberMe = false) {
                 console.warn('⚠️ فشل تحميل branches_cache:', e);
             }
             
-            // ✅ حفظ اسم المستخدم إذا تم تفعيل "تذكرني" (بعد localStorage.clear())
+            // ✅ حفظ اسم المستخدم إذا تم تفعيل "تذكرني"
             if (rememberMe) {
                 try {
                     // حفظ اسم المستخدم في localStorage (بدون كلمة المرور لأسباب أمنية)
@@ -382,12 +458,12 @@ async function login(username, password, rememberMe = false) {
                     console.warn('⚠️ فشل حفظ اسم المستخدم:', e);
                 }
             }
-            // ملاحظة: إذا لم يتم تفعيل "تذكرني"، فلا حاجة لمسح rememberedUsername
-            // لأن localStorage.clear() قد قام بذلك بالفعل
+            // ملاحظة: إذا لم يتم تفعيل "تذكرني"، لا يتم حفظ rememberedUsername
             
             // 🔧 الحل 2: إضافة علامة تسجيل دخول حديث مع timestamp - زيادة الفترة إلى 30 ثانية
             const loginTime = Date.now();
             sessionStorage.setItem('just_logged_in_time', loginTime.toString());
+            resetAuthFailureState();
             console.log('✅ تم تعيين just_logged_in_time:', loginTime);
             
             // ✅ حفظ بيانات المستخدم في sessionStorage أيضاً للتأكد من توفرها فوراً
@@ -485,6 +561,7 @@ async function login(username, password, rememberMe = false) {
 
 // تسجيل الخروج
 async function logout() {
+    resetAuthFailureState();
     try {
         // إيقاف المزامنة التلقائية أولاً
         if (typeof syncManager !== 'undefined') {

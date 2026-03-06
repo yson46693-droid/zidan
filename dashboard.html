@@ -1158,6 +1158,26 @@
         let authChecked = false;
 
         let cachedUser = null;
+        let authFailureCount = 0;
+        let authFirstFailureAt = 0;
+        const AUTH_FAILURE_RESET_MS = 20000;
+        const AUTH_FAILURE_REDIRECT_THRESHOLD = 3;
+
+        function registerDashboardAuthFailure() {
+            const now = Date.now();
+            if (!authFirstFailureAt || (now - authFirstFailureAt) > AUTH_FAILURE_RESET_MS) {
+                authFirstFailureAt = now;
+                authFailureCount = 1;
+            } else {
+                authFailureCount += 1;
+            }
+            return authFailureCount >= AUTH_FAILURE_REDIRECT_THRESHOLD;
+        }
+
+        function resetDashboardAuthFailures() {
+            authFailureCount = 0;
+            authFirstFailureAt = 0;
+        }
         
         async function performAuthCheck() {
             // ✅ تسجيلات مفصلة لحالة التحقق في dashboard
@@ -1245,6 +1265,7 @@
                 if (!user) {
                     console.log('❌ Dashboard - No user returned from checkLogin');
                     cachedUser = null;
+                    const shouldRedirectAfterFailures = registerDashboardAuthFailure();
                     
                     // 🔧 الحل 6: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage - زيادة الفترة إلى 30 ثانية
                     const justLoggedInTimeCheck = sessionStorage.getItem('just_logged_in_time');
@@ -1280,13 +1301,30 @@
                             return null;
                         }
                     }
-                    
-                    localStorage.clear();
-                    sessionStorage.clear();
+
+                    // لا نوجّه المستخدم مباشرة عند أول/ثاني فشل لتجنب عدم الاستقرار
+                    if (!shouldRedirectAfterFailures) {
+                        const safeUser = getCurrentUser();
+                        if (safeUser) {
+                            cachedUser = safeUser;
+                            return safeUser;
+                        }
+                        return null;
+                    }
+
+                    if (typeof clearAuthStorage === 'function') {
+                        clearAuthStorage();
+                    } else {
+                        localStorage.removeItem('currentUser');
+                        localStorage.removeItem('branch_code');
+                        sessionStorage.removeItem('currentUser');
+                        sessionStorage.removeItem('just_logged_in_time');
+                    }
                     showLoginRequiredMessage();
                     return null;
                 }
                 
+                resetDashboardAuthFailures();
                 cachedUser = user;
                 return user;
             } catch (error) {
@@ -1294,6 +1332,7 @@
                 authChecked = false;
                 cachedUser = null;
                 console.error('خطأ في التحقق من تسجيل الدخول:', error);
+                const shouldRedirectAfterFailures = registerDashboardAuthFailure();
                 
                 // 🔧 الحل 7: التحقق من تسجيل دخول حديث قبل استدعاء showLoginRequiredMessage في catch - زيادة الفترة إلى 30 ثانية
                 const justLoggedInTimeError = sessionStorage.getItem('just_logged_in_time');
@@ -1322,9 +1361,25 @@
                         return null;
                     }
                 }
-                
-                localStorage.clear();
-                sessionStorage.clear();
+
+                if (!shouldRedirectAfterFailures) {
+                    const safeUser = getCurrentUser();
+                    if (safeUser) {
+                        cachedUser = safeUser;
+                        authChecked = true;
+                        return safeUser;
+                    }
+                    return null;
+                }
+
+                if (typeof clearAuthStorage === 'function') {
+                    clearAuthStorage();
+                } else {
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('branch_code');
+                    sessionStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('just_logged_in_time');
+                }
                 showLoginRequiredMessage();
                 return null;
             }
