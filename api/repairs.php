@@ -741,7 +741,7 @@ if ($method === 'POST') {
         }
         
         // توليد رقم جديد
-        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $chars = '6555331577987865646324124576879098978656';
         $repairNumber = '';
         for ($i = 0; $i < 6; $i++) {
             $repairNumber .= $chars[rand(0, strlen($chars) - 1)];
