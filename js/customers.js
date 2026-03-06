@@ -94,6 +94,7 @@ async function loadCustomersSection() {
                     <tr>
                         <th>الاسم</th>
                         <th id="shopNameHeader" style="display: none;">اسم المحل</th>
+                        <th id="commercialDebtHeader" style="display: none; text-align: right;">الديون</th>
                         <th>رقم الهاتف</th>
                         <th>العنوان</th>
                         <th>التقييم</th>
@@ -822,6 +823,10 @@ function switchCustomerType(type) {
     if (shopNameHeader) {
         shopNameHeader.style.display = type === 'commercial' ? 'table-cell' : 'none';
     }
+    const commercialDebtHeader = document.getElementById('commercialDebtHeader');
+    if (commercialDebtHeader) {
+        commercialDebtHeader.style.display = type === 'commercial' ? 'table-cell' : 'none';
+    }
     
     // Display customers - التأكد من استخدام العملاء الصحيحة فقط
     const customers = type === 'retail' ? retailCustomers : commercialCustomers;
@@ -852,7 +857,7 @@ function displayCustomers(customers) {
     }
 
     if (paginated.data.length === 0) {
-        const colspan = currentCustomerType === 'commercial' ? 6 : 5;
+        const colspan = currentCustomerType === 'commercial' ? 7 : 5;
         tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">لا يوجد عملاء</td></tr>`;
         return;
     }
@@ -867,6 +872,9 @@ function displayCustomers(customers) {
         const shopNameCell = currentCustomerType === 'commercial' 
             ? `<td>${customer.shop_name || '-'}</td>` 
             : '';
+        const debtCell = currentCustomerType === 'commercial'
+            ? `<td style="text-align: right; font-weight: 600; color: var(--warning-color);">${(parseFloat(customer.total_debt || 0) || 0).toFixed(2)} ج.م</td>`
+            : '';
         
         const averageRating = parseFloat(customer.average_rating || 0);
         const totalRatings = parseInt(customer.total_ratings || 0);
@@ -876,6 +884,7 @@ function displayCustomers(customers) {
         <tr>
             <td><strong>${customer.name}</strong></td>
             ${shopNameCell}
+            ${debtCell}
             <td>
                 <span class="phone-number-clickable" data-phone="${escapeHtml(customer.phone)}" style="color: var(--primary-color); cursor: pointer; text-decoration: underline; font-weight: 500; transition: all 0.2s ease;" onmouseover="this.style.color='var(--secondary-color)'" onmouseout="this.style.color='var(--primary-color)'">
                     ${customer.phone}
