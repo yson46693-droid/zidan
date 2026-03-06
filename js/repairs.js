@@ -5308,7 +5308,7 @@ async function printRepairReceipt(id) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>إيصال ${repair.status === 'delivered' ? 'تسليم' : 'استلام'} - ${repair.repair_number}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
             <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
             <style>
                 /* ✅ إضافة CSS Variables للطباعة */
@@ -6515,7 +6515,7 @@ function printQRCode(qrCodeImage, repairNumber) {
         <head>
             <meta charset="UTF-8">
                 <title>طباعة QR Code - ${repairNumber}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
             <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body { 
@@ -6658,7 +6658,7 @@ function printLabel(labelImage, repairNumber) {
         <head>
             <meta charset="UTF-8">
             <title>طباعة الملصق - ${repairNumber}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
             <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body { 
@@ -6800,7 +6800,7 @@ function printAdvancedLabel(advancedLabelImage, repairNumber) {
         <head>
             <meta charset="UTF-8">
             <title>طباعة الملصق المتقدم - ${repairNumber}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
             <style>
                 body { margin: 0; padding: 20px; text-align: center; font-family: Arial, sans-serif; }
                 .advanced-label-container { margin: 20px 0; }

@@ -22,7 +22,7 @@
         }
         
         // Bootstrap Icons - مطلوب في جميع الصفحات
-        cssFiles.push('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css');
+        cssFiles.push('/css/vendor/bootstrap-icons/bootstrap-icons.css');
         
         return {
             css: cssFiles,

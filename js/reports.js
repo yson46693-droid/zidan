@@ -615,7 +615,7 @@ function printReport() {
         <head>
             <meta charset="UTF-8">
             <title>${reportTitle} - ${branchName}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
             <link rel="stylesheet" href="css/print.css">
         </head>
         <body>

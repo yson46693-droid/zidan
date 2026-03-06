@@ -5373,7 +5373,7 @@ function printTreasuryReport(transactions, reportTitle, branchName, startDate, e
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>${safeReportTitle}</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+            <link rel="stylesheet" href="/css/vendor/bootstrap-icons/bootstrap-icons.css">
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700;800&display=swap');
                 
