@@ -720,7 +720,7 @@ if ($method === 'POST') {
     
     // إذا لم يتم إرسال رقم عملية، توليد رقم عشوائي من 6 أحرف
     if (empty($repairNumber)) {
-        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $chars = '6757858575322809888686574322120123456789';
         $repairNumber = '';
         for ($i = 0; $i < 6; $i++) {
             $repairNumber .= $chars[rand(0, strlen($chars) - 1)];
