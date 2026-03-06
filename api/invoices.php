@@ -1040,8 +1040,8 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             }
             .invoice-items-table th,
             .invoice-items-table td {
-                padding: 6px 3px !important;
-                font-size: 0.95em !important;
+                padding: 4px 2px !important;
+                font-size: 0.85em !important;
                 box-sizing: border-box !important;
                 word-wrap: break-word !important;
                 overflow-wrap: break-word !important;
@@ -1057,37 +1057,46 @@ function generateInvoiceHTML($saleData, $shopSettings) {
                 overflow-wrap: break-word !important;
             }
             .invoice-items-table th {
-                font-size: 0.9em !important;
+                font-size: 0.8em !important;
                 font-weight: 800 !important;
+                padding: 3px 2px !important;
             }
-            /* تحديد عرض الأعمدة بدقة لـ 80mm - 4 أعمدة فقط */
+            /* تحديد عرض الأعمدة بدقة لـ 80mm - 4 أعمدة فقط مع تقليل التباعد لعدم قص "اجمالي" */
             .invoice-items-table th:nth-child(1),
             .invoice-items-table td:nth-child(1) {
-                width: 40% !important;
+                width: 36% !important;
                 min-width: 0 !important;
-                max-width: 40% !important;
+                max-width: 36% !important;
                 text-align: right !important;
+                padding-left: 1px !important;
+                padding-right: 1px !important;
             }
             .invoice-items-table th:nth-child(2),
             .invoice-items-table td:nth-child(2) {
-                width: 15% !important;
+                width: 12% !important;
                 min-width: 0 !important;
-                max-width: 15% !important;
+                max-width: 12% !important;
                 text-align: center !important;
+                padding-left: 1px !important;
+                padding-right: 1px !important;
             }
             .invoice-items-table th:nth-child(3),
             .invoice-items-table td:nth-child(3) {
-                width: 22.5% !important;
+                width: 24% !important;
                 min-width: 0 !important;
-                max-width: 22.5% !important;
+                max-width: 24% !important;
                 text-align: right !important;
+                padding-left: 1px !important;
+                padding-right: 1px !important;
             }
             .invoice-items-table th:nth-child(4),
             .invoice-items-table td:nth-child(4) {
-                width: 22.5% !important;
+                width: 28% !important;
                 min-width: 0 !important;
-                max-width: 22.5% !important;
+                max-width: 28% !important;
                 text-align: right !important;
+                padding-left: 1px !important;
+                padding-right: 1px !important;
             }
             .invoice-items-table thead {
                 display: table-header-group !important;
@@ -1232,7 +1241,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         ' . $phoneDataSection . '
         
         <!-- Items Table -->
-        <table class="invoice-items-table" style="font-size: 0.95em !important;">
+        <table class="invoice-items-table" style="font-size: 0.9em !important; border-collapse: collapse; table-layout: fixed; width: 100%;">
             <thead>
                 <tr>
                     <th>صنف</th>
