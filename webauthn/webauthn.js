@@ -7,6 +7,15 @@ class SimpleWebAuthn {
         this.apiBase = this.getApiBase();
     }
 
+    clearAuthStorageOnly() {
+        // لا نمسح كل storage حتى لا نخسر cache وتهيئات أخرى بشكل مفاجئ
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('branch_code');
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('just_logged_in_time');
+        sessionStorage.removeItem('after_login_fix_css');
+    }
+
     /**
      * الحصول على المسار الأساسي لـ API
      */
@@ -576,7 +585,7 @@ class SimpleWebAuthn {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'same-origin',
+                credentials: 'include',
                 body: JSON.stringify({
                     action: 'create_challenge',
                     username: username
@@ -660,7 +669,7 @@ class SimpleWebAuthn {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'same-origin',
+                credentials: 'include',
                 body: JSON.stringify({
                     action: 'verify',
                     response: {
@@ -701,12 +710,22 @@ class SimpleWebAuthn {
                 
                 // حفظ بيانات المستخدم في localStorage
                 if (verifyData.data) {
-                    console.log('🔍 WebAuthn Login - Clearing localStorage and sessionStorage...');
-                    localStorage.clear();
-                    sessionStorage.clear();
+                    console.log('🔍 WebAuthn Login - Clearing auth storage keys only...');
+                    this.clearAuthStorageOnly();
                     
                     console.log('🔍 WebAuthn Login - Saving user data to localStorage:', verifyData.data);
                     localStorage.setItem('currentUser', JSON.stringify(verifyData.data));
+                    sessionStorage.setItem('currentUser', JSON.stringify(verifyData.data));
+
+                    // حفظ branch_code إذا كان متوفراً
+                    if (verifyData.data.branch_code) {
+                        localStorage.setItem('branch_code', verifyData.data.branch_code);
+                    }
+
+                    // تحديث توكنات API فوراً لتجنب أي 403 بعد التحويل للوحة
+                    if (window.API && typeof window.API.updateTokens === 'function') {
+                        window.API.updateTokens({ data: verifyData.data });
+                    }
                     
                     // إضافة علامة تسجيل دخول حديث (مثل تسجيل الدخول العادي)
                     const loginTime = Date.now().toString();

@@ -150,7 +150,7 @@ try {
             $hasSpec = dbColumnExists('users', 'specialization');
             $specField = $hasSpec ? ', u.specialization' : '';
             $user = dbSelectOne(
-                "SELECT u.id, u.username, u.name, u.role, u.branch_id{$specField}, b.name as branch_name 
+                "SELECT u.id, u.username, u.name, u.role, u.branch_id{$specField}, b.name as branch_name, b.code as branch_code 
                  FROM users u 
                  LEFT JOIN branches b ON u.branch_id = b.id 
                  WHERE u.id = ?",
@@ -162,6 +162,9 @@ try {
                 if (session_status() === PHP_SESSION_NONE) {
                     @session_start();
                 }
+
+                // ✅ SECURITY: تجديد Session ID بعد نجاح تسجيل الدخول بالبصمة
+                session_regenerate_id(true);
                 
                 // حفظ بيانات المستخدم في الجلسة
                 $_SESSION['user_id'] = $user['id'];
@@ -172,6 +175,14 @@ try {
                 if ($hasSpec && isset($user['specialization'])) {
                     $_SESSION['specialization'] = $user['specialization'];
                 }
+
+                // ✅ توحيد بيانات الحماية مع تسجيل الدخول العادي
+                $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
+                $_SESSION['last_regeneration'] = time();
+
+                // ✅ توليد توكنات الحماية للجلسة مباشرة بعد تسجيل الدخول
+                $csrfToken = function_exists('generateCSRFToken') ? generateCSRFToken() : null;
+                $apiToken = function_exists('generateAPIRequestToken') ? generateAPIRequestToken() : null;
                 
                 // حفظ الجلسة قبل إرسال headers
                 if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
@@ -192,7 +203,10 @@ try {
                     'role' => $user['role'],
                     'branch_id' => $user['branch_id'] ?? null,
                     'branch_name' => $user['branch_name'] ?? null,
-                    'specialization' => ($hasSpec && isset($user['specialization'])) ? $user['specialization'] : null
+                    'branch_code' => $user['branch_code'] ?? null,
+                    'specialization' => ($hasSpec && isset($user['specialization'])) ? $user['specialization'] : null,
+                    'csrf_token' => $csrfToken,
+                    'api_token' => $apiToken
                 ]);
             } else {
                 if (!headers_sent()) {
