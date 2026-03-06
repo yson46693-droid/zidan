@@ -322,12 +322,13 @@ function generateInvoiceHTML($saleData, $shopSettings) {
     
     // ✅ التحقق مرة أخرى بعد محاولة الجلب
     if (empty($items) || !is_array($items) || count($items) === 0) {
-        $itemsHtml = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #f44336;">⚠️ لا توجد منتجات في الفاتورة</td></tr>';
+        $itemsHtml = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #f44336;">⚠️ لا توجد منتجات في الفاتورة</td></tr>';
         error_log('❌ [Invoice] لا توجد عناصر للعرض بعد محاولة الجلب!');
     } else {
         foreach ($items as $index => $item) {
             $itemName = htmlspecialchars($item['item_name'] ?? $item['name'] ?? 'غير محدد');
             $quantity = intval($item['quantity'] ?? 0);
+            $itemNameWithQuantity = $itemName . ' × ' . $quantity;
             $unitPrice = number_format(floatval($item['unit_price'] ?? 0), 0);
             $totalPrice = number_format(floatval($item['total_price'] ?? 0), 0);
             
@@ -359,21 +360,19 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             if ($serialNumber) {
                 $itemsHtml .= '
                             <tr>
-                                <td style="font-size: 0.95em !important;">' . $itemName . '</td>
-                                <td style="font-size: 0.95em !important;">' . $quantity . '</td>
+                                <td style="font-size: 0.95em !important;">' . $itemNameWithQuantity . '</td>
                                 <td style="font-size: 0.95em !important;">' . $unitPrice . '</td>
                                 <td style="font-size: 0.95em !important;">' . $totalPrice . '</td>
                             </tr>
                             <tr style="background-color: #f9f9f9;">
-                                <td colspan="4" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.9em !important;">
+                                <td colspan="3" style="padding-right: 20px; padding-top: 5px; padding-bottom: 5px; color: #666; font-size: 0.9em !important;">
                                     <strong>السيريال:</strong> ' . $serialNumber . '
                                 </td>
                             </tr>';
             } else {
                 $itemsHtml .= '
                             <tr>
-                                <td style="font-size: 0.95em !important;">' . $itemName . '</td>
-                                <td style="font-size: 0.95em !important;">' . $quantity . '</td>
+                                <td style="font-size: 0.95em !important;">' . $itemNameWithQuantity . '</td>
                                 <td style="font-size: 0.95em !important;">' . $unitPrice . '</td>
                                 <td style="font-size: 0.95em !important;">' . $totalPrice . '</td>
                             </tr>';
@@ -1244,8 +1243,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
         <table class="invoice-items-table" style="font-size: 0.9em !important; border-collapse: collapse; table-layout: fixed; width: 100%;">
             <thead>
                 <tr>
-                    <th>صنف</th>
-                    <th>ك</th>
+                    <th>  ك * صنف </th>
                     <th>سعر</th>
                     <th>اجمالي</th>
                 </tr>
