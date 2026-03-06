@@ -1234,7 +1234,7 @@ function generateInvoiceHTML($saleData, $shopSettings) {
             <div class="invoice-detail-item"><strong>رقم الفاتورة:</strong> ' . htmlspecialchars($saleData['sale_number'] ?? '') . '</div>
             <div class="invoice-detail-item"><strong>التاريخ:</strong> ' . htmlspecialchars($dateTime) . '</div>
             <div class="invoice-detail-item"><strong>الفرع:</strong> ' . htmlspecialchars($branchName) . '</div>
-            <div class="invoice-detail-item"><strong>المسؤول عن البيع:</strong> ' . htmlspecialchars($salesPersonName) . '</div>
+            <div class="invoice-detail-item"><strong>المسؤول :</strong> ' . htmlspecialchars($salesPersonName) . '</div>
         </div>
         
         <!-- Phone Data Section -->

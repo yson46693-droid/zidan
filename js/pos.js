@@ -2378,7 +2378,7 @@ async function showInvoice(saleData) {
             <!-- Branch and Sales Person -->
             <div class="invoice-extra-info">
                 <div><strong>الفرع:</strong> ${branchName}</div>
-                <div><strong>المسؤول عن البيع:</strong> ${salesPersonName}</div>
+                <div><strong>المسؤول :</strong> ${salesPersonName}</div>
             </div>
             
             <!-- Phone Data Section -->
