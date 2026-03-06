@@ -2654,7 +2654,7 @@ function closeRepairImageModal() {
 
 // توليد رقم عملية عشوائي من 6 أحرف (أرقام وحروف)
 function generateRandomRepairNumber() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars = '6555331577987865646324124576879098978656';
     let result = '';
     for (let i = 0; i < 6; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
