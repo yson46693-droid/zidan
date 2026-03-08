@@ -6687,8 +6687,10 @@ function printLabel(labelImage, repairNumber) {
                         display: block;
                         border: 2px solid #ddd;
                         border-radius: 8px;
-                        width: 944px;
-                        height: 630px;
+                        width: 1888px;
+                        height: 1260px;
+                        image-rendering: -webkit-optimize-contrast;
+                        image-rendering: crisp-edges;
                     }
                     .no-print { 
                         text-align: center; 
@@ -6734,6 +6736,8 @@ function printLabel(labelImage, repairNumber) {
                             margin: 0;
                             width: 60mm;
                             height: 40mm;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
                         }
                     .no-print { display: none; }
                         .label-container {
@@ -6743,11 +6747,13 @@ function printLabel(labelImage, repairNumber) {
                             margin: 0;
                             width: 60mm;
                             height: 40mm;
+                            overflow: hidden;
                         }
                         img {
                             width: 100%;
                             height: 100%;
                             object-fit: contain;
+                            object-position: center;
                             image-rendering: -webkit-optimize-contrast;
                             image-rendering: crisp-edges;
                             -webkit-print-color-adjust: exact;
