@@ -54,6 +54,20 @@ function loadExpensesSection() {
     }
     const isSecondBranchEmployee = isEmployee && String(branchCode).trim() === 'BITASH';
     
+    // ✅ الفرع الأول (الهانوفيل): من الكاش لمعرفة من له صلاحية رؤية سجل المبيعات
+    let firstBranchId = null;
+    try {
+        const branchesCache = localStorage.getItem('branches_cache');
+        if (branchesCache) {
+            const branches = JSON.parse(branchesCache);
+            const sorted = [...(branches || [])].sort((a, b) => (String(a.created_at || '').localeCompare(String(b.created_at || ''))) || (Number(a.id) - Number(b.id)));
+            if (sorted.length) firstBranchId = sorted[0].id;
+        }
+    } catch (e) { /* تجاهل */ }
+    const isManagerFirstBranch = isManager && currentUser && firstBranchId != null && String(currentUser.branch_id) === String(firstBranchId);
+    // سجل المبيعات يظهر للمالك فقط أو لمدير الفرع الأول (الهانوفيل) فقط
+    const showSalesRecordTable = isOwner || isManagerFirstBranch;
+    
     // ✅ السماح لجميع المستخدمين باستخدام وظائف خزنة الفرع
     const showAdvancedFeatures = true; // السماح لجميع المستخدمين
     // إظهار المستحقات للمالك والمدير فقط (الموظف لا يمكنه رؤية المستحقات)
@@ -223,7 +237,7 @@ function loadExpensesSection() {
                 </div>
             </div>
 
-            <!-- سجل المبيعات (فواتير نقطة البيع) - الفرع الأول -->
+            ${showSalesRecordTable ? `<!-- سجل المبيعات (فواتير نقطة البيع) - للمالك ومدير الفرع الأول (الهانوفيل) فقط -->
             <div class="treasury-sales-record" style="margin-top: 24px;">
                 <h3 class="table-title" style="margin: 0 0 15px 0;"><i class="bi bi-receipt"></i> سجل المبيعات (نقطة البيع)</h3>
                 <div class="table-container">
@@ -243,7 +257,7 @@ function loadExpensesSection() {
                     </table>
                 </div>
                 <div id="branch1SalesRecordEmpty" class="empty-state" style="display: none; text-align: center; padding: 24px; color: var(--text-light);">لا توجد فواتير مبيعات في الفترة المحددة.</div>
-            </div>
+            </div>` : ''}
         </div>
 
         <!-- خزنة الفرع الثاني -->
@@ -363,7 +377,7 @@ function loadExpensesSection() {
                 </div>
             </div>
 
-            <!-- سجل المبيعات (فواتير نقطة البيع) - الفرع الثاني -->
+            ${showSalesRecordTable ? `<!-- سجل المبيعات - الفرع الثاني (نفس الصلاحية) -->
             <div class="treasury-sales-record" style="margin-top: 24px;">
                 <h3 class="table-title" style="margin: 0 0 15px 0;"><i class="bi bi-receipt"></i> سجل المبيعات (نقطة البيع)</h3>
                 <div class="table-container">
@@ -383,7 +397,7 @@ function loadExpensesSection() {
                     </table>
                 </div>
                 <div id="branch2SalesRecordEmpty" class="empty-state" style="display: none; text-align: center; padding: 24px; color: var(--text-light);">مبيعات نقطة البيع تظهر للفرع الأول فقط.</div>
-            </div>
+            </div>` : ''}
         </div>
 
         <!-- نموذج إضافة/تعديل مصروف -->

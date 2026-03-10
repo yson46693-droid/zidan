@@ -375,6 +375,18 @@ if ($method === 'GET') {
     $endDate = $_GET['end_date'] ?? null;
     $branchId = isset($_GET['branch_id']) ? trim($_GET['branch_id']) : null;
     
+    // صلاحية قائمة المبيعات حسب الفرع: المالك فقط أو مدير الفرع المرتبط بنفس الفرع المطلوب
+    if (!empty($branchId)) {
+        $session = $_SESSION ?? [];
+        $userRole = $session['role'] ?? '';
+        $userBranchId = isset($session['branch_id']) ? trim((string)$session['branch_id']) : null;
+        $isOwner = in_array($userRole, ['admin', 'owner'], true);
+        $isManagerOfBranch = ($userRole === 'manager' && $userBranchId !== null && $userBranchId !== '' && $userBranchId === $branchId);
+        if (!$isOwner && !$isManagerOfBranch) {
+            response(false, 'ليس لديك صلاحية لعرض سجل مبيعات هذا الفرع', null, 403);
+        }
+    }
+    
     $hasCustomerIdColumn = dbColumnExists('sales', 'customer_id');
     
     $query = "SELECT s.*, u.name as created_by_name 
