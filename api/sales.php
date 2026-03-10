@@ -316,8 +316,15 @@ if ($method === 'GET') {
         // معالجة عناصر البيع وإضافة بيانات الهاتف إذا كانت موجودة
         $processedItems = [];
         foreach ($items as $item) {
+            // التأكد من وجود اسم الصنف للعرض (item_name قد يكون فارغاً في بعض السجلات القديمة)
+            $itemName = trim((string)($item['item_name'] ?? ''));
+            if ($itemName === '') {
+                $item['item_name'] = 'صنف غير محدد';
+            }
+            $item['name'] = $item['item_name']; // للتوافق مع الواجهة
+            
             // تسجيل للتشخيص لقطع الغيار
-            if ($item['item_type'] === 'spare_part') {
+            if (($item['item_type'] ?? '') === 'spare_part') {
                 error_log('🔍 [Sales GET] قراءة قطعة غيار من DB: ' . json_encode([
                     'item_id' => $item['id'] ?? '',
                     'item_name' => $item['item_name'] ?? '',
@@ -328,7 +335,7 @@ if ($method === 'GET') {
             }
             
             // إذا كان العنصر هاتف وله بيانات في notes (JSON)
-            if ($item['item_type'] === 'phone' && !empty($item['notes'])) {
+            if (($item['item_type'] ?? '') === 'phone' && !empty($item['notes'])) {
                 $notesData = json_decode($item['notes'], true);
                 if ($notesData && is_array($notesData)) {
                     if (isset($notesData['phone_data'])) {
@@ -450,8 +457,13 @@ if ($method === 'GET') {
         // معالجة عناصر البيع وإضافة بيانات الهاتف إذا كانت موجودة
         $processedItems = [];
         foreach ($items as $item) {
+            $itemName = trim((string)($item['item_name'] ?? ''));
+            if ($itemName === '') {
+                $item['item_name'] = 'صنف غير محدد';
+            }
+            $item['name'] = $item['item_name'];
             // إذا كان العنصر هاتف وله بيانات في notes (JSON)
-            if ($item['item_type'] === 'phone' && !empty($item['notes'])) {
+            if (($item['item_type'] ?? '') === 'phone' && !empty($item['notes'])) {
                 $notesData = json_decode($item['notes'], true);
                 if ($notesData && is_array($notesData)) {
                     if (isset($notesData['phone_data'])) {

@@ -246,8 +246,8 @@ function loadExpensesSection() {
             <div class="treasury-sales-record" style="margin-top: 24px;">
                 <h3 class="table-title" style="margin: 0 0 15px 0;"><i class="bi bi-receipt"></i> سجل المبيعات (نقطة البيع)</h3>
                 <div class="filters-bar" style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-                    <label for="branch1SalesRecordSearch" style="white-space: nowrap;">بحث برقم الفاتورة:</label>
-                    <input type="text" id="branch1SalesRecordSearch" placeholder="أدخل رقم الفاتورة..." class="search-input" style="max-width: 220px;">
+                    <label for="branch1SalesRecordSearch" style="white-space: nowrap;"><i class="bi bi-search"></i> بحث في الفواتير (برقم الفاتورة):</label>
+                    <input type="text" id="branch1SalesRecordSearch" placeholder="أدخل رقم الفاتورة للبحث..." class="search-input" style="max-width: 260px;">
                 </div>
                 <div class="table-container">
                     <table class="data-table" id="branch1SalesRecordTable">
@@ -4332,18 +4332,15 @@ function renderTreasurySalesRecordTable(branchNum) {
     tbody.appendChild(fragment);
 
     if (paginationEl) {
-        let paginationHtml = '';
-        if (totalPages > 1) {
-            paginationHtml = '<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: center;">';
-            paginationHtml += '<span style="color: var(--text-light); font-size: 0.9em;">صفحة ' + page + ' من ' + totalPages + ' (' + total + ' فاتورة)</span>';
-            if (page > 1) {
-                paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page - 1) + ')"><i class="bi bi-chevron-right"></i> السابق</button>';
-            }
-            if (page < totalPages) {
-                paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page + 1) + ')">التالي <i class="bi bi-chevron-left"></i></button>';
-            }
-            paginationHtml += '</div>';
+        let paginationHtml = '<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: center; padding: 8px 0;">';
+        paginationHtml += '<span style="color: var(--text-light); font-size: 0.9em;">صفحة ' + page + ' من ' + totalPages + ' (إجمالي ' + total + ' فاتورة)</span>';
+        if (page > 1) {
+            paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page - 1) + ')"><i class="bi bi-chevron-right"></i> السابق</button>';
         }
+        if (page < totalPages) {
+            paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page + 1) + ')">التالي <i class="bi bi-chevron-left"></i></button>';
+        }
+        paginationHtml += '</div>';
         paginationEl.innerHTML = paginationHtml;
     }
 }
@@ -4372,7 +4369,8 @@ async function showTreasuryInvoiceDetails(saleId) {
         let rows = '';
         if (items.length > 0) {
             rows = items.map(function(it) {
-                const name = (it.item_name || it.product_name || it.name || '—').toString().trim() || '—';
+                const rawName = it.item_name ?? it.name ?? it.product_name ?? it.title ?? '';
+                const name = (typeof rawName === 'string' ? rawName : (rawName ? String(rawName) : '')).trim() || '—';
                 const qty = parseInt(it.quantity, 10) || 1;
                 const price = parseFloat(it.unit_price || it.price || 0);
                 const total = parseFloat(it.total_price != null ? it.total_price : (price * qty)) || 0;
