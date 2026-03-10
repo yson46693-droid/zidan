@@ -24,6 +24,11 @@ let lastSalariesLoadTime = 0;
 let lastBranchesLoadTime = 0;
 const EXPENSE_MIN_LOAD_INTERVAL = 2000; // 2 ثانية كحد أدنى بين الطلبات
 
+// سجل المبيعات (خزنة الفرع): قائمة كاملة + صفحة حالية + حجم الصفحة
+let treasurySalesRecordFullList = [];
+let treasurySalesRecordCurrentPage = 1;
+const TREASURY_SALES_RECORD_PAGE_SIZE = 5;
+
 function loadExpensesSection() {
     const section = document.getElementById('expenses-section');
     if (!section) {
@@ -240,6 +245,10 @@ function loadExpensesSection() {
             ${showSalesRecordTable ? `<!-- سجل المبيعات (فواتير نقطة البيع) - للمالك ومدير الفرع الأول (الهانوفيل) فقط -->
             <div class="treasury-sales-record" style="margin-top: 24px;">
                 <h3 class="table-title" style="margin: 0 0 15px 0;"><i class="bi bi-receipt"></i> سجل المبيعات (نقطة البيع)</h3>
+                <div class="filters-bar" style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                    <label for="branch1SalesRecordSearch" style="white-space: nowrap;">بحث برقم الفاتورة:</label>
+                    <input type="text" id="branch1SalesRecordSearch" placeholder="أدخل رقم الفاتورة..." class="search-input" style="max-width: 220px;">
+                </div>
                 <div class="table-container">
                     <table class="data-table" id="branch1SalesRecordTable">
                         <thead>
@@ -257,6 +266,7 @@ function loadExpensesSection() {
                     </table>
                 </div>
                 <div id="branch1SalesRecordEmpty" class="empty-state" style="display: none; text-align: center; padding: 24px; color: var(--text-light);">لا توجد فواتير مبيعات في الفترة المحددة.</div>
+                <div id="branch1SalesRecordPagination" class="pagination" style="margin-top: 12px;"></div>
             </div>` : ''}
         </div>
 
@@ -4212,18 +4222,21 @@ async function loadTreasurySalesRecord(branchId, startDate, endDate, branchNum) 
     const tbody = document.getElementById(`branch${branchNum}SalesRecordBody`);
     const emptyEl = document.getElementById(`branch${branchNum}SalesRecordEmpty`);
     const tableEl = document.getElementById(`branch${branchNum}SalesRecordTable`);
+    const paginationEl = document.getElementById(`branch${branchNum}SalesRecordPagination`);
     if (!tbody) return;
 
     if (branchNum === 2) {
         tbody.innerHTML = '';
         if (emptyEl) emptyEl.style.display = 'block';
         if (tableEl) tableEl.style.display = 'none';
+        if (paginationEl) paginationEl.innerHTML = '';
         return;
     }
 
     if (tableEl) tableEl.style.display = '';
     if (emptyEl) emptyEl.style.display = 'none';
     tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;"><i class="bi bi-hourglass-split"></i> جاري التحميل...</td></tr>';
+    if (paginationEl) paginationEl.innerHTML = '';
 
     try {
         if (!startDate || !endDate) {
@@ -4235,35 +4248,109 @@ async function loadTreasurySalesRecord(branchId, startDate, endDate, branchNum) 
         const result = await API.request(url, 'GET');
         const sales = (result && result.success && Array.isArray(result.data)) ? result.data : [];
 
+        treasurySalesRecordFullList = sales;
+        treasurySalesRecordCurrentPage = 1;
+
         if (sales.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مبيعات في الفترة المحددة.</td></tr>';
             if (emptyEl) emptyEl.style.display = 'block';
+            if (paginationEl) paginationEl.innerHTML = '';
             return;
         }
 
-        const fragment = document.createDocumentFragment();
-        sales.forEach(function(sale) {
-            const tr = document.createElement('tr');
-            const created = (sale.created_at || '').slice(0, 10);
-            const customerName = (sale.customer_name || '—').trim() || '—';
-            const total = parseFloat(sale.final_amount || sale.total_amount || 0);
-            const paid = parseFloat(sale.paid_amount ?? sale.final_amount ?? 0);
-            const remaining = parseFloat(sale.remaining_amount ?? 0);
-            tr.innerHTML = '<td>' + escapeHtml(sale.sale_number || sale.id || '—') + '</td>' +
-                '<td>' + escapeHtml(created) + '</td>' +
-                '<td>' + escapeHtml(customerName) + '</td>' +
-                '<td>' + formatCurrency(total) + '</td>' +
-                '<td>' + formatCurrency(paid) + '</td>' +
-                '<td>' + formatCurrency(remaining) + '</td>' +
-                '<td><button type="button" class="btn btn-sm btn-primary" onclick="showTreasuryInvoiceDetails(\'' + escapeHtml(String(sale.id)) + '\')"><i class="bi bi-eye"></i> عرض</button></td>';
-            fragment.appendChild(tr);
-        });
-        tbody.innerHTML = '';
-        tbody.appendChild(fragment);
+        setupTreasurySalesRecordSearchOnce();
+        renderTreasurySalesRecordTable(1);
     } catch (err) {
         console.error('خطأ في تحميل سجل المبيعات:', err);
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--danger-color);">حدث خطأ أثناء تحميل البيانات.</td></tr>';
+        if (paginationEl) paginationEl.innerHTML = '';
     }
+}
+
+function setupTreasurySalesRecordSearchOnce() {
+    const searchEl = document.getElementById('branch1SalesRecordSearch');
+    if (!searchEl || searchEl._salesSearchBound) return;
+    searchEl._salesSearchBound = true;
+    searchEl.addEventListener('input', debounce(function() {
+        treasurySalesRecordCurrentPage = 1;
+        renderTreasurySalesRecordTable(1);
+    }, 300));
+}
+
+function renderTreasurySalesRecordTable(branchNum) {
+    const tbody = document.getElementById(`branch${branchNum}SalesRecordBody`);
+    const emptyEl = document.getElementById(`branch${branchNum}SalesRecordEmpty`);
+    const tableEl = document.getElementById(`branch${branchNum}SalesRecordTable`);
+    const paginationEl = document.getElementById(`branch${branchNum}SalesRecordPagination`);
+    if (!tbody || branchNum !== 1) return;
+
+    const searchVal = (document.getElementById('branch1SalesRecordSearch')?.value || '').trim().toLowerCase();
+    const filtered = searchVal
+        ? treasurySalesRecordFullList.filter(function(s) {
+            const num = (s.sale_number || s.id || '').toString().toLowerCase();
+            return num.indexOf(searchVal) !== -1;
+          })
+        : treasurySalesRecordFullList;
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / TREASURY_SALES_RECORD_PAGE_SIZE));
+    const page = Math.min(Math.max(1, treasurySalesRecordCurrentPage), totalPages);
+    treasurySalesRecordCurrentPage = page;
+    const start = (page - 1) * TREASURY_SALES_RECORD_PAGE_SIZE;
+    const pageSales = filtered.slice(start, start + TREASURY_SALES_RECORD_PAGE_SIZE);
+
+    if (total === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-light);">' + (searchVal ? 'لا توجد فواتير تطابق البحث.' : 'لا توجد فواتير مبيعات في الفترة المحددة.') + '</td></tr>';
+        if (emptyEl) emptyEl.style.display = 'block';
+        if (tableEl) tableEl.style.display = 'none';
+        if (paginationEl) paginationEl.innerHTML = '';
+        return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (tableEl) tableEl.style.display = '';
+
+    const fragment = document.createDocumentFragment();
+    pageSales.forEach(function(sale) {
+        const tr = document.createElement('tr');
+        const created = (sale.created_at || '').slice(0, 10);
+        const customerName = (sale.customer_name || '—').trim() || '—';
+        const totalAmt = parseFloat(sale.final_amount || sale.total_amount || 0);
+        const paid = parseFloat(sale.paid_amount ?? sale.final_amount ?? 0);
+        const remaining = parseFloat(sale.remaining_amount ?? 0);
+        const saleId = (sale.id || '').toString().replace(/'/g, "\\'");
+        tr.innerHTML = '<td>' + escapeHtml(sale.sale_number || sale.id || '—') + '</td>' +
+            '<td>' + escapeHtml(created) + '</td>' +
+            '<td>' + escapeHtml(customerName) + '</td>' +
+            '<td>' + formatCurrency(totalAmt) + '</td>' +
+            '<td>' + formatCurrency(paid) + '</td>' +
+            '<td>' + formatCurrency(remaining) + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-primary" onclick="showTreasuryInvoiceDetails(\'' + saleId + '\')"><i class="bi bi-eye"></i> عرض</button></td>';
+        fragment.appendChild(tr);
+    });
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
+
+    if (paginationEl) {
+        let paginationHtml = '';
+        if (totalPages > 1) {
+            paginationHtml = '<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: center;">';
+            paginationHtml += '<span style="color: var(--text-light); font-size: 0.9em;">صفحة ' + page + ' من ' + totalPages + ' (' + total + ' فاتورة)</span>';
+            if (page > 1) {
+                paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page - 1) + ')"><i class="bi bi-chevron-right"></i> السابق</button>';
+            }
+            if (page < totalPages) {
+                paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page + 1) + ')">التالي <i class="bi bi-chevron-left"></i></button>';
+            }
+            paginationHtml += '</div>';
+        }
+        paginationEl.innerHTML = paginationHtml;
+    }
+}
+
+function treasurySalesRecordGoToPage(page) {
+    treasurySalesRecordCurrentPage = page;
+    renderTreasurySalesRecordTable(1);
 }
 
 // عرض محتويات الفاتورة في مودال
@@ -4275,20 +4362,20 @@ async function showTreasuryInvoiceDetails(saleId) {
     modal.style.display = 'flex';
 
     try {
-        const result = await API.request('sales.php?id=' + encodeURIComponent(saleId), 'GET');
+        const result = await API.request('sales.php?sale_id=' + encodeURIComponent(saleId), 'GET');
         if (!result || !result.success || !result.data) {
             body.innerHTML = '<p style="text-align: center; color: var(--danger-color);">تعذر تحميل بيانات الفاتورة.</p>';
             return;
         }
         const s = result.data;
-        const items = s.items || [];
+        const items = Array.isArray(s.items) ? s.items : [];
         let rows = '';
-        if (items.length) {
+        if (items.length > 0) {
             rows = items.map(function(it) {
-                const name = (it.product_name || it.name || '—').trim() || '—';
+                const name = (it.item_name || it.product_name || it.name || '—').toString().trim() || '—';
                 const qty = parseInt(it.quantity, 10) || 1;
                 const price = parseFloat(it.unit_price || it.price || 0);
-                const total = parseFloat(it.total_price ?? (price * qty)) || 0;
+                const total = parseFloat(it.total_price != null ? it.total_price : (price * qty)) || 0;
                 return '<tr><td>' + escapeHtml(name) + '</td><td>' + qty + '</td><td>' + formatCurrency(price) + '</td><td>' + formatCurrency(total) + '</td></tr>';
             }).join('');
         } else {
@@ -5913,6 +6000,7 @@ window.generateTreasuryReport = generateTreasuryReport;
 window.loadTreasurySalesRecord = loadTreasurySalesRecord;
 window.showTreasuryInvoiceDetails = showTreasuryInvoiceDetails;
 window.closeTreasuryInvoiceModal = closeTreasuryInvoiceModal;
+window.treasurySalesRecordGoToPage = treasurySalesRecordGoToPage;
 
 } // ✅ نهاية حماية من التحميل المكرر
 

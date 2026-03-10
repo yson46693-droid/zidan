@@ -291,9 +291,9 @@ $method = $data['_method'] ?? getRequestMethod();
 if ($method === 'GET') {
     checkAuth();
     
-    // إذا كان هناك sale_id محدد، جلب فاتورة واحدة فقط
-    $saleId = $_GET['sale_id'] ?? null;
-    if ($saleId) {
+    // إذا كان هناك sale_id أو id محدد، جلب فاتورة واحدة فقط
+    $saleId = isset($_GET['sale_id']) ? trim($_GET['sale_id']) : (isset($_GET['id']) ? trim($_GET['id']) : null);
+    if (!empty($saleId)) {
         $sale = dbSelectOne(
             "SELECT s.*, u.name as created_by_name 
              FROM sales s 

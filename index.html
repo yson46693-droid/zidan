@@ -203,6 +203,10 @@
         .form-group{margin-bottom:20px}
         .form-group label{display:block;margin-bottom:5px;font-weight:500}
         .form-group input{width:100%;padding:10px 15px;border:1px solid var(--border-color);border-radius:5px;font-size:1em;box-sizing:border-box}
+        .password-input-wrapper{position:relative;display:block}
+        .password-input-wrapper input{padding-right:15px;padding-left:44px}
+        .toggle-password-btn{position:absolute;left:0;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--text-light);cursor:pointer;padding:8px 12px;border-radius:5px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;transition:color 0.2s}
+        .toggle-password-btn:hover,.toggle-password-btn:focus{color:var(--primary-color);outline:none}
         .btn{padding:10px 20px;border:none;border-radius:5px;font-size:1em;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px}
         .btn-primary{background:var(--primary-color);color:var(--white)}
         /* Splash Screen - Critical CSS لمنع FOUC */
@@ -275,7 +279,12 @@
                 
                 <div class="form-group">
                     <label for="password">كلمة المرور</label>
-                    <input type="password" id="password" name="password" required placeholder="أدخل كلمة المرور">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="password" name="password" required placeholder="أدخل كلمة المرور" autocomplete="current-password">
+                        <button type="button" class="toggle-password-btn" id="togglePasswordBtn" aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">
+                            <i class="bi bi-eye" id="togglePasswordIcon" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
@@ -431,6 +440,20 @@
             } catch (error) {
                 console.error('خطأ في تحميل الوضع الليلي:', error);
             }
+            
+            // زر إظهار/إخفاء كلمة المرور (event delegation)
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('#togglePasswordBtn');
+                if (!btn) return;
+                const input = document.getElementById('password');
+                const icon = document.getElementById('togglePasswordIcon');
+                if (!input || !icon) return;
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                icon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+                btn.setAttribute('aria-label', isPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+                btn.setAttribute('title', isPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+            });
             
             // إظهار الصفحة بعد تحميل CSS
             const checkCSSLoaded = () => {
