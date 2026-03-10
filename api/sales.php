@@ -373,11 +373,17 @@ if ($method === 'GET') {
     
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
+    $branchId = isset($_GET['branch_id']) ? trim($_GET['branch_id']) : null;
+    
+    $hasCustomerIdColumn = dbColumnExists('sales', 'customer_id');
     
     $query = "SELECT s.*, u.name as created_by_name 
               FROM sales s 
-              LEFT JOIN users u ON s.created_by = u.id 
-              WHERE 1=1";
+              LEFT JOIN users u ON s.created_by = u.id";
+    if ($hasCustomerIdColumn) {
+        $query .= " LEFT JOIN customers c ON s.customer_id = c.id";
+    }
+    $query .= " WHERE 1=1";
     $params = [];
     
     if ($startDate) {
@@ -388,6 +394,19 @@ if ($method === 'GET') {
     if ($endDate) {
         $query .= " AND DATE(s.created_at) <= ?";
         $params[] = $endDate;
+    }
+    
+    if (!empty($branchId)) {
+        $firstBranch = dbSelectOne("SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1");
+        $firstBranchId = $firstBranch ? $firstBranch['id'] : null;
+        if ($firstBranchId && $branchId === $firstBranchId && $hasCustomerIdColumn) {
+            $query .= " AND ((u.branch_id = ? OR u.role = 'admin') AND (c.branch_id = ? OR c.branch_id IS NULL))";
+            $params[] = $branchId;
+            $params[] = $branchId;
+        } elseif (!empty($branchId)) {
+            $query .= " AND (u.branch_id = ? OR u.role = 'admin')";
+            $params[] = $branchId;
+        }
     }
     
     $query .= " ORDER BY s.created_at DESC";

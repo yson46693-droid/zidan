@@ -222,6 +222,28 @@ function loadExpensesSection() {
                     <div class="pagination" id="salariesPagination"></div>
                 </div>
             </div>
+
+            <!-- سجل المبيعات (فواتير نقطة البيع) - الفرع الأول -->
+            <div class="treasury-sales-record" style="margin-top: 24px;">
+                <h3 class="table-title" style="margin: 0 0 15px 0;"><i class="bi bi-receipt"></i> سجل المبيعات (نقطة البيع)</h3>
+                <div class="table-container">
+                    <table class="data-table" id="branch1SalesRecordTable">
+                        <thead>
+                            <tr>
+                                <th>رقم الفاتورة</th>
+                                <th>التاريخ</th>
+                                <th>العميل</th>
+                                <th>الإجمالي (ج.م)</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="branch1SalesRecordBody"></tbody>
+                    </table>
+                </div>
+                <div id="branch1SalesRecordEmpty" class="empty-state" style="display: none; text-align: center; padding: 24px; color: var(--text-light);">لا توجد فواتير مبيعات في الفترة المحددة.</div>
+            </div>
         </div>
 
         <!-- خزنة الفرع الثاني -->
@@ -339,6 +361,28 @@ function loadExpensesSection() {
 
                     <div class="pagination" id="salariesPagination2"></div>
                 </div>
+            </div>
+
+            <!-- سجل المبيعات (فواتير نقطة البيع) - الفرع الثاني -->
+            <div class="treasury-sales-record" style="margin-top: 24px;">
+                <h3 class="table-title" style="margin: 0 0 15px 0;"><i class="bi bi-receipt"></i> سجل المبيعات (نقطة البيع)</h3>
+                <div class="table-container">
+                    <table class="data-table" id="branch2SalesRecordTable">
+                        <thead>
+                            <tr>
+                                <th>رقم الفاتورة</th>
+                                <th>التاريخ</th>
+                                <th>العميل</th>
+                                <th>الإجمالي (ج.م)</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="branch2SalesRecordBody"></tbody>
+                    </table>
+                </div>
+                <div id="branch2SalesRecordEmpty" class="empty-state" style="display: none; text-align: center; padding: 24px; color: var(--text-light);">مبيعات نقطة البيع تظهر للفرع الأول فقط.</div>
             </div>
         </div>
 
@@ -688,6 +732,24 @@ function loadExpensesSection() {
                         <button type="submit" class="btn btn-primary">طباعة التقرير</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- مودال محتويات الفاتورة (سجل المبيعات) -->
+        <div id="treasuryInvoiceModal" class="modal">
+            <div class="modal-content modal-lg" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3><i class="bi bi-receipt"></i> محتويات الفاتورة</h3>
+                    <button onclick="closeTreasuryInvoiceModal()" class="btn-close">&times;</button>
+                </div>
+                <div id="treasuryInvoiceModalBody" style="padding: 15px; max-height: 70vh; overflow-y: auto;">
+                    <div style="text-align: center; padding: 24px; color: var(--text-light);">
+                        <i class="bi bi-hourglass-split"></i> جاري التحميل...
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="closeTreasuryInvoiceModal()" class="btn btn-secondary">إغلاق</button>
+                </div>
             </div>
         </div>
 
@@ -4032,6 +4094,8 @@ async function loadBranch1TreasuryData() {
             // تحميل المصروفات والمستحقات
             await loadExpensesForBranch(currentTreasuryBranchId);
             await loadSalariesForBranch(currentTreasuryBranchId);
+            // تحميل سجل المبيعات (فواتير نقطة البيع)
+            await loadTreasurySalesRecord(currentTreasuryBranchId, data.start_date, data.end_date, 1);
         } else {
             // ✅ إخفاء الإشعار للفني
             const userStr = localStorage.getItem('currentUser');
@@ -4106,6 +4170,8 @@ async function loadBranch2TreasuryData() {
             // تحميل المصروفات والمستحقات
             await loadExpensesForBranch(currentTreasuryBranchId, '2');
             await loadSalariesForBranch(currentTreasuryBranchId, '2');
+            // سجل المبيعات للفرع الثاني (نقطة البيع للفرع الأول فقط - نعرض رسالة)
+            await loadTreasurySalesRecord(currentTreasuryBranchId, null, null, 2);
         } else {
             // ✅ إخفاء الإشعار للفني
             const userStr = localStorage.getItem('currentUser');
@@ -4125,6 +4191,111 @@ async function loadBranch2TreasuryData() {
             showMessage('حدث خطأ أثناء تحميل بيانات الفرع الثاني', 'error');
         }
     }
+}
+
+// تحميل سجل المبيعات (فواتير نقطة البيع) للخزنة
+async function loadTreasurySalesRecord(branchId, startDate, endDate, branchNum) {
+    const tbody = document.getElementById(`branch${branchNum}SalesRecordBody`);
+    const emptyEl = document.getElementById(`branch${branchNum}SalesRecordEmpty`);
+    const tableEl = document.getElementById(`branch${branchNum}SalesRecordTable`);
+    if (!tbody) return;
+
+    if (branchNum === 2) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        if (tableEl) tableEl.style.display = 'none';
+        return;
+    }
+
+    if (tableEl) tableEl.style.display = '';
+    if (emptyEl) emptyEl.style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;"><i class="bi bi-hourglass-split"></i> جاري التحميل...</td></tr>';
+
+    try {
+        if (!startDate || !endDate) {
+            const now = new Date();
+            startDate = now.toISOString().slice(0, 7) + '-01';
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        }
+        const url = `sales.php?branch_id=${encodeURIComponent(branchId)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&limit=500&_t=${Date.now()}`;
+        const result = await API.request(url, 'GET');
+        const sales = (result && result.success && Array.isArray(result.data)) ? result.data : [];
+
+        if (sales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-light);">لا توجد فواتير مبيعات في الفترة المحددة.</td></tr>';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        sales.forEach(function(sale) {
+            const tr = document.createElement('tr');
+            const created = (sale.created_at || '').slice(0, 10);
+            const customerName = (sale.customer_name || '—').trim() || '—';
+            const total = parseFloat(sale.final_amount || sale.total_amount || 0);
+            const paid = parseFloat(sale.paid_amount ?? sale.final_amount ?? 0);
+            const remaining = parseFloat(sale.remaining_amount ?? 0);
+            tr.innerHTML = '<td>' + escapeHtml(sale.sale_number || sale.id || '—') + '</td>' +
+                '<td>' + escapeHtml(created) + '</td>' +
+                '<td>' + escapeHtml(customerName) + '</td>' +
+                '<td>' + formatCurrency(total) + '</td>' +
+                '<td>' + formatCurrency(paid) + '</td>' +
+                '<td>' + formatCurrency(remaining) + '</td>' +
+                '<td><button type="button" class="btn btn-sm btn-primary" onclick="showTreasuryInvoiceDetails(\'' + escapeHtml(String(sale.id)) + '\')"><i class="bi bi-eye"></i> عرض</button></td>';
+            fragment.appendChild(tr);
+        });
+        tbody.innerHTML = '';
+        tbody.appendChild(fragment);
+    } catch (err) {
+        console.error('خطأ في تحميل سجل المبيعات:', err);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--danger-color);">حدث خطأ أثناء تحميل البيانات.</td></tr>';
+    }
+}
+
+// عرض محتويات الفاتورة في مودال
+async function showTreasuryInvoiceDetails(saleId) {
+    const modal = document.getElementById('treasuryInvoiceModal');
+    const body = document.getElementById('treasuryInvoiceModalBody');
+    if (!modal || !body) return;
+    body.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-light);"><i class="bi bi-hourglass-split"></i> جاري التحميل...</div>';
+    modal.style.display = 'flex';
+
+    try {
+        const result = await API.request('sales.php?id=' + encodeURIComponent(saleId), 'GET');
+        if (!result || !result.success || !result.data) {
+            body.innerHTML = '<p style="text-align: center; color: var(--danger-color);">تعذر تحميل بيانات الفاتورة.</p>';
+            return;
+        }
+        const s = result.data;
+        const items = s.items || [];
+        let rows = '';
+        if (items.length) {
+            rows = items.map(function(it) {
+                const name = (it.product_name || it.name || '—').trim() || '—';
+                const qty = parseInt(it.quantity, 10) || 1;
+                const price = parseFloat(it.unit_price || it.price || 0);
+                const total = parseFloat(it.total_price ?? (price * qty)) || 0;
+                return '<tr><td>' + escapeHtml(name) + '</td><td>' + qty + '</td><td>' + formatCurrency(price) + '</td><td>' + formatCurrency(total) + '</td></tr>';
+            }).join('');
+        } else {
+            rows = '<tr><td colspan="4" style="text-align: center; padding: 12px; color: var(--text-light);">لا توجد أصناف</td></tr>';
+        }
+        const html = '<div style="margin-bottom: 15px;"><strong>رقم الفاتورة:</strong> ' + escapeHtml(s.sale_number || s.id || '—') + '</div>' +
+            '<div style="margin-bottom: 15px;"><strong>التاريخ:</strong> ' + escapeHtml((s.created_at || '').slice(0, 16)) + '</div>' +
+            '<div style="margin-bottom: 15px;"><strong>العميل:</strong> ' + escapeHtml((s.customer_name || '—').trim() || '—') + '</div>' +
+            '<table class="data-table" style="width: 100%; margin-bottom: 15px;"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+            '<div style="border-top: 1px solid var(--border-color); padding-top: 10px;"><strong>الإجمالي النهائي:</strong> ' + formatCurrency(parseFloat(s.final_amount || s.total_amount || 0)) + ' ج.م</div>' +
+            (parseFloat(s.remaining_amount) > 0 ? '<div style="margin-top: 5px; color: var(--text-light);"><strong>المتبقي:</strong> ' + formatCurrency(parseFloat(s.remaining_amount)) + ' ج.م</div>' : '');
+        body.innerHTML = html;
+    } catch (err) {
+        console.error('خطأ في عرض الفاتورة:', err);
+        body.innerHTML = '<p style="text-align: center; color: var(--danger-color);">حدث خطأ أثناء تحميل الفاتورة.</p>';
+    }
+}
+
+function closeTreasuryInvoiceModal() {
+    const modal = document.getElementById('treasuryInvoiceModal');
+    if (modal) modal.style.display = 'none';
 }
 
 // تحديث فلتر المبيعات للفرع الأول
@@ -5725,6 +5896,9 @@ window.showTreasuryReportModal = showTreasuryReportModal;
 window.closeTreasuryReportModal = closeTreasuryReportModal;
 window.updateTreasuryReportDateFields = updateTreasuryReportDateFields;
 window.generateTreasuryReport = generateTreasuryReport;
+window.loadTreasurySalesRecord = loadTreasurySalesRecord;
+window.showTreasuryInvoiceDetails = showTreasuryInvoiceDetails;
+window.closeTreasuryInvoiceModal = closeTreasuryInvoiceModal;
 
 } // ✅ نهاية حماية من التحميل المكرر
 
