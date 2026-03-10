@@ -242,12 +242,14 @@ function loadExpensesSection() {
                 </div>
             </div>
 
-            ${showSalesRecordTable ? `<!-- سجل المبيعات (فواتير نقطة البيع) - للمالك ومدير الفرع الأول (الهانوفيل) فقط -->
+            ${showSalesRecordTable ? `<!-- سجل المبيعات (فواتير نقطة البيع) - للمالك ومدير الفرع الأول (الهانوفيل) فقط - البحث والتقسيم يظهران لهما فقط -->
             <div class="treasury-sales-record" style="margin-top: 24px;">
                 <h3 class="table-title" style="margin: 0 0 15px 0;"><i class="bi bi-receipt"></i> سجل المبيعات (نقطة البيع)</h3>
-                <div class="filters-bar" style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-                    <label for="branch1SalesRecordSearch" style="white-space: nowrap;"><i class="bi bi-search"></i> بحث في الفواتير (برقم الفاتورة):</label>
-                    <input type="text" id="branch1SalesRecordSearch" placeholder="أدخل رقم الفاتورة للبحث..." class="search-input" style="max-width: 260px;">
+                <div class="filters-bar" style="margin-bottom: 20px; padding: 15px; background: var(--light-bg); border-radius: 8px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="branch1SalesRecordSearch" style="display: block; margin-bottom: 5px; color: var(--text-dark); font-weight: 500;"><i class="bi bi-search"></i> البحث في الفواتير (برقم الفاتورة):</label>
+                        <input type="text" id="branch1SalesRecordSearch" placeholder="ابحث برقم الفاتورة..." class="search-input" style="width: 100%;">
+                    </div>
                 </div>
                 <div class="table-container">
                     <table class="data-table" id="branch1SalesRecordTable">
@@ -266,7 +268,7 @@ function loadExpensesSection() {
                     </table>
                 </div>
                 <div id="branch1SalesRecordEmpty" class="empty-state" style="display: none; text-align: center; padding: 24px; color: var(--text-light);">لا توجد فواتير مبيعات في الفترة المحددة.</div>
-                <div id="branch1SalesRecordPagination" class="pagination" style="margin-top: 12px;"></div>
+                <div class="pagination" id="branch1SalesRecordPagination" style="margin-top: 12px;"></div>
             </div>` : ''}
         </div>
 
@@ -4331,17 +4333,32 @@ function renderTreasurySalesRecordTable(branchNum) {
     tbody.innerHTML = '';
     tbody.appendChild(fragment);
 
-    if (paginationEl) {
-        let paginationHtml = '<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: center; padding: 8px 0;">';
-        paginationHtml += '<span style="color: var(--text-light); font-size: 0.9em;">صفحة ' + page + ' من ' + totalPages + ' (إجمالي ' + total + ' فاتورة)</span>';
-        if (page > 1) {
-            paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page - 1) + ')"><i class="bi bi-chevron-right"></i> السابق</button>';
+    if (paginationEl && totalPages > 1) {
+        if (typeof createPaginationButtons === 'function') {
+            createPaginationButtons(paginationEl, totalPages, page, function(newPage) {
+                treasurySalesRecordCurrentPage = newPage;
+                renderTreasurySalesRecordTable(1);
+            });
+        } else {
+            let paginationHtml = '<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: center;">';
+            if (page > 1) {
+                paginationHtml += '<button type="button" class="btn-pagination" onclick="treasurySalesRecordGoToPage(' + (page - 1) + ')">السابق</button>';
+            }
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= page - 2 && i <= page + 2)) {
+                    paginationHtml += '<button type="button" class="btn-pagination' + (i === page ? ' active' : '') + '" onclick="treasurySalesRecordGoToPage(' + i + ')">' + i + '</button>';
+                } else if (i === page - 3 || i === page + 3) {
+                    paginationHtml += '<span class="pagination-dots">...</span>';
+                }
+            }
+            if (page < totalPages) {
+                paginationHtml += '<button type="button" class="btn-pagination" onclick="treasurySalesRecordGoToPage(' + (page + 1) + ')">التالي</button>';
+            }
+            paginationHtml += '</div>';
+            paginationEl.innerHTML = paginationHtml;
         }
-        if (page < totalPages) {
-            paginationHtml += '<button type="button" class="btn btn-sm btn-secondary" onclick="treasurySalesRecordGoToPage(' + (page + 1) + ')">التالي <i class="bi bi-chevron-left"></i></button>';
-        }
-        paginationHtml += '</div>';
-        paginationEl.innerHTML = paginationHtml;
+    } else if (paginationEl) {
+        paginationEl.innerHTML = '';
     }
 }
 
