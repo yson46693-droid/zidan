@@ -37,8 +37,13 @@ function loadExpensesSection() {
     }
     
     const currentUser = getCurrentUser();
-    const isOwner = currentUser && (currentUser.is_owner === true || currentUser.is_owner === 'true' || currentUser.role === 'admin' || currentUser.role === 'owner');
-    const isManager = currentUser && (currentUser.role === 'manager');
+    const isOwner = currentUser && (
+        currentUser.is_owner === true || currentUser.is_owner === 'true' ||
+        currentUser.is_owner === 1 || currentUser.is_owner === '1' ||
+        (String(currentUser.role || '').toLowerCase() === 'admin') ||
+        (String(currentUser.role || '').toLowerCase() === 'owner')
+    );
+    const isManager = currentUser && (String(currentUser.role || '').toLowerCase() === 'manager');
     const isEmployee = currentUser && (currentUser.role === 'employee');
     
     // ✅ التحقق من أن الموظف مرتبط بالفرع الثاني
@@ -69,8 +74,9 @@ function loadExpensesSection() {
             if (sorted.length) firstBranchId = sorted[0].id;
         }
     } catch (e) { /* تجاهل */ }
-    const isManagerFirstBranch = isManager && currentUser && firstBranchId != null && String(currentUser.branch_id) === String(firstBranchId);
-    // سجل المبيعات يظهر للمالك فقط أو لمدير الفرع الأول (الهانوفيل) فقط
+    // عندما firstBranchId غير متوفر (الكاش فارغ) نُظهر سجل المبيعات لأي مدير؛ عند التوفر نُظهره لمدير الفرع الأول فقط
+    const isManagerFirstBranch = isManager && currentUser && (firstBranchId == null || String(currentUser.branch_id) === String(firstBranchId));
+    // سجل المبيعات يظهر للمالك أو لمدير الفرع (أو لجميع المديرين إذا لم يُحمّل فرع أول من الكاش)
     const showSalesRecordTable = isOwner || isManagerFirstBranch;
     
     // ✅ السماح لجميع المستخدمين باستخدام وظائف خزنة الفرع
