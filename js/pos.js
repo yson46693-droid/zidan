@@ -795,10 +795,12 @@ function openSparePartItemsModal(product) {
             });
         }
         
+        const isMotherboard = item.item_type === 'motherboard';
         return `
             <div class="spare-part-item-option" data-item-id="${item.id}" data-item-type="${item.item_type}" data-item-price="${itemPrice}" data-item-quantity="${itemQuantity}" data-serial-number="${serialNumber}">
                 <div class="spare-part-item-info">
-                    <div class="spare-part-item-name">${itemTypeName}${serialNumber ? ` <span style="color: #666; font-size: 0.9em;">(SN: ${serialNumber})</span>` : ''}</div>
+                    <div class="spare-part-item-name">${itemTypeName}</div>
+                    ${isMotherboard && serialNumber ? `<div class="spare-part-serial-badge"><i class="bi bi-upc-scan"></i> S/N: ${serialNumber}</div>` : ''}
                     <div class="spare-part-item-details">
                         <span class="spare-part-item-price"><strong>${formatPrice(itemPrice)} ج.م</strong></span>
                         <span class="spare-part-item-stock">المتاح: ${itemQuantity}</span>

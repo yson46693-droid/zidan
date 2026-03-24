@@ -3996,6 +3996,22 @@
     font-size: 1em;
 }
 
+.spare-part-serial-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc80;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.82em;
+    font-weight: 600;
+    font-family: monospace;
+    margin: 4px 0;
+    width: fit-content;
+}
+
 .spare-part-item-details {
     display: flex;
     gap: 15px;
