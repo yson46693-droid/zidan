@@ -3478,57 +3478,29 @@ async function saveRepair(event) {
             // ✅ تحديث allRepairs محلياً فوراً لعرض التغييرات بشكل لحظي
             const repairIndex = allRepairs.findIndex(r => String(r.id) === String(repairId));
             if (repairIndex !== -1) {
-                // تحديث العملية في allRepairs بالبيانات الجديدة
+                // تحديث جميع الحقول المرسلة مباشرة
                 const updatedRepair = { ...allRepairs[repairIndex] };
-                
-                // تحديث جميع الحقول المرسلة
-                if (repairData.status !== undefined) {
-                    updatedRepair.status = repairData.status;
-                    console.log('✅ [Repairs] تحديث الحالة محلياً:', repairData.status);
+                for (const key of Object.keys(repairData)) {
+                    if (key !== 'id' && key !== '_method' && key !== 'csrf_token' && key !== 'api_token') {
+                        updatedRepair[key] = repairData[key];
+                    }
                 }
-                if (repairData.customer_price !== undefined) {
-                    updatedRepair.customer_price = repairData.customer_price;
+
+                // إذا أرجع السيرفر بيانات محدثة، استخدمها
+                if (result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+                    for (const key of Object.keys(result.data)) {
+                        if (key !== 'csrf_token' && key !== 'api_token') {
+                            updatedRepair[key] = result.data[key];
+                        }
+                    }
                 }
-                if (repairData.repair_cost !== undefined) {
-                    updatedRepair.repair_cost = repairData.repair_cost;
-                }
-                if (repairData.paid_amount !== undefined) {
-                    updatedRepair.paid_amount = repairData.paid_amount;
-                }
-                if (repairData.remaining_amount !== undefined) {
-                    updatedRepair.remaining_amount = repairData.remaining_amount;
-                }
-                if (repairData.delivery_date !== undefined) {
-                    updatedRepair.delivery_date = repairData.delivery_date;
-                }
-                if (repairData.created_by !== undefined) {
-                    updatedRepair.created_by = repairData.created_by;
-                }
-                if (repairData.serial_number !== undefined) {
-                    updatedRepair.serial_number = repairData.serial_number;
-                }
-                if (repairData.inspection_report !== undefined) {
-                    updatedRepair.inspection_report = repairData.inspection_report;
-                }
-                if (repairData.inspection_cost !== undefined) {
-                    updatedRepair.inspection_cost = repairData.inspection_cost;
-                }
-                if (repairData.parts_store !== undefined) {
-                    updatedRepair.parts_store = repairData.parts_store;
-                }
-                if (repairData.spare_parts_invoices !== undefined) {
-                    updatedRepair.spare_parts_invoices = repairData.spare_parts_invoices;
-                }
-                
-                // استبدال العملية المحدثة في المصفوفة
+
                 allRepairs[repairIndex] = updatedRepair;
                 console.log('✅ [Repairs] تم تحديث العملية في allRepairs، الحالة الجديدة:', updatedRepair.status);
-                
+
                 // ✅ تحديث الجدول فوراً لعرض التغييرات
                 filterRepairs();
-                console.log('✅ [Repairs] تم استدعاء filterRepairs() لتحديث الجدول');
             } else {
-                console.warn('⚠️ [Repairs] لم يتم العثور على العملية في allRepairs، سيتم إعادة تحميل البيانات');
                 // إذا لم يتم العثور على العملية، إعادة تحميل البيانات
                 isLoadingRepairs = false;
                 lastRepairsLoadTime = 0;
@@ -3543,12 +3515,13 @@ async function saveRepair(event) {
                 console.log('✅ [Repairs] تم مسح cache بعد التعديل');
             }
             
-            // ✅ إعادة تعيين flags للتحميل للسماح بإعادة التحميل عند الحاجة
+            // ✅ إعادة تعيين flags وتحميل البيانات من السيرفر في الخلفية
             isLoadingRepairs = false;
             lastRepairsLoadTime = 0;
-            
-            // ✅ إذا كانت العملية ملغاة وتم إدخال inspection_cost، سيتم إخفاء زر التعديل تلقائياً
-            // لأن canEdit سيتحقق من وجود inspection_cost في loadRepairs
+            // تحميل البيانات من السيرفر في الخلفية لضمان التزامن
+            setTimeout(() => {
+                loadRepairs(true).catch(e => console.warn('⚠️ فشل التحميل في الخلفية:', e));
+            }, 1000);
             
             // ✅ طلب التقييم إذا تم تغيير الحالة إلى "delivered" أو "cancelled"
             if (shouldRequestRating && currentRepairForRating && currentRepairForRating.customer_id) {

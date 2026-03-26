@@ -496,7 +496,7 @@ const API = {
     },
 
     async checkAuth(silent = false) {
-        const options = silent ? { silent: true } : {};
+        const options = silent ? { silent: true, skipCache: true } : { skipCache: true };
         const result = await this.request('auth.php', 'GET', null, options);
         this.updateTokens(result);
         return result;
