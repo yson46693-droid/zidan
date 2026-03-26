@@ -3515,13 +3515,10 @@ async function saveRepair(event) {
                 console.log('✅ [Repairs] تم مسح cache بعد التعديل');
             }
             
-            // ✅ إعادة تعيين flags وتحميل البيانات من السيرفر في الخلفية
+            // ✅ إعادة تعيين flags للسماح بإعادة التحميل عند الحاجة (بدون تحميل فوري)
+            // التحديث المحلي كافي والـ cache تم مسحه، التحميل القادم سيجلب بيانات جديدة
             isLoadingRepairs = false;
             lastRepairsLoadTime = 0;
-            // تحميل البيانات من السيرفر في الخلفية لضمان التزامن
-            setTimeout(() => {
-                loadRepairs(true).catch(e => console.warn('⚠️ فشل التحميل في الخلفية:', e));
-            }, 1000);
             
             // ✅ طلب التقييم إذا تم تغيير الحالة إلى "delivered" أو "cancelled"
             if (shouldRequestRating && currentRepairForRating && currentRepairForRating.customer_id) {
