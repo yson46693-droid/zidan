@@ -65,11 +65,20 @@ const API = {
     
     // دالة لتحديث Tokens من الاستجابة
     updateTokens(response) {
-        if (response && response.data) {
-            if (response.data.csrf_token) {
+        if (!response) return;
+        // قراءة tokens من المستوى الأعلى للاستجابة (الأولوية)
+        if (response.csrf_token) {
+            this.csrfToken = response.csrf_token;
+        }
+        if (response.api_token) {
+            this.apiToken = response.api_token;
+        }
+        // fallback: قراءة من data (للتوافق مع auth.php)
+        if (response.data) {
+            if (response.data.csrf_token && !response.csrf_token) {
                 this.csrfToken = response.data.csrf_token;
             }
-            if (response.data.api_token) {
+            if (response.data.api_token && !response.api_token) {
                 this.apiToken = response.data.api_token;
             }
         }
@@ -379,9 +388,7 @@ const API = {
             }
             
             // ✅ تحديث Tokens بعد استلام الاستجابة
-            if (result && result.data) {
-                this.updateTokens(result);
-            }
+            this.updateTokens(result);
             
             return result;
             } catch (error) {

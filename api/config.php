@@ -462,36 +462,22 @@ function response($success, $message = '', $data = null, $code = 200) {
         error_log("Warning: Headers already sent in $file on line $line");
     }
     
-    // ✅ إرسال tokens جديدة مع كل استجابة ناجحة لضمان عدم انتهاء صلاحيتها
-    if ($success && session_status() !== PHP_SESSION_NONE && isset($_SESSION['user_id'])) {
-        if ($data === null) {
-            $data = [];
-        } elseif (!is_array($data)) {
-            $data = ['result' => $data];
-        }
-        // إرسال CSRF token (ثابت طوال الجلسة)
-        $data['csrf_token'] = generateCSRFToken();
-        // إرسال API token جديد دائماً
-        $data['api_token'] = generateAPIRequestToken();
-        // مسح أي token محفوظ في الجلسة
-        unset($_SESSION['new_api_token']);
-    } elseif (session_status() !== PHP_SESSION_NONE && isset($_SESSION['new_api_token'])) {
-        // للاستجابات الفاشلة: إرسال token جديد إذا تم توليده تلقائياً
-        if ($data === null) {
-            $data = [];
-        } elseif (!is_array($data)) {
-            $data = ['result' => $data];
-        }
-        $data['csrf_token'] = generateCSRFToken();
-        $data['api_token'] = $_SESSION['new_api_token'];
+    // مسح أي token محفوظ في الجلسة
+    if (session_status() !== PHP_SESSION_NONE && isset($_SESSION['new_api_token'])) {
         unset($_SESSION['new_api_token']);
     }
-    
+
     $response = [
         'success' => (bool)$success,
         'message' => (string)$message,
         'data' => $data
     ];
+
+    // ✅ إرسال tokens جديدة على مستوى الاستجابة (وليس داخل data) لعدم إفساد بنية البيانات
+    if (session_status() !== PHP_SESSION_NONE && isset($_SESSION['user_id'])) {
+        $response['csrf_token'] = generateCSRFToken();
+        $response['api_token'] = generateAPIRequestToken();
+    }
     
     // في وضع التطوير، أضف معلومات إضافية
     if (defined('DEBUG_MODE') && DEBUG_MODE) {
